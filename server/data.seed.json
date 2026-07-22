@@ -1,0 +1,31 @@
+{
+  "users": {
+    "you": {
+      "id": "you", "name": "YOU", "role": "ROOKIE", "phone": "", "consentToDrills": true,
+      "level": 4, "xp": 890, "xpMax": 1200, "streak": 3, "timesSafe": 12, "timesScammed": 2,
+      "primaryColor": "#00ff88", "badgeCount": 2, "badgeTotal": 9,
+      "roomName": "YOUR ROOM", "roomBg": "#0c1a10", "safeThisWeek": true, "recentDrillResult": "WON"
+    },
+    "grandma": {
+      "id": "grandma", "name": "GRANDMA", "role": "ELDER GUARDIAN", "phone": "", "consentToDrills": true,
+      "level": 12, "xp": 3800, "xpMax": 4000, "streak": 24, "timesSafe": 89, "timesScammed": 1,
+      "primaryColor": "#c77dff", "badgeCount": 7, "badgeTotal": 9,
+      "roomName": "GRANDMA'S ROOM", "roomBg": "#100c20", "safeThisWeek": true, "recentDrillResult": "WON"
+    },
+    "mum": {
+      "id": "mum", "name": "MUM", "role": "SHIELD BEARER", "phone": "", "consentToDrills": true,
+      "level": 9, "xp": 2100, "xpMax": 2500, "streak": 16, "timesSafe": 67, "timesScammed": 2,
+      "primaryColor": "#00ff88", "badgeCount": 5, "badgeTotal": 9,
+      "roomName": "MUM'S ROOM", "roomBg": "#0c1a10", "safeThisWeek": true, "recentDrillResult": "WON"
+    },
+    "dad": {
+      "id": "dad", "name": "DAD", "role": "ROOKIE", "phone": "", "consentToDrills": true,
+      "level": 4, "xp": 890, "xpMax": 1200, "streak": 0, "timesSafe": 23, "timesScammed": 7,
+      "primaryColor": "#4ecdc4", "badgeCount": 2, "badgeTotal": 9,
+      "roomName": "DAD'S ROOM", "roomBg": "#081420", "safeThisWeek": false, "recentDrillResult": "LOST"
+    }
+  },
+  "pendingResults": {},
+  "drills": [],
+  "consentEvents": []
+}

@@ -1,0 +1,4 @@
+python-telegram-bot[job-queue]>=21.0
+python-dotenv
+openai>=1.0
+# reka-api>=3.0   # optional alternative LLM provider

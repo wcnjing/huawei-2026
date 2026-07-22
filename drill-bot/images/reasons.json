@@ -1,0 +1,6 @@
+{
+  "_comment": "Optional. Map an image filename to the explanation shown after the user answers. If a file isn't listed here, a sensible default reason is used. Filenames are case-sensitive.",
+  "example_bank_sms.png": "Real banks never ask for your OTP or PIN, and never freeze a card on a countdown. Both are pressure tactics.",
+  "example_gov_legit.png": "Genuine: it links to an official .gov.sg site, uses Singpass, and asks for nothing sensitive.",
+  "ocbc_sms_example.png": "Real OCBC smishing style. OCBC never SMSes a link to re-verify or reactivate an account — and the domain 'ocbc.com-verify-sg.secure-login.net' is NOT ocbc.com. Account issues come by letter."
+}

@@ -1,0 +1,44 @@
+# systemd unit for the SafeSpace backend on a Huawei Cloud ECS instance.
+#   sudo cp deploy/safespace.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now safespace
+#
+# Runs as an unprivileged user on port 3000; nginx terminates TLS in front of it.
+
+[Unit]
+Description=SafeSpace drill backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=safespace
+Group=safespace
+WorkingDirectory=/opt/safespace
+
+# .env is read by the app itself (node --env-file-if-exists), so it is NOT listed
+# here — that keeps secrets out of `systemctl show`.
+ExecStart=/usr/bin/node --env-file-if-exists=.env server/index.js
+
+Restart=always
+RestartSec=3
+
+# Never let a crash loop spin forever unnoticed.
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+# Hardening. The app only ever writes server/data.json.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/safespace/server
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=safespace
+
+[Install]
+WantedBy=multi-user.target

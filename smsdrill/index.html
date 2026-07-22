@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scam Drill Simulator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <h1>🛡️ Scam Drill Training</h1>
+            <p id="game-instructions">Select an unread message from your inbox to begin.</p>
+        </header>
+
+        <main id="drill-box">
+            <div class="simulation-card">
+                
+                <div id="inbox-view" class="view-panel">
+                    <div class="inbox-header">
+                        <h2>Messages</h2>
+                    </div>
+                    <div class="inbox-list">
+                        <div class="inbox-row safe-item" onclick="selectInboxMessage('mom')">
+                            <div class="avatar">👩</div>
+                            <div class="msg-preview">
+                                <div class="msg-meta"><span class="msg-sender">Mom</span><span class="msg-time">10:42 AM</span></div>
+                                <p class="msg-snippet">Hi sweetie, don't forget to grab milk on your way home today!...</p>
+                            </div>
+                        </div>
+                        <div class="inbox-row unread" onclick="selectInboxMessage('bank')">
+                            <div class="avatar">🏦</div>
+                            <div class="msg-preview">
+                                <div class="msg-meta"><span class="msg-sender">CHASE-ALERT</span><span class="msg-time">09:15 AM</span></div>
+                                <p class="msg-snippet">🔒 Security Notice: Suspicious sign-in detected. Lock active. Update details now...</p>
+                            </div>
+                        </div>
+                        <div class="inbox-row unread" onclick="selectInboxMessage('usps')">
+                            <div class="avatar">📦</div>
+                            <div class="msg-preview">
+                                <div class="msg-meta"><span class="msg-sender">USPS-Redelivery</span><span class="msg-time">Yesterday</span></div>
+                                <p class="msg-snippet">⚠️ WARNING: Package delivery address mismatch. Action required immediately...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="chat-view" class="view-panel hidden">
+                    <div class="card-header">
+                        <div class="header-navigation">
+                            <button class="btn-back" onclick="handleChoice('ignore')">◀ Messages</button>
+                            <button class="btn-action-top" onclick="handleChoice('block')">🚫 Block</button>
+                        </div>
+                        <div class="sender-info">
+                            <span id="scam-sender" class="sender-value">Loading...</span>
+                        </div>
+                    </div>
+                    
+                    <div class="card-body">
+                        <div id="scam-message-bubble" class="chat-bubble">
+                            </div>
+                        
+                        <div id="inspector-hint" class="inspector-banner hidden">
+                            🔍 Click on the highlighted red flags above to learn why they are dangerous.
+                        </div>
+                    </div>
+
+                    <div class="mock-input-bar">
+                        <div class="mock-input-field">Text Message</div>
+                    </div>
+                </div>
+
+                <div id="feedback-section" class="feedback-card hidden">
+                    <h3 id="feedback-title">Result</h3>
+                    <p id="feedback-text"></p>
+                    <button id="action-panel-btn" class="btn-next" onclick="resetToInbox()">Back to Inbox ➡️</button>
+                </div>
+
+            </div>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
