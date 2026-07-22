@@ -100,7 +100,6 @@ interface AppSettings {
   drillFrequency: string;
   familyDrillEnabled: boolean;
   notificationsEnabled: boolean;
-  soundEnabled: boolean;
   difficulty: string;
   includeSafeMessages: boolean;
   autoExplain: boolean;
@@ -1157,9 +1156,7 @@ function PixelBtn({
   const txt = size === "lg" ? "text-[10px]" : size === "sm" ? "text-[7px]" : "text-[8px]";
   return (
     <button
-      // Hooked here rather than at 60 call sites, so every button clicks. Disabled
-      // buttons never reach onClick, so they stay silent for free.
-      onClick={onClick ? () => { playSfx("press"); onClick(); } : undefined}
+      onClick={onClick}
       disabled={disabled}
       onMouseDown={() => setPressed(true)}
       onMouseUp={() => setPressed(false)}
@@ -1304,7 +1301,19 @@ function PhoneFrame({ children }: { children: React.ReactNode }) {
       className="flex items-center justify-center w-full bg-[#05080f]"
       style={{ height: compact ? "100dvh" : undefined, minHeight: compact ? undefined : "100vh" }}
     >
-      <div className="relative overflow-hidden flex flex-col" style={inner}>
+      {/* One delegated listener instead of wiring sound into a button component.
+          PixelBtn is only one of the app's button *looks* — there are ~59 raw <button>
+          elements too, including the bottom nav and the call accept/decline, which is
+          most of what anyone actually presses. Capture phase so a handler that stops
+          propagation can't silence the click. */}
+      <div
+        className="relative overflow-hidden flex flex-col"
+        style={inner}
+        onClickCapture={(e) => {
+          const el = (e.target as HTMLElement | null)?.closest?.("button");
+          if (el && !(el as HTMLButtonElement).disabled) playSfx("press");
+        }}
+      >
         {children}
       </div>
     </div>
@@ -5080,6 +5089,11 @@ function FamilySummaryScreen({ answers, onPlayAgain, onIndividual, onHome }: {
 // SETTINGS
 // ─────────────────────────────────────────────────────────────────────────
 function SettingsScreen({ settings, onSettings, onNav }: { settings: AppSettings; onSettings: (s: Partial<AppSettings>) => void; onNav: (screen: string) => void }) {
+  // Sound is NOT part of AppSettings: the audio module already persists it in
+  // localStorage, and mirroring it here would mean two owners of one fact that a
+  // future settings-reset would have to remember to keep in sync. Seeded from the
+  // persisted value on mount, so it is always in step with what you'll actually hear.
+  const [soundOn, setSoundOn] = useState(() => !isMuted());
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
   const toggleAccordion = (key: string) => setOpenAccordion((prev) => (prev === key ? null : key));
 
@@ -5125,7 +5139,7 @@ function SettingsScreen({ settings, onSettings, onNav }: { settings: AppSettings
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", backgroundColor: "#111827", border: "3px solid #2a3a5c", marginBottom: 28 }}>
           <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 8, color: "#e8f4f8" }}>SOUND</div>
-          <ToggleSwitchB on={settings.soundEnabled} onToggle={() => onSettings({ soundEnabled: !settings.soundEnabled })} color="#00ff88" />
+          <ToggleSwitchB on={soundOn} onToggle={() => { setMuted(soundOn); setSoundOn(!soundOn); }} color="#00ff88" />
         </div>
 
         <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 9, color: "#ffe66d", marginBottom: 14 }}>ACCOUNT</div>
@@ -5912,6 +5926,44 @@ function BottomNav({ activeTab, onTab, onDrillSelect }: { activeTab: Tab; onTab:
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// ROUTE GROUPS
+// ─────────────────────────────────────────────────────────────────────────
+// Module scope, not inside App(): these are constant, and rebuilding them on every
+// render allocated fresh arrays for no reason.
+
+const FAMILY_DRILL_SCREENS: Screen[] = ["family-round"];
+
+// Every screen belonging to a drill flow.
+//
+// This list previously had no consumer at all — `isDrillFlow` was computed from it and
+// then never used — which is why three drill screens had gone missing from it without
+// anyone noticing. It now backs MUSIC_SILENT_SCREENS below, so it has to stay honest.
+const DRILL_SCREENS: Screen[] = [
+  "drill-select", "incoming", "call",
+  "sms-inbox", "sms-thread", "sms-browser",
+  "email-inbox", "email-detail", "email-browser", "email-download",
+  "realistic-phone-intro", "telegram-intro", "realistic-email-intro",
+  "result-win", "result-lose",
+  ...FAMILY_DRILL_SCREENS, "family-answer",
+];
+
+// Drill screens that are NOT a live simulation, so music should keep playing:
+// the picker, and the two result screens where the win fanfare belongs.
+const MUSIC_OK_DURING_DRILL: Screen[] = ["drill-select", "result-win", "result-lose"];
+
+// Screens where a scam is actively being simulated, and music must NOT play: the
+// premise is that the scam feels real, and a chiptune loop under an incoming call
+// destroys that instantly. The drop to silence reads as tension, not as a bug.
+//
+// Derived rather than hand-listed. A new scam screen has to be added to DRILL_SCREENS
+// for layout anyway, and now that is the only place it must be remembered — a second
+// parallel list would eventually disagree, and the failure mode is music playing over
+// a fake scam call, which you only notice by ear, in front of an audience.
+const MUSIC_SILENT_SCREENS: Screen[] = DRILL_SCREENS.filter(
+  (s) => !MUSIC_OK_DURING_DRILL.includes(s),
+);
+
+// ─────────────────────────────────────────────────────────────────────────
 // ROOT
 // ─────────────────────────────────────────────────────────────────────────
 export default function App() {
@@ -5930,9 +5982,6 @@ export default function App() {
     drillFrequency: "recurring",
     familyDrillEnabled: true,
     notificationsEnabled: true,
-    // Seeded from the persisted mute so the toggle matches what you'll actually hear
-    // after a reload. AppSettings itself isn't persisted; the audio module owns this.
-    soundEnabled: !isMuted(),
     difficulty: "Normal",
     includeSafeMessages: true,
     autoExplain: true,
@@ -6153,47 +6202,22 @@ export default function App() {
     emitNotifPayday();
   };
 
-  const FAMILY_DRILL_SCREENS: Screen[] = ["family-round"];
-  const DRILL_SCREENS: Screen[] = ["drill-select", "incoming", "call", "sms-inbox", "sms-thread", "sms-browser", "email-inbox", "email-detail", "email-browser", "email-download", "result-win", "result-lose", ...FAMILY_DRILL_SCREENS];
   const FULLSCREEN_ROUTES: Screen[] = ["customize", "family-chat", "payday"];
 
   const SUB_PAGE_ROUTES: Screen[] = ["account-settings", "privacy-settings", "accessibility-settings", "about-settings", "profile-edit", "avatar-customisation", "family-drill-intro", "family-summary"];
 
-  // Screens where a scam is actively being simulated, and music must NOT play: the
-  // premise is that the scam feels real, and a chiptune loop under an incoming call
-  // destroys that instantly. The drop to silence reads as tension, not as a bug.
-  //
-  // Deliberately NOT the same set as DRILL_SCREENS above, which drives layout chrome.
-  // This one omits `drill-select` (a menu) and both result screens (where the win
-  // fanfare plays and the loop should come back), and adds the realism intros.
-  const MUSIC_SILENT_SCREENS: Screen[] = [
-    "incoming", "call",
-    "sms-inbox", "sms-thread", "sms-browser",
-    "email-inbox", "email-detail", "email-browser", "email-download",
-    "realistic-phone-intro", "telegram-intro", "realistic-email-intro",
-    "family-round", "family-answer",
-  ];
-
   // --- Audio ---------------------------------------------------------------
-  // All no-ops until unlock() has run from a real click (PRESS START); browsers refuse
-  // to start audio without a user gesture.
-
+  // No-ops until unlock() has run from a real click (PRESS START); browsers refuse to
+  // start audio without a user gesture.
   useEffect(() => {
     setMusicEnabled(!MUSIC_SILENT_SCREENS.includes(screen));
-  }, [screen]);
 
-  // Stings on arrival at the screens that carry emotional weight.
-  useEffect(() => {
+    // Stings on arrival at the screens that carry emotional weight.
     if (screen === "incoming") playSfx("incoming");
     else if (screen === "result-win") playSfx("win");
     else if (screen === "result-lose") playSfx("lose");
   }, [screen]);
 
-  useEffect(() => {
-    setMuted(!settings.soundEnabled);
-  }, [settings.soundEnabled]);
-
-  const isDrillFlow = DRILL_SCREENS.includes(screen);
   const isTitle = screen === "title";
   const isFullscreen = FULLSCREEN_ROUTES.includes(screen);
   const isSubPage = SUB_PAGE_ROUTES.includes(screen);

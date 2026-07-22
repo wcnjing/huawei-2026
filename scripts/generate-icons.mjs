@@ -10,7 +10,7 @@
 // No image library: PNG is simple enough to emit directly (zlib is built in),
 // and adding sharp for four small files is not worth the install.
 
-import { deflateSync } from "node:zlib";
+import { deflateSync, crc32 } from "node:zlib";
 import { writeFileSync, mkdirSync } from "node:fs";
 
 const GRID = 32;
@@ -18,18 +18,6 @@ const BG = [0x0a, 0x0e, 0x1a, 0xff]; // --background
 const FG = [0x00, 0xff, 0x88, 0xff]; // --primary
 
 // --- PNG encoding -----------------------------------------------------------
-
-const CRC_TABLE = Int32Array.from({ length: 256 }, (_, n) => {
-  let c = n;
-  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-  return c;
-});
-
-function crc32(buf) {
-  let c = 0xffffffff;
-  for (const b of buf) c = CRC_TABLE[(c ^ b) & 0xff] ^ (c >>> 8);
-  return (c ^ 0xffffffff) >>> 0;
-}
 
 function chunk(type, data) {
   const head = Buffer.alloc(8);
@@ -157,7 +145,6 @@ const files = [
 ];
 
 for (const [path, grid, size] of files) {
-  if (size % GRID !== 0) throw new Error(`${size} is not a multiple of ${GRID}`);
   writeFileSync(path, render(grid, size));
   console.log(`wrote ${path} (${size}x${size})`);
 }

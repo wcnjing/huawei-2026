@@ -46,7 +46,18 @@ const VERSION_KEY = 'safespace:db:version';
 const redisUrl = () => process.env.UPSTASH_REDIS_REST_URL;
 const usingRedis = () => Boolean(redisUrl());
 
-const readSeed = () => JSON.parse(fs.readFileSync(SEED_FILE, 'utf-8'));
+// Read from disk once per process. Until the store has been written to, EVERY request
+// falls back to the seed, so without this each one paid a synchronous disk read inside
+// the request path — on a serverless host, in the handler.
+//
+// The raw TEXT is cached rather than the parsed object, and re-parsed per call on
+// purpose: callers mutate the document they are handed, so they each need their own
+// copy. Parsing is the cheap half; the disk hit was the expensive one.
+let seedText = null;
+function readSeed() {
+  if (seedText === null) seedText = fs.readFileSync(SEED_FILE, 'utf-8');
+  return JSON.parse(seedText);
+}
 
 // --- File backend -----------------------------------------------------------
 
@@ -121,16 +132,30 @@ async function readDb() {
 }
 
 /**
+ * Returned by a `mutate` callback that decided nothing needs changing — the write is
+ * then skipped entirely, so a read-only outcome costs a read rather than a round trip
+ * plus a write.
+ */
+const UNCHANGED = Symbol('store.unchanged');
+
+/**
  * Read the document, apply `fn` to it, and save it back — retrying if a concurrent
  * writer got there first. `fn` must be pure enough to run more than once: it may be
- * replayed against a fresher copy of the document.
+ * replayed against a fresher copy of the document. Return `UNCHANGED` from `fn` to
+ * skip the write.
  */
 async function mutate(fn) {
   for (let attempt = 0; attempt < 5; attempt++) {
     const { db, version } = await readDb();
     const result = fn(db);
+    if (result === UNCHANGED) return null;
+
     const saved = usingRedis() ? await redisWrite(db, version) : fileWrite(db);
     if (saved) return result;
+
+    // Retry immediately and every writer that just collided retries in lockstep,
+    // colliding again. A little jittered backoff spreads them out.
+    await new Promise((r) => setTimeout(r, 10 * (attempt + 1) + Math.random() * 15));
   }
   throw new Error('store: gave up after 5 attempts, too many concurrent writers');
 }
@@ -211,14 +236,13 @@ export async function applyOutcome({ userId, outcome, channel = 'call', practice
 }
 
 export async function takePendingResult(userId) {
-  // Checked before entering `mutate` so the common case — app opens, nothing waiting —
-  // costs a read instead of a write. This runs on every app open.
-  const { db } = await readDb();
-  if (!db.pendingResults?.[userId]) return null;
-
-  return mutate((d) => {
-    const pending = d.pendingResults[userId] || null;
-    if (pending) delete d.pendingResults[userId];
+  // Runs on every app open, and usually finds nothing. Signalling UNCHANGED keeps that
+  // common case at a single read — checking first and *then* calling mutate would just
+  // read the document twice, since mutate reads it again anyway.
+  return mutate((db) => {
+    const pending = db.pendingResults?.[userId];
+    if (!pending) return UNCHANGED;
+    delete db.pendingResults[userId];
     return pending;
   });
 }

@@ -16,7 +16,9 @@ const MUTE_KEY = 'safespace.muted';
 
 // 8th notes at 112 BPM.
 const STEP_SECONDS = 60 / 112 / 2;
-const LOOKAHEAD_MS = 25;      // how often the scheduler wakes
+// The scheduler only needs to wake often enough to stay ahead of SCHEDULE_AHEAD; at
+// ~3.7 steps/sec, 50ms still leaves a wide margin and halves the timer wakeups.
+const LOOKAHEAD_MS = 50;      // how often the scheduler wakes
 const SCHEDULE_AHEAD = 0.12;  // how far ahead it queues notes, in seconds
 
 /** MIDI note number -> frequency in Hz. */
@@ -36,12 +38,17 @@ const ARP: (number | null)[] = [
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
 let musicBus: GainNode | null = null;
+// One second of white noise, generated once and re-used by every hi-hat and thud.
+// Building a fresh buffer per hit meant ~2,700 Math.random() calls and ~11 KB of
+// garbage every second the music played.
+let noiseBuffer: AudioBuffer | null = null;
 
 let muted = false;
 let musicWanted = false;   // does the current screen want music?
-let musicRunning = false;
 let step = 0;
 let nextNoteTime = 0;
+// Doubles as "is the music running?" — there is no state where a live timer and a
+// stopped loop can disagree, so a separate flag would only be a thing to keep in sync.
 let timer: number | null = null;
 
 // --- Setup ------------------------------------------------------------------
@@ -73,6 +80,11 @@ export function unlock(): void {
     musicBus = ctx.createGain();
     musicBus.gain.value = 0;
     musicBus.connect(master);
+
+    const frames = ctx.sampleRate; // 1s, longer than any hit we take from it
+    noiseBuffer = ctx.createBuffer(1, frames, ctx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < frames; i++) data[i] = Math.random() * 2 - 1;
   }
   // Safari suspends the context when the tab is backgrounded, so resume every time
   // rather than only on creation.
@@ -108,12 +120,15 @@ export function setMuted(next: boolean): void {
 
 type Wave = OscillatorType;
 
-/** A single enveloped tone. `slide` bends the pitch over the note's life. */
+/**
+ * A single enveloped tone. `slide` bends the pitch over the note's life; `dest` routes
+ * it somewhere other than the master bus (the music loop uses this to stay duckable).
+ */
 function tone(
   startAt: number,
   freq: number,
   duration: number,
-  { wave = 'square' as Wave, gain = 0.3, slide = 0 } = {},
+  { wave = 'square' as Wave, gain = 0.3, slide = 0, dest = null as GainNode | null } = {},
 ) {
   if (!ctx || !master) return;
   const osc = ctx.createOscillator();
@@ -128,21 +143,16 @@ function tone(
   env.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
 
   osc.connect(env);
-  env.connect(master);
+  env.connect(dest ?? master);
   osc.start(startAt);
   osc.stop(startAt + duration + 0.02);
 }
 
 /** Short burst of filtered noise — used for hats and the "lose" thud. */
 function noise(startAt: number, duration: number, gain = 0.15, hpHz = 6000) {
-  if (!ctx || !master) return;
-  const frames = Math.max(1, Math.floor(ctx.sampleRate * duration));
-  const buffer = ctx.createBuffer(1, frames, ctx.sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let i = 0; i < frames; i++) data[i] = Math.random() * 2 - 1;
-
+  if (!ctx || !master || !noiseBuffer) return;
   const src = ctx.createBufferSource();
-  src.buffer = buffer;
+  src.buffer = noiseBuffer;
   const hp = ctx.createBiquadFilter();
   hp.type = 'highpass';
   hp.frequency.value = hpHz;
@@ -202,24 +212,14 @@ function scheduleStep(atTime: number) {
   const bass = BASS[step % BASS.length];
   const arp = ARP[step % ARP.length];
 
-  // Music routes through musicBus (not master directly) so it can duck independently
-  // of sound effects.
-  const via = (freq: number, dur: number, wave: Wave, gain: number) => {
-    const osc = ctx!.createOscillator();
-    const env = ctx!.createGain();
-    osc.type = wave;
-    osc.frequency.setValueAtTime(freq, atTime);
-    env.gain.setValueAtTime(0.0001, atTime);
-    env.gain.exponentialRampToValueAtTime(gain, atTime + 0.01);
-    env.gain.exponentialRampToValueAtTime(0.0001, atTime + dur);
-    osc.connect(env);
-    env.connect(musicBus!);
-    osc.start(atTime);
-    osc.stop(atTime + dur + 0.02);
-  };
-
-  if (bass !== null) via(hz(bass), STEP_SECONDS * 1.6, 'square', 0.22);
-  if (arp !== null) via(hz(arp), STEP_SECONDS * 0.7, 'triangle', 0.13);
+  // Routed to musicBus rather than master so the loop can fade independently of
+  // sound effects.
+  if (bass !== null) {
+    tone(atTime, hz(bass), STEP_SECONDS * 1.6, { wave: 'square', gain: 0.22, dest: musicBus });
+  }
+  if (arp !== null) {
+    tone(atTime, hz(arp), STEP_SECONDS * 0.7, { wave: 'triangle', gain: 0.13, dest: musicBus });
+  }
   if (step % 2 === 1) noise(atTime, 0.03, 0.04, 8000);
 
   step += 1;
@@ -239,8 +239,7 @@ function startMusic() {
   // `muted` is checked here, not only in setMuted: a screen change calls this directly,
   // so without the guard, muting and then navigating restarts the scheduler behind a
   // silent master gain.
-  if (!ctx || !musicBus || musicRunning || muted) return;
-  musicRunning = true;
+  if (!ctx || !musicBus || timer !== null || muted) return;
   step = 0;
   nextNoteTime = ctx.currentTime + 0.1;
   musicBus.gain.cancelScheduledValues(ctx.currentTime);
@@ -251,7 +250,6 @@ function startMusic() {
 
 function stopMusic() {
   if (!ctx || !musicBus) return;
-  musicRunning = false;
   musicBus.gain.cancelScheduledValues(ctx.currentTime);
   musicBus.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.15); // fade out
   if (timer !== null) {
@@ -269,8 +267,4 @@ export function setMusicEnabled(on: boolean): void {
   if (!ctx) return;
   if (on) startMusic();
   else stopMusic();
-}
-
-export function isMusicWanted(): boolean {
-  return musicWanted;
 }
