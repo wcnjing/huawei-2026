@@ -30,6 +30,29 @@ function markTutorialSeen() {
   try { localStorage.setItem(TUTORIAL_KEY, "1"); } catch { /* private mode: show it again, harmless */ }
 }
 
+// Player profile — name + avatar customisation. Persisted locally (this is cosmetic
+// and never leaves the device), so it survives reloads without a backend round trip.
+// Defaults reproduce the original hardcoded look.
+export interface AvatarConfig { color: string; glow: string; hat: string; eyes: string; outfit: string; }
+export interface PlayerProfile { name: string; avatar: AvatarConfig; }
+const PROFILE_KEY = "safespace_profile";
+const DEFAULT_PROFILE: PlayerProfile = {
+  name: "PLAYER_001",
+  avatar: { color: "#4ecdc4", glow: "#00ff88", hat: "None", eyes: "Default", outfit: "Standard" },
+};
+function loadProfile(): PlayerProfile {
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY);
+    if (!raw) return DEFAULT_PROFILE;
+    const p = JSON.parse(raw);
+    // Merge over defaults so an older/partial stored shape can't leave a field undefined.
+    return { name: p.name || DEFAULT_PROFILE.name, avatar: { ...DEFAULT_PROFILE.avatar, ...(p.avatar || {}) } };
+  } catch { return DEFAULT_PROFILE; }
+}
+function saveProfile(p: PlayerProfile) {
+  try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch { /* private mode: not persisted */ }
+}
+
 async function apiGet<T>(path: string): Promise<T | null> {
   try {
     const r = await fetch(path, { headers: authHeaders() });
@@ -1013,7 +1036,22 @@ function WallpaperSwatch({ id }: { id: string }) {
 }
 
 // ── Pixel Mascot ──────────────────────────────────────────────────────────
-function PixelMascot({ size = 64, animate = false }: { size?: number; animate?: boolean }) {
+// Outfit → body/limb/accent colours. `Standard` reproduces the original mascot so
+// every existing call site (headers, home, etc.) is untouched when no outfit is passed.
+const MASCOT_OUTFITS: Record<string, { body: string; accent: string }> = {
+  Standard: { body: "#00ff88", accent: "#00ff88" },
+  Camo:     { body: "#5a7a3a", accent: "#3a5a2a" },
+  Neon:     { body: "#ff2d55", accent: "#c77dff" },
+  Stealth:  { body: "#2a3a5c", accent: "#4ecdc4" },
+};
+
+function PixelMascot({
+  size = 64, animate = false,
+  color = "#4ecdc4", hat = "None", eyes = "Default", outfit = "Standard",
+}: {
+  size?: number; animate?: boolean;
+  color?: string; hat?: string; eyes?: string; outfit?: string;
+}) {
   const [frame, setFrame] = useState(0);
   useEffect(() => {
     if (!animate) return;
@@ -1024,24 +1062,67 @@ function PixelMascot({ size = 64, animate = false }: { size?: number; animate?: 
   const s = size / 16;
   const px = (n: number) => n * s;
   const bodyY = frame === 0 ? 0 : s;
+  const fit = MASCOT_OUTFITS[outfit] ?? MASCOT_OUTFITS.Standard;
 
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ imageRendering: "pixelated" }}>
-      <rect x={px(4)} y={px(1)} width={px(8)} height={px(7)} fill="#4ecdc4" />
-      <rect x={px(5)} y={px(3)} width={px(2)} height={px(2)} fill="#0a0e1a" />
-      <rect x={px(9)} y={px(3)} width={px(2)} height={px(2)} fill="#0a0e1a" />
-      <rect x={px(6)} y={px(3)} width={px(1)} height={px(1)} fill="#ffffff" />
-      <rect x={px(10)} y={px(3)} width={px(1)} height={px(1)} fill="#ffffff" />
+      {/* Head + limbs take the chosen avatar colour. */}
+      <rect x={px(4)} y={px(1)} width={px(8)} height={px(7)} fill={color} />
+
+      {/* Eyes — Default draws the plain sockets; the others overlay a style. */}
+      {eyes === "Default" && (<>
+        <rect x={px(5)} y={px(3)} width={px(2)} height={px(2)} fill="#0a0e1a" />
+        <rect x={px(9)} y={px(3)} width={px(2)} height={px(2)} fill="#0a0e1a" />
+        <rect x={px(6)} y={px(3)} width={px(1)} height={px(1)} fill="#ffffff" />
+        <rect x={px(10)} y={px(3)} width={px(1)} height={px(1)} fill="#ffffff" />
+      </>)}
+      {eyes === "Shades" && (<>
+        <rect x={px(4)} y={px(3)} width={px(8)} height={px(2)} fill="#0a0e1a" />
+        <rect x={px(7)} y={px(3)} width={px(2)} height={px(1)} fill="#2a3a5c" />
+      </>)}
+      {eyes === "Visor" && (<>
+        <rect x={px(4)} y={px(3)} width={px(8)} height={px(2)} fill="#4ecdc4" opacity={0.75} />
+        <rect x={px(4)} y={px(3)} width={px(8)} height={px(1)} fill="#ffffff" opacity={0.4} />
+      </>)}
+      {eyes === "Goggles" && (<>
+        <rect x={px(4)} y={px(3)} width={px(8)} height={px(1)} fill="#ffe66d" />
+        <rect x={px(5)} y={px(3)} width={px(2)} height={px(2)} fill="#0a0e1a" />
+        <rect x={px(9)} y={px(3)} width={px(2)} height={px(2)} fill="#0a0e1a" />
+        <rect x={px(6)} y={px(4)} width={px(1)} height={px(1)} fill="#4ecdc4" />
+        <rect x={px(10)} y={px(4)} width={px(1)} height={px(1)} fill="#4ecdc4" />
+      </>)}
+
+      {/* Mouth */}
       <rect x={px(6)} y={px(6)} width={px(1)} height={px(1)} fill="#0a0e1a" />
       <rect x={px(7)} y={px(7)} width={px(2)} height={px(1)} fill="#0a0e1a" />
       <rect x={px(9)} y={px(6)} width={px(1)} height={px(1)} fill="#0a0e1a" />
-      <rect x={px(4)} y={px(8) + bodyY} width={px(8)} height={px(6)} fill="#00ff88" />
+
+      {/* Hat — drawn over the top of the head. */}
+      {hat === "Cap" && (<>
+        <rect x={px(4)} y={px(0)} width={px(8)} height={px(1)} fill="#ff2d55" />
+        <rect x={px(4)} y={px(1)} width={px(8)} height={px(1)} fill="#ff2d55" />
+        <rect x={px(1)} y={px(1)} width={px(3)} height={px(1)} fill="#ff2d55" />
+      </>)}
+      {hat === "Helmet" && (<>
+        <rect x={px(3)} y={px(0)} width={px(10)} height={px(2)} fill="#6b8ba4" />
+        <rect x={px(7)} y={px(0)} width={px(2)} height={px(2)} fill="#ffe66d" />
+      </>)}
+      {hat === "Crown" && (<>
+        <rect x={px(4)} y={px(1)} width={px(8)} height={px(1)} fill="#ffe66d" />
+        <rect x={px(4)} y={px(0)} width={px(1)} height={px(1)} fill="#ffe66d" />
+        <rect x={px(6)} y={px(0)} width={px(1)} height={px(1)} fill="#ffe66d" />
+        <rect x={px(8)} y={px(0)} width={px(1)} height={px(1)} fill="#ffe66d" />
+        <rect x={px(10)} y={px(0)} width={px(1)} height={px(1)} fill="#ffe66d" />
+      </>)}
+
+      {/* Body (outfit) + limbs (avatar colour) */}
+      <rect x={px(4)} y={px(8) + bodyY} width={px(8)} height={px(6)} fill={fit.body} />
       <rect x={px(5)} y={px(9) + bodyY} width={px(6)} height={px(4)} fill="#0a0e1a" />
-      <rect x={px(6)} y={px(10) + bodyY} width={px(4)} height={px(2)} fill="#00ff88" />
-      <rect x={px(1)} y={px(9) + bodyY} width={px(3)} height={px(2)} fill="#4ecdc4" />
-      <rect x={px(12)} y={px(9) + bodyY} width={px(3)} height={px(2)} fill="#4ecdc4" />
-      <rect x={px(5)} y={px(14) + bodyY} width={px(2)} height={px(2)} fill="#4ecdc4" />
-      <rect x={px(9)} y={px(14) + bodyY} width={px(2)} height={px(2)} fill="#4ecdc4" />
+      <rect x={px(6)} y={px(10) + bodyY} width={px(4)} height={px(2)} fill={fit.accent} />
+      <rect x={px(1)} y={px(9) + bodyY} width={px(3)} height={px(2)} fill={color} />
+      <rect x={px(12)} y={px(9) + bodyY} width={px(3)} height={px(2)} fill={color} />
+      <rect x={px(5)} y={px(14) + bodyY} width={px(2)} height={px(2)} fill={color} />
+      <rect x={px(9)} y={px(14) + bodyY} width={px(2)} height={px(2)} fill={color} />
     </svg>
   );
 }
@@ -1266,17 +1347,23 @@ function Stars() {
 
 // On a desktop this draws a phone-shaped mockup. On an actual phone that mockup is the
 // problem: a fixed 390x844 box either overflows a small screen or floats in the middle of
-// a large one. So below ~520px we drop the bezel and go full-bleed, and above it we keep
-// the mockup but never let it exceed the viewport.
+// a large one. So on small viewports we drop the bezel and go full-bleed, and above that
+// we keep the mockup but never let it exceed the viewport.
+//
+// A phone in LANDSCAPE has a wide innerWidth (~812) but a short innerHeight (~375), so
+// width alone misclassified it as "desktop" and drew the floating bezel. Going compact
+// when EITHER dimension is small keeps a rotated phone full-bleed while leaving real
+// desktops in the mockup.
 //
 // Height uses dvh where supported: on mobile browsers 100vh includes the collapsing
 // URL bar, which leaves the bottom nav cut off until the user scrolls.
+const isCompactViewport = () =>
+  typeof window !== "undefined" && (window.innerWidth <= 520 || window.innerHeight <= 520);
+
 function PhoneFrame({ children }: { children: React.ReactNode }) {
-  const [compact, setCompact] = useState(
-    () => typeof window !== "undefined" && window.innerWidth <= 520,
-  );
+  const [compact, setCompact] = useState(isCompactViewport);
   useEffect(() => {
-    const onResize = () => setCompact(window.innerWidth <= 520);
+    const onResize = () => setCompact(isCompactViewport());
     onResize();
     window.addEventListener("resize", onResize);
     window.addEventListener("orientationchange", onResize);
@@ -1821,7 +1908,7 @@ function TitleScreen({ onNext }: { onNext: () => void }) {
 // SCREEN: DRILL SELECT 
 // ─────────────────────────────────────────────────────────────────────────
 function DrillSelectScreen({
-  onCall, onSms, onEmail, onRealisticPhone, onTelegram, onRealisticEmail, onBack,
+  onCall, onSms, onEmail, onRealisticPhone, onTelegram, onRealisticEmail, onFamily, onBack,
 }: {
   onCall: () => void;
   onSms: () => void;
@@ -1829,6 +1916,7 @@ function DrillSelectScreen({
   onRealisticPhone: () => void;
   onTelegram: () => void;
   onRealisticEmail: () => void;
+  onFamily: () => void;
   onBack: () => void;
 }) {
   return (
@@ -1844,6 +1932,19 @@ function DrillSelectScreen({
       <div className="flex flex-col gap-4 px-4 py-5 flex-1">
         <div style={{ fontFamily: "'VT323', monospace", fontSize: 18, color: "#6b8ba4", textAlign: "center", lineHeight: 1.4 }}>
           Train against different scam attacks.
+        </div>
+
+        {/* Family drill is also on the Home screen, but it sits below the family rooms
+            where testers missed it — surface it here too so the DRILL tab reaches it. */}
+        <div data-tour="family-drill" style={{ backgroundColor: "#111827", border: "4px solid #00ff88", boxShadow: "4px 4px 0 #00ff88", padding: "16px" }}>
+          <div className="flex items-center gap-3 mb-2">
+            <IconShield size={26} color="#00ff88" />
+            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 9, color: "#00ff88" }}>FAMILY DRILL</div>
+          </div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4", marginBottom: 12, lineHeight: 1.5 }}>
+            Spot scams aimed at each family member — 6 rounds.
+          </div>
+          <PixelBtn onClick={onFamily} color="#00ff88" textColor="#0a0e1a" size="md" full>START FAMILY DRILL</PixelBtn>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
@@ -2813,7 +2914,7 @@ const CONVERSATION: ConvLine[] = [
   { who: "caller", text: "This is your FINAL warning. Officers are being dispatched to your address.", highlights: [{ phrase: "FINAL warning", flagId: "urgency" }, { phrase: "Officers are being dispatched", flagId: "escalation" }] },
 ];
 
-function CallScreen({ onHangUp, onResult }: { activeMemberId: string; onHangUp: (win: boolean) => void; onResult: (win: boolean) => void }) {
+function CallScreen({ onHangUp, onResult, onDistress }: { activeMemberId: string; onHangUp: (win: boolean) => void; onResult: (win: boolean) => void; onDistress: () => void }) {
   const [visibleLines, setVisibleLines] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [callerSpeaking, setCallerSpeaking] = useState(true);
@@ -2910,6 +3011,11 @@ function CallScreen({ onHangUp, onResult }: { activeMemberId: string; onHangUp: 
         <PixelBtn onClick={() => onHangUp(true)} color="#ff2d55" textColor="#ffffff" size="lg" full>
           [ HANG UP — DEFEAT SCAMMER ]
         </PixelBtn>
+        {/* Distress off-ramp — always available, never scored. Quiet styling on purpose:
+            it should be findable without competing with the primary action. */}
+        <button onClick={onDistress} style={{ width: "100%", marginTop: 10, background: "none", border: "2px solid #2a3a5c", cursor: "pointer", padding: "8px" }}>
+          <span style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 6, color: "#6b8ba4" }}>THIS IS TOO MUCH — STOP THE DRILL</span>
+        </button>
       </div>
     </div>
   );
@@ -4243,6 +4349,7 @@ function RegisterScreen({ onDone, onBack }: { onDone: () => void; onBack: () => 
 }
 
 function ProfileScreen({
+  profile,
   onEditProfile,
   activeMemberId,
   coins,
@@ -4250,6 +4357,7 @@ function ProfileScreen({
   claimedDailyToday,
   onClaimDaily,
 }: {
+  profile: PlayerProfile;
   onEditProfile?: () => void;
   activeMemberId: string;
   coins: Record<string, number>;
@@ -4282,9 +4390,11 @@ function ProfileScreen({
           <button onClick={onEditProfile} className="absolute top-4 right-4" style={{ background: "none", border: "2px solid #4ecdc4", cursor: "pointer", padding: "4px 8px" }}>
             <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 5, color: "#4ecdc4" }}>EDIT</div>
           </button>
-          <PixelMascot size={72} animate />
+          <div style={{ filter: `drop-shadow(0 0 8px ${profile.avatar.glow})` }}>
+            <PixelMascot size={72} animate color={profile.avatar.color} hat={profile.avatar.hat} eyes={profile.avatar.eyes} outfit={profile.avatar.outfit} />
+          </div>
           <div>
-            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 10, color: "#ffffff" }}>PLAYER_001</div>
+            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 10, color: "#ffffff" }}>{profile.name}</div>
             <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 7, color: "#4ecdc4", marginTop: 4 }}>LVL 7 — WATCHER</div>
             <div className="mt-3">
               <XPBar current={2340} max={3000} color="#4ecdc4" />
@@ -5117,7 +5227,7 @@ function FamilySummaryScreen({ answers, onPlayAgain, onIndividual, onHome }: {
 // ─────────────────────────────────────────────────────────────────────────
 // SETTINGS
 // ─────────────────────────────────────────────────────────────────────────
-function SettingsScreen({ settings, onSettings, onNav }: { settings: AppSettings; onSettings: (s: Partial<AppSettings>) => void; onNav: (screen: string) => void }) {
+function SettingsScreen({ profile, settings, onSettings, onNav }: { profile: PlayerProfile; settings: AppSettings; onSettings: (s: Partial<AppSettings>) => void; onNav: (screen: string) => void }) {
   // Sound is NOT part of AppSettings: the audio module already persists it in
   // localStorage, and mirroring it here would mean two owners of one fact that a
   // future settings-reset would have to remember to keep in sync. Seeded from the
@@ -5174,9 +5284,9 @@ function SettingsScreen({ settings, onSettings, onNav }: { settings: AppSettings
         <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 9, color: "#ffe66d", marginBottom: 14 }}>ACCOUNT</div>
 
         <div style={{ padding: "14px 16px", backgroundColor: "#111827", border: "3px solid #2a3a5c", marginBottom: 8, display: "flex", alignItems: "center", gap: 12 }}>
-          <PixelMascot size={36} />
+          <PixelMascot size={36} color={profile.avatar.color} hat={profile.avatar.hat} eyes={profile.avatar.eyes} outfit={profile.avatar.outfit} />
           <div>
-            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 8, color: "#ffffff" }}>PLAYER_001</div>
+            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 8, color: "#ffffff" }}>{profile.name}</div>
             <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 7, color: "#4ecdc4", marginTop: 4 }}>LVL 7 — WATCHER</div>
           </div>
         </div>
@@ -5301,16 +5411,47 @@ function AboutSettingsScreen({ onBack }: { onBack: () => void }) {
   );
 }
 
-function ProfileEditScreen({ onBack, onAvatar, onHouse }: { onBack: () => void; onAvatar: () => void; onHouse: () => void }) {
+function ProfileEditScreen({ profile, onRename, onBack, onAvatar, onHouse }: {
+  profile: PlayerProfile; onRename: (name: string) => void;
+  onBack: () => void; onAvatar: () => void; onHouse: () => void;
+}) {
   const [profileTitle, setProfileTitle] = useState("WATCHER");
+  const [editingName, setEditingName] = useState(false);
+  const [draftName, setDraftName] = useState(profile.name);
+
+  const commitName = () => {
+    // Match the server's own name rules: uppercase, trimmed, max 10 — so a name set
+    // here looks the same as one from phone registration.
+    const clean = draftName.trim().toUpperCase().slice(0, 10) || "PLAYER_001";
+    onRename(clean);
+    setDraftName(clean);
+    setEditingName(false);
+  };
+
   return (
     <div className="flex flex-col h-full">
       <SubPageHeader title="EDIT PROFILE" titleColor="#4ecdc4" onBack={onBack} />
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
         <div style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "12px 14px", marginBottom: 12 }}>
           <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 8, color: "#6b8ba4", marginBottom: 6 }}>USERNAME</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 16, color: "#e8f4f8", marginBottom: 8 }}>PLAYER_001</div>
-          <PixelBtn onClick={() => {}} color="#4ecdc4" textColor="#0a0e1a" size="sm">CHANGE NAME</PixelBtn>
+          {editingName ? (
+            <div className="flex gap-2 items-center" style={{ marginBottom: 4 }}>
+              <input
+                autoFocus
+                value={draftName}
+                maxLength={10}
+                onChange={(e) => setDraftName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") commitName(); if (e.key === "Escape") { setDraftName(profile.name); setEditingName(false); } }}
+                style={{ flex: 1, minWidth: 0, fontFamily: "'Share Tech Mono', monospace", fontSize: 16, color: "#e8f4f8", background: "#0a0e1a", border: "2px solid #4ecdc4", padding: "6px 8px", outline: "none", textTransform: "uppercase" }}
+              />
+              <PixelBtn onClick={commitName} color="#00ff88" textColor="#0a0e1a" size="sm">OK</PixelBtn>
+            </div>
+          ) : (
+            <>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 16, color: "#e8f4f8", marginBottom: 8 }}>{profile.name}</div>
+              <PixelBtn onClick={() => { setDraftName(profile.name); setEditingName(true); }} color="#4ecdc4" textColor="#0a0e1a" size="sm">CHANGE NAME</PixelBtn>
+            </>
+          )}
         </div>
         <button onClick={onAvatar} style={{ width: "100%", backgroundColor: "#111827", border: "3px solid #c77dff", padding: "12px 14px", cursor: "pointer", textAlign: "left", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div><div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 7, color: "#c77dff", marginBottom: 4 }}>CHANGE AVATAR</div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#6b8ba4" }}>Customise your pixel character</div></div>
@@ -5330,32 +5471,50 @@ function ProfileEditScreen({ onBack, onAvatar, onHouse }: { onBack: () => void; 
   );
 }
 
-function AvatarCustomisationScreen({ onBack }: { onBack: () => void }) {
-  const [baseColor, setBaseColor] = useState("#4ecdc4");
-  const [glowColor, setGlowColor] = useState("#00ff88");
+function AvatarCustomisationScreen({ avatar, onSave, onBack }: {
+  avatar: AvatarConfig; onSave: (a: AvatarConfig) => void; onBack: () => void;
+}) {
+  // Local working copy so the preview updates live; committed on save/back.
+  const [draft, setDraft] = useState<AvatarConfig>(avatar);
+  const set = (patch: Partial<AvatarConfig>) => setDraft((d) => ({ ...d, ...patch }));
   const palette = ["#4ecdc4", "#ff6b35", "#c77dff", "#ffe66d", "#ff2d55", "#00ff88"];
+
+  const save = () => { onSave(draft); onBack(); };
+
+  const colorRows: { label: string; key: "color" | "glow" }[] = [
+    { label: "AVATAR COLOUR", key: "color" },
+    { label: "GLOW COLOUR", key: "glow" },
+  ];
+  const optionRows: { label: string; key: "hat" | "eyes" | "outfit"; opts: string[] }[] = [
+    { label: "HELMET / HAT", key: "hat", opts: ["None", "Cap", "Helmet", "Crown"] },
+    { label: "EYE STYLE", key: "eyes", opts: ["Default", "Shades", "Visor", "Goggles"] },
+    { label: "OUTFIT", key: "outfit", opts: ["Standard", "Camo", "Neon", "Stealth"] },
+  ];
+
   return (
     <div className="flex flex-col h-full">
-      <SubPageHeader title="AVATAR" titleColor="#c77dff" onBack={onBack} />
+      <SubPageHeader title="AVATAR" titleColor="#c77dff" onBack={save} />
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
-        <div className="flex justify-center mb-4" style={{ padding: "16px", backgroundColor: "#111827", border: "3px solid #c77dff", boxShadow: `0 0 16px ${glowColor}` }}>
-          <PixelMascot size={80} animate />
+        <div className="flex justify-center mb-4" style={{ padding: "16px", backgroundColor: "#111827", border: "3px solid #c77dff", boxShadow: `0 0 16px ${draft.glow}` }}>
+          <PixelMascot size={80} animate color={draft.color} hat={draft.hat} eyes={draft.eyes} outfit={draft.outfit} />
         </div>
-        {[{ label: "AVATAR COLOUR", sel: baseColor, set: setBaseColor }, { label: "GLOW COLOUR", sel: glowColor, set: setGlowColor }].map((row) => (
+        {colorRows.map((row) => (
           <div key={row.label} style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "12px 14px", marginBottom: 10 }}>
             <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 5, color: "#c77dff", marginBottom: 8 }}>{row.label}</div>
-            <div className="flex gap-3 flex-wrap">{palette.map((c) => (<button key={c} onClick={() => row.set(c)} style={{ width: 32, height: 32, backgroundColor: c, border: `4px solid ${row.sel === c ? "#fff" : "#0a0e1a"}`, cursor: "pointer" }} />))}</div>
+            <div className="flex gap-3 flex-wrap">{palette.map((c) => (<button key={c} onClick={() => set({ [row.key]: c })} style={{ width: 32, height: 32, backgroundColor: c, border: `4px solid ${draft[row.key] === c ? "#fff" : "#0a0e1a"}`, cursor: "pointer" }} />))}</div>
           </div>
         ))}
-        {[{ label: "HELMET / HAT", opts: ["None", "Cap", "Helmet", "Crown"] }, { label: "EYE STYLE", opts: ["Default", "Shades", "Visor", "Goggles"] }, { label: "OUTFIT", opts: ["Standard", "Camo", "Neon", "Stealth"] }].map((sec) => (
+        {optionRows.map((sec) => (
           <div key={sec.label} style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "12px 14px", marginBottom: 10 }}>
             <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 5, color: "#c77dff", marginBottom: 8 }}>{sec.label}</div>
-            <div className="flex gap-2 flex-wrap">{sec.opts.map((opt, i) => (<button key={opt} style={{ backgroundColor: i === 0 ? "#c77dff" : "#0a0e1a", border: `2px solid ${i === 0 ? "#c77dff" : "#2a3a5c"}`, padding: "4px 8px", cursor: "pointer", fontFamily: "'Press Start 2P', monospace", fontSize: 5, color: i === 0 ? "#0a0e1a" : "#6b8ba4" }}>{opt}</button>))}</div>
+            <div className="flex gap-2 flex-wrap">{sec.opts.map((opt) => { const on = draft[sec.key] === opt; return (
+              <button key={opt} onClick={() => set({ [sec.key]: opt })} style={{ backgroundColor: on ? "#c77dff" : "#0a0e1a", border: `2px solid ${on ? "#c77dff" : "#2a3a5c"}`, padding: "4px 8px", cursor: "pointer", fontFamily: "'Press Start 2P', monospace", fontSize: 5, color: on ? "#0a0e1a" : "#6b8ba4" }}>{opt}</button>
+            ); })}</div>
           </div>
         ))}
         <div className="flex gap-3">
-          <div style={{ flex: 1 }}><PixelBtn onClick={onBack} color="#c77dff" textColor="#0a0e1a" size="sm" full>[ SAVE AVATAR ]</PixelBtn></div>
-          <div style={{ flex: 1 }}><PixelBtn onClick={onBack} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>[ BACK ]</PixelBtn></div>
+          <div style={{ flex: 1 }}><PixelBtn onClick={save} color="#c77dff" textColor="#0a0e1a" size="sm" full>[ SAVE AVATAR ]</PixelBtn></div>
+          <div style={{ flex: 1 }}><PixelBtn onClick={onBack} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>[ CANCEL ]</PixelBtn></div>
         </div>
       </div>
     </div>
@@ -6007,6 +6166,11 @@ export default function App() {
   const [familyRoundIndex, setFamilyRoundIndex] = useState(0);
   const [familyAnswers, setFamilyAnswers] = useState<{ scenarioId: number; action: string; outcome: FamilyOutcome; foundClues: number[] }[]>([]);
 
+  // Player name + avatar, persisted locally. Seeded once from storage.
+  const [profile, setProfileState] = useState<PlayerProfile>(loadProfile);
+  const updateProfile = (patch: Partial<PlayerProfile>) =>
+    setProfileState((prev) => { const next = { ...prev, ...patch }; saveProfile(next); return next; });
+
   const [settings, setSettings] = useState<AppSettings>({
     drillFrequency: "recurring",
     familyDrillEnabled: true,
@@ -6303,6 +6467,16 @@ export default function App() {
     setScreen(win ? "result-win" : "result-lose");
   };
 
+  // Distress off-ramp: the caller can stop any time and it is NEVER scored — no XP
+  // change, no streak reset, no win/lose screen, no coin event. The backend models this
+  // as `distress_offramp` (a "safe-exit" that leaves the record untouched); we still post
+  // it so the choice is logged, then quietly return home. This is the ethical core of the
+  // app: opting out of a distressing drill must never carry a penalty.
+  const handleCallDistress = () => {
+    persistPracticeOutcome("distress_offramp", "call");
+    goHome();
+  };
+
   const handleSmsWin = (outcome: SmsOutcome) => {
     setSmsOutcome(outcome);
     persistPracticeOutcome(outcome === "closed-page" ? "closed_page" : outcome, "sms");
@@ -6483,6 +6657,7 @@ export default function App() {
             )}
             {screen === "profile" && (
               <ProfileScreen
+                profile={profile}
                 onEditProfile={() => setScreen("profile-edit")}
                 activeMemberId={activeMemberId}
                 coins={coins}
@@ -6491,7 +6666,7 @@ export default function App() {
                 onClaimDaily={handleClaimDaily}
               />
             )}
-            {screen === "settings" && <SettingsScreen settings={settings} onSettings={(s) => setSettings((p) => ({ ...p, ...s }))} onNav={handleNav} />}
+            {screen === "settings" && <SettingsScreen profile={profile} settings={settings} onSettings={(s) => setSettings((p) => ({ ...p, ...s }))} onNav={handleNav} />}
 
             {screen === "account-settings" && <AccountSettingsScreen onBack={() => setScreen("settings")} />}
             {screen === "privacy-settings" && <PrivacySettingsScreen onBack={() => setScreen("settings")} />}
@@ -6499,12 +6674,20 @@ export default function App() {
             {screen === "about-settings" && <AboutSettingsScreen onBack={() => setScreen("settings")} />}
             {screen === "profile-edit" && (
               <ProfileEditScreen
+                profile={profile}
+                onRename={(name) => updateProfile({ name })}
                 onBack={() => setScreen("profile")}
                 onAvatar={() => setScreen("avatar-customisation")}
                 onHouse={() => { setCustomizeMemberId(lastViewedMemberId); setActiveMemberId(lastViewedMemberId); setScreen("customize"); }}
               />
             )}
-            {screen === "avatar-customisation" && <AvatarCustomisationScreen onBack={() => setScreen("profile-edit")} />}
+            {screen === "avatar-customisation" && (
+              <AvatarCustomisationScreen
+                avatar={profile.avatar}
+                onSave={(avatar) => updateProfile({ avatar })}
+                onBack={() => setScreen("profile-edit")}
+              />
+            )}
 
             {screen === "customize" && (
               <CustomizeScreen
@@ -6613,6 +6796,7 @@ export default function App() {
                 onRealisticPhone={() => setScreen("realistic-phone-intro")}
                 onTelegram={() => setScreen("telegram-intro")}
                 onRealisticEmail={() => setScreen("realistic-email-intro")}
+                onFamily={goFamilyDrill}
                 onBack={goHome}
               />
             )}
@@ -6623,7 +6807,7 @@ export default function App() {
                 onDecline={() => handleCallResult(true)}
               />
             )}
-            {screen === "call" && <CallScreen activeMemberId={activeMemberId} onHangUp={handleCallResult} onResult={handleCallResult} />}
+            {screen === "call" && <CallScreen activeMemberId={activeMemberId} onHangUp={handleCallResult} onResult={handleCallResult} onDistress={handleCallDistress} />}
             {screen === "sms-inbox" && (
               <SMSInboxScreen activeMemberId={activeMemberId} onOpenScam={() => setScreen("sms-thread")} onBack={goDrillSelect} />
             )}
