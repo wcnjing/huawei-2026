@@ -109,6 +109,13 @@ test('POST /api/drills/sms is refused without a session token', async () => {
   assert.equal((await post('/api/drills/sms')).status, 401);
 });
 
+// Setting an email is what feeds the email drill's send target, so it must be gated the
+// same way — a body-supplied address must not attach to any account without a session.
+test('POST /api/me/email is refused without a session token', async () => {
+  const res = await post('/api/me/email', { email: 'someone@example.com' });
+  assert.equal(res.status, 401, 'no session -> cannot set an address on any account');
+});
+
 test('POST /api/drills/sms cannot be aimed at another number via the body', async () => {
   const res = await post('/api/drills/sms', { phone: '+6590000000', user: 'you' });
   assert.equal(res.status, 401, 'no session -> refused before any number is considered');

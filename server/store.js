@@ -293,6 +293,18 @@ export async function registerVerifiedUser({ phone, name, email }) {
   });
 }
 
+// Set the email on an already-registered user. Called by an authenticated endpoint, so
+// the caller has proven the phone behind this account — email drills still send only to
+// this stored address, never one taken straight from a request.
+export async function setUserEmail(userId, email) {
+  return mutate((db) => {
+    const user = db.users[userId];
+    if (!user) throw new Error(`unknown user ${userId}`);
+    user.email = String(email).trim().toLowerCase();
+    return user;
+  });
+}
+
 // --- Sessions -------------------------------------------------------------
 // A drill places a real phone call, so the caller must prove who they are with a
 // server-issued bearer token. A client-supplied user id is an assertion, not proof.

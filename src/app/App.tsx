@@ -2239,7 +2239,49 @@ function RealisticPhoneDrillIntroScreen({ onBack }: { onBack: () => void }) {
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: REALISTIC EMAIL DRILL INTRO — explains flow, disabled until backend
 // ─────────────────────────────────────────────────────────────────────────
-function RealisticEmailDrillIntroScreen({ onBack }: { onBack: () => void }) {
+function RealisticEmailDrillIntroScreen({ onBack, onRegister }: { onBack: () => void; onRegister: () => void }) {
+  // "idle" shows the intro; tapping send opens the email popup (or nudges to register if
+  // there's no session). "sent" is the success state.
+  const [phase, setPhase] = useState<"idle" | "ask-email" | "sent">("idle");
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const registered = !!sessionToken();
+
+  const onSendTap = () => {
+    setMsg("");
+    setPhase("ask-email");
+  };
+
+  const submit = async () => {
+    const addr = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr)) { setMsg("Enter a valid email address."); return; }
+    setBusy(true); setMsg("");
+    try {
+      // 1. Attach the address to THIS account (auth required) — never send to a raw
+      //    request address, that's the anti-phishing rule.
+      const save = await fetch("/api/me/email", {
+        method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ email: addr }),
+      });
+      const sd = await save.json().catch(() => ({}));
+      if (!save.ok) { setMsg(sd.error || "Could not save email."); setBusy(false); return; }
+
+      // 2. Fire the drill — the server sends to the stored address we just set.
+      const fire = await fetch("/api/drills/email", { method: "POST", headers: { ...authHeaders() } });
+      const fd = await fire.json().catch(() => ({}));
+      if (!fire.ok || fd.ok === false) {
+        setMsg(fd.error === "email drills are not configured"
+          ? "Email delivery isn't configured on this server yet."
+          : (fd.error || "Could not send the email."));
+        setBusy(false); return;
+      }
+      setPhase("sent");
+    } catch { setMsg("Network error — check your connection."); }
+    setBusy(false);
+  };
+
   return (
     <div className="flex flex-col h-full">
       <SubPageHeader title="REAL EMAIL DRILL" titleColor="#ff6b35" onBack={onBack} />
@@ -2253,17 +2295,17 @@ function RealisticEmailDrillIntroScreen({ onBack }: { onBack: () => void }) {
             REAL INBOX DRILL
           </div>
           <div style={{ fontFamily: "'VT323', monospace", fontSize: 18, color: "#ffe66d", textAlign: "center", lineHeight: 1.4 }}>
-            Get simulated phishing emails in your real mailbox.
+            Get a simulated phishing email in your real mailbox.
           </div>
         </div>
 
         <div style={{ backgroundColor: "#111827", border: "3px solid #ff6b35", boxShadow: "3px 3px 0 #ff6b35", padding: "14px 16px", marginBottom: 14 }}>
           <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 7, color: "#ff6b35", marginBottom: 10 }}>HOW IT WORKS</div>
           {[
-            "We send 1-2 test emails to your registered address.",
-            "Some are phishing. Some are safe.",
-            "Handle them in your real email client.",
-            "Return to the app to see your score.",
+            "We send a test email to your own address.",
+            "It looks like a scam — that's the point.",
+            "Spot the red flags in your real email client.",
+            "Every drill email has a reveal + report link.",
           ].map((line, i) => (
             <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
               <div style={{ width: 16, height: 16, backgroundColor: "#ff6b35", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -2274,33 +2316,63 @@ function RealisticEmailDrillIntroScreen({ onBack }: { onBack: () => void }) {
           ))}
         </div>
 
-        <div style={{ backgroundColor: "rgba(107,139,164,0.08)", border: "3px solid #6b8ba4", padding: "12px 14px", marginBottom: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
-          <IconLock size={14} color="#6b8ba4" />
-          <div>
-            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 6, color: "#6b8ba4", marginBottom: 4 }}>BACKEND NOT CONFIGURED</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#6b8ba4", lineHeight: 1.5 }}>
-              This drill requires email delivery infrastructure. Available in a future update once backend integration is complete.
+        {phase === "sent" ? (
+          <div style={{ backgroundColor: "rgba(0,255,136,0.08)", border: "3px solid #00ff88", padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <IconShield size={16} color="#00ff88" />
+            <div>
+              <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 7, color: "#00ff88", marginBottom: 6 }}>EMAIL SENT</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.5 }}>
+                Check your inbox (and spam) for a drill email. Handle it as you would a real one.
+              </div>
             </div>
           </div>
-        </div>
-
-        <div style={{ backgroundColor: "rgba(255,107,53,0.08)", border: "3px solid #ff6b35", padding: "12px 14px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
-          <IconWarning size={14} color="#ff6b35" />
-          <div>
-            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 6, color: "#ff6b35", marginBottom: 4 }}>COIN REWARDS</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff6b35", lineHeight: 1.5 }}>
-              Coins will be credited automatically once backend reports outcomes.
+        ) : !registered ? (
+          <div style={{ backgroundColor: "rgba(255,230,109,0.08)", border: "3px solid #ffe66d", padding: "12px 14px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <IconWarning size={14} color="#ffe66d" />
+            <div>
+              <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 6, color: "#ffe66d", marginBottom: 4 }}>REGISTER FIRST</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.5 }}>
+                Verify your phone so drills go only to you — never to an address someone types in.
+              </div>
             </div>
           </div>
-        </div>
+        ) : null}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <PixelBtn onClick={() => {}} color="#2a3a5c" textColor="#6b8ba4" size="lg" full disabled>
-            [ SEND EMAILS - COMING SOON ]
-          </PixelBtn>
+          {phase === "sent" ? (
+            <PixelBtn onClick={onBack} color="#00ff88" textColor="#0a0e1a" size="lg" full>[ DONE ]</PixelBtn>
+          ) : registered ? (
+            <PixelBtn onClick={onSendTap} color="#ff6b35" textColor="#0a0e1a" size="lg" full>[ SEND DRILL EMAIL ]</PixelBtn>
+          ) : (
+            <PixelBtn onClick={onRegister} color="#4ecdc4" textColor="#0a0e1a" size="lg" full>[ REGISTER TO CONTINUE ]</PixelBtn>
+          )}
           <PixelBtn onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm" full>BACK TO DRILLS</PixelBtn>
         </div>
       </div>
+
+      {/* Email capture popup. The address is saved to this account, then the drill fires
+          to it — so a user can only ever email themselves. */}
+      {phase === "ask-email" && (
+        <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={() => !busy && setPhase("idle")}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 320, backgroundColor: "#0a0e1a", border: "4px solid #ff6b35", boxShadow: "6px 6px 0 rgba(255,107,53,0.4)", padding: "18px 16px" }}>
+            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 9, color: "#ff6b35", marginBottom: 10 }}>YOUR EMAIL</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#6b8ba4", marginBottom: 12, lineHeight: 1.5 }}>
+              We'll send the drill to this inbox. It's saved to your account — drills only ever go to you.
+            </div>
+            <input
+              autoFocus value={email} inputMode="email" autoCapitalize="none" placeholder="you@example.com"
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !busy) submit(); }}
+              style={{ width: "100%", boxSizing: "border-box", fontFamily: "'Share Tech Mono', monospace", fontSize: 15, color: "#e8f4f8", background: "#111827", border: "3px solid #2a3a5c", padding: "10px 12px", outline: "none", marginBottom: 10 }}
+            />
+            {msg && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff2d55", marginBottom: 10 }}>{msg}</div>}
+            <div style={{ display: "flex", gap: 10 }}>
+              <div style={{ flex: 1 }}><PixelBtn onClick={submit} color="#ff6b35" textColor="#0a0e1a" size="sm" full disabled={busy}>{busy ? "SENDING..." : "[ SEND ]"}</PixelBtn></div>
+              <div style={{ flex: 1 }}><PixelBtn onClick={() => { if (!busy) { setPhase("idle"); setMsg(""); } }} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>CANCEL</PixelBtn></div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -6760,6 +6832,7 @@ export default function App() {
             {screen === "realistic-email-intro" && (
               <RealisticEmailDrillIntroScreen
                 onBack={() => setScreen("drill-select")}
+                onRegister={() => setScreen("register")}
               />
             )}
             {screen === "payday" && <PaydayScreen coins={coins} onCollect={collectPayday} onClose={goHome} />}

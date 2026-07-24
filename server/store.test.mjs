@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { publicUser, registerVerifiedUser, createSession, getUserIdByToken } from './store.js';
+import { publicUser, registerVerifiedUser, setUserEmail, getUser, createSession, getUserIdByToken } from './store.js';
 
 const DATA_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data.json');
 const freshStore = () => fs.rmSync(DATA_FILE, { force: true });
@@ -59,6 +59,21 @@ test('a session token resolves to its user, and nothing else does', async () => 
   assert.ok(token.length >= 32, `token too short to be unguessable: ${token.length} chars`);
   assert.notEqual(token, u.id, 'the token must not be derivable from the user id');
   assert.notEqual(await createSession(u.id), token, 'each session gets a distinct token');
+  freshStore();
+});
+
+// A registered user who skipped the optional email at sign-up can add one later, so the
+// email drill has a target. Stored normalised (trimmed, lowercased) like registration does.
+test('setUserEmail attaches an email to an existing user, normalised', async () => {
+  freshStore();
+  const u = await registerVerifiedUser({ phone: '+6591234567', name: 'Judge' });
+  assert.equal(u.email, undefined, 'starts with no email');
+
+  const updated = await setUserEmail(u.id, '  Judge@Example.COM ');
+  assert.equal(updated.email, 'judge@example.com', 'trimmed and lowercased');
+  assert.equal((await getUser(u.id)).email, 'judge@example.com', 'persisted');
+
+  await assert.rejects(() => setUserEmail('usr_nope', 'x@y.com'), /unknown user/);
   freshStore();
 });
 

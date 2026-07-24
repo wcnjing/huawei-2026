@@ -6,7 +6,7 @@ import crypto from 'crypto';
 import { fileURLToPath, pathToFileURL } from 'url';
 import {
   getUser, getUserByPhone, getFamily, getLeaderboard, applyOutcome, takePendingResult,
-  recordDrillFired, registerVerifiedUser, publicUser, createSession, getUserIdByToken,
+  recordDrillFired, registerVerifiedUser, setUserEmail, publicUser, createSession, getUserIdByToken,
 } from './store.js';
 import { fireDrillCall, outcomeFromVapiWebhook } from './vapi.js';
 import { startVerification, checkVerification, rateLimited, verifyMode } from './verify.js';
@@ -167,6 +167,24 @@ api.post('/api/drills/fire', async (req, res) => {
     res.json({ ok: true, callId: call.id, status: call.status });
   } catch (e) {
     return fail(res, 502, 'could not place the drill call', e);
+  }
+});
+
+// --- Set the session user's own email (so the email drill has somewhere to send).
+//     AUTH REQUIRED: you can only set the address on the account whose phone you proved.
+//     This does NOT let you send to it directly — it just records your own address, which
+//     the email drill below then uses. That keeps the "own address only" invariant: the
+//     send target always comes from the stored account, never straight from a request. ---
+api.post('/api/me/email', async (req, res) => {
+  const userId = await sessionUserId(req);
+  if (!userId) return res.status(401).json({ error: 'sign in (verify your phone) to add an email' });
+  const email = (req.body?.email || '').trim();
+  if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'email is not a valid address' });
+  try {
+    const user = await setUserEmail(userId, email);
+    res.json({ ok: true, user: publicUser(user) });
+  } catch (e) {
+    return fail(res, 400, 'could not save email', e);
   }
 });
 
