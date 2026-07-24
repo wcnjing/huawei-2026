@@ -11,7 +11,7 @@ npm install
 npm run build        # build the React app into dist/
 npm run server       # serve app + API on http://localhost:3000
 # or: npm start       (build + serve in one)
-npm test             # 39 tests
+npm test             # 57 tests
 ```
 
 Firing **real** calls needs `.env` (`cp .env.example .env`, add your Vapi keys).
@@ -19,7 +19,7 @@ Everything else — the app, practice drills, and the `/simulate` demo loop — 
 
 ## Tests
 
-`npm test` runs 39 tests via `node --test`. No framework, no mocking library — plain
+`npm test` runs 57 tests via `node --test`. No framework, no mocking library — plain
 `node:test` + `node:assert`.
 
 | File | Covers | Why it exists |

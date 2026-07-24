@@ -19,7 +19,7 @@ claim that collapses under a judge's question.
 | **Voice call** | ✅ **Real.** Places a genuine phone call (Vapi → Twilio), Claude drives the persona, Azure Singapore-English voice. Verified end to end — a live call ran 2m10s and the real-OTP safety tripwire fired correctly. Cost: **$0.18** per call. |
 | **Phone registration (OTP)** | ✅ **Real.** Twilio Verify sends an actual SMS code. Fully self-serve in-app. |
 | **SMS drill** | ✅ **Real.** Sends an actual scam text (Twilio Programmable SMS) from a curated scenario library, then a guaranteed reveal text. Verified end to end — both messages delivered. |
-| **Email drill** | ⚙️ **Built, needs keys.** Generates a phishing email (OpenAI) and sends it (Google Apps Script). Refuses with 503 until `OPENAI_API_KEY` + `GOOGLE_SCRIPT_URL` are set. |
+| **Email drill** | ✅ **Real.** Generates a phishing email (OpenAI) and delivers it (Google Apps Script) to the user's **own registered address** — never one named in a request. The relay enforces a shared secret and fails closed — verified against the live deployment: correct secret accepted, wrong secret rejected, no-recipient refused. Refuses with 503 until `OPENAI_API_KEY` + `GOOGLE_SCRIPT_URL` + `GOOGLE_SCRIPT_SECRET` are set. |
 
 ⚠️ **Trial-account caveat:** while Twilio is on a trial, every outbound SMS is prefixed
 `"Sent from your Twilio trial account - "`, which gives the drill away, and both calls and
@@ -36,7 +36,7 @@ and safe to run on stage. Real drills award full XP; practice awards half.
 npm install
 cp .env.example .env      # works offline as-is; add keys for real calls
 npm start                 # build + serve  →  http://localhost:3000
-npm test                  # 39 tests
+npm test                  # 57 tests
 ```
 
 Without any credentials you still get: the full game UI, practice drills across all three
@@ -74,7 +74,7 @@ Everything lives in `.env` (gitignored). See `.env.example` for the annotated li
 | Real calls | `VAPI_API_KEY`, `VAPI_PHONE_NUMBER_ID` |
 | Real OTP SMS | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID` |
 | Call outcomes → XP | `PUBLIC_URL` (a tunnel), `VAPI_WEBHOOK_SECRET` |
-| Email drills | `OPENAI_API_KEY`, `GOOGLE_SCRIPT_URL` |
+| Email drills | `OPENAI_API_KEY`, `GOOGLE_SCRIPT_URL`, `GOOGLE_SCRIPT_SECRET` |
 | Offline demo only | `ALLOW_DEV_VERIFY`, `ENABLE_DEMO_ROUTES` |
 
 ⚠️ **Turn the last two off before anything public.** They enable a fixed bypass code and
