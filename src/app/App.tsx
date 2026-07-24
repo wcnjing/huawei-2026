@@ -4785,9 +4785,27 @@ function FamilyDrillIntroScreen({ onStart, onBack }: { onStart: () => void; onBa
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: FAMILY ROUND
 // ─────────────────────────────────────────────────────────────────────────
+
+// "Ask family first" is cautious, not scammed. For a family anti-scam app, punishing
+// the instinct to check with someone teaches the wrong lesson — and the SMS/email drills
+// already praise that same instinct ("Good thinking!"), so the family drill has to agree.
+// It's a partial win: safe framing, half XP, no coin penalty, plus a nudge toward the
+// ideal action. Only "correct" counts toward the family-safe tally.
+type FamilyOutcome = "correct" | "cautious" | "wrong";
+
+function familyOutcome(scenario: FamilyScenario, action: string | null): FamilyOutcome {
+  if (action === null) return "wrong";
+  if (action === scenario.correctAction || (scenario.id === 4 && action === "REPORT AS SCAM")) return "correct";
+  if (action === "ASK FAMILY FIRST") return "cautious";
+  return "wrong";
+}
+
+const FAMILY_XP: Record<FamilyOutcome, number> = { correct: 100, cautious: 50, wrong: 25 };
+const FAMILY_COINS: Record<FamilyOutcome, number> = { correct: 30, cautious: 0, wrong: -10 };
+
 function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNext, onEnd }: {
   scenario: FamilyScenario; roundIndex: number; totalRounds: number;
-  onComplete: (action: string, foundClues: number[], correct: boolean) => void;
+  onComplete: (action: string, foundClues: number[], outcome: FamilyOutcome) => void;
   onNext: () => void; onEnd: () => void;
 }) {
   const [mode, setMode] = useState<"play" | "debrief">("play");
@@ -4810,15 +4828,11 @@ function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNe
   const color = memberColors[scenario.targetMember] ?? "#6b8ba4";
   const typeLabels: Record<string, string> = { sms: "SMS", email: "EMAIL", notification: "NOTIF" };
 
-  const isCorrect = (action: string | null) =>
-    action !== null && (action === scenario.correctAction || (scenario.id === 4 && action === "REPORT AS SCAM"));
-
   const handleAction = (action: string) => {
     if (mode !== "play") return;
-    const correct = isCorrect(action);
     setSelectedAction(action);
     setMode("debrief");
-    onComplete(action, foundCluesLocal, correct);
+    onComplete(action, foundCluesLocal, familyOutcome(scenario, action));
   };
 
   const handleLightbulb = () => {
@@ -4831,7 +4845,7 @@ function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNe
   };
 
   const inDebrief = mode === "debrief";
-  const correct = isCorrect(selectedAction);
+  const outcome = familyOutcome(scenario, selectedAction);
 
   const EmailCard = () => (
     <div style={{ border: `4px solid ${color}`, boxShadow: `4px 4px 0 ${color}` }}>
@@ -4891,7 +4905,7 @@ function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNe
   );
 
   return (
-    <div className="flex flex-col h-full" style={{ position: "relative", background: inDebrief ? (correct ? "linear-gradient(180deg,#0a1a0f,#0a0e1a)" : "linear-gradient(180deg,#1a0a0f,#0a0e1a)") : undefined }}>
+    <div className="flex flex-col h-full" style={{ position: "relative", background: inDebrief ? (outcome === "wrong" ? "linear-gradient(180deg,#1a0a0f,#0a0e1a)" : "linear-gradient(180deg,#0a1a0f,#0a0e1a)") : undefined }}>
       <div className="flex items-center justify-between px-4" style={{ backgroundColor: "#0a0e1a", borderBottom: "4px solid #2a3a5c", minHeight: 48, flexShrink: 0 }}>
         <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 6, color: "#6b8ba4" }}>ROUND {roundIndex + 1}/{totalRounds}</div>
         <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 5, color: "#ffe66d" }}>
@@ -4908,25 +4922,39 @@ function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNe
           <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 4, color }}>{typeLabels[scenario.type] ?? "MSG"}</div>
         </div>
       </div>
-      {inDebrief && (
-        <div style={{ backgroundColor: correct ? "rgba(0,255,136,0.15)" : "rgba(255,45,85,0.15)", borderBottom: `4px solid ${correct ? "#00ff88" : "#ff2d55"}`, padding: "10px 16px", flexShrink: 0 }}>
-          <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 10, color: correct ? "#00ff88" : "#ff2d55", marginBottom: 4 }}>
-            {correct ? "SAFE CHOICE!" : "SCAMMER HIT!"}
+      {inDebrief && (() => {
+        // Three states, so "ask family first" reads as cautious rather than scammed.
+        const banner = {
+          correct:  { title: "SAFE CHOICE!",   color: "#00ff88", bg: "rgba(0,255,136,0.15)" },
+          cautious: { title: "CAUTIOUS — SMART", color: "#ffe66d", bg: "rgba(255,230,109,0.15)" },
+          wrong:    { title: "SCAMMER HIT!",   color: "#ff2d55", bg: "rgba(255,45,85,0.15)" },
+        }[outcome];
+        const coins = FAMILY_COINS[outcome];
+        return (
+        <div style={{ backgroundColor: banner.bg, borderBottom: `4px solid ${banner.color}`, padding: "10px 16px", flexShrink: 0 }}>
+          <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 10, color: banner.color, marginBottom: 4 }}>
+            {banner.title}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" as const }}>
-            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 7, color: "#ffe66d" }}>+{correct ? 100 : 25} XP</div>
+            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 7, color: "#ffe66d" }}>+{FAMILY_XP[outcome]} XP</div>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <IconCoin size={9} color={correct ? "#ffe66d" : "#ff2d55"} />
-              <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 7, color: correct ? "#00ff88" : "#ff2d55" }}>{correct ? "+30" : "-10"}</div>
+              <IconCoin size={9} color={coins > 0 ? "#ffe66d" : coins < 0 ? "#ff2d55" : "#6b8ba4"} />
+              <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 7, color: coins > 0 ? "#00ff88" : coins < 0 ? "#ff2d55" : "#6b8ba4" }}>{coins > 0 ? `+${coins}` : coins}</div>
             </div>
-            {!correct && (
+            {outcome === "cautious" && (
+              <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 5, color: "#6b8ba4" }}>
+                EVEN SAFER: <span style={{ color: "#00ff88" }}>{scenario.correctAction}</span>
+              </div>
+            )}
+            {outcome === "wrong" && (
               <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 5, color: "#6b8ba4" }}>
                 CORRECT: <span style={{ color: "#00ff88" }}>{scenario.correctAction}</span>
               </div>
             )}
           </div>
         </div>
-      )}
+        );
+      })()}
       <div className="flex-1 overflow-y-auto px-3 py-3" style={{ scrollbarWidth: "none" }}>
         {scenario.type === "sms"
           ? <SmsMockCard scenario={scenario} showWarning={inDebrief} onSenderTap={() => setShowSenderPanel(true)} />
@@ -4995,14 +5023,14 @@ function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNe
 // SCREEN: FAMILY SUMMARY
 // ─────────────────────────────────────────────────────────────────────────
 function FamilySummaryScreen({ answers, onPlayAgain, onIndividual, onHome }: {
-  answers: { scenarioId: number; action: string; correct: boolean; foundClues: number[] }[];
+  answers: { scenarioId: number; action: string; outcome: FamilyOutcome; foundClues: number[] }[];
   onPlayAgain: () => void; onIndividual: () => void; onHome: () => void;
 }) {
-  const correctCount = answers.filter((a) => a.correct).length;
+  const correctCount = answers.filter((a) => a.outcome === "correct").length;
   const totalClues = FAMILY_SCENARIOS.reduce((sum, s) => sum + s.clues.length, 0);
   const foundCluesCount = answers.reduce((sum, a) => sum + a.foundClues.length, 0);
-  const totalXP = answers.reduce((sum, a) => sum + (a.correct ? 100 : 25), 0);
-  const totalCoins = answers.reduce((sum, a) => sum + (a.correct ? 30 : -10), 0);
+  const totalXP = answers.reduce((sum, a) => sum + FAMILY_XP[a.outcome], 0);
+  const totalCoins = answers.reduce((sum, a) => sum + FAMILY_COINS[a.outcome], 0);
 
   const header = correctCount >= 5 ? "FAMILY SAFE!" : correctCount >= 3 ? "GOOD TRAINING!" : "MORE PRACTICE NEEDED!";
   const headerColor = correctCount >= 5 ? "#00ff88" : correctCount >= 3 ? "#ffe66d" : "#ff2d55";
@@ -5010,7 +5038,8 @@ function FamilySummaryScreen({ answers, onPlayAgain, onIndividual, onHome }: {
   const memberResults: Record<string, boolean[]> = {};
   FAMILY_SCENARIOS.forEach((s, i) => {
     if (!memberResults[s.targetMember]) memberResults[s.targetMember] = [];
-    if (i < answers.length) memberResults[s.targetMember].push(answers[i].correct);
+    // Cautious counts as safe here — asking family is not getting scammed.
+    if (i < answers.length) memberResults[s.targetMember].push(answers[i].outcome !== "wrong");
   });
 
   const badges = [
@@ -5976,7 +6005,7 @@ export default function App() {
   const [tourOpen, setTourOpen] = useState(false);
 
   const [familyRoundIndex, setFamilyRoundIndex] = useState(0);
-  const [familyAnswers, setFamilyAnswers] = useState<{ scenarioId: number; action: string; correct: boolean; foundClues: number[] }[]>([]);
+  const [familyAnswers, setFamilyAnswers] = useState<{ scenarioId: number; action: string; outcome: FamilyOutcome; foundClues: number[] }[]>([]);
 
   const [settings, setSettings] = useState<AppSettings>({
     drillFrequency: "recurring",
@@ -6180,8 +6209,10 @@ export default function App() {
   };
 
   // Family-round event helper
-  const emitFamilyRoundEvent = (memberId: string, correct: boolean) => {
-    const delta = correct ? 30 : -10;
+  const emitFamilyRoundEvent = (memberId: string, outcome: FamilyOutcome) => {
+    const delta = FAMILY_COINS[outcome];
+    if (delta === 0) return; // cautious: no reward, but no penalty either
+    const correct = outcome === "correct";
     const label = correct ? "FAMILY DRILL CORRECT" : "FAMILY DRILL WRONG";
     const reason: CoinTxReason = correct ? "family-drill-correct" : "family-drill-wrong";
     addCoinTx(memberId, delta, reason, label);
@@ -6304,16 +6335,16 @@ export default function App() {
   };
 
   // Family round completion: emit per-round coin event for that scenario's target member
-  const handleFamilyComplete = (action: string, foundClues: number[], correct: boolean) => {
+  const handleFamilyComplete = (action: string, foundClues: number[], outcome: FamilyOutcome) => {
     const scenario = FAMILY_SCENARIOS[familyRoundIndex];
     const memberId = FAMILY_NAME_TO_ID[scenario.targetMember] ?? "mum";
-    emitFamilyRoundEvent(memberId, correct);
-    setFamilyAnswers((prev) => [...prev, { scenarioId: scenario.id, action, correct, foundClues }]);
+    emitFamilyRoundEvent(memberId, outcome);
+    setFamilyAnswers((prev) => [...prev, { scenarioId: scenario.id, action, outcome, foundClues }]);
   };
 
   const handleFamilyNext = () => {
     if (familyRoundIndex + 1 >= FAMILY_SCENARIOS.length) {
-      const correctCount = familyAnswers.filter(a => a.correct).length;
+      const correctCount = familyAnswers.filter(a => a.outcome === "correct").length;
       emitPixiFamilyDrillSummary(correctCount, FAMILY_SCENARIOS.length);
       emitNotifFamilyDrill(correctCount, FAMILY_SCENARIOS.length);      
       setScreen("family-summary");
@@ -6558,7 +6589,7 @@ export default function App() {
                 onComplete={handleFamilyComplete}
                 onNext={handleFamilyNext}
                 onEnd={() => {
-                  const correctCount = familyAnswers.filter(a => a.correct).length;
+                  const correctCount = familyAnswers.filter(a => a.outcome === "correct").length;
                   emitPixiFamilyDrillSummary(correctCount, FAMILY_SCENARIOS.length);
                   emitNotifFamilyDrill(correctCount, FAMILY_SCENARIOS.length);
                   setScreen("family-summary");
