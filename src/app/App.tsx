@@ -5543,10 +5543,12 @@ function SettingsScreen({ profile, settings, onSettings, onNav }: { profile: Pla
             <div style={{ backgroundColor: "#0a0e1a", border: "3px solid #2a3a5c", borderTop: "none", padding: "14px 16px", animation: "slideUp 0.15s ease-out" }}>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#ff2d55", marginBottom: 10, lineHeight: 1.5 }}>Signs you out on this device and clears your saved name, avatar and tutorial. Your account and XP are kept — sign back in to restore them.</div>
               <PixelBtn onClick={() => {
+                // Use the key constants, not literals — a renamed constant would otherwise
+                // leave a key uncleared and this "sign out" would silently not sign out.
                 try {
-                  localStorage.removeItem("safespace_session_token");
-                  localStorage.removeItem("safespace_profile");
-                  localStorage.removeItem("safespace_tutorial_seen");
+                  localStorage.removeItem(TOKEN_KEY);
+                  localStorage.removeItem(PROFILE_KEY);
+                  localStorage.removeItem(TUTORIAL_KEY);
                 } catch { /* private mode: nothing to clear */ }
                 location.reload();
               }} color="#ff2d55" textColor="#ffffff" size="sm" full>CONFIRM RESET</PixelBtn>
