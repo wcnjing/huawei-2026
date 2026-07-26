@@ -114,6 +114,7 @@ type Screen =
   | "notifications"
   | "notification-detail"
   | "realistic-phone-intro"
+  | "realistic-sms-intro"
   | "telegram-intro"
   | "realistic-email-intro";
 
@@ -1908,12 +1909,13 @@ function TitleScreen({ onNext }: { onNext: () => void }) {
 // SCREEN: DRILL SELECT 
 // ─────────────────────────────────────────────────────────────────────────
 function DrillSelectScreen({
-  onCall, onSms, onEmail, onRealisticPhone, onTelegram, onRealisticEmail, onFamily, onBack,
+  onCall, onSms, onEmail, onRealisticPhone, onRealisticSms, onTelegram, onRealisticEmail, onFamily, onBack,
 }: {
   onCall: () => void;
   onSms: () => void;
   onEmail: () => void;
   onRealisticPhone: () => void;
+  onRealisticSms: () => void;
   onTelegram: () => void;
   onRealisticEmail: () => void;
   onFamily: () => void;
@@ -2022,7 +2024,7 @@ function DrillSelectScreen({
           <div style={{ flex: 1, height: 2, backgroundColor: "#2a3a5c" }} />
         </div>
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#6b8ba4", textAlign: "center", marginTop: -4, lineHeight: 1.4 }}>
-          External training. Backend integration required.
+          Fired to your real phone or inbox. Registration required.
         </div>
 
         <div style={{ backgroundColor: "#111827", border: "4px solid #00ff88", boxShadow: "4px 4px 0 #00ff88", padding: "20px 16px" }}>
@@ -2038,11 +2040,23 @@ function DrillSelectScreen({
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4", marginBottom: 14, lineHeight: 1.5 }}>
             Receive a simulated scam call on your registered phone number.
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            <IconCoin size={10} color="#6b8ba4" />
-            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 5, color: "#6b8ba4" }}>COINS: PENDING BACKEND</div>
-          </div>
           <PixelBtn onClick={onRealisticPhone} color="#00ff88" textColor="#0a0e1a" size="md" full>SETUP CALL DRILL</PixelBtn>
+        </div>
+
+        <div style={{ backgroundColor: "#111827", border: "4px solid #4ecdc4", boxShadow: "4px 4px 0 #4ecdc4", padding: "20px 16px" }}>
+          <div className="flex items-center gap-3 mb-3">
+            <div style={{ filter: "drop-shadow(0 0 6px rgba(78,205,196,0.8))" }}>
+              <IconChatBubble size={28} color="#4ecdc4" />
+            </div>
+            <div>
+              <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 9, color: "#4ecdc4" }}>REAL SCAM TEXT</div>
+              <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 5, color: "#2a3a5c", marginTop: 3 }}>SENT TO YOUR PHONE</div>
+            </div>
+          </div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4", marginBottom: 14, lineHeight: 1.5 }}>
+            Receive a simulated scam text on your registered number.
+          </div>
+          <PixelBtn onClick={onRealisticSms} color="#4ecdc4" textColor="#0a0e1a" size="md" full>SETUP SMS DRILL</PixelBtn>
         </div>
 
         <div style={{ backgroundColor: "#111827", border: "4px solid #00d4ff", boxShadow: "4px 4px 0 #00d4ff", padding: "20px 16px" }}>
@@ -2057,10 +2071,6 @@ function DrillSelectScreen({
           </div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4", marginBottom: 14, lineHeight: 1.5 }}>
             Practice with our Telegram scam-fighter bot.
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            <IconCoin size={10} color="#6b8ba4" />
-            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 5, color: "#6b8ba4" }}>COINS: PENDING BACKEND</div>
           </div>
           <PixelBtn onClick={onTelegram} color="#00d4ff" textColor="#0a0e1a" size="md" full>OPEN TELEGRAM DRILL</PixelBtn>
         </div>
@@ -2077,10 +2087,6 @@ function DrillSelectScreen({
           </div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4", marginBottom: 14, lineHeight: 1.5 }}>
             Get simulated phishing emails in your real inbox.
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            <IconCoin size={10} color="#6b8ba4" />
-            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 5, color: "#6b8ba4" }}>COINS: PENDING BACKEND</div>
           </div>
           <PixelBtn onClick={onRealisticEmail} color="#ff6b35" textColor="#0a0e1a" size="md" full>SETUP REAL DRILL</PixelBtn>
         </div>
@@ -2160,7 +2166,26 @@ function TelegramDrillIntroScreen({ onOpen, onBack }: { onOpen: () => void; onBa
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: REALISTIC PHONE DRILL INTRO — explains flow, disabled until backend
 // ─────────────────────────────────────────────────────────────────────────
-function RealisticPhoneDrillIntroScreen({ onBack }: { onBack: () => void }) {
+function RealisticPhoneDrillIntroScreen({ onBack, onRegister }: { onBack: () => void; onRegister: () => void }) {
+  const [phase, setPhase] = useState<"idle" | "calling" | "sent">("idle");
+  const [msg, setMsg] = useState("");
+  const registered = !!sessionToken();
+
+  const placeCall = async () => {
+    setPhase("calling"); setMsg("");
+    try {
+      // No body — the server dials the session user's OWN verified number, never one
+      // from the request. That's the invariant that stops this dialling strangers.
+      const r = await fetch("/api/drills/fire", { method: "POST", headers: { ...authHeaders() } });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.ok === false) {
+        setMsg(d.error || "Could not place the call.");
+        setPhase("idle"); return;
+      }
+      setPhase("sent");
+    } catch { setMsg("Network error — check your connection."); setPhase("idle"); }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <SubPageHeader title="REAL PHONE DRILL" titleColor="#00ff88" onBack={onBack} />
@@ -2205,30 +2230,140 @@ function RealisticPhoneDrillIntroScreen({ onBack }: { onBack: () => void }) {
           </div>
         </div>
 
-        <div style={{ backgroundColor: "rgba(107,139,164,0.08)", border: "3px solid #6b8ba4", padding: "12px 14px", marginBottom: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
-          <IconLock size={14} color="#6b8ba4" />
-          <div>
-            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 6, color: "#6b8ba4", marginBottom: 4 }}>BACKEND NOT CONFIGURED</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#6b8ba4", lineHeight: 1.5 }}>
-              This drill requires telephony integration and a verified phone number. It will become available once the call-delivery backend is connected.
+        {phase === "sent" ? (
+          <div style={{ backgroundColor: "rgba(0,255,136,0.08)", border: "3px solid #00ff88", padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <IconShield size={16} color="#00ff88" />
+            <div>
+              <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 7, color: "#00ff88", marginBottom: 6 }}>CALL ON THE WAY</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.5 }}>
+                Your phone should ring shortly. Answer it and stay sharp — hang up if it asks for anything real.
+              </div>
             </div>
           </div>
-        </div>
+        ) : !registered ? (
+          <div style={{ backgroundColor: "rgba(255,230,109,0.08)", border: "3px solid #ffe66d", padding: "12px 14px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <IconWarning size={14} color="#ffe66d" />
+            <div>
+              <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 6, color: "#ffe66d", marginBottom: 4 }}>REGISTER FIRST</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.5 }}>
+                Verify your phone so the drill only ever calls the number you own.
+              </div>
+            </div>
+          </div>
+        ) : null}
 
-        <div style={{ backgroundColor: "rgba(255,107,53,0.08)", border: "3px solid #ff6b35", padding: "12px 14px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
-          <IconWarning size={14} color="#ff6b35" />
-          <div>
-            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 6, color: "#ff6b35", marginBottom: 4 }}>COIN REWARDS</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff6b35", lineHeight: 1.5 }}>
-              Coins will be credited automatically once the backend reports the call outcome.
-            </div>
-          </div>
-        </div>
+        {msg && (
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff2d55", marginBottom: 12 }}>{msg}</div>
+        )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <PixelBtn onClick={() => {}} color="#2a3a5c" textColor="#6b8ba4" size="lg" full disabled>
-            [ START CALL - COMING SOON ]
-          </PixelBtn>
+          {phase === "sent" ? (
+            <PixelBtn onClick={onBack} color="#00ff88" textColor="#0a0e1a" size="lg" full>[ DONE ]</PixelBtn>
+          ) : registered ? (
+            <PixelBtn onClick={placeCall} color="#00ff88" textColor="#0a0e1a" size="lg" full disabled={phase === "calling"}>
+              {phase === "calling" ? "CALLING..." : "[ CALL ME NOW ]"}
+            </PixelBtn>
+          ) : (
+            <PixelBtn onClick={onRegister} color="#4ecdc4" textColor="#0a0e1a" size="lg" full>[ REGISTER TO CONTINUE ]</PixelBtn>
+          )}
+          <PixelBtn onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm" full>BACK TO DRILLS</PixelBtn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// SCREEN: REALISTIC SMS DRILL INTRO — fires a real text to the user's own number
+// ─────────────────────────────────────────────────────────────────────────
+function RealisticSmsDrillIntroScreen({ onBack, onRegister }: { onBack: () => void; onRegister: () => void }) {
+  const [phase, setPhase] = useState<"idle" | "sending" | "sent">("idle");
+  const [msg, setMsg] = useState("");
+  const registered = !!sessionToken();
+
+  const sendText = async () => {
+    setPhase("sending"); setMsg("");
+    try {
+      // No number in the body — the server texts the session user's OWN verified number.
+      const r = await fetch("/api/drills/sms", { method: "POST", headers: { ...authHeaders() } });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.ok === false) {
+        setMsg(d.error === "SMS drills are not configured"
+          ? "SMS delivery isn't configured on this server yet."
+          : (d.error || "Could not send the text."));
+        setPhase("idle"); return;
+      }
+      setPhase("sent");
+    } catch { setMsg("Network error — check your connection."); setPhase("idle"); }
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <SubPageHeader title="REAL SMS DRILL" titleColor="#4ecdc4" onBack={onBack} />
+      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none", padding: "20px 16px" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, marginBottom: 20 }}>
+          <div style={{ filter: "drop-shadow(0 0 12px rgba(78,205,196,0.8))" }}>
+            <IconChatBubble size={64} color="#4ecdc4" />
+          </div>
+          <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 12, color: "#4ecdc4", textAlign: "center", textShadow: "3px 3px 0 #08312e" }}>
+            LIVE SMS DRILL
+          </div>
+          <div style={{ fontFamily: "'VT323', monospace", fontSize: 18, color: "#4ecdc4", textAlign: "center", lineHeight: 1.4 }}>
+            Get a simulated scam text on your real phone.
+          </div>
+        </div>
+
+        <div style={{ backgroundColor: "#111827", border: "3px solid #4ecdc4", boxShadow: "3px 3px 0 #4ecdc4", padding: "14px 16px", marginBottom: 14 }}>
+          <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 7, color: "#4ecdc4", marginBottom: 10 }}>HOW IT WORKS</div>
+          {[
+            "We text your registered number.",
+            "It reads like a scam — that's the point.",
+            "Spot the red flags in your real messages app.",
+            "A follow-up text reveals it was a drill.",
+          ].map((line, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
+              <div style={{ width: 16, height: 16, backgroundColor: "#4ecdc4", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 6, color: "#0a0e1a" }}>{i + 1}</span>
+              </div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.6, flex: 1 }}>{line}</div>
+            </div>
+          ))}
+        </div>
+
+        {phase === "sent" ? (
+          <div style={{ backgroundColor: "rgba(0,255,136,0.08)", border: "3px solid #00ff88", padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <IconShield size={16} color="#00ff88" />
+            <div>
+              <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 7, color: "#00ff88", marginBottom: 6 }}>TEXT SENT</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.5 }}>
+                Check your messages. A reveal text follows shortly to confirm it was a drill.
+              </div>
+            </div>
+          </div>
+        ) : !registered ? (
+          <div style={{ backgroundColor: "rgba(255,230,109,0.08)", border: "3px solid #ffe66d", padding: "12px 14px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <IconWarning size={14} color="#ffe66d" />
+            <div>
+              <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 6, color: "#ffe66d", marginBottom: 4 }}>REGISTER FIRST</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.5 }}>
+                Verify your phone so the drill only ever texts the number you own.
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {msg && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff2d55", marginBottom: 12 }}>{msg}</div>}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {phase === "sent" ? (
+            <PixelBtn onClick={onBack} color="#00ff88" textColor="#0a0e1a" size="lg" full>[ DONE ]</PixelBtn>
+          ) : registered ? (
+            <PixelBtn onClick={sendText} color="#4ecdc4" textColor="#0a0e1a" size="lg" full disabled={phase === "sending"}>
+              {phase === "sending" ? "SENDING..." : "[ TEXT ME NOW ]"}
+            </PixelBtn>
+          ) : (
+            <PixelBtn onClick={onRegister} color="#4ecdc4" textColor="#0a0e1a" size="lg" full>[ REGISTER TO CONTINUE ]</PixelBtn>
+          )}
           <PixelBtn onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm" full>BACK TO DRILLS</PixelBtn>
         </div>
       </div>
@@ -4207,8 +4342,26 @@ const TOUR_STEPS: TourStep[] = [
   {
     target: "start-drill",
     accent: "#00ff88",
-    title: "START A DRILL",
-    body: "This is the big one. Pick a call, SMS or email drill, then spot the red flags and report, ask family, or hang up.",
+    title: "TRAIN TOGETHER",
+    body: "The family drill runs the whole household through six scam scenarios in one sitting — one round per person.",
+  },
+  {
+    target: "nav-drill",
+    accent: "#00ff88",
+    title: "PICK A DRILL",
+    body: "This button is the heart of it. Choose a call, SMS or email drill, spot the red flags, then report, ask family, or hang up.",
+  },
+  {
+    target: "bottom-nav",
+    accent: "#c77dff",
+    title: "EXPLORE",
+    body: "Climb the leaderboard in RANKS, spend your coins in STORE, and customise your character in PROFILE.",
+  },
+  {
+    target: null,
+    accent: "#ffe66d",
+    title: "ALWAYS SAFE",
+    body: "Every drill ends by telling you it was a drill, and you're NEVER punished for stopping. Say 'stop' or 'is this a drill?' any time and it ends — no penalty.",
   },
   {
     target: "opt-in",
@@ -5388,8 +5541,15 @@ function SettingsScreen({ profile, settings, onSettings, onNav }: { profile: Pla
           </button>
           {openAccordion === "reset" && (
             <div style={{ backgroundColor: "#0a0e1a", border: "3px solid #2a3a5c", borderTop: "none", padding: "14px 16px", animation: "slideUp 0.15s ease-out" }}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#ff2d55", marginBottom: 10, lineHeight: 1.5 }}>This will erase all progress, XP and badges. Cannot be undone.</div>
-              <PixelBtn onClick={() => {}} color="#ff2d55" textColor="#ffffff" size="sm" full>CONFIRM RESET</PixelBtn>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#ff2d55", marginBottom: 10, lineHeight: 1.5 }}>Signs you out on this device and clears your saved name, avatar and tutorial. Your account and XP are kept — sign back in to restore them.</div>
+              <PixelBtn onClick={() => {
+                try {
+                  localStorage.removeItem("safespace_session_token");
+                  localStorage.removeItem("safespace_profile");
+                  localStorage.removeItem("safespace_tutorial_seen");
+                } catch { /* private mode: nothing to clear */ }
+                location.reload();
+              }} color="#ff2d55" textColor="#ffffff" size="sm" full>CONFIRM RESET</PixelBtn>
             </div>
           )}
         </div>
@@ -5409,18 +5569,25 @@ function SettingsScreen({ profile, settings, onSettings, onNav }: { profile: Pla
 // ─────────────────────────────────────────────────────────────────────────
 // SETTINGS SUB-SCREENS
 // ─────────────────────────────────────────────────────────────────────────
-function AccountSettingsScreen({ onBack }: { onBack: () => void }) {
+function AccountSettingsScreen({ profile, onBack }: { profile: PlayerProfile; onBack: () => void }) {
+  const registered = !!sessionToken();
+  const rows = [
+    { label: "USERNAME", value: profile.name, color: "#e8f4f8" },
+    // The email address is private (never sent to the client), so it isn't shown here —
+    // set it in the email drill. We only surface whether the phone is verified.
+    { label: "PHONE", value: registered ? "VERIFIED" : "NOT REGISTERED", color: registered ? "#00ff88" : "#6b8ba4" },
+    { label: "LINKED FAMILY PROFILES", value: "4 MEMBERS", color: "#00ff88" },
+  ];
   return (
     <div className="flex flex-col h-full">
       <SubPageHeader title="ACCOUNT" titleColor="#4ecdc4" onBack={onBack} />
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
-        {[{ label: "USERNAME", value: "PLAYER_001", color: "#e8f4f8" }, { label: "EMAIL", value: "player@drillmode.example", color: "#4ecdc4" }, { label: "LINKED FAMILY PROFILES", value: "4 MEMBERS", color: "#00ff88" }].map((row) => (
+        {rows.map((row) => (
           <div key={row.label} style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "14px 16px", marginBottom: 10 }}>
             <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 8, color: "#6b8ba4", marginBottom: 4 }}>{row.label}</div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 14, color: row.color }}>{row.value}</div>
           </div>
         ))}
-        <PixelBtn onClick={() => {}} color="#ff2d55" textColor="#ffffff" size="sm" full>[ DELETE ACCOUNT ]</PixelBtn>
       </div>
     </div>
   );
@@ -6162,14 +6329,14 @@ function BottomNav({ activeTab, onTab, onDrillSelect }: { activeTab: Tab; onTab:
     { tab: "profile", icon: <IconPerson size={18} color={activeTab === "profile" ? "#4ecdc4" : "#2a3a5c"} />, label: "PROFILE", activeColor: "#4ecdc4" },
   ];
   return (
-    <div className="flex items-stretch" style={{ borderTop: "4px solid #2a3a5c", backgroundColor: "#0a0e1a", minHeight: 68, flexShrink: 0 }}>
+    <div data-tour="bottom-nav" className="flex items-stretch" style={{ borderTop: "4px solid #2a3a5c", backgroundColor: "#0a0e1a", minHeight: 68, flexShrink: 0 }}>
       {leftItems.map((item) => (
         <button key={item.tab} onClick={() => onTab(item.tab)} className="flex-1 flex flex-col items-center justify-center gap-1" style={{ background: "none", border: "none", borderTop: activeTab === item.tab ? `4px solid ${item.activeColor}` : "4px solid transparent", cursor: "pointer", paddingTop: 6 }}>
           {item.icon}
           <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 4, color: activeTab === item.tab ? item.activeColor : "#2a3a5c" }}>{item.label}</div>
         </button>
       ))}
-      <div className="flex items-center justify-center px-1" style={{ flexShrink: 0 }}>
+      <div data-tour="nav-drill" className="flex items-center justify-center px-1" style={{ flexShrink: 0 }}>
         <button onClick={onDrillSelect} style={{ backgroundColor: "#00ff88", border: "4px solid #0a0e1a", boxShadow: "0 -4px 0 #006633, 4px 0 0 #006633, -4px 0 0 #006633", cursor: "pointer", width: 58, height: 58, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, marginBottom: 6 }}>
           <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 14, color: "#0a0e1a", lineHeight: 1 }}>▶</div>
           <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 4, color: "#0a0e1a" }}>DRILL</div>
@@ -6202,7 +6369,7 @@ const DRILL_SCREENS: Screen[] = [
   "drill-select", "incoming", "call",
   "sms-inbox", "sms-thread", "sms-browser",
   "email-inbox", "email-detail", "email-browser", "email-download",
-  "realistic-phone-intro", "telegram-intro", "realistic-email-intro",
+  "realistic-phone-intro", "realistic-sms-intro", "telegram-intro", "realistic-email-intro",
   "result-win", "result-lose",
   ...FAMILY_DRILL_SCREENS, "family-answer",
 ];
@@ -6740,7 +6907,7 @@ export default function App() {
             )}
             {screen === "settings" && <SettingsScreen profile={profile} settings={settings} onSettings={(s) => setSettings((p) => ({ ...p, ...s }))} onNav={handleNav} />}
 
-            {screen === "account-settings" && <AccountSettingsScreen onBack={() => setScreen("settings")} />}
+            {screen === "account-settings" && <AccountSettingsScreen profile={profile} onBack={() => setScreen("settings")} />}
             {screen === "privacy-settings" && <PrivacySettingsScreen onBack={() => setScreen("settings")} />}
             {screen === "accessibility-settings" && <AccessibilitySettingsScreen onBack={() => setScreen("settings")} />}
             {screen === "about-settings" && <AboutSettingsScreen onBack={() => setScreen("settings")} />}
@@ -6827,6 +6994,13 @@ export default function App() {
             {screen === "realistic-phone-intro" && (
               <RealisticPhoneDrillIntroScreen
                 onBack={() => setScreen("drill-select")}
+                onRegister={() => setScreen("register")}
+              />
+            )}
+            {screen === "realistic-sms-intro" && (
+              <RealisticSmsDrillIntroScreen
+                onBack={() => setScreen("drill-select")}
+                onRegister={() => setScreen("register")}
               />
             )}
             {screen === "realistic-email-intro" && (
@@ -6867,6 +7041,7 @@ export default function App() {
                 onSms={startSms}
                 onEmail={startEmail}
                 onRealisticPhone={() => setScreen("realistic-phone-intro")}
+                onRealisticSms={() => setScreen("realistic-sms-intro")}
                 onTelegram={() => setScreen("telegram-intro")}
                 onRealisticEmail={() => setScreen("realistic-email-intro")}
                 onFamily={goFamilyDrill}
