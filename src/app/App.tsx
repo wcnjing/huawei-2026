@@ -2032,7 +2032,7 @@ function TitleScreen({ onNext }: { onNext: () => void }) {
 // SCREEN: DRILL SELECT 
 // ─────────────────────────────────────────────────────────────────────────
 function DrillSelectScreen({
-  onRealisticPhone, onRealisticSms, onTelegram, onRealisticEmail, onFamily, onBack,
+  onRealisticPhone, onRealisticSms, onTelegram, onRealisticEmail, onFamily,
 }: {
   onRealisticPhone: () => void;
   onRealisticSms: () => void;
@@ -2041,108 +2041,104 @@ function DrillSelectScreen({
   onFamily: () => void;
   onBack: () => void;
 }) {
-  return (
-    <div className="flex flex-col h-full overflow-y-auto" style={{ scrollbarWidth: "none" }}>
-      <div className="flex items-center justify-between px-4" style={{ borderBottom: "4px solid #2a3a5c", backgroundColor: "#0a0e1a", minHeight: 56, flexShrink: 0 }}>
-        <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>{"< BACK"}</div>
-        </button>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#00ff88" }}>CHOOSE DRILL</div>
-        <div style={{ width: 40 }} />
-      </div>
+  const realisticDrills = [
+    {
+      id: "phone",
+      title: "SCAM CALL",
+      eyebrow: "PHONE · LIVE",
+      description: "Receive a simulated scam call on your verified phone.",
+      action: "SET UP CALL",
+      color: "#00ff88",
+      icon: <IconPhone size={24} color="#00ff88" />,
+      onClick: onRealisticPhone,
+    },
+    {
+      id: "sms",
+      title: "SCAM TEXT",
+      eyebrow: "SMS · LIVE",
+      description: "Get a realistic scam text and practise spotting its red flags.",
+      action: "SET UP SMS",
+      color: "#4ecdc4",
+      icon: <IconChatBubble size={24} color="#4ecdc4" />,
+      onClick: onRealisticSms,
+    },
+    {
+      id: "telegram",
+      title: "TELEGRAM BOT",
+      eyebrow: "CHAT · LIVE",
+      description: "Practise safely in a guided conversation with our training bot.",
+      action: "OPEN TELEGRAM",
+      color: "#00d4ff",
+      icon: <IconTelegram size={24} color="#00d4ff" />,
+      onClick: onTelegram,
+    },
+    {
+      id: "email",
+      title: "PHISHING EMAIL",
+      eyebrow: "EMAIL · LIVE",
+      description: "Receive a simulated phishing message in your registered inbox.",
+      action: "SET UP EMAIL",
+      color: "#ff6b35",
+      icon: <IconRealEmail size={24} color="#ff6b35" />,
+      onClick: onRealisticEmail,
+    },
+  ];
 
-      <div className="flex flex-col gap-4 px-4 py-5 flex-1">
-        <div style={{ fontFamily: "'VT323', monospace", fontSize: 18, color: "#6b8ba4", textAlign: "center", lineHeight: 1.4 }}>
-          Train against different scam attacks.
+  return (
+    <div className="h-full overflow-y-auto" style={{ scrollbarWidth: "none", backgroundColor: "#0d1324" }}>
+      <div className="flex flex-col gap-4 px-4 py-5">
+        <div style={{ padding: "2px 2px 4px" }}>
+          <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 14, color: "#e8f4f8", lineHeight: 1.5, marginBottom: 8 }}>
+            CHOOSE YOUR<br /><span style={{ color: "#00ff88" }}>TRAINING</span>
+          </div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#8da4b8", lineHeight: 1.5 }}>
+            Build your scam instincts with a quick family challenge or a live-channel drill.
+          </div>
         </div>
 
-        {/* Family drill is also on the Home screen, but it sits below the family rooms
-            where testers missed it — surface it here too so the DRILL tab reaches it. */}
-        <div data-tour="family-drill" style={{ backgroundColor: "#111827", border: "4px solid #00ff88", boxShadow: "4px 4px 0 #00ff88", padding: "16px" }}>
-          <div className="flex items-center gap-3 mb-2">
-            <IconShield size={26} color="#00ff88" />
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#00ff88" }}>FAMILY DRILL</div>
+        <div data-tour="family-drill" style={{ backgroundColor: "#111b2e", border: "3px solid #00ff88", boxShadow: "4px 4px 0 #006633", padding: 16 }}>
+          <div className="flex items-start gap-3">
+            <div style={{ width: 44, height: 44, flexShrink: 0, backgroundColor: "rgba(0,255,136,0.1)", border: "2px solid #00ff88", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <IconShield size={24} color="#00ff88" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#72a58a", letterSpacing: 1, marginBottom: 5 }}>QUICK PLAY · 6 ROUNDS</div>
+              <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 11, color: "#00ff88", lineHeight: 1.4 }}>FAMILY DRILL</div>
+            </div>
           </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4", marginBottom: 12, lineHeight: 1.5 }}>
-            Spot scams aimed at each family member — 6 rounds.
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#b4c6d4", margin: "13px 0 14px", lineHeight: 1.5 }}>
+            Decide what is safe, uncover clues, and protect every member of the household.
           </div>
           <PixelBtn onClick={onFamily} color="#00ff88" textColor="#0a0e1a" size="md" full>START FAMILY DRILL</PixelBtn>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
           <div style={{ flex: 1, height: 2, backgroundColor: "#2a3a5c" }} />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#00d4ff", letterSpacing: 2 }}>REALISTIC DRILLS</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#8da4b8", letterSpacing: 2 }}>LIVE CHANNELS</div>
           <div style={{ flex: 1, height: 2, backgroundColor: "#2a3a5c" }} />
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#6b8ba4", textAlign: "center", marginTop: -4, lineHeight: 1.4 }}>
-          Fired to your real phone or inbox. Registration required.
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#6b8ba4", textAlign: "center", marginTop: -6, lineHeight: 1.45 }}>
+          Sent to your verified channels. Registration required.
         </div>
 
-        <div style={{ backgroundColor: "#111827", border: "4px solid #00ff88", boxShadow: "4px 4px 0 #00ff88", padding: "20px 16px" }}>
-          <div className="flex items-center gap-3 mb-3">
-            <div style={{ filter: "drop-shadow(0 0 6px rgba(0,255,136,0.8))" }}>
-              <IconPhone size={28} color="#00ff88" />
+        {realisticDrills.map((drill) => (
+          <div key={drill.id} style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", borderLeft: `5px solid ${drill.color}`, padding: 14 }}>
+            <div className="flex items-start gap-3">
+              <div style={{ width: 42, height: 42, flexShrink: 0, backgroundColor: "#0a0e1a", border: `2px solid ${drill.color}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {drill.icon}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", letterSpacing: 1, marginBottom: 5 }}>{drill.eyebrow}</div>
+                <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 10, color: drill.color, lineHeight: 1.4 }}>{drill.title}</div>
+              </div>
             </div>
-            <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#00ff88" }}>REAL PHONE CALL</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#2a3a5c", marginTop: 3 }}>SENT TO YOUR PHONE</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#b4c6d4", margin: "12px 0 13px", lineHeight: 1.5 }}>
+              {drill.description}
             </div>
+            <PixelBtn onClick={drill.onClick} color={drill.color} textColor="#0a0e1a" size="md" full>{drill.action}</PixelBtn>
           </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4", marginBottom: 14, lineHeight: 1.5 }}>
-            Receive a simulated scam call on your registered phone number.
-          </div>
-          <PixelBtn onClick={onRealisticPhone} color="#00ff88" textColor="#0a0e1a" size="md" full>SETUP CALL DRILL</PixelBtn>
-        </div>
-
-        <div style={{ backgroundColor: "#111827", border: "4px solid #4ecdc4", boxShadow: "4px 4px 0 #4ecdc4", padding: "20px 16px" }}>
-          <div className="flex items-center gap-3 mb-3">
-            <div style={{ filter: "drop-shadow(0 0 6px rgba(78,205,196,0.8))" }}>
-              <IconChatBubble size={28} color="#4ecdc4" />
-            </div>
-            <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#4ecdc4" }}>REAL SCAM TEXT</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#2a3a5c", marginTop: 3 }}>SENT TO YOUR PHONE</div>
-            </div>
-          </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4", marginBottom: 14, lineHeight: 1.5 }}>
-            Receive a simulated scam text on your registered number.
-          </div>
-          <PixelBtn onClick={onRealisticSms} color="#4ecdc4" textColor="#0a0e1a" size="md" full>SETUP SMS DRILL</PixelBtn>
-        </div>
-
-        <div style={{ backgroundColor: "#111827", border: "4px solid #00d4ff", boxShadow: "4px 4px 0 #00d4ff", padding: "20px 16px" }}>
-          <div className="flex items-center gap-3 mb-3">
-            <div style={{ filter: "drop-shadow(0 0 6px rgba(0,212,255,0.8))" }}>
-              <IconTelegram size={28} color="#00d4ff" />
-            </div>
-            <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#00d4ff" }}>TELEGRAM BOT</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#2a3a5c", marginTop: 3 }}>REAL CONVERSATION</div>
-            </div>
-          </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4", marginBottom: 14, lineHeight: 1.5 }}>
-            Practice with our Telegram scam-fighter bot.
-          </div>
-          <PixelBtn onClick={onTelegram} color="#00d4ff" textColor="#0a0e1a" size="md" full>OPEN TELEGRAM DRILL</PixelBtn>
-        </div>
-
-        <div style={{ backgroundColor: "#111827", border: "4px solid #ff6b35", boxShadow: "4px 4px 0 #ff6b35", padding: "20px 16px" }}>
-          <div className="flex items-center gap-3 mb-3">
-            <div style={{ filter: "drop-shadow(0 0 6px rgba(255,107,53,0.8))" }}>
-              <IconRealEmail size={28} color="#ff6b35" />
-            </div>
-            <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ff6b35" }}>REAL INBOX EMAIL</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#2a3a5c", marginTop: 3 }}>SENT TO YOUR MAILBOX</div>
-            </div>
-          </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4", marginBottom: 14, lineHeight: 1.5 }}>
-            Get simulated phishing emails in your real inbox.
-          </div>
-          <PixelBtn onClick={onRealisticEmail} color="#ff6b35" textColor="#0a0e1a" size="md" full>SETUP REAL DRILL</PixelBtn>
-        </div>
-
-        <PixelBtn onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm" full>BACK HOME</PixelBtn>
+        ))}
+        <div style={{ height: 4 }} />
       </div>
     </div>
   );
@@ -2334,7 +2330,7 @@ function RealisticPhoneDrillIntroScreen({ onBack, onRegister, scheduleBlocked, s
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: REALISTIC SMS DRILL INTRO — fires a real text to the user's own number
 // ─────────────────────────────────────────────────────────────────────────
-function RealisticSmsDrillIntroScreen({ onBack, onRegister, onOutcome, scheduleBlocked, scheduleNextLabel }: { onBack: () => void; onRegister: () => void; onOutcome: (win: boolean) => void; scheduleBlocked: boolean; scheduleNextLabel: string }) {
+function RealisticSmsDrillIntroScreen({ onBack, onRegister, onOutcome }: { onBack: () => void; onRegister: () => void; onOutcome: (win: boolean) => void; scheduleBlocked: boolean; scheduleNextLabel: string }) {
   const [phase, setPhase] = useState<"idle" | "sending" | "sent">("idle");
   const [msg, setMsg] = useState("");
   const registered = !!sessionToken();
@@ -2421,14 +2417,10 @@ function RealisticSmsDrillIntroScreen({ onBack, onRegister, onOutcome, scheduleB
               <PixelBtn onClick={() => onOutcome(true)} color="#00ff88" textColor="#0a0e1a" size="lg" full>[ I SPOTTED THE SCAM ]</PixelBtn>
               <PixelBtn onClick={() => onOutcome(false)} color="#ff2d55" textColor="#ffffff" size="md" full>I CLICKED / REPLIED</PixelBtn>
             </>
-          ) : registered && scheduleBlocked ? (
-            <>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ffe66d", textAlign: "center", lineHeight: 1.5 }}>
-                OUTSIDE YOUR DRILL WINDOW · OPENS {scheduleNextLabel}
-              </div>
-              <PixelBtn onClick={() => {}} color="#1a2340" textColor="#6b8ba4" size="lg" full disabled>[ TEXT ME NOW ]</PixelBtn>
-            </>
           ) : registered ? (
+            // This is an explicit, consented manual send. The schedule only limits
+            // surprise drills; applying it here made "TEXT ME NOW" unusable for most
+            // of the day even though the SMS service itself was healthy.
             <PixelBtn onClick={sendText} color="#4ecdc4" textColor="#0a0e1a" size="lg" full disabled={phase === "sending"}>
               {phase === "sending" ? "SENDING..." : "[ TEXT ME NOW ]"}
             </PixelBtn>
@@ -6467,33 +6459,33 @@ function PaydayScreen({ coins, onCollect, onClose }: { coins: Record<string, num
 // ─────────────────────────────────────────────────────────────────────────
 // BOTTOM NAV
 // ─────────────────────────────────────────────────────────────────────────
-function BottomNav({ activeTab, onTab, onDrillSelect }: { activeTab: Tab; onTab: (t: Tab) => void; onDrillSelect: () => void }) {
+function BottomNav({ activeTab, drillActive = false, onTab, onDrillSelect }: { activeTab: Tab; drillActive?: boolean; onTab: (t: Tab) => void; onDrillSelect: () => void }) {
   const leftItems: { tab: Tab; icon: React.ReactNode; label: string; activeColor: string }[] = [
-    { tab: "home", icon: <IconHouse size={18} color={activeTab === "home" ? "#00ff88" : "#2a3a5c"} />, label: "HOME", activeColor: "#00ff88" },
-    { tab: "leaderboard", icon: <IconTrophy size={18} color={activeTab === "leaderboard" ? "#ffe66d" : "#2a3a5c"} />, label: "RANKS", activeColor: "#ffe66d" },
+    { tab: "home", icon: <IconHouse size={18} color={!drillActive && activeTab === "home" ? "#00ff88" : "#52647e"} />, label: "HOME", activeColor: "#00ff88" },
+    { tab: "leaderboard", icon: <IconTrophy size={18} color={!drillActive && activeTab === "leaderboard" ? "#ffe66d" : "#52647e"} />, label: "RANKS", activeColor: "#ffe66d" },
   ];
   const rightItems: { tab: Tab; icon: React.ReactNode; label: string; activeColor: string }[] = [
-    { tab: "store", icon: <IconStore size={18} color={activeTab === "store" ? "#c77dff" : "#2a3a5c"} />, label: "STORE", activeColor: "#c77dff" },
-    { tab: "profile", icon: <IconPerson size={18} color={activeTab === "profile" ? "#4ecdc4" : "#2a3a5c"} />, label: "PROFILE", activeColor: "#4ecdc4" },
+    { tab: "store", icon: <IconStore size={18} color={!drillActive && activeTab === "store" ? "#c77dff" : "#52647e"} />, label: "STORE", activeColor: "#c77dff" },
+    { tab: "profile", icon: <IconPerson size={18} color={!drillActive && activeTab === "profile" ? "#4ecdc4" : "#52647e"} />, label: "PROFILE", activeColor: "#4ecdc4" },
   ];
   return (
     <div data-tour="bottom-nav" className="flex items-stretch" style={{ borderTop: "4px solid #2a3a5c", backgroundColor: "#0a0e1a", minHeight: 68, flexShrink: 0 }}>
       {leftItems.map((item) => (
-        <button key={item.tab} onClick={() => onTab(item.tab)} className="flex-1 flex flex-col items-center justify-center gap-1" style={{ background: "none", border: "none", borderTop: activeTab === item.tab ? `4px solid ${item.activeColor}` : "4px solid transparent", cursor: "pointer", paddingTop: 6 }}>
+        <button key={item.tab} onClick={() => onTab(item.tab)} className="flex-1 flex flex-col items-center justify-center gap-1" style={{ background: "none", border: "none", borderTop: !drillActive && activeTab === item.tab ? `4px solid ${item.activeColor}` : "4px solid transparent", cursor: "pointer", paddingTop: 6 }}>
           {item.icon}
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: activeTab === item.tab ? item.activeColor : "#2a3a5c" }}>{item.label}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: !drillActive && activeTab === item.tab ? item.activeColor : "#52647e" }}>{item.label}</div>
         </button>
       ))}
       <div data-tour="nav-drill" className="flex items-center justify-center px-1" style={{ flexShrink: 0 }}>
-        <button onClick={onDrillSelect} style={{ backgroundColor: "#00ff88", border: "4px solid #0a0e1a", boxShadow: "0 -4px 0 #006633, 4px 0 0 #006633, -4px 0 0 #006633", cursor: "pointer", width: 58, height: 58, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, marginBottom: 6 }}>
+        <button aria-current={drillActive ? "page" : undefined} onClick={onDrillSelect} style={{ backgroundColor: "#00ff88", border: drillActive ? "4px solid #e8f4f8" : "4px solid #0a0e1a", boxShadow: "0 -4px 0 #006633, 4px 0 0 #006633, -4px 0 0 #006633", cursor: "pointer", width: 58, height: 58, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, marginBottom: 6 }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 14, color: "#0a0e1a", lineHeight: 1 }}>▶</div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#0a0e1a" }}>DRILL</div>
         </button>
       </div>
       {rightItems.map((item) => (
-        <button key={item.tab} onClick={() => onTab(item.tab)} className="flex-1 flex flex-col items-center justify-center gap-1" style={{ background: "none", border: "none", borderTop: activeTab === item.tab ? `4px solid ${item.activeColor}` : "4px solid transparent", cursor: "pointer", paddingTop: 6 }}>
+        <button key={item.tab} onClick={() => onTab(item.tab)} className="flex-1 flex flex-col items-center justify-center gap-1" style={{ background: "none", border: "none", borderTop: !drillActive && activeTab === item.tab ? `4px solid ${item.activeColor}` : "4px solid transparent", cursor: "pointer", paddingTop: 6 }}>
           {item.icon}
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: activeTab === item.tab ? item.activeColor : "#2a3a5c" }}>{item.label}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: !drillActive && activeTab === item.tab ? item.activeColor : "#52647e" }}>{item.label}</div>
         </button>
       ))}
     </div>
@@ -6807,6 +6799,7 @@ export default function App() {
   const isFullscreen = FULLSCREEN_ROUTES.includes(screen);
   const isSubPage = SUB_PAGE_ROUTES.includes(screen);
   const isMainTab = (["home", "leaderboard", "store", "profile", "settings"] as Screen[]).includes(screen);
+  const showAppChrome = isMainTab || screen === "drill-select";
 
   const goHome = () => { setActiveTab("home"); setScreen("home"); };
   const goDrillSelect = () => setScreen("drill-select");
@@ -6826,6 +6819,7 @@ export default function App() {
       case "store": return { title: "STORE", color: "#c77dff" };
       case "profile": return { title: "PROFILE", color: "#4ecdc4" };
       case "settings": return { title: "SETTINGS", color: "#6b8ba4" };
+      case "drill-select": return { title: "DRILLS", color: "#00ff88" };
       default: return { title: "DRILL MODE", color: "#00ff88" };
     }
   };
@@ -7010,7 +7004,7 @@ export default function App() {
       <Scanlines />
       <PhoneFrame>
         <div className="flex flex-col flex-1 overflow-hidden">
-          {isMainTab && (
+          {showAppChrome && (
             <AppHeader
               title={title}
               titleColor={color}
@@ -7288,9 +7282,10 @@ export default function App() {
             )}
           </div>
 
-          {isMainTab && (
+          {showAppChrome && (
             <BottomNav
               activeTab={activeTab === ("settings" as any) ? "home" : activeTab}
+              drillActive={screen === "drill-select"}
               onTab={handleTab}
               onDrillSelect={goDrillSelect}
             />
