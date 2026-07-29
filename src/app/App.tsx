@@ -3006,6 +3006,7 @@ function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize,
   coins: Record<string, number>; soldItems: string[];
 }) {
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
+  const registered = !!sessionToken();
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
       <div style={{ flex: 1, overflowY: "auto", scrollbarWidth: "none" }}>
@@ -3028,7 +3029,11 @@ function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize,
         <div style={{ padding: "0 16px 20px", backgroundColor: "#0a0e1a" }}>
           <PixelBtn onClick={onPayday} color="#ffe66d" textColor="#0a0e1a" size="md" full>PAYDAY SUNDAY</PixelBtn>
           <div style={{ height: 10 }} />
-          <div data-tour="opt-in"><PixelBtn onClick={onRegister} color="#4ecdc4" textColor="#0a0e1a" size="md" full>[ OPT IN TO REAL CALL DRILLS ]</PixelBtn></div>
+          <div data-tour="opt-in">{registered ? (
+            <PixelBtn onClick={onDrillSelect} color="#00ff88" textColor="#0a0e1a" size="md" full>[ ✓ OPTED IN — RUN A REAL DRILL ]</PixelBtn>
+          ) : (
+            <PixelBtn onClick={onRegister} color="#4ecdc4" textColor="#0a0e1a" size="md" full>[ OPT IN TO REAL CALL DRILLS ]</PixelBtn>
+          )}</div>
           <div style={{ height: 10 }} />
           <PixelBtn onClick={onTutorial} color="#1a2340" textColor="#6b8ba4" size="sm" full>HOW TO PLAY</PixelBtn>
         </div>
