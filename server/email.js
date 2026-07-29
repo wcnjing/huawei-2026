@@ -37,17 +37,19 @@ const SCAM_TOPICS = [
 
 // Same persona contract as the voice drill: FICTIONAL institutions only, bounded
 // pressure, and a reveal that is scripted rather than improvised.
-function buildPrompt(revealUrl, reportUrl) {
+export function buildPrompt(revealUrl, reportUrl, name) {
   const topic = SCAM_TOPICS[Math.floor(Math.random() * SCAM_TOPICS.length)];
   return [
     'You are writing ONE phishing-style email for a CONSENTED SafeSpace safety drill.',
     'The recipient has explicitly opted in to being drilled.',
+    'RECIPIENT NAME: ' + String(name || '').trim(),
     '',
     'TOPIC: ' + topic,
     '',
     'RULES:',
     '- Invent a FICTIONAL sender organisation. Never name a real bank, agency or brand.',
     '- Subject line + 2-4 short sentences. Urgent but professional, like real phishing.',
+    '- Address the recipient by their exact name once in the opening greeting.',
     '- Apply pressure, but never threaten harm or legal arrest.',
     '- Include exactly two links, as real anchor tags:',
     '    the bait link  -> ' + revealUrl,
@@ -62,7 +64,7 @@ function buildPrompt(revealUrl, reportUrl) {
  * Generate + send one drill email. Throws EmailUnavailable if unconfigured,
  * or Error on a provider failure (callers must not echo the message to clients).
  */
-export async function sendDrillEmail({ to }) {
+export async function sendDrillEmail({ to, name }) {
   if (!emailConfigured()) {
     throw new EmailUnavailable(
       'OPENAI_API_KEY, GOOGLE_SCRIPT_URL and GOOGLE_SCRIPT_SECRET must be set to send drill emails',
@@ -81,7 +83,7 @@ export async function sendDrillEmail({ to }) {
     },
     body: JSON.stringify({
       model: process.env.EMAIL_MODEL || 'gpt-4o-mini',
-      messages: [{ role: 'user', content: buildPrompt(revealUrl, reportUrl) }],
+      messages: [{ role: 'user', content: buildPrompt(revealUrl, reportUrl, name) }],
     }),
   });
   const genData = await gen.json();

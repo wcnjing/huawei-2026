@@ -25,14 +25,16 @@ Why verbatim: an improvised reveal comes out garbled and undercuts the one momen
 has to be unmistakably clear. The red flags are explained afterwards in the app, not on
 the call.`;
 
-const FIRST_MESSAGE =
-  "Good afternoon, am I speaking with the account holder? This is Officer Tan from the Office of Public Trust. I'm calling about an urgent matter on your bank account.";
+export function buildFirstMessage(name) {
+  const targetName = String(name || '').trim() || 'the account holder';
+  return `Good afternoon, am I speaking with ${targetName}? This is Officer Tan from the Office of Public Trust. I'm calling about an urgent matter on your bank account.`;
+}
 
 /**
  * Place an outbound drill call. Returns the Vapi call object (with id).
  * Throws if required env is missing or Vapi rejects the request.
  */
-export async function fireDrillCall({ toNumber }) {
+export async function fireDrillCall({ toNumber, name }) {
   const apiKey = process.env.VAPI_API_KEY;
   const phoneNumberId = process.env.VAPI_PHONE_NUMBER_ID;
   if (!apiKey || !phoneNumberId) {
@@ -43,7 +45,7 @@ export async function fireDrillCall({ toNumber }) {
   }
 
   const assistant = {
-    firstMessage: FIRST_MESSAGE,
+    firstMessage: buildFirstMessage(name),
     firstMessageMode: 'assistant-speaks-first',
     maxDurationSeconds: Number(process.env.MAX_DURATION_SECONDS || 300),
     model: {
@@ -51,7 +53,10 @@ export async function fireDrillCall({ toNumber }) {
       model: process.env.VAPI_CLAUDE_MODEL || 'claude-3-5-haiku-20241022',
       temperature: 0.7,
       maxTokens: 250,
-      messages: [{ role: 'system', content: SYSTEM_PROMPT }],
+      messages: [{
+        role: 'system',
+        content: `${SYSTEM_PROMPT}\n\nThe consented target's name is ${String(name || '').trim()}. Use their name naturally, but do not ask them to confirm it.`,
+      }],
     },
     voice: buildVoice(),
     transcriber: { provider: 'deepgram', model: 'nova-2', language: 'en' },

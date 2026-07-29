@@ -263,6 +263,8 @@ export async function recordDrillFired({ userId, channel = 'call', callId = null
 // Upsert a phone-verified user and log a 'granted' consent event (the audit trail).
 // Called by /api/verify/check after OTP succeeds. Guests are keyed by their number.
 export async function registerVerifiedUser({ phone, name, email }) {
+  const cleanName = String(name || '').trim().toUpperCase().slice(0, 30);
+  if (!cleanName) throw new Error('name is required');
   return mutate((db) => {
     // Look up by phone, but key the record by an OPAQUE id. Using the phone number as the
     // primary key made it PII that leaked through every id-bearing response and URL.
@@ -271,7 +273,7 @@ export async function registerVerifiedUser({ phone, name, email }) {
       const id = `usr_${crypto.randomUUID()}`;
       user = {
         id,
-        name: (name || 'GUEST').toString().trim().toUpperCase().slice(0, 10) || 'GUEST',
+        name: cleanName,
         role: 'ROOKIE',
         phone,
         consentToDrills: true,
@@ -282,6 +284,7 @@ export async function registerVerifiedUser({ phone, name, email }) {
       db.users[id] = user;
     }
     user.phone = phone;
+    user.name = cleanName;
     // Optional address supplied while consenting. Email drills can ONLY go to this stored
     // address — never to one named in a request, which is what made the standalone
     // email-webapp an open phishing relay.
@@ -301,6 +304,31 @@ export async function setUserEmail(userId, email) {
     const user = db.users[userId];
     if (!user) throw new Error(`unknown user ${userId}`);
     user.email = String(email).trim().toLowerCase();
+    return user;
+  });
+}
+
+// Remove the verified phone and every session whose authority came from that
+// verification. Progress and optional email remain intact so the account can reconnect
+// a number later without losing its training history.
+export async function detachVerifiedPhone(userId) {
+  return mutate((db) => {
+    const user = db.users[userId];
+    if (!user) throw new Error(`unknown user ${userId}`);
+
+    delete user.phone;
+    user.consentToDrills = false;
+    db.sessions = db.sessions || {};
+    for (const [token, session] of Object.entries(db.sessions)) {
+      if (session.userId === userId) delete db.sessions[token];
+    }
+    db.consentEvents = db.consentEvents || [];
+    db.consentEvents.push({
+      userId,
+      type: 'withdrawn',
+      channel: 'account',
+      at: new Date().toISOString(),
+    });
     return user;
   });
 }

@@ -83,16 +83,21 @@ export function pickScenario(id) {
   return SCENARIOS[Math.floor(Math.random() * SCENARIOS.length)];
 }
 
+export function personalizeSmsText(text, name) {
+  const targetName = String(name || '').trim();
+  return targetName ? `${targetName}, ${text}` : text;
+}
+
 /**
  * Send one SMS drill, then schedule the reveal.
- * @param {{to: string, scenarioId?: string, revealAfterMs?: number}} opts
+ * @param {{to: string, name?: string, scenarioId?: string, revealAfterMs?: number}} opts
  */
-export async function sendDrillSms({ to, scenarioId, revealAfterMs }) {
+export async function sendDrillSms({ to, name, scenarioId, revealAfterMs }) {
   if (!smsConfigured()) {
     throw new SmsUnavailable('TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_SMS_FROM must be set');
   }
   const scenario = pickScenario(scenarioId);
-  const sent = await twilioSend({ to, body: scenario.text });
+  const sent = await twilioSend({ to, body: personalizeSmsText(scenario.text, name) });
 
   // The reveal is fire-and-forget on an in-process timer. Good enough for a drill that
   // lasts two minutes; a production build should hand this to a job queue so a restart

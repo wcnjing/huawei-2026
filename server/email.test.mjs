@@ -1,7 +1,7 @@
 // Run with: node --test
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { emailConfigured, sendDrillEmail } from './email.js';
+import { emailConfigured, sendDrillEmail, buildPrompt } from './email.js';
 
 function clearEmailEnv() {
   delete process.env.OPENAI_API_KEY;
@@ -54,4 +54,10 @@ test('FAILS CLOSED: a partial config still refuses (no half-send)', async () => 
     code: 'EMAIL_UNAVAILABLE',
   });
   clearEmailEnv();
+});
+
+test('email drill prompt requires a greeting with the verified name', () => {
+  const prompt = buildPrompt('https://example.test/reveal', 'https://example.test/report', 'JUDGE');
+  assert.match(prompt, /RECIPIENT NAME: JUDGE/);
+  assert.match(prompt, /Address the recipient by their exact name/);
 });

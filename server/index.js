@@ -6,7 +6,8 @@ import crypto from 'crypto';
 import { fileURLToPath, pathToFileURL } from 'url';
 import {
   getUser, getUserByPhone, getFamily, getLeaderboard, applyOutcome, takePendingResult,
-  recordDrillFired, registerVerifiedUser, setUserEmail, publicUser, createSession, getUserIdByToken,
+  recordDrillFired, registerVerifiedUser, setUserEmail, detachVerifiedPhone, publicUser,
+  createSession, getUserIdByToken,
 } from './store.js';
 import { fireDrillCall, outcomeFromVapiWebhook } from './vapi.js';
 import { startVerification, checkVerification, rateLimited, verifyMode } from './verify.js';
@@ -57,6 +58,7 @@ function timingSafeEqualStr(a, b) {
 
 const E164 = /^\+[1-9]\d{6,14}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const NAME_RE = /^[\p{L}][\p{L}\p{M} .'-]{0,29}$/u;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, '..', 'dist');
@@ -126,13 +128,16 @@ api.post('/api/verify/start', async (req, res) => {
 api.post('/api/verify/check', async (req, res) => {
   const phone = (req.body?.phone || '').trim();
   const code = (req.body?.code || '').trim();
-  const name = req.body?.name;
+  const name = String(req.body?.name || '').trim();
   if (!E164.test(phone) || !code) return res.status(400).json({ error: 'phone and code required' });
   // Email is optional, but if supplied it must be well-formed — it becomes a real
   // send target, so don't store junk the client happened to submit.
   const email = req.body?.email;
   if (email !== undefined && email !== null && email !== '' && !EMAIL_RE.test(String(email).trim())) {
     return res.status(400).json({ error: 'email is not a valid address' });
+  }
+  if (!NAME_RE.test(name)) {
+    return res.status(400).json({ error: 'name is required (letters, spaces, apostrophes or hyphens)' });
   }
   try {
     const approved = await checkVerification(phone, code);
@@ -162,7 +167,7 @@ api.post('/api/drills/fire', async (req, res) => {
   if (!user.phone) return res.status(400).json({ error: 'no verified phone on file' });
 
   try {
-    const call = await fireDrillCall({ toNumber: user.phone });
+    const call = await fireDrillCall({ toNumber: user.phone, name: user.name });
     await recordDrillFired({ userId, channel: 'call', callId: call.id });
     res.json({ ok: true, callId: call.id, status: call.status });
   } catch (e) {
@@ -188,6 +193,20 @@ api.post('/api/me/email', async (req, res) => {
   }
 });
 
+// Detaching also withdraws drill consent and revokes every session created from the
+// phone verification. A new OTP is required before another real drill can run.
+api.post('/api/me/phone/detach', async (req, res) => {
+  const userId = await sessionUserId(req);
+  if (!userId) return res.status(401).json({ error: 'sign in to remove your verified phone' });
+
+  const user = await getUser(userId);
+  if (!user) return res.status(401).json({ error: 'session no longer valid' });
+  if (!user.phone) return res.status(400).json({ error: 'no verified phone on file' });
+
+  await detachVerifiedPhone(userId);
+  res.json({ ok: true });
+});
+
 // --- Real EMAIL drill. Same contract as /fire: AUTHENTICATION REQUIRED, and the
 //     recipient is the session user's OWN stored address — never one from the request.
 //     (The standalone email-webapp took a target address from the body with no auth,
@@ -203,7 +222,7 @@ api.post('/api/drills/email', async (req, res) => {
   if (!emailConfigured()) return fail(res, 503, 'email drills are not configured');
 
   try {
-    await sendDrillEmail({ to: user.email });
+    await sendDrillEmail({ to: user.email, name: user.name });
     await recordDrillFired({ userId, channel: 'email' });
     res.json({ ok: true });
   } catch (e) {
@@ -224,7 +243,7 @@ api.post('/api/drills/sms', async (req, res) => {
   if (!smsConfigured()) return fail(res, 503, 'SMS drills are not configured');
 
   try {
-    const out = await sendDrillSms({ to: user.phone, scenarioId: req.body?.scenario });
+    const out = await sendDrillSms({ to: user.phone, name: user.name, scenarioId: req.body?.scenario });
     await recordDrillFired({ userId, channel: 'sms' });
     res.json({ ok: true, scenarioId: out.scenarioId, revealInMs: out.revealInMs });
   } catch (e) {

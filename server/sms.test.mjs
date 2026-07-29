@@ -1,7 +1,9 @@
 // Run with: node --test
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { smsConfigured, sendDrillSms, SCENARIOS, REVEAL_TEXT, pickScenario } from './sms.js';
+import {
+  smsConfigured, sendDrillSms, SCENARIOS, REVEAL_TEXT, pickScenario, personalizeSmsText,
+} from './sms.js';
 
 function clearSmsEnv() {
   delete process.env.TWILIO_ACCOUNT_SID;
@@ -68,4 +70,9 @@ test('pickScenario returns a known scenario, and falls back safely on a bad id',
   assert.equal(pickScenario('bank').id, 'bank');
   assert.ok(SCENARIOS.includes(pickScenario('does-not-exist')), 'unknown id must not return undefined');
   assert.ok(SCENARIOS.includes(pickScenario()), 'no id -> random valid scenario');
+});
+
+test('SMS drills address the verified user by name', () => {
+  assert.equal(personalizeSmsText('Your parcel is held.', 'JUDGE'), 'JUDGE, Your parcel is held.');
+  assert.equal(personalizeSmsText('Your parcel is held.', ''), 'Your parcel is held.');
 });

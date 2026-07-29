@@ -4,7 +4,10 @@ import assert from 'node:assert/strict';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { publicUser, registerVerifiedUser, setUserEmail, getUser, createSession, getUserIdByToken } from './store.js';
+import {
+  publicUser, registerVerifiedUser, setUserEmail, detachVerifiedPhone, getUser,
+  createSession, getUserIdByToken,
+} from './store.js';
 
 const DATA_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data.json');
 const freshStore = () => fs.rmSync(DATA_FILE, { force: true });
@@ -17,6 +20,15 @@ test('registerVerifiedUser gives an opaque id, never the phone number', async ()
   assert.ok(u.id.startsWith('usr_'), `id should be opaque, got ${u.id}`);
   assert.ok(!u.id.includes('6591234567'), 'the id must not embed the phone number');
   assert.equal(u.phone, '+6591234567', 'the phone is still stored server-side for dialling');
+  freshStore();
+});
+
+test('registerVerifiedUser requires a name', async () => {
+  freshStore();
+  await assert.rejects(
+    () => registerVerifiedUser({ phone: '+6591234567', name: '   ' }),
+    /name is required/,
+  );
   freshStore();
 });
 
@@ -74,6 +86,31 @@ test('setUserEmail attaches an email to an existing user, normalised', async () 
   assert.equal((await getUser(u.id)).email, 'judge@example.com', 'persisted');
 
   await assert.rejects(() => setUserEmail('usr_nope', 'x@y.com'), /unknown user/);
+  freshStore();
+});
+
+test('detachVerifiedPhone removes the number, withdraws consent and revokes all sessions', async () => {
+  freshStore();
+  const u = await registerVerifiedUser({
+    phone: '+6591234567',
+    name: 'Judge',
+    email: 'judge@example.com',
+  });
+  const firstToken = await createSession(u.id);
+  const secondToken = await createSession(u.id);
+
+  const detached = await detachVerifiedPhone(u.id);
+  assert.equal(detached.phone, undefined);
+  assert.equal(detached.consentToDrills, false);
+  assert.equal(detached.email, 'judge@example.com', 'other account data must be retained');
+  assert.equal(await getUserIdByToken(firstToken), null);
+  assert.equal(await getUserIdByToken(secondToken), null);
+
+  const db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
+  assert.ok(db.consentEvents.some(
+    (event) => event.userId === u.id && event.type === 'withdrawn' && event.channel === 'account',
+  ));
+  await assert.rejects(() => detachVerifiedPhone('usr_nope'), /unknown user/);
   freshStore();
 });
 

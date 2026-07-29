@@ -1,7 +1,7 @@
 // Run with: node --test
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { outcomeFromVapiWebhook, fireDrillCall } from './vapi.js';
+import { outcomeFromVapiWebhook, fireDrillCall, buildFirstMessage } from './vapi.js';
 
 const report = (transcript, extra = {}) => ({
   message: { type: 'end-of-call-report', transcript, ...extra },
@@ -73,4 +73,8 @@ test('fireDrillCall refuses a non-E.164 number', async () => {
   await assert.rejects(() => fireDrillCall({ toNumber: '91234567' }), /E\.164/);
   delete process.env.VAPI_API_KEY;
   delete process.env.VAPI_PHONE_NUMBER_ID;
+});
+
+test('call drills greet the verified user by name', () => {
+  assert.match(buildFirstMessage('JUDGE'), /speaking with JUDGE/);
 });

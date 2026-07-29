@@ -22,6 +22,7 @@ delete process.env.VAPI_WEBHOOK_SECRET;
 fs.rmSync(DATA_FILE, { force: true }); // start from the seed
 
 const { app } = await import('./index.js');
+const { registerVerifiedUser, createSession, getUser } = await import('./store.js');
 
 let server;
 let base;
@@ -116,6 +117,23 @@ test('POST /api/me/email is refused without a session token', async () => {
   assert.equal(res.status, 401, 'no session -> cannot set an address on any account');
 });
 
+test('POST /api/me/phone/detach is refused without a session token', async () => {
+  assert.equal((await post('/api/me/phone/detach')).status, 401);
+});
+
+test('POST /api/me/phone/detach removes the phone and revokes the calling session', async () => {
+  const user = await registerVerifiedUser({ phone: '+6591234567', name: 'Detach' });
+  const token = await createSession(user.id);
+  const headers = { authorization: `Bearer ${token}` };
+
+  const detached = await post('/api/me/phone/detach', {}, headers);
+  assert.equal(detached.status, 200);
+  assert.equal((await detached.json()).ok, true);
+  assert.equal((await getUser(user.id)).phone, undefined);
+  assert.equal((await getUser(user.id)).consentToDrills, false);
+  assert.equal((await post('/api/me/phone/detach', {}, headers)).status, 401);
+});
+
 test('POST /api/drills/sms cannot be aimed at another number via the body', async () => {
   const res = await post('/api/drills/sms', { phone: '+6590000000', user: 'you' });
   assert.equal(res.status, 401, 'no session -> refused before any number is considered');
@@ -137,7 +155,7 @@ test('POST /api/drills/simulate does not exist without ENABLE_DEMO_ROUTES', asyn
 
 // ─── Verification fails closed (earlier fix) ──────────────────────────────
 test('POST /api/verify/check refuses the bypass code when verification is disabled', async () => {
-  const res = await post('/api/verify/check', { phone: '+6591234567', code: '000000' });
+  const res = await post('/api/verify/check', { phone: '+6591234567', code: '000000', name: 'Judge' });
   assert.equal(res.status, 503);
 });
 
@@ -149,13 +167,20 @@ test('POST /api/verify/start rejects a non-E.164 phone', async () => {
 // before the OTP is even checked — junk must never reach the store.
 test('POST /api/verify/check rejects a malformed email before anything else', async () => {
   for (const bad of ['not-an-email', 'missing@tld', 'two@@at.com', 'has space@x.com']) {
-    const res = await post('/api/verify/check', { phone: '+6591234567', code: '000000', email: bad });
+    const res = await post('/api/verify/check', { phone: '+6591234567', code: '000000', name: 'Judge', email: bad });
     assert.equal(res.status, 400, `"${bad}" should be rejected as malformed`);
   }
   // An omitted email is fine — it is optional. This one gets past validation and is
   // refused later for a different reason (verification disabled), never 400.
-  const ok = await post('/api/verify/check', { phone: '+6591234567', code: '000000' });
+  const ok = await post('/api/verify/check', { phone: '+6591234567', code: '000000', name: 'Judge' });
   assert.notEqual(ok.status, 400, 'omitting email must not be a validation error');
+});
+
+test('POST /api/verify/check requires a valid name before verification', async () => {
+  for (const name of ['', '   ', '<script>', '12345']) {
+    const res = await post('/api/verify/check', { phone: '+6591234567', code: '000000', name });
+    assert.equal(res.status, 400, `"${name}" should be rejected as a name`);
+  }
 });
 
 // ─── Anonymous practice still works (no regression for the demo) ──────────

@@ -4574,10 +4574,15 @@ function RegisterScreen({ onDone, onBack }: { onDone: () => void; onBack: () => 
   const [msg, setMsg] = useState("");
   const [devCode, setDevCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const validName = /^[\p{L}][\p{L}\p{M} .'-]{0,29}$/u.test(name.trim());
 
   // Explicit save — persist the details locally without sending an OTP. Lets the user
   // store their email for email drills, or keep a number on file, before verifying.
   const handleSave = () => {
+    if (!validName) {
+      setMsg("Enter your name using letters, spaces, apostrophes or hyphens.");
+      return;
+    }
     saveContact({ name: name.trim(), phone: phone.trim(), email: email.trim() });
     setMsg("SAVED — details stored on this device.");
   };
@@ -4592,6 +4597,10 @@ function RegisterScreen({ onDone, onBack }: { onDone: () => void; onBack: () => 
   );
 
   async function sendCode() {
+    if (!validName) {
+      setMsg("Your name is required before verification.");
+      return;
+    }
     setBusy(true); setMsg("");
     try {
       const r = await fetch("/api/verify/start", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone }) });
@@ -4604,6 +4613,11 @@ function RegisterScreen({ onDone, onBack }: { onDone: () => void; onBack: () => 
     setBusy(false);
   }
   async function verify() {
+    if (!validName) {
+      setMsg("Your name is required before verification.");
+      setStep("phone");
+      return;
+    }
     setBusy(true); setMsg("");
     try {
       const r = await fetch("/api/verify/check", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone, code, name, email: email.trim() || undefined }) });
@@ -4631,7 +4645,7 @@ function RegisterScreen({ onDone, onBack }: { onDone: () => void; onBack: () => 
         <PixelPanel accent="#4ecdc4" className="w-full">
           {step === "phone" ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div>{label("YOUR NAME (OPTIONAL)")}<input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="JUDGE" /></div>
+              <div>{label("YOUR NAME (REQUIRED)")}<input required maxLength={30} aria-required="true" style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="JUDGE" autoComplete="name" /></div>
               <div>{label("PHONE NUMBER")}<input style={inputStyle} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+6591234567" inputMode="tel" /></div>
               <div>{label("EMAIL (OPTIONAL — FOR EMAIL DRILLS)")}<input style={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" inputMode="email" autoCapitalize="none" /></div>
               <PixelBtn onClick={sendCode} color="#4ecdc4" size="lg" full disabled={busy}>{busy ? "SENDING..." : "[ SEND CODE ]"}</PixelBtn>
@@ -5710,6 +5724,9 @@ function SettingsScreen({ profile, settings, muted, onToggleMute, onSettings, on
 // SETTINGS SUB-SCREENS
 // ─────────────────────────────────────────────────────────────────────────
 function AccountSettingsScreen({ profile, onBack }: { profile: PlayerProfile; onBack: () => void }) {
+  const [confirmDetach, setConfirmDetach] = useState(false);
+  const [detaching, setDetaching] = useState(false);
+  const [detachMessage, setDetachMessage] = useState("");
   const registered = !!sessionToken();
   const rows = [
     { label: "USERNAME", value: profile.name, color: "#e8f4f8" },
@@ -5718,6 +5735,32 @@ function AccountSettingsScreen({ profile, onBack }: { profile: PlayerProfile; on
     { label: "PHONE", value: registered ? "VERIFIED" : "NOT REGISTERED", color: registered ? "#00ff88" : "#6b8ba4" },
     { label: "LINKED FAMILY PROFILES", value: "4 MEMBERS", color: "#00ff88" },
   ];
+
+  const detachPhone = async () => {
+    setDetaching(true);
+    setDetachMessage("");
+    try {
+      const r = await fetch("/api/me/phone/detach", {
+        method: "POST",
+        headers: { ...authHeaders() },
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) {
+        setDetachMessage(d.error || "Could not remove the verified number.");
+        setDetaching(false);
+        return;
+      }
+
+      try { localStorage.removeItem(TOKEN_KEY); } catch { /* private mode */ }
+      saveContact({ ...loadContact(), phone: "+65" });
+      setConfirmDetach(false);
+      setDetachMessage("PHONE REMOVED — verify a number again to use real drills.");
+    } catch {
+      setDetachMessage("Network error — your verified number was not changed.");
+    }
+    setDetaching(false);
+  };
+
   return (
     <div className="flex flex-col h-full">
       <SubPageHeader title="ACCOUNT" titleColor="#4ecdc4" onBack={onBack} />
@@ -5728,6 +5771,36 @@ function AccountSettingsScreen({ profile, onBack }: { profile: PlayerProfile; on
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 14, color: row.color }}>{row.value}</div>
           </div>
         ))}
+
+        {registered && (
+          <div style={{ backgroundColor: "rgba(255,45,85,0.06)", border: "3px solid #ff2d55", padding: "14px 16px", marginTop: 18 }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ff2d55", marginBottom: 7 }}>VERIFIED PHONE</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#b4c6d4", lineHeight: 1.55, marginBottom: 12 }}>
+              Removing your number signs out every device and stops all real call and SMS drills. Your progress and email are kept.
+            </div>
+            {confirmDetach ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ffe66d", lineHeight: 1.5, marginBottom: 2 }}>
+                  REMOVE YOUR VERIFIED PHONE?
+                </div>
+                <PixelBtn onClick={detachPhone} color="#ff2d55" textColor="#ffffff" size="sm" full disabled={detaching}>
+                  {detaching ? "REMOVING..." : "YES, REMOVE NUMBER"}
+                </PixelBtn>
+                <PixelBtn onClick={() => setConfirmDetach(false)} color="#1a2340" textColor="#b4c6d4" size="sm" full disabled={detaching}>CANCEL</PixelBtn>
+              </div>
+            ) : (
+              <PixelBtn onClick={() => { setConfirmDetach(true); setDetachMessage(""); }} color="#ff2d55" textColor="#ffffff" size="sm" full>
+                REMOVE VERIFIED NUMBER
+              </PixelBtn>
+            )}
+          </div>
+        )}
+
+        {detachMessage && (
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: registered ? "#ff2d55" : "#00ff88", lineHeight: 1.5, marginTop: 12 }}>
+            {detachMessage}
+          </div>
+        )}
       </div>
     </div>
   );
