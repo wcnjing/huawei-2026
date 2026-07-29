@@ -1313,7 +1313,7 @@ function PixelBtn({
 }) {
   const [pressed, setPressed] = useState(false);
   const pad = size === "lg" ? "px-6 py-4" : size === "sm" ? "px-3 py-2" : "px-4 py-3";
-  const txt = size === "lg" ? "text-[10px]" : size === "sm" ? "text-[7px]" : "text-[8px]";
+  const txt = size === "lg" ? "text-[12px]" : size === "sm" ? "text-[9px]" : "text-[10px]";
   return (
     <button
       onClick={onClick}
@@ -1571,7 +1571,7 @@ function AppHeader({
         flexShrink: 0,
       }}
     >
-      <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 10, color: titleColor }}>
+      <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 12, color: titleColor }}>
         {title}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -1652,9 +1652,9 @@ function SubPageHeader({
         aria-label="Go back"
         style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}
       >
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4" }}>{"< BACK"}</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#6b8ba4" }}>{"< BACK"}</div>
       </button>
-      <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 9, color: titleColor }}>{title}</div>
+      <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 11, color: titleColor }}>{title}</div>
     </div>
   );
 }
@@ -1900,7 +1900,7 @@ function FlagTooltip({ flag, onClose }: { flag: DrillFlag; onClose: () => void }
           <IconWarning size={16} color="#ff2d55" />
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff2d55", marginBottom: 6, letterSpacing: 1 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ff2d55", marginBottom: 6, letterSpacing: 1 }}>
             {flag.name}
           </div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#e8f4f8", lineHeight: 1.5 }}>
@@ -1999,7 +1999,7 @@ function TitleScreen({ onNext }: { onNext: () => void }) {
         >
           DRILL<br />MODE
         </div>
-        <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 8, color: "#4ecdc4", letterSpacing: 3, marginTop: 4 }}>
+        <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 10, color: "#4ecdc4", letterSpacing: 3, marginTop: 4 }}>
           SCAM FIGHTER
         </div>
         <div className="flex gap-2 mt-2">
@@ -2020,7 +2020,7 @@ function TitleScreen({ onNext }: { onNext: () => void }) {
         <Blink ms={700} min={0.5}>
           <PixelBtn onClick={onNext} color="#00ff88" size="lg">[ PRESS START ]</PixelBtn>
         </Blink>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#2a3a5c" }}>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#2a3a5c" }}>
           v2.0.0 © 2024 DRILL MODE
         </div>
       </div>
@@ -2045,9 +2045,9 @@ function DrillSelectScreen({
     <div className="flex flex-col h-full overflow-y-auto" style={{ scrollbarWidth: "none" }}>
       <div className="flex items-center justify-between px-4" style={{ borderBottom: "4px solid #2a3a5c", backgroundColor: "#0a0e1a", minHeight: 56, flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>{"< BACK"}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>{"< BACK"}</div>
         </button>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#00ff88" }}>CHOOSE DRILL</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#00ff88" }}>CHOOSE DRILL</div>
         <div style={{ width: 40 }} />
       </div>
 
@@ -2061,7 +2061,7 @@ function DrillSelectScreen({
         <div data-tour="family-drill" style={{ backgroundColor: "#111827", border: "4px solid #00ff88", boxShadow: "4px 4px 0 #00ff88", padding: "16px" }}>
           <div className="flex items-center gap-3 mb-2">
             <IconShield size={26} color="#00ff88" />
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#00ff88" }}>FAMILY DRILL</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#00ff88" }}>FAMILY DRILL</div>
           </div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4", marginBottom: 12, lineHeight: 1.5 }}>
             Spot scams aimed at each family member — 6 rounds.
@@ -2071,7 +2071,7 @@ function DrillSelectScreen({
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
           <div style={{ flex: 1, height: 2, backgroundColor: "#2a3a5c" }} />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#00d4ff", letterSpacing: 2 }}>REALISTIC DRILLS</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#00d4ff", letterSpacing: 2 }}>REALISTIC DRILLS</div>
           <div style={{ flex: 1, height: 2, backgroundColor: "#2a3a5c" }} />
         </div>
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#6b8ba4", textAlign: "center", marginTop: -4, lineHeight: 1.4 }}>
@@ -2084,8 +2084,8 @@ function DrillSelectScreen({
               <IconPhone size={28} color="#00ff88" />
             </div>
             <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#00ff88" }}>REAL PHONE CALL</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#2a3a5c", marginTop: 3 }}>SENT TO YOUR PHONE</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#00ff88" }}>REAL PHONE CALL</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#2a3a5c", marginTop: 3 }}>SENT TO YOUR PHONE</div>
             </div>
           </div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4", marginBottom: 14, lineHeight: 1.5 }}>
@@ -2100,8 +2100,8 @@ function DrillSelectScreen({
               <IconChatBubble size={28} color="#4ecdc4" />
             </div>
             <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#4ecdc4" }}>REAL SCAM TEXT</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#2a3a5c", marginTop: 3 }}>SENT TO YOUR PHONE</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#4ecdc4" }}>REAL SCAM TEXT</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#2a3a5c", marginTop: 3 }}>SENT TO YOUR PHONE</div>
             </div>
           </div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4", marginBottom: 14, lineHeight: 1.5 }}>
@@ -2116,8 +2116,8 @@ function DrillSelectScreen({
               <IconTelegram size={28} color="#00d4ff" />
             </div>
             <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#00d4ff" }}>TELEGRAM BOT</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#2a3a5c", marginTop: 3 }}>REAL CONVERSATION</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#00d4ff" }}>TELEGRAM BOT</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#2a3a5c", marginTop: 3 }}>REAL CONVERSATION</div>
             </div>
           </div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4", marginBottom: 14, lineHeight: 1.5 }}>
@@ -2132,8 +2132,8 @@ function DrillSelectScreen({
               <IconRealEmail size={28} color="#ff6b35" />
             </div>
             <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ff6b35" }}>REAL INBOX EMAIL</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#2a3a5c", marginTop: 3 }}>SENT TO YOUR MAILBOX</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ff6b35" }}>REAL INBOX EMAIL</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#2a3a5c", marginTop: 3 }}>SENT TO YOUR MAILBOX</div>
             </div>
           </div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4", marginBottom: 14, lineHeight: 1.5 }}>
@@ -2172,7 +2172,7 @@ function TelegramDrillIntroScreen({ onOpen, onBack }: { onOpen: () => void; onBa
         </div>
 
         <div style={{ backgroundColor: "#111827", border: "3px solid #00d4ff", boxShadow: "3px 3px 0 #00d4ff", padding: "14px 16px", marginBottom: 14 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#00d4ff", marginBottom: 10 }}>WHAT HAPPENS NEXT</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#00d4ff", marginBottom: 10 }}>WHAT HAPPENS NEXT</div>
           {[
             "You will be sent to Telegram.",
             "Start a chat with our drill bot.",
@@ -2181,7 +2181,7 @@ function TelegramDrillIntroScreen({ onOpen, onBack }: { onOpen: () => void; onBa
           ].map((line, i) => (
             <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
               <div style={{ width: 16, height: 16, backgroundColor: "#00d4ff", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#0a0e1a" }}>{i + 1}</span>
+                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#0a0e1a" }}>{i + 1}</span>
               </div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.6, flex: 1 }}>{line}</div>
             </div>
@@ -2191,7 +2191,7 @@ function TelegramDrillIntroScreen({ onOpen, onBack }: { onOpen: () => void; onBa
         <div style={{ backgroundColor: "rgba(255,107,53,0.08)", border: "3px solid #ff6b35", padding: "12px 14px", marginBottom: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
           <IconWarning size={14} color="#ff6b35" />
           <div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#ff6b35", marginBottom: 4 }}>COIN REWARDS</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff6b35", marginBottom: 4 }}>COIN REWARDS</div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff6b35", lineHeight: 1.5 }}>
               Coins for this drill require backend integration. They will not be credited yet.
             </div>
@@ -2200,7 +2200,7 @@ function TelegramDrillIntroScreen({ onOpen, onBack }: { onOpen: () => void; onBa
 
         <div style={{ backgroundColor: "#0d1a24", border: "2px solid #2a3a5c", padding: "10px 12px", marginBottom: 20, display: "flex", alignItems: "center", gap: 8 }}>
           <IconLink size={12} color="#00d4ff" />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#00d4ff", flex: 1, wordBreak: "break-all" }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#00d4ff", flex: 1, wordBreak: "break-all" }}>
             {TELEGRAM_BOT_URL}
           </div>
         </div>
@@ -2255,7 +2255,7 @@ function RealisticPhoneDrillIntroScreen({ onBack, onRegister, scheduleBlocked, s
         </div>
 
         <div style={{ backgroundColor: "#111827", border: "3px solid #00ff88", boxShadow: "3px 3px 0 #00ff88", padding: "14px 16px", marginBottom: 14 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#00ff88", marginBottom: 10 }}>HOW IT WORKS</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#00ff88", marginBottom: 10 }}>HOW IT WORKS</div>
           {[
             "We call your registered phone number.",
             "Answer the call as you normally would.",
@@ -2264,7 +2264,7 @@ function RealisticPhoneDrillIntroScreen({ onBack, onRegister, scheduleBlocked, s
           ].map((line, i) => (
             <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
               <div style={{ width: 16, height: 16, backgroundColor: "#00ff88", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#0a0e1a" }}>{i + 1}</span>
+                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#0a0e1a" }}>{i + 1}</span>
               </div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.6, flex: 1 }}>{line}</div>
             </div>
@@ -2274,7 +2274,7 @@ function RealisticPhoneDrillIntroScreen({ onBack, onRegister, scheduleBlocked, s
         <div style={{ backgroundColor: "rgba(255,107,53,0.08)", border: "3px solid #ff6b35", padding: "12px 14px", marginBottom: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
           <IconWarning size={14} color="#ff6b35" />
           <div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#ff6b35", marginBottom: 4 }}>TRAINING CALL</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff6b35", marginBottom: 4 }}>TRAINING CALL</div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff6b35", lineHeight: 1.5 }}>
               This is a simulated security drill. We will never ask for real passwords, OTPs, card details, transfers, or payments.
             </div>
@@ -2285,7 +2285,7 @@ function RealisticPhoneDrillIntroScreen({ onBack, onRegister, scheduleBlocked, s
           <div style={{ backgroundColor: "rgba(0,255,136,0.08)", border: "3px solid #00ff88", padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
             <IconShield size={16} color="#00ff88" />
             <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#00ff88", marginBottom: 6 }}>CALL ON THE WAY</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#00ff88", marginBottom: 6 }}>CALL ON THE WAY</div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.5 }}>
                 Your phone should ring shortly. Answer it and stay sharp — hang up if it asks for anything real.
               </div>
@@ -2295,7 +2295,7 @@ function RealisticPhoneDrillIntroScreen({ onBack, onRegister, scheduleBlocked, s
           <div style={{ backgroundColor: "rgba(255,230,109,0.08)", border: "3px solid #ffe66d", padding: "12px 14px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
             <IconWarning size={14} color="#ffe66d" />
             <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#ffe66d", marginBottom: 4 }}>REGISTER FIRST</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ffe66d", marginBottom: 4 }}>REGISTER FIRST</div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.5 }}>
                 Verify your phone so the drill only ever calls the number you own.
               </div>
@@ -2312,7 +2312,7 @@ function RealisticPhoneDrillIntroScreen({ onBack, onRegister, scheduleBlocked, s
             <PixelBtn onClick={onBack} color="#00ff88" textColor="#0a0e1a" size="lg" full>[ DONE ]</PixelBtn>
           ) : registered && scheduleBlocked ? (
             <>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ffe66d", textAlign: "center", lineHeight: 1.5 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ffe66d", textAlign: "center", lineHeight: 1.5 }}>
                 OUTSIDE YOUR DRILL WINDOW · OPENS {scheduleNextLabel}
               </div>
               <PixelBtn onClick={() => {}} color="#1a2340" textColor="#6b8ba4" size="lg" full disabled>[ CALL ME NOW ]</PixelBtn>
@@ -2372,7 +2372,7 @@ function RealisticSmsDrillIntroScreen({ onBack, onRegister, onOutcome, scheduleB
         </div>
 
         <div style={{ backgroundColor: "#111827", border: "3px solid #4ecdc4", boxShadow: "3px 3px 0 #4ecdc4", padding: "14px 16px", marginBottom: 14 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#4ecdc4", marginBottom: 10 }}>HOW IT WORKS</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#4ecdc4", marginBottom: 10 }}>HOW IT WORKS</div>
           {[
             "We text your registered number.",
             "It reads like a scam — that's the point.",
@@ -2381,7 +2381,7 @@ function RealisticSmsDrillIntroScreen({ onBack, onRegister, onOutcome, scheduleB
           ].map((line, i) => (
             <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
               <div style={{ width: 16, height: 16, backgroundColor: "#4ecdc4", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#0a0e1a" }}>{i + 1}</span>
+                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#0a0e1a" }}>{i + 1}</span>
               </div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.6, flex: 1 }}>{line}</div>
             </div>
@@ -2392,7 +2392,7 @@ function RealisticSmsDrillIntroScreen({ onBack, onRegister, onOutcome, scheduleB
           <div style={{ backgroundColor: "rgba(0,255,136,0.08)", border: "3px solid #00ff88", padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
             <IconShield size={16} color="#00ff88" />
             <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#00ff88", marginBottom: 6 }}>TEXT SENT</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#00ff88", marginBottom: 6 }}>TEXT SENT</div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.5 }}>
                 Check your messages, then come back and tell us how it went — a reveal text also follows to confirm it was a drill.
               </div>
@@ -2402,7 +2402,7 @@ function RealisticSmsDrillIntroScreen({ onBack, onRegister, onOutcome, scheduleB
           <div style={{ backgroundColor: "rgba(255,230,109,0.08)", border: "3px solid #ffe66d", padding: "12px 14px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
             <IconWarning size={14} color="#ffe66d" />
             <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#ffe66d", marginBottom: 4 }}>REGISTER FIRST</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ffe66d", marginBottom: 4 }}>REGISTER FIRST</div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.5 }}>
                 Verify your phone so the drill only ever texts the number you own.
               </div>
@@ -2415,7 +2415,7 @@ function RealisticSmsDrillIntroScreen({ onBack, onRegister, onOutcome, scheduleB
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {phase === "sent" ? (
             <>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ffe66d", textAlign: "center", marginBottom: 2, lineHeight: 1.5 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#ffe66d", textAlign: "center", marginBottom: 2, lineHeight: 1.5 }}>
                 HOW DID IT GO?
               </div>
               <PixelBtn onClick={() => onOutcome(true)} color="#00ff88" textColor="#0a0e1a" size="lg" full>[ I SPOTTED THE SCAM ]</PixelBtn>
@@ -2423,7 +2423,7 @@ function RealisticSmsDrillIntroScreen({ onBack, onRegister, onOutcome, scheduleB
             </>
           ) : registered && scheduleBlocked ? (
             <>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ffe66d", textAlign: "center", lineHeight: 1.5 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ffe66d", textAlign: "center", lineHeight: 1.5 }}>
                 OUTSIDE YOUR DRILL WINDOW · OPENS {scheduleNextLabel}
               </div>
               <PixelBtn onClick={() => {}} color="#1a2340" textColor="#6b8ba4" size="lg" full disabled>[ TEXT ME NOW ]</PixelBtn>
@@ -2506,7 +2506,7 @@ function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, schedul
         </div>
 
         <div style={{ backgroundColor: "#111827", border: "3px solid #ff6b35", boxShadow: "3px 3px 0 #ff6b35", padding: "14px 16px", marginBottom: 14 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff6b35", marginBottom: 10 }}>HOW IT WORKS</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ff6b35", marginBottom: 10 }}>HOW IT WORKS</div>
           {[
             "We send a test email to your own address.",
             "It looks like a scam — that's the point.",
@@ -2515,7 +2515,7 @@ function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, schedul
           ].map((line, i) => (
             <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
               <div style={{ width: 16, height: 16, backgroundColor: "#ff6b35", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#0a0e1a" }}>{i + 1}</span>
+                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#0a0e1a" }}>{i + 1}</span>
               </div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.6, flex: 1 }}>{line}</div>
             </div>
@@ -2526,7 +2526,7 @@ function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, schedul
           <div style={{ backgroundColor: "rgba(0,255,136,0.08)", border: "3px solid #00ff88", padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
             <IconShield size={16} color="#00ff88" />
             <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#00ff88", marginBottom: 6 }}>EMAIL SENT</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#00ff88", marginBottom: 6 }}>EMAIL SENT</div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.5 }}>
                 Check your inbox (and spam), handle it as you would a real one, then tell us how it went below.
               </div>
@@ -2536,7 +2536,7 @@ function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, schedul
           <div style={{ backgroundColor: "rgba(255,230,109,0.08)", border: "3px solid #ffe66d", padding: "12px 14px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
             <IconWarning size={14} color="#ffe66d" />
             <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#ffe66d", marginBottom: 4 }}>REGISTER FIRST</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ffe66d", marginBottom: 4 }}>REGISTER FIRST</div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.5 }}>
                 Verify your phone so drills go only to you — never to an address someone types in.
               </div>
@@ -2547,7 +2547,7 @@ function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, schedul
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {phase === "sent" ? (
             <>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ffe66d", textAlign: "center", marginBottom: 2, lineHeight: 1.5 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#ffe66d", textAlign: "center", marginBottom: 2, lineHeight: 1.5 }}>
                 HOW DID IT GO?
               </div>
               <PixelBtn onClick={() => onOutcome(true)} color="#00ff88" textColor="#0a0e1a" size="lg" full>[ I SPOTTED THE SCAM ]</PixelBtn>
@@ -2555,7 +2555,7 @@ function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, schedul
             </>
           ) : registered && scheduleBlocked ? (
             <>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ffe66d", textAlign: "center", lineHeight: 1.5 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ffe66d", textAlign: "center", lineHeight: 1.5 }}>
                 OUTSIDE YOUR DRILL WINDOW · OPENS {scheduleNextLabel}
               </div>
               <PixelBtn onClick={() => {}} color="#1a2340" textColor="#6b8ba4" size="lg" full disabled>[ SEND DRILL EMAIL ]</PixelBtn>
@@ -2574,7 +2574,7 @@ function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, schedul
       {phase === "ask-email" && (
         <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={() => !busy && setPhase("idle")}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 320, backgroundColor: "#0a0e1a", border: "4px solid #ff6b35", boxShadow: "6px 6px 0 rgba(255,107,53,0.4)", padding: "18px 16px" }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ff6b35", marginBottom: 10 }}>YOUR EMAIL</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ff6b35", marginBottom: 10 }}>YOUR EMAIL</div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#6b8ba4", marginBottom: 12, lineHeight: 1.5 }}>
               We'll send the drill to this inbox. It's saved to your account — drills only ever go to you.
             </div>
@@ -2757,7 +2757,7 @@ function SafetyBadge({ safe, size = 20 }: { safe: boolean; size?: number }) {
       <div style={{ filter: `drop-shadow(${glow})` }}>
         <IconShield size={size} color={color} />
       </div>
-      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 4, color, letterSpacing: 0.5 }}>
+      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color, letterSpacing: 0.5 }}>
         {safe ? "SAFE" : "SCAMMED"}
       </div>
     </div>
@@ -2872,21 +2872,21 @@ function DollhouseRoom({ member, onTap, coins, soldItems }: { member: FamilyMemb
             <rect x={4} y={5} width={2} height={2} fill="#1a2a4a" />
           </svg>
         </div>
-        <div style={{ position: "absolute", top: 10, left: 12, fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: member.primaryColor, opacity: 0.8 }}>
+        <div style={{ position: "absolute", top: 10, left: 12, fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: member.primaryColor, opacity: 0.8 }}>
           {member.roomName}
         </div>
-        <div style={{ position: "absolute", top: 24, left: 12, fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#6b8ba4" }}>
+        <div style={{ position: "absolute", top: 24, left: 12, fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>
           LVL {member.level}
         </div>
         {isInDebt && (
           <div style={{ position: "absolute", top: 38, left: 12, display: "flex", alignItems: "center", gap: 3, backgroundColor: "rgba(255,45,85,0.18)", border: "2px solid #ff2d55", padding: "2px 5px" }}>
             <IconCoin size={8} color="#ff2d55" />
-            <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#ff2d55" }}>IOU</span>
+            <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55" }}>IOU</span>
           </div>
         )}
         <div style={{ position: "absolute", top: isInDebt ? 58 : 38, left: 12, display: "flex", alignItems: "center", gap: 3 }}>
           <IconCoin size={8} color={coins < 0 ? "#ff2d55" : "#ffe66d"} />
-          <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: coins < 0 ? "#ff2d55" : "#ffe66d" }}>
+          <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: coins < 0 ? "#ff2d55" : "#ffe66d" }}>
             {coins < 0 ? "-" : ""}{Math.abs(coins)}
           </span>
         </div>
@@ -2899,9 +2899,9 @@ function DollhouseRoom({ member, onTap, coins, soldItems }: { member: FamilyMemb
         <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
           <SafetyBadge safe={member.safeThisWeek} size={18} />
           <FamilyChar id={member.id} size={charSize} frame={frame} />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: member.primaryColor }}>{member.name}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: member.primaryColor }}>{member.name}</div>
         </div>
-        <div style={{ position: "absolute", bottom: 12, right: 12, fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#2a3a5c", lineHeight: 1.8 }}>
+        <div style={{ position: "absolute", bottom: 12, right: 12, fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#2a3a5c", lineHeight: 1.8 }}>
           TAP{"\n"}TO{"\n"}VIEW
         </div>
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 4, background: `linear-gradient(90deg,${member.primaryColor}22,${member.primaryColor}55,${member.primaryColor}22)`, borderTop: `2px solid ${member.primaryColor}44` }} />
@@ -2922,7 +2922,7 @@ function HouseRoof() {
         <rect x={278} y={8} width={24} height={6} fill="#3a4a6c" />
         <rect x={283} y={2} width={4} height={4} fill="#4a5a7c" opacity={0.5} />
       </svg>
-      <div style={{ position: "absolute", bottom: 6, left: "50%", transform: "translateX(-50%)", fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#4ecdc4", letterSpacing: 2, whiteSpace: "nowrap" }}>
+      <div style={{ position: "absolute", bottom: 6, left: "50%", transform: "translateX(-50%)", fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#4ecdc4", letterSpacing: 2, whiteSpace: "nowrap" }}>
         FAMILY HOME
       </div>
     </div>
@@ -2939,7 +2939,7 @@ function FamilySafetyBar({ coins }: { coins: Record<string, number> }) {
         <IconShield size={32} color={allSafe ? "#00ff88" : "#ff6b35"} />
       </div>
       <div style={{ flex: 1 }}>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: allSafe ? "#00ff88" : "#ff6b35", marginBottom: 4 }}>FAMILY SAFETY</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: allSafe ? "#00ff88" : "#ff6b35", marginBottom: 4 }}>FAMILY SAFETY</div>
         <div style={{ fontFamily: "'Share Tech Mono',monospace", fontSize: 12, color: "#6b8ba4", lineHeight: 1.4 }}>
           {safeCount}/{FAMILY_MEMBERS.length} members safe this week
         </div>
@@ -2949,7 +2949,7 @@ function FamilySafetyBar({ coins }: { coins: Record<string, number> }) {
               <div style={{ filter: `drop-shadow(0 0 3px ${m.safeThisWeek ? "#00ff88" : "#ff2d55"})` }}>
                 <IconShield size={10} color={m.safeThisWeek ? "#00ff88" : "#ff2d55"} />
               </div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 4, color: "#6b8ba4" }}>{m.name.slice(0, 3)}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4" }}>{m.name.slice(0, 3)}</div>
             </div>
           ))}
         </div>
@@ -2957,11 +2957,11 @@ function FamilySafetyBar({ coins }: { coins: Record<string, number> }) {
       <div style={{ backgroundColor: "#0a0e1a", border: "3px solid #2a3a5c", padding: "6px 10px", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <IconCoin size={12} color="#ffe66d" />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: totalCoins >= 0 ? "#ffe66d" : "#ff2d55" }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: totalCoins >= 0 ? "#ffe66d" : "#ff2d55" }}>
             {totalCoins >= 0 ? "" : "-"}{Math.abs(totalCoins)}
           </div>
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 4, color: "#6b8ba4" }}>FAMILY</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4" }}>FAMILY</div>
       </div>
     </div>
   );
@@ -2988,11 +2988,11 @@ function MemberProfileOverlay({
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: member.primaryColor }}>{member.name}</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4", marginTop: 4 }}>{member.role}</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#e8f4f8", marginTop: 6 }}>LVL {member.level}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", marginTop: 4 }}>{member.role}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#e8f4f8", marginTop: 6 }}>LVL {member.level}</div>
             <div style={{ marginTop: 6 }}>
               <XPBar current={member.xp} max={member.xpMax} color={member.primaryColor} />
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#6b8ba4", marginTop: 3 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginTop: 3 }}>
                 {member.xp.toLocaleString()} / {member.xpMax.toLocaleString()} XP
               </div>
             </div>
@@ -3005,25 +3005,25 @@ function MemberProfileOverlay({
         <div style={{ margin: "12px 16px 0", padding: "10px 12px", backgroundColor: coins < 0 ? "rgba(255,45,85,0.06)" : "rgba(255,230,109,0.06)", border: `3px solid ${coins < 0 ? "#ff2d55" : "#ffe66d"}`, display: "flex", alignItems: "center", gap: 10 }}>
           <IconCoin size={20} color={coins < 0 ? "#ff2d55" : "#ffe66d"} />
           <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: coins < 0 ? "#ff2d55" : "#ffe66d" }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: coins < 0 ? "#ff2d55" : "#ffe66d" }}>
               {coins < 0 ? "-" : "+"}{Math.abs(coins)} COINS
             </div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#6b8ba4", marginTop: 3 }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginTop: 3 }}>
               {coins < 0 ? "IN DEBT — sell furniture to recover" : "Balance this week"}
             </div>
           </div>
           {coins < 0 && (
-            <div style={{ backgroundColor: "#ff2d55", padding: "4px 6px", fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#0a0e1a" }}>IOU</div>
+            <div style={{ backgroundColor: "#ff2d55", padding: "4px 6px", fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#0a0e1a" }}>IOU</div>
           )}
         </div>
 
         <div style={{ margin: "8px 16px 0", padding: "10px 12px", backgroundColor: member.safeThisWeek ? "rgba(0,255,136,0.06)" : "rgba(255,45,85,0.06)", border: `3px solid ${member.safeThisWeek ? "#00ff88" : "#ff2d55"}`, display: "flex", alignItems: "center", gap: 10 }}>
           <IconShield size={20} color={member.safeThisWeek ? "#00ff88" : "#ff2d55"} />
           <div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: member.safeThisWeek ? "#00ff88" : "#ff2d55" }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: member.safeThisWeek ? "#00ff88" : "#ff2d55" }}>
               {member.safeThisWeek ? "SAFE THIS WEEK" : "SCAMMED THIS WEEK"}
             </div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4", marginTop: 3 }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", marginTop: 3 }}>
               Last drill: {member.recentDrillResult ?? "—"}
             </div>
           </div>
@@ -3037,16 +3037,16 @@ function MemberProfileOverlay({
             <div key={s.label} style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "10px 8px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
                 {s.icon}
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 4, color: "#6b8ba4" }}>{s.label}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4" }}>{s.label}</div>
               </div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: s.color }}>{s.val}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: s.color }}>{s.val}</div>
             </div>
           ))}
         </div>
         <div style={{ margin: "12px 16px 0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
             <IconBadge size={12} color="#ffe66d" />
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#ffe66d" }}>BADGES — {member.badgeCount}/{member.badgeTotal}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ffe66d" }}>BADGES — {member.badgeCount}/{member.badgeTotal}</div>
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {badges.map((b, i) => (
@@ -3093,7 +3093,7 @@ function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize,
           ))}
         </div>
         <div style={{ height: 24, backgroundColor: "#1a2340", borderTop: "4px solid #2a3a5c", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#2a3a5c", letterSpacing: 3 }}>████████████████████████████</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#2a3a5c", letterSpacing: 3 }}>████████████████████████████</div>
         </div>
         <div style={{ padding: "16px 16px 8px", backgroundColor: "#0a0e1a" }}>
           <div data-tour="start-drill"><PixelBtn onClick={onFamilyDrill} color="#00ff88" size="lg" full>[ START FAMILY DRILL ]</PixelBtn></div>
@@ -3109,7 +3109,7 @@ function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize,
           <div style={{ height: 10 }} />
           <PixelBtn onClick={onTutorial} color="#1a2340" textColor="#6b8ba4" size="sm" full>HOW TO PLAY</PixelBtn>
         </div>
-        <div style={{ padding: "0 16px 24px", backgroundColor: "#0a0e1a", fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#6b8ba4", textAlign: "center" }}>
+        <div style={{ padding: "0 16px 24px", backgroundColor: "#0a0e1a", fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", textAlign: "center" }}>
           Train together. Protect the whole household.
         </div>
       </div>
@@ -3137,8 +3137,8 @@ function IncomingCallScreen({ onAccept, onDecline }: { activeMemberId: string; o
   return (
       <div className="flex flex-col items-center justify-between flex-1 px-6 py-12" style={{ background: "linear-gradient(180deg, #0a0e1a 0%, #0d1526 50%, #0a0e1a 100%)" }}>
         <div className="flex flex-col items-center gap-2">
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", letterSpacing: 2 }}>INCOMING CALL</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff6b35", border: "2px solid #ff6b35", padding: "4px 8px", backgroundColor: "rgba(255,107,53,0.1)", display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#6b8ba4", letterSpacing: 2 }}>INCOMING CALL</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ff6b35", border: "2px solid #ff6b35", padding: "4px 8px", backgroundColor: "rgba(255,107,53,0.1)", display: "flex", alignItems: "center", gap: 6 }}>
             <IconWarning size={12} color="#ff6b35" />
             UNKNOWN CALLER
           </div>
@@ -3151,13 +3151,13 @@ function IncomingCallScreen({ onAccept, onDecline }: { activeMemberId: string; o
             +1 (???)<br />???-????
           </div>
           <Blink ms={900}>
-            <div className="flex items-center gap-2" style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff6b35" }}>
+            <div className="flex items-center gap-2" style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ff6b35" }}>
               <IconBell size={14} color="#ff6b35" />
               RINGING...
             </div>
           </Blink>
           <div style={{ backgroundColor: "rgba(255,45,85,0.1)", border: "3px solid #ff2d55", padding: "8px 12px", width: "100%" }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ff6b35", lineHeight: 1.5 }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#ff6b35", lineHeight: 1.5 }}>
               DRILL MODE ACTIVE — This is a simulated scam call. Can you hang tough?
             </div>
           </div>
@@ -3167,13 +3167,13 @@ function IncomingCallScreen({ onAccept, onDecline }: { activeMemberId: string; o
             <button onClick={onDecline} onMouseDown={(e) => (e.currentTarget.style.transform = "translate(4px,4px)")} onMouseUp={(e) => (e.currentTarget.style.transform = "none")} style={{ width: 72, height: 72, backgroundColor: "#ff2d55", border: "4px solid #0a0e1a", boxShadow: "4px 4px 0 #0a0e1a", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "transform 0.05s" }}>
               <IconX size={32} color="#ffffff" />
             </button>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#ff2d55" }}>DECLINE</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff2d55" }}>DECLINE</div>
           </div>
           <div className="flex flex-col items-center gap-3">
             <button onClick={onAccept} onMouseDown={(e) => (e.currentTarget.style.transform = "translate(4px,4px)")} onMouseUp={(e) => (e.currentTarget.style.transform = "none")} style={{ width: 72, height: 72, backgroundColor: "#00ff88", border: "4px solid #0a0e1a", boxShadow: "4px 4px 0 #0a0e1a", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "transform 0.05s" }}>
               <IconCheck size={32} color="#0a0e1a" />
             </button>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#00ff88" }}>ACCEPT</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#00ff88" }}>ACCEPT</div>
           </div>
         </div>
       </div>
@@ -3244,19 +3244,19 @@ function CallScreen({ onHangUp, onResult, onDistress }: { activeMemberId: string
       <div className="flex items-center justify-between px-4 py-3" style={{ backgroundColor: "#111827", borderBottom: "4px solid #2a3a5c" }}>
         <div className="flex items-center gap-2">
           <div style={{ width: 8, height: 8, backgroundColor: callerSpeaking ? "#ff6b35" : "#00ff88", animation: "pulse-dot 1s ease-in-out infinite" }} />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: callerSpeaking ? "#ff6b35" : "#00ff88" }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: callerSpeaking ? "#ff6b35" : "#00ff88" }}>
             {callerSpeaking ? "CALLER SPEAKING" : "LISTENING..."}
           </div>
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ffe66d" }}>{mins}:{secs}</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ffe66d" }}>{mins}:{secs}</div>
       </div>
       <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: "3px solid #1a2340" }}>
         <PixelPhone />
         <div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ffffff" }}>UNKNOWN CALLER</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ffffff" }}>UNKNOWN CALLER</div>
           <div className="flex items-center gap-1 mt-1">
             <IconWarning size={10} color="#ff6b35" />
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#ff6b35" }}>SCAM DRILL ACTIVE</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff6b35" }}>SCAM DRILL ACTIVE</div>
           </div>
         </div>
       </div>
@@ -3272,7 +3272,7 @@ function CallScreen({ onHangUp, onResult, onDistress }: { activeMemberId: string
                   {hasFlags && line.who === "caller" && (
                     <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
                       <IconWarning size={9} color="#ff2d55" />
-                      <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#ff2d55" }}>TAP RED TEXT</span>
+                      <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55" }}>TAP RED TEXT</span>
                     </div>
                   )}
                 </div>
@@ -3283,7 +3283,7 @@ function CallScreen({ onHangUp, onResult, onDistress }: { activeMemberId: string
             <div className="flex justify-start">
               <div className="mr-2"><PixelAvatar rank={9} size={24} /></div>
               <div style={{ backgroundColor: "#1a2340", border: "3px solid #ff6b35", padding: "8px 14px" }}>
-                <Blink ms={400}><span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ff6b35" }}>...</span></Blink>
+                <Blink ms={400}><span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff6b35" }}>...</span></Blink>
               </div>
             </div>
           )}
@@ -3297,7 +3297,7 @@ function CallScreen({ onHangUp, onResult, onDistress }: { activeMemberId: string
         {/* Distress off-ramp — always available, never scored. Quiet styling on purpose:
             it should be findable without competing with the primary action. */}
         <button onClick={onDistress} style={{ width: "100%", marginTop: 10, background: "none", border: "2px solid #2a3a5c", cursor: "pointer", padding: "8px" }}>
-          <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4" }}>THIS IS TOO MUCH — STOP THE DRILL</span>
+          <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4" }}>THIS IS TOO MUCH — STOP THE DRILL</span>
         </button>
       </div>
     </div>
@@ -3332,19 +3332,19 @@ function SMSInboxScreen({ onOpenScam, onBack }: { activeMemberId: string; onOpen
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-4" style={{ backgroundColor: "#0a0e1a", borderBottom: "4px solid #2a3a5c", minHeight: 56, flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>{"< BACK"}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>{"< BACK"}</div>
         </button>
         <div className="flex items-center gap-2">
           <IconChatBubble size={16} color="#4ecdc4" />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#4ecdc4" }}>MESSAGES</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#4ecdc4" }}>MESSAGES</div>
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#ff2d55" }}>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff2d55" }}>
           <Blink ms={700}>1 NEW</Blink>
         </div>
       </div>
       <div className="flex items-center gap-2 px-4 py-2" style={{ backgroundColor: "rgba(255,107,53,0.1)", borderBottom: "2px solid #ff6b35" }}>
         <IconWarning size={12} color="#ff6b35" />
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#ff6b35" }}>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff6b35" }}>
           DRILL MODE — 1 suspicious message detected
         </div>
       </div>
@@ -3370,23 +3370,23 @@ function SMSInboxScreen({ onOpenScam, onBack }: { activeMemberId: string; onOpen
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="flex items-center justify-between mb-1">
                   <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: item.isScam ? 7 : 6, color: item.isScam ? "#ff2d55" : "#e8f4f8" }}>{item.sender}</div>
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: item.isScam ? "#ff6b35" : "#6b8ba4" }}>{item.time}</div>
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: item.isScam ? "#ff6b35" : "#6b8ba4" }}>{item.time}</div>
                 </div>
                 <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: item.isScam ? "#ff6b35" : "#6b8ba4", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {item.preview}
                 </div>
                 {item.isScam && (
                   <div className="flex items-center gap-2 mt-1">
-                    <div style={{ backgroundColor: "#ff2d55", padding: "1px 5px", fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#ffffff" }}>
+                    <div style={{ backgroundColor: "#ff2d55", padding: "1px 5px", fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ffffff" }}>
                       <Blink ms={600}>IMPORTANT</Blink>
                     </div>
-                    <div style={{ backgroundColor: "#ff6b35", padding: "1px 5px", fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#0a0e1a" }}>UNREAD</div>
+                    <div style={{ backgroundColor: "#ff6b35", padding: "1px 5px", fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#0a0e1a" }}>UNREAD</div>
                   </div>
                 )}
               </div>
             </div>
             {shaking === item.id && (
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#4ecdc4", marginTop: 6, textAlign: "center" }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#4ecdc4", marginTop: 6, textAlign: "center" }}>
                 Not part of this drill.
               </div>
             )}
@@ -3416,16 +3416,16 @@ function SMSThreadScreen({ onReport, onAskFamily, onTapLink, onBack }: { activeM
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-3 px-4" style={{ backgroundColor: "#111827", borderBottom: "4px solid #2a3a5c", minHeight: 56, flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>{"<"}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>{"<"}</div>
         </button>
         <div style={{ width: 32, height: 32, backgroundColor: "#ff2d55", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <IconWarning size={16} color="#ffffff" />
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55" }}>ParcelGo Alert</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#6b8ba4", marginTop: 2 }}>Unknown sender</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ff2d55" }}>ParcelGo Alert</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginTop: 2 }}>Unknown sender</div>
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#ff6b35" }}>DRILL ACTIVE</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff6b35" }}>DRILL ACTIVE</div>
       </div>
       <div style={{ flex: 1, position: "relative", overflow: "hidden" }} onClick={() => setActiveFlag(null)}>
         <div className="flex flex-col gap-3" style={{ height: "100%", overflowY: "auto", padding: "16px", scrollbarWidth: "none" }}>
@@ -3438,7 +3438,7 @@ function SMSThreadScreen({ onReport, onAskFamily, onTapLink, onBack }: { activeM
               ))}
               <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 4 }}>
                 <IconWarning size={9} color="#ff2d55" />
-                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#ff2d55" }}>TAP RED TEXT TO INSPECT</span>
+                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55" }}>TAP RED TEXT TO INSPECT</span>
               </div>
             </div>
           </div>
@@ -3484,11 +3484,11 @@ function SMSBrowserScreen({ onClose, onSubmit }: { activeMemberId: string; onClo
         </div>
         <button onClick={() => setShowUrlTip(!showUrlTip)} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", background: "rgba(255,45,85,0.08)", border: "2px solid #ff2d55", padding: "6px 8px", cursor: "pointer" }}>
           <IconWarning size={10} color="#ff2d55" />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ff6b35", flex: 1, textAlign: "left" }}>parcelgo-redeliver.example</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#ff2d55" }}>UNSECURED</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#ff6b35", flex: 1, textAlign: "left" }}>parcelgo-redeliver.example</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55" }}>UNSECURED</div>
         </button>
         {showUrlTip && (
-          <div style={{ backgroundColor: "rgba(255,45,85,0.12)", border: "2px solid #ff2d55", padding: "8px", marginTop: 6, fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#e8f4f8", lineHeight: 1.5 }}>
+          <div style={{ backgroundColor: "rgba(255,45,85,0.12)", border: "2px solid #ff2d55", padding: "8px", marginTop: 6, fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#e8f4f8", lineHeight: 1.5 }}>
             Check the URL carefully. Fake domains often look similar to real services.
           </div>
         )}
@@ -3496,24 +3496,24 @@ function SMSBrowserScreen({ onClose, onSubmit }: { activeMemberId: string; onClo
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none", backgroundColor: "#111827" }}>
         <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
           <div style={{ textAlign: "center", filter: glitch ? "hue-rotate(180deg)" : "none", transition: "filter 0.05s" }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ff6b35", marginBottom: 6 }}>Redelivery Payment</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff6b35", marginBottom: 6 }}>Redelivery Payment</div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4" }}>Enter your details to reschedule your parcel.</div>
           </div>
           <div style={{ display: "flex", justifyContent: "center" }}>
             <div style={{ backgroundColor: "#1a2340", border: "2px solid #ff2d55", padding: "4px 12px", display: "flex", alignItems: "center", gap: 6 }}>
               <IconWarning size={10} color="#ff2d55" />
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#ff2d55" }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55" }}>
                 <Blink ms={400}>SECURE VERIFIED</Blink>
               </div>
             </div>
           </div>
           {["Full Name", "Home Address", "Card Number", "CVV", "OTP Code"].map((label) => (
             <div key={label}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4", marginBottom: 4 }}>{label}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", marginBottom: 4 }}>{label}</div>
               <div style={{ backgroundColor: "#0a0e1a", border: "2px solid #2a3a5c", padding: "10px", height: 36, fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#1a2340" }}>▋</div>
             </div>
           ))}
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#ff2d55", textAlign: "center" }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55", textAlign: "center" }}>
             <Blink ms={800}>UNSECURED PAGE — DO NOT ENTER DETAILS</Blink>
           </div>
         </div>
@@ -3559,13 +3559,13 @@ function EmailInboxScreen({ onOpenScam, onBack }: { activeMemberId: string; onOp
     <div className="flex flex-col h-full" style={{ position: "relative" }}>
       <div className="flex items-center justify-between px-4" style={{ backgroundColor: "#0a0e1a", borderBottom: "4px solid #2a3a5c", minHeight: 56, flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>{"< BACK"}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>{"< BACK"}</div>
         </button>
         <div className="flex items-center gap-2">
           <IconEnvelope size={16} color="#c77dff" />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#c77dff" }}>MAILBOX</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#c77dff" }}>MAILBOX</div>
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#ff6b35" }}>DRILL ACTIVE</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff6b35" }}>DRILL ACTIVE</div>
       </div>
       <div className="px-4 py-2" style={{ borderBottom: "2px solid #1a2340" }}>
         <div style={{ backgroundColor: "#111827", border: "2px solid #2a3a5c", padding: "6px 10px", fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#2a3a5c" }}>
@@ -3574,13 +3574,13 @@ function EmailInboxScreen({ onOpenScam, onBack }: { activeMemberId: string; onOp
       </div>
       <div className="flex items-center gap-2 px-4 py-2" style={{ backgroundColor: "rgba(255,107,53,0.1)", borderBottom: "2px solid #ff6b35", flexShrink: 0 }}>
         <IconWarning size={12} color="#ff6b35" />
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#ff6b35" }}>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff6b35" }}>
           New important email detected. Inspect before clicking.
         </div>
       </div>
       {toast && (
         <div style={{ backgroundColor: "#1a2340", border: "2px solid #4ecdc4", padding: "8px 12px", margin: "8px 12px", position: "absolute", top: 160, left: 0, right: 0, zIndex: 20, animation: "slideUp 0.2s ease-out" }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#4ecdc4", lineHeight: 1.6 }}>{toast}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#4ecdc4", lineHeight: 1.6 }}>{toast}</div>
         </div>
       )}
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
@@ -3604,20 +3604,20 @@ function EmailInboxScreen({ onOpenScam, onBack }: { activeMemberId: string; onOp
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="flex items-center justify-between mb-1">
                   <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: item.isScam ? 6 : 5, color: item.isScam ? "#ff6b35" : "#e8f4f8" }}>{item.sender}</div>
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: item.isScam ? "#ff6b35" : "#6b8ba4" }}>{item.time}</div>
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: item.isScam ? "#ff6b35" : "#6b8ba4" }}>{item.time}</div>
                 </div>
                 <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: item.isScam ? "#ff2d55" : "#e8f4f8", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {item.subject}
                 </div>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#6b8ba4", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {item.preview}
                 </div>
                 {item.isScam && (
                   <div className="flex gap-2 mt-1">
-                    <div style={{ backgroundColor: "#ff6b35", padding: "1px 5px", fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#0a0e1a" }}>
+                    <div style={{ backgroundColor: "#ff6b35", padding: "1px 5px", fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#0a0e1a" }}>
                       <Blink ms={500}>IMPORTANT</Blink>
                     </div>
-                    <div style={{ backgroundColor: "#ff2d55", padding: "1px 5px", fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#ffffff" }}>UNREAD</div>
+                    <div style={{ backgroundColor: "#ff2d55", padding: "1px 5px", fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ffffff" }}>UNREAD</div>
                   </div>
                 )}
               </div>
@@ -3662,24 +3662,24 @@ function EmailDetailScreen({ onReport, onAskFamily, onClaimReward, onOpenAttachm
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 px-4" style={{ backgroundColor: "#111827", borderBottom: "4px solid #2a3a5c", minHeight: 56, flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>{"<"}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>{"<"}</div>
         </button>
         <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#c77dff" }}>Campus Rewards Office</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#c77dff" }}>Campus Rewards Office</div>
           <div className="flex items-center gap-1 mt-1">
             <IconWarning size={8} color="#ff6b35" />
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ff6b35" }}>rewards-office@campus-secure.example</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff6b35" }}>rewards-office@campus-secure.example</div>
           </div>
         </div>
-        <div style={{ backgroundColor: "#ff6b35", padding: "2px 6px", fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#0a0e1a", flexShrink: 0 }}>IMPORTANT</div>
+        <div style={{ backgroundColor: "#ff6b35", padding: "2px 6px", fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#0a0e1a", flexShrink: 0 }}>IMPORTANT</div>
       </div>
       <div className="px-4 py-3" style={{ borderBottom: "2px solid #1a2340", backgroundColor: "#0d1120" }}>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55", lineHeight: 1.5, marginBottom: 6 }}>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ff2d55", lineHeight: 1.5, marginBottom: 6 }}>
           IMPORTANT: Claim Your $300 Digital Safety Reward
         </div>
         <div className="flex items-center justify-between">
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4" }}>Tap red text to inspect</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: foundFlags.size > 0 ? "#ff6b35" : "#6b8ba4" }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4" }}>Tap red text to inspect</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: foundFlags.size > 0 ? "#ff6b35" : "#6b8ba4" }}>
             RED FLAGS: {foundFlags.size}/6
           </div>
         </div>
@@ -3761,11 +3761,11 @@ function EmailBrowserScreen({ onClose, onSubmit }: { activeMemberId: string; onC
         </div>
         <button onClick={() => setShowUrlTip(!showUrlTip)} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", backgroundColor: "rgba(255,45,85,0.08)", border: "2px solid #ff2d55", padding: "6px 8px", cursor: "pointer" }}>
           <IconWarning size={10} color="#ff2d55" />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ff6b35", flex: 1, textAlign: "left" }}>campus-secure-rewards.example</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#ff2d55" }}>UNVERIFIED SITE</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#ff6b35", flex: 1, textAlign: "left" }}>campus-secure-rewards.example</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55" }}>UNVERIFIED SITE</div>
         </button>
         {showUrlTip && (
-          <div style={{ backgroundColor: "rgba(255,45,85,0.12)", border: "2px solid #ff2d55", padding: "8px", marginTop: 6, fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#e8f4f8", lineHeight: 1.5 }}>
+          <div style={{ backgroundColor: "rgba(255,45,85,0.12)", border: "2px solid #ff2d55", padding: "8px", marginTop: 6, fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#e8f4f8", lineHeight: 1.5 }}>
             The domain is suspicious. Scammers often use official-sounding fake domains.
           </div>
         )}
@@ -3773,22 +3773,22 @@ function EmailBrowserScreen({ onClose, onSubmit }: { activeMemberId: string; onC
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none", backgroundColor: "#111827" }}>
         <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ textAlign: "center", filter: glitch ? "hue-rotate(200deg) brightness(1.2)" : "none", transition: "filter 0.05s" }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#c77dff", marginBottom: 6 }}>Digital Safety Reward Portal</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#c77dff", marginBottom: 6 }}>Digital Safety Reward Portal</div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4" }}>Verify your identity to receive $300.</div>
           </div>
           <div style={{ display: "flex", justifyContent: "center" }}>
             <div style={{ backgroundColor: "#1a2340", border: `2px solid ${glitch ? "#ff2d55" : "#2a3a5c"}`, padding: "4px 12px", display: "flex", alignItems: "center", gap: 6, transition: "border-color 0.05s" }}>
               <IconShield size={12} color={glitch ? "#ff2d55" : "#2a3a5c"} />
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: glitch ? "#ff2d55" : "#2a3a5c" }}>SECURE VERIFIED</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: glitch ? "#ff2d55" : "#2a3a5c" }}>SECURE VERIFIED</div>
             </div>
           </div>
           {["Student Email", "Password", "NRIC / ID Number", "Phone Number", "OTP Code"].map((label) => (
             <div key={label}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4", marginBottom: 4 }}>{label}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", marginBottom: 4 }}>{label}</div>
               <div style={{ backgroundColor: "#0a0e1a", border: "2px solid #2a3a5c", padding: "10px", height: 36, fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#1a2340" }}>▋</div>
             </div>
           ))}
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#ff2d55", textAlign: "center" }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55", textAlign: "center" }}>
             <Blink ms={700}>UNSECURED — DO NOT SUBMIT REAL DATA</Blink>
           </div>
         </div>
@@ -3828,10 +3828,10 @@ function EmailDownloadScreen({ onCancel, onComplete }: { activeMemberId: string;
         <div style={{ filter: "drop-shadow(0 0 20px rgba(255,45,85,0.9))" }}>
           <IconSkull size={72} color="#ff2d55" />
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ff2d55", textAlign: "center", lineHeight: 1.8, textShadow: "0 0 20px #ff2d55" }}>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#ff2d55", textAlign: "center", lineHeight: 1.8, textShadow: "0 0 20px #ff2d55" }}>
           MALWARE SIMULATION<br />DETECTED
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff6b35", textAlign: "center", lineHeight: 2 }}>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ff6b35", textAlign: "center", lineHeight: 2 }}>
           DEVICE COMPROMISED<br />PASSWORDS AT RISK
         </div>
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4" }}>Returning to result...</div>
@@ -3847,22 +3847,22 @@ function EmailDownloadScreen({ onCancel, onComplete }: { activeMemberId: string;
         <div style={{ width: "100%", backgroundColor: "#111827", border: "3px solid #c77dff", padding: "16px" }}>
           <div className="flex items-center gap-3 mb-4">
             <IconAttachment size={20} color="#c77dff" />
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#c77dff" }}>Reward_Verification_Form.zip</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#c77dff" }}>Reward_Verification_Form.zip</div>
           </div>
           <div style={{ width: "100%", backgroundColor: "#0a0e1a", border: "2px solid #2a3a5c", height: 20, marginBottom: 8, position: "relative", overflow: "hidden" }}>
             <div style={{ height: "100%", backgroundColor: phase === "opening" ? "#ff6b35" : "#c77dff", width: `${progress}%`, transition: "width 0.1s" }} />
             <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#ffffff", mixBlendMode: "difference" }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ffffff", mixBlendMode: "difference" }}>
                 {phase === "downloading" ? `${progress}%` : "100%"}
               </div>
             </div>
           </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: phase === "opening" ? "#ff6b35" : "#c77dff", textAlign: "center" }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: phase === "opening" ? "#ff6b35" : "#c77dff", textAlign: "center" }}>
             {phase === "downloading" ? "DOWNLOADING..." : "OPENING FILE..."}
           </div>
         </div>
         <PixelBtn onClick={handleCancel} color="#00ff88" textColor="#0a0e1a" size="md" full>CANCEL DOWNLOAD</PixelBtn>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#ff2d55", textAlign: "center", lineHeight: 2 }}>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55", textAlign: "center", lineHeight: 2 }}>
           <Blink ms={500}>WARNING — SIMULATED MALWARE DETECTED</Blink>
         </div>
       </div>
@@ -3878,7 +3878,7 @@ function ScamReasonSection({ flags }: { flags: DrillFlag[] }) {
     <div style={{ width: "100%" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, paddingBottom: 8, borderBottom: "3px solid #ff2d55" }}>
         <IconWarning size={16} color="#ff2d55" />
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff2d55", letterSpacing: 1 }}>WHY IT WAS A SCAM</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ff2d55", letterSpacing: 1 }}>WHY IT WAS A SCAM</div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {flags.map((flag, i) => {
@@ -3888,10 +3888,10 @@ function ScamReasonSection({ flags }: { flags: DrillFlag[] }) {
               <div style={{ backgroundColor: isOpen ? "rgba(255,45,85,0.10)" : "#111827", border: `3px solid ${isOpen ? "#ff2d55" : "#2a3a5c"}`, boxShadow: isOpen ? "3px 3px 0 #ff2d55" : "none", padding: "12px 14px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{ width: 20, height: 20, backgroundColor: "#ff2d55", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#0a0e1a" }}>{i + 1}</span>
+                    <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#0a0e1a" }}>{i + 1}</span>
                   </div>
                   <IconWarning size={14} color={isOpen ? "#ff2d55" : "#6b8ba4"} />
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: isOpen ? "#ff2d55" : "#e8f4f8", flex: 1 }}>{flag.name}</div>
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: isOpen ? "#ff2d55" : "#e8f4f8", flex: 1 }}>{flag.name}</div>
                   <svg width={10} height={8} viewBox="0 0 5 4" style={{ imageRendering: "pixelated", flexShrink: 0, transform: isOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
                     <rect x={0} y={0} width={1} height={1} fill="#6b8ba4" />
                     <rect x={1} y={1} width={1} height={1} fill="#6b8ba4" />
@@ -3965,7 +3965,7 @@ function ResultScreen({ win, drillType, smsOutcome, emailOutcome, activeMemberId
       <Stars />
       <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 20, padding: "32px 20px 36px" }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", letterSpacing: 2 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4", letterSpacing: 2 }}>
             {drillLabel} DRILL — {win ? "SUCCESS" : "FAIL"}
           </div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: win ? 24 : 20, color: win ? "#00ff88" : "#ff2d55", textShadow: win ? "4px 4px 0 #006633, 0 0 30px rgba(0,255,136,0.7)" : "4px 4px 0 #660011, 0 0 30px rgba(255,45,85,0.7)", textAlign: "center", lineHeight: 1.3 }}>
@@ -3976,8 +3976,8 @@ function ResultScreen({ win, drillType, smsOutcome, emailOutcome, activeMemberId
           </div>
           {member && (
             <div style={{ marginTop: 4, padding: "4px 10px", border: `2px solid ${member.primaryColor}`, backgroundColor: `${member.primaryColor}11`, display: "flex", alignItems: "center", gap: 6 }}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#6b8ba4" }}>FOR:</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: member.primaryColor }}>{member.name}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>FOR:</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: member.primaryColor }}>{member.name}</div>
             </div>
           )}
         </div>
@@ -3992,27 +3992,27 @@ function ResultScreen({ win, drillType, smsOutcome, emailOutcome, activeMemberId
         {showDetails && (
           <div style={{ width: "100%" }}>
             <PixelPanel accent={win ? "#00ff88" : "#ff2d55"} className="w-full">
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: win ? "#00ff88" : "#ff2d55", marginBottom: 12, textAlign: "center" }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: win ? "#00ff88" : "#ff2d55", marginBottom: 12, textAlign: "center" }}>
                 === RESULTS ===
               </div>
               <div className="flex justify-between items-center mb-2">
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>XP GAINED</div>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ffe66d" }}>+{xpOverride ?? xp}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>XP GAINED</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ffe66d" }}>+{xpOverride ?? xp}</div>
               </div>
               <div className="flex justify-between items-center mb-2">
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>COINS</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>COINS</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <IconCoin size={12} color={coinReward >= 0 ? "#ffe66d" : "#ff2d55"} />
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: coinReward >= 0 ? "#00ff88" : "#ff2d55" }}>
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: coinReward >= 0 ? "#00ff88" : "#ff2d55" }}>
                     {coinReward >= 0 ? "+" : ""}{coinReward}
                   </div>
                 </div>
               </div>
               <div className="flex justify-between items-center mb-3">
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>STREAK</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>STREAK</div>
                 <div className="flex items-center gap-2">
                   {win ? <IconFlame size={14} color="#ff6b35" /> : <IconSkull size={14} color="#ff2d55" />}
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: win ? "#ff6b35" : "#ff2d55" }}>
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: win ? "#ff6b35" : "#ff2d55" }}>
                     {win ? "EXTENDED" : "BROKEN"}
                   </div>
                 </div>
@@ -4043,12 +4043,12 @@ function LeaderboardScreen() {
       <div className="flex" style={{ borderBottom: "4px solid #2a3a5c" }}>
         <button onClick={() => setTab("fame")} className="flex-1 flex flex-col items-center justify-center gap-1 py-3" style={{ backgroundColor: tab === "fame" ? "#1a3a2a" : "#0a0e1a", border: "none", borderBottom: tab === "fame" ? "4px solid #00ff88" : "4px solid transparent", cursor: "pointer" }}>
           <IconTrophy size={16} color={tab === "fame" ? "#00ff88" : "#2a3a5c"} />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: tab === "fame" ? "#00ff88" : "#2a3a5c" }}>HALL OF FAME</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: tab === "fame" ? "#00ff88" : "#2a3a5c" }}>HALL OF FAME</div>
         </button>
         <div style={{ width: 4, backgroundColor: "#2a3a5c" }} />
         <button onClick={() => setTab("shame")} className="flex-1 flex flex-col items-center justify-center gap-1 py-3" style={{ backgroundColor: tab === "shame" ? "#1a0a10" : "#0a0e1a", border: "none", borderBottom: tab === "shame" ? "4px solid #ff2d55" : "4px solid transparent", cursor: "pointer" }}>
           <IconSkull size={16} color={tab === "shame" ? "#ff2d55" : "#2a3a5c"} />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: tab === "shame" ? "#ff2d55" : "#2a3a5c" }}>HALL OF SHAME</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: tab === "shame" ? "#ff2d55" : "#2a3a5c" }}>HALL OF SHAME</div>
         </button>
       </div>
       {tab === "fame" ? <FameBoard /> : <ShameBoard />}
@@ -4070,30 +4070,30 @@ function FameBoard() {
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       <div className="mx-4 mt-3 px-3 py-2 flex items-center justify-between" style={{ backgroundColor: "#111827", border: "3px solid #ffe66d" }}>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4" }}>DOWNTOWN AREA</div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ffe66d" }}>YOUR RANK: #12</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4" }}>DOWNTOWN AREA</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ffe66d" }}>YOUR RANK: #12</div>
       </div>
       <div className="mx-4 mt-2 px-3 py-3 flex items-center gap-3" style={{ backgroundColor: "rgba(0,255,136,0.08)", border: "3px solid #00ff88" }}>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#00ff88" }}>#12</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#00ff88" }}>#12</div>
         <PixelMascot size={28} />
         <div className="flex-1">
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#00ff88" }}>YOU</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#4ecdc4" }}>2,340 PTS / 48 WINS</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#00ff88" }}>YOU</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#4ecdc4" }}>2,340 PTS / 48 WINS</div>
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#6b8ba4" }}>LVL 7</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>LVL 7</div>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2" style={{ scrollbarWidth: "none" }}>
         {board.map((p) => (
           <div key={p.rank} className="flex items-center gap-3 px-3 py-3" style={{ backgroundColor: "#111827", border: `3px solid ${p.rank <= 3 ? ["#ffe66d", "#c0c0c0", "#cd7f32"][p.rank - 1] : "#2a3a5c"}`, boxShadow: p.rank <= 3 ? `3px 3px 0px ${["#ffe66d", "#c0c0c0", "#cd7f32"][p.rank - 1]}` : "none" }}>
             <div className="flex items-center justify-center" style={{ width: 28 }}>
-              {p.rank <= 3 ? <IconMedal rank={p.rank} size={20} /> : <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4" }}>#{p.rank}</div>}
+              {p.rank <= 3 ? <IconMedal rank={p.rank} size={20} /> : <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#6b8ba4" }}>#{p.rank}</div>}
             </div>
             <PixelAvatar rank={p.rank} size={28} />
             <div className="flex-1">
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#e8f4f8" }}>{p.name}</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#6b8ba4", marginTop: 2 }}>{p.wins} WINS · {p.area}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#e8f4f8" }}>{p.name}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginTop: 2 }}>{p.wins} WINS · {p.area}</div>
             </div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#4ecdc4" }}>{p.score.toLocaleString()}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#4ecdc4" }}>{p.score.toLocaleString()}</div>
           </div>
         ))}
       </div>
@@ -4106,16 +4106,16 @@ function ShameBoard() {
     <div className="flex flex-col flex-1 overflow-hidden">
       <div className="mx-4 mt-3 px-3 py-2 flex items-center gap-2" style={{ backgroundColor: "rgba(255,45,85,0.08)", border: "3px solid #ff2d55" }}>
         <IconWarning size={12} color="#ff2d55" />
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#ff2d55" }}>MOST SCAMMED IN YOUR AREA</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff2d55" }}>MOST SCAMMED IN YOUR AREA</div>
       </div>
       <div className="mx-4 mt-2 px-3 py-3 flex items-center gap-3" style={{ backgroundColor: "rgba(255,107,53,0.08)", border: "3px solid #ff6b35" }}>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ff6b35" }}>#8</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ff6b35" }}>#8</div>
         <PixelMascot size={28} />
         <div className="flex-1">
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff6b35" }}>YOU</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#6b8ba4" }}>3 TIMES SCAMMED</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ff6b35" }}>YOU</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>3 TIMES SCAMMED</div>
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#00ff88" }}>NOT BAD!</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#00ff88" }}>NOT BAD!</div>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2" style={{ scrollbarWidth: "none" }}>
         {HALL_OF_SHAME.map((p, i) => {
@@ -4125,21 +4125,21 @@ function ShameBoard() {
           return (
             <div key={p.rank} className="flex items-center gap-3 px-3 py-3" style={{ backgroundColor: isYou ? "rgba(255,107,53,0.08)" : "#111827", border: `3px solid ${isYou ? "#ff6b35" : rowColor}`, boxShadow: i < 3 ? `3px 3px 0px ${rowColor}` : "none" }}>
               <div className="flex items-center justify-center" style={{ width: 28 }}>
-                {i < 3 ? <IconSkull size={18} color={rowColor} /> : <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>#{p.rank}</div>}
+                {i < 3 ? <IconSkull size={18} color={rowColor} /> : <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>#{p.rank}</div>}
               </div>
               <PixelAvatar rank={p.rank + 4} size={28} />
               <div className="flex-1">
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: isYou ? "#ff6b35" : "#e8f4f8" }}>{isYou ? "YOU" : p.name}</div>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#6b8ba4", marginTop: 2 }}>{p.area}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: isYou ? "#ff6b35" : "#e8f4f8" }}>{isYou ? "YOU" : p.name}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginTop: 2 }}>{p.area}</div>
               </div>
               <div className="flex flex-col items-end gap-1">
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: rowColor }}>{p.scammed}x</div>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#6b8ba4" }}>SCAMMED</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: rowColor }}>{p.scammed}x</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>SCAMMED</div>
               </div>
             </div>
           );
         })}
-        <div className="py-3 text-center" style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#2a3a5c" }}>
+        <div className="py-3 text-center" style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#2a3a5c" }}>
           — KEEP TRAINING TO STAY OFF THIS LIST —
         </div>
       </div>
@@ -4187,10 +4187,10 @@ function ShopScreen({
       {/* Member picker strip — always visible */}
       <div style={{ padding: "10px 12px", backgroundColor: "#0a0e1a", borderBottom: `4px solid ${member.primaryColor}`, flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>SHOPPING FOR</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>SHOPPING FOR</div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <IconCoin size={12} color={memberCoins < 0 ? "#ff2d55" : "#ffe66d"} />
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: memberCoins < 0 ? "#ff2d55" : "#ffe66d" }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: memberCoins < 0 ? "#ff2d55" : "#ffe66d" }}>
               {memberCoins < 0 ? "-" : ""}{Math.abs(memberCoins)}
             </div>
           </div>
@@ -4217,7 +4217,7 @@ function ShopScreen({
                 }}
               >
                 <FamilyChar id={m.id} size={24} frame={0} />
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: active ? "#0a0e1a" : m.primaryColor }}>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: active ? "#0a0e1a" : m.primaryColor }}>
                   {m.name}
                 </div>
               </button>
@@ -4231,7 +4231,7 @@ function ShopScreen({
           {/* Virtual house preview */}
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
             <IconHouse size={12} color={member.primaryColor} />
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: member.primaryColor }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: member.primaryColor }}>
               {member.name}'S ROOM PREVIEW
             </div>
           </div>
@@ -4260,13 +4260,13 @@ function ShopScreen({
               })}
             </div>
             {owned.length === 0 && (
-              <div style={{ position: "absolute", bottom: 34, left: 0, right: 0, textAlign: "center", fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4" }}>
+              <div style={{ position: "absolute", bottom: 34, left: 0, right: 0, textAlign: "center", fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4" }}>
                 BUY FURNITURE TO FILL THIS ROOM
               </div>
             )}
             {/* Item count badge */}
             <div style={{ position: "absolute", top: 6, right: 6, backgroundColor: "#0a0e1a", border: `2px solid ${member.primaryColor}`, padding: "2px 5px" }}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: member.primaryColor }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: member.primaryColor }}>
                 {owned.length} SHOP ITEM{owned.length === 1 ? "" : "S"}
               </div>
             </div>
@@ -4287,7 +4287,7 @@ function ShopScreen({
                     boxShadow: active ? "2px 2px 0 #0a0e1a" : "none",
                     cursor: "pointer",
                     fontFamily: "'Share Tech Mono', monospace",
-                    fontSize: 6,
+                    fontSize: 8,
                     color: active ? "#0a0e1a" : "#6b8ba4",
                   }}
                 >
@@ -4300,7 +4300,7 @@ function ShopScreen({
           {/* Catalogue grid */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, paddingBottom: 16 }}>
             {filtered.length === 0 && (
-              <div style={{ gridColumn: "1 / -1", padding: "24px 0", textAlign: "center", fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4" }}>
+              <div style={{ gridColumn: "1 / -1", padding: "24px 0", textAlign: "center", fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#6b8ba4" }}>
                 No items in this filter.
               </div>
             )}
@@ -4326,24 +4326,24 @@ function ShopScreen({
                 >
                   {isOwned && (
                     <div style={{ position: "absolute", top: 4, right: 4, backgroundColor: "#4ecdc4", padding: "2px 4px" }}>
-                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#0a0e1a" }}>OWNED</div>
+                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#0a0e1a" }}>OWNED</div>
                     </div>
                   )}
                   <div style={{ height: 52, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <ShopFurnitureArt art={item.art} size={48} />
                   </div>
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#e8f4f8", textAlign: "center", lineHeight: 1.4 }}>
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#e8f4f8", textAlign: "center", lineHeight: 1.4 }}>
                     {item.name}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                     <IconCoin size={10} color={isOwned ? "#6b8ba4" : "#ffe66d"} />
-                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: isOwned ? "#6b8ba4" : "#ffe66d" }}>
+                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: isOwned ? "#6b8ba4" : "#ffe66d" }}>
                       {item.cost}
                     </div>
                   </div>
                   {isOwned ? (
                     <div style={{ width: "100%", padding: "5px 0", textAlign: "center", backgroundColor: "#0d1525", border: "2px solid #4ecdc4" }}>
-                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#4ecdc4" }}>IN ROOM</div>
+                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#4ecdc4" }}>IN ROOM</div>
                     </div>
                   ) : (
                     <button
@@ -4358,7 +4358,7 @@ function ShopScreen({
                         boxShadow: affordable && !bought ? "2px 2px 0 #0a0e1a" : "none",
                       }}
                     >
-                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: bought ? "#0a0e1a" : (affordable ? "#0a0e1a" : "#6b8ba4") }}>
+                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: bought ? "#0a0e1a" : (affordable ? "#0a0e1a" : "#6b8ba4") }}>
                         {bought ? "BOUGHT!" : (affordable ? "BUY" : "NOT ENOUGH")}
                       </div>
                     </button>
@@ -4458,7 +4458,7 @@ function SpeechBubble({ step, index, total, onNext, onSkip, onBack, style, inner
     <div ref={innerRef} style={{ position: "fixed", zIndex: 10001, width: 300, ...style }}>
       <div style={{ display: "flex", alignItems: "flex-end", gap: 8, marginBottom: -4 }}>
         <PixelMascot size={44} animate />
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: step.accent, paddingBottom: 10 }}>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: step.accent, paddingBottom: 10 }}>
           {step.title}
         </div>
       </div>
@@ -4479,7 +4479,7 @@ function SpeechBubble({ step, index, total, onNext, onSkip, onBack, style, inner
         </div>
       </div>
       <button onClick={onSkip} style={{ background: "none", border: "none", cursor: "pointer", padding: "8px 2px" }}>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>SKIP TOUR</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>SKIP TOUR</div>
       </button>
     </div>
   );
@@ -4596,7 +4596,7 @@ function RegisterScreen({ onDone, onBack }: { onDone: () => void; onBack: () => 
     fontFamily: "'Share Tech Mono', monospace", fontSize: 16, outline: "none",
   };
   const label = (t: string) => (
-    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginBottom: 8 }}>{t}</div>
+    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4", marginBottom: 8 }}>{t}</div>
   );
 
   async function sendCode() {
@@ -4629,8 +4629,8 @@ function RegisterScreen({ onDone, onBack }: { onDone: () => void; onBack: () => 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <div style={{ padding: "0 16px", minHeight: 52, backgroundColor: "#0a0e1a", borderBottom: "4px solid #2a3a5c", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#4ecdc4" }}>REGISTER</div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#2a3a5c" }}>OPT IN</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#4ecdc4" }}>REGISTER</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#2a3a5c" }}>OPT IN</div>
       </div>
       <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={{ fontFamily: "'VT323', monospace", fontSize: 18, color: "#6b8ba4", lineHeight: 1.3 }}>
@@ -4648,7 +4648,7 @@ function RegisterScreen({ onDone, onBack }: { onDone: () => void; onBack: () => 
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>{label(`CODE SENT TO ${phone}`)}<input style={{ ...inputStyle, letterSpacing: 8, textAlign: "center", fontSize: 22 }} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="000000" inputMode="numeric" /></div>
-              {devCode && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ffe66d", textAlign: "center" }}>DEV CODE: {devCode}</div>}
+              {devCode && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ffe66d", textAlign: "center" }}>DEV CODE: {devCode}</div>}
               <PixelBtn onClick={verify} color="#00ff88" size="lg" full disabled={busy || code.length < 6}>{busy ? "CHECKING..." : "[ VERIFY ]"}</PixelBtn>
               <PixelBtn onClick={() => { setStep("phone"); setMsg(""); }} color="#1a2340" textColor="#6b8ba4" size="sm" full>CHANGE NUMBER</PixelBtn>
             </div>
@@ -4701,17 +4701,17 @@ function ProfileScreen({
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
         <div className="relative mx-4 mt-4 p-4 flex items-center gap-4" style={{ backgroundColor: "#111827", border: "4px solid #4ecdc4", boxShadow: "4px 4px 0 #4ecdc4" }}>
           <button onClick={onEditProfile} className="absolute top-4 right-4" style={{ background: "none", border: "2px solid #4ecdc4", cursor: "pointer", padding: "4px 8px" }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#4ecdc4" }}>EDIT</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#4ecdc4" }}>EDIT</div>
           </button>
           <div style={{ filter: `drop-shadow(0 0 8px ${profile.avatar.glow})` }}>
             <PixelMascot size={72} animate color={profile.avatar.color} hat={profile.avatar.hat} eyes={profile.avatar.eyes} outfit={profile.avatar.outfit} />
           </div>
           <div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ffffff" }}>{profile.name}</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#4ecdc4", marginTop: 4 }}>LVL 7 — WATCHER</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ffffff" }}>{profile.name}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#4ecdc4", marginTop: 4 }}>LVL 7 — WATCHER</div>
             <div className="mt-3">
               <XPBar current={2340} max={3000} color="#4ecdc4" />
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4", marginTop: 4 }}>2,340 / 3,000 XP TO LVL 8</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", marginTop: 4 }}>2,340 / 3,000 XP TO LVL 8</div>
             </div>
           </div>
         </div>
@@ -4723,39 +4723,39 @@ function ProfileScreen({
             { label: "AREA RANK", val: "#12", color: "#00ff88", icon: <IconStar size={12} color="#00ff88" /> },
           ].map((s) => (
             <div key={s.label} className="p-3" style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c" }}>
-              <div className="flex items-center gap-1 mb-1">{s.icon}<div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4" }}>{s.label}</div></div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: s.color }}>{s.val}</div>
+              <div className="flex items-center gap-1 mb-1">{s.icon}<div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4" }}>{s.label}</div></div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: s.color }}>{s.val}</div>
             </div>
           ))}
         </div>
         <div className="mx-4 mt-4 mb-6">
           <div className="flex items-center gap-2 mb-3">
             <IconBadge size={16} color="#ffe66d" />
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ffe66d" }}>ACHIEVEMENT BADGES</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ffe66d" }}>ACHIEVEMENT BADGES</div>
           </div>
           <div className="grid grid-cols-3 gap-3">
             {ACHIEVEMENTS.map((a) => (
               <div key={a.id} className="flex flex-col items-center gap-2 p-3" style={{ backgroundColor: a.unlocked ? "#111827" : "#0d1120", border: `3px solid ${a.unlocked ? a.color : "#1a2340"}`, boxShadow: a.unlocked ? `3px 3px 0 ${a.color}` : "none", opacity: a.unlocked ? 1 : 0.45, position: "relative" }}>
                 {!a.unlocked && <div style={{ position: "absolute", top: 4, right: 4 }}><IconLock size={10} color="#2a3a5c" /></div>}
                 <IconBadge size={28} color={a.unlocked ? a.color : "#2a3a5c"} />
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: a.unlocked ? a.color : "#2a3a5c", textAlign: "center", lineHeight: 1.4 }}>{a.name}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: a.unlocked ? a.color : "#2a3a5c", textAlign: "center", lineHeight: 1.4 }}>{a.name}</div>
               </div>
             ))}
           </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", textAlign: "center", marginTop: 12 }}>4 / 9 UNLOCKED</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4", textAlign: "center", marginTop: 12 }}>4 / 9 UNLOCKED</div>
         </div>
 
         {/* ── COIN REWARDS ────────────────────────────────────────────── */}
         <div className="mx-4 mb-6">
           <div className="flex items-center gap-2 mb-3">
             <IconCoin size={16} color="#ffe66d" />
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ffe66d" }}>COIN REWARDS</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ffe66d" }}>COIN REWARDS</div>
           </div>
 
           {/* Coin balance card */}
           <div style={{ backgroundColor: "#111827", border: `4px solid ${memberCoins < 0 ? "#ff2d55" : "#ffe66d"}`, boxShadow: `4px 4px 0 ${memberCoins < 0 ? "#ff2d55" : "#ffe66d"}`, padding: "14px", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
             <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", marginBottom: 6 }}>TOTAL COINS</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#6b8ba4", marginBottom: 6 }}>TOTAL COINS</div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <IconCoin size={20} color={memberCoins < 0 ? "#ff2d55" : "#ffe66d"} />
                 <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 18, color: memberCoins < 0 ? "#ff2d55" : "#ffe66d" }}>
@@ -4763,11 +4763,11 @@ function ProfileScreen({
                 </div>
               </div>
               {memberCoins < 0 && (
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55", marginTop: 6 }}>IN DEBT</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ff2d55", marginTop: 6 }}>IN DEBT</div>
               )}
             </div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>DAILY REWARD</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>DAILY REWARD</div>
               <button
                 onClick={() => onClaimDaily(activeMemberId)}
                 disabled={memberAlreadyClaimed}
@@ -4783,7 +4783,7 @@ function ProfileScreen({
                 }}
               >
                 <IconCoin size={10} color={memberAlreadyClaimed ? "#6b8ba4" : "#0a0e1a"} />
-                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: memberAlreadyClaimed ? "#6b8ba4" : "#0a0e1a" }}>
+                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: memberAlreadyClaimed ? "#6b8ba4" : "#0a0e1a" }}>
                   {memberAlreadyClaimed ? "CLAIMED" : `+${DAILY_REWARD_AMOUNT}`}
                 </span>
               </button>
@@ -4791,7 +4791,7 @@ function ProfileScreen({
           </div>
 
           {/* Ways to earn */}
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", letterSpacing: 1, marginBottom: 8 }}>WAYS TO EARN</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4", letterSpacing: 1, marginBottom: 8 }}>WAYS TO EARN</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
             {[
               { label: "CALL DRILL WIN", reward: "+50", icon: <IconPhone size={14} color="#ff6b35" /> },
@@ -4803,20 +4803,20 @@ function ProfileScreen({
             ].map(row => (
               <div key={row.label} style={{ backgroundColor: "#111827", border: "2px solid #2a3a5c", padding: "10px 6px", display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
                 {row.icon}
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4", textAlign: "center", lineHeight: 1.4 }}>{row.label}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", textAlign: "center", lineHeight: 1.4 }}>{row.label}</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
                   <IconCoin size={8} color="#ffe66d" />
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#00ff88" }}>{row.reward}</div>
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#00ff88" }}>{row.reward}</div>
                 </div>
               </div>
             ))}
           </div>
 
           {/* Recent activity ledger */}
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", letterSpacing: 1, marginBottom: 8 }}>RECENT ACTIVITY</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4", letterSpacing: 1, marginBottom: 8 }}>RECENT ACTIVITY</div>
           <div style={{ backgroundColor: "#111827", border: "2px solid #2a3a5c" }}>
             {memberLedger.length === 0 ? (
-              <div style={{ padding: "16px 12px", textAlign: "center", fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4", lineHeight: 1.6 }}>
+              <div style={{ padding: "16px 12px", textAlign: "center", fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", lineHeight: 1.6 }}>
                 No transactions yet.<br />Complete a drill to see activity here.
               </div>
             ) : (
@@ -4834,11 +4834,11 @@ function ProfileScreen({
                   <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
                     <IconCoin size={10} color={tx.delta >= 0 ? "#ffe66d" : "#ff2d55"} />
                     <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6.5, color: "#e8f4f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.label}</div>
-                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4", marginTop: 2 }}>{formatRelativeTime(tx.timestamp)}</div>
+                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8.5, color: "#e8f4f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.label}</div>
+                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", marginTop: 2 }}>{formatRelativeTime(tx.timestamp)}</div>
                     </div>
                   </div>
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: tx.delta >= 0 ? "#00ff88" : "#ff2d55", flexShrink: 0, marginLeft: 8 }}>
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: tx.delta >= 0 ? "#00ff88" : "#ff2d55", flexShrink: 0, marginLeft: 8 }}>
                     {tx.delta >= 0 ? "+" : ""}{tx.delta}
                   </div>
                 </div>
@@ -4961,7 +4961,7 @@ function PixelToggle({ on, onToggle, color = "#00ff88" }: { on: boolean; onToggl
     <button onClick={onToggle} style={{ width: 52, height: 24, backgroundColor: on ? color : "#2a3a5c", border: `3px solid ${on ? "#0a0e1a" : "#1a2340"}`, boxShadow: on ? `3px 3px 0 #0a0e1a` : "2px 2px 0 #111", cursor: "pointer", position: "relative", transition: "background-color 0.15s", flexShrink: 0 }}>
       <div style={{ position: "absolute", top: 2, left: on ? 28 : 2, width: 16, height: 14, backgroundColor: on ? "#0a0e1a" : "#6b8ba4", transition: "left 0.15s" }} />
       <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: on ? "flex-start" : "flex-end", padding: "0 5px" }}>
-        <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 4, color: on ? "#0a0e1a" : "#4a5568" }}>{on ? "ON" : "OFF"}</span>
+        <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: on ? "#0a0e1a" : "#4a5568" }}>{on ? "ON" : "OFF"}</span>
       </div>
     </button>
   );
@@ -4983,7 +4983,7 @@ function PixelRadio({ options, value, onChange }: { options: string[]; value: st
           <div style={{ width: 14, height: 14, border: `3px solid ${value === opt ? "#00ff88" : "#2a3a5c"}`, backgroundColor: value === opt ? "#00ff88" : "transparent", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
             {value === opt && <div style={{ width: 6, height: 6, backgroundColor: "#0a0e1a" }} />}
           </div>
-          <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: value === opt ? "#00ff88" : "#6b8ba4" }}>{opt}</span>
+          <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: value === opt ? "#00ff88" : "#6b8ba4" }}>{opt}</span>
         </button>
       ))}
     </div>
@@ -5002,9 +5002,9 @@ function InspectableLink({ label, url, onReveal, showWarning = true }: { label: 
       </button>
       {revealed && (
         <div style={{ marginTop: 6, backgroundColor: showWarning ? "rgba(255,45,85,0.08)" : "rgba(78,205,196,0.08)", border: `2px solid ${showWarning ? "#ff2d55" : "#4ecdc4"}`, padding: "8px 10px", animation: "slideUp 0.2s ease-out" }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: showWarning ? "#ff2d55" : "#4ecdc4", marginBottom: 4 }}>ACTUAL URL:</div>
-          <div style={{ fontFamily: "monospace", fontSize: 11, color: showWarning ? "#ff6b35" : "#4ecdc4", wordBreak: "break-all" }}>{url}</div>
-          {showWarning && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 4, color: "#ff2d55", marginTop: 4 }}>⚠ SUSPICIOUS DOMAIN — DO NOT VISIT</div>}
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: showWarning ? "#ff2d55" : "#4ecdc4", marginBottom: 4 }}>ACTUAL URL:</div>
+          <div style={{ fontFamily: "monospace", fontSize: 13, color: showWarning ? "#ff6b35" : "#4ecdc4", wordBreak: "break-all" }}>{url}</div>
+          {showWarning && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#ff2d55", marginTop: 4 }}>⚠ SUSPICIOUS DOMAIN — DO NOT VISIT</div>}
         </div>
       )}
     </div>
@@ -5018,34 +5018,34 @@ function SenderInspectPanel({ scenario, onClose, showWarning = true }: { scenari
   return (
     <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 50, backgroundColor: "#111827", border: "4px solid #4ecdc4", boxShadow: "0 -4px 0 #4ecdc4", animation: "slideUp 0.25s ease-out" }}>
       <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "3px solid #2a3a5c" }}>
-        <div className="flex items-center gap-2"><IconEyeInspect size={12} color="#4ecdc4" /><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#4ecdc4" }}>SENDER INFO</div></div>
+        <div className="flex items-center gap-2"><IconEyeInspect size={12} color="#4ecdc4" /><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#4ecdc4" }}>SENDER INFO</div></div>
         <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><IconX size={14} color="#6b8ba4" /></button>
       </div>
       <div className="px-4 py-3 flex flex-col gap-3">
         <div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#6b8ba4", marginBottom: 3 }}>DISPLAY NAME</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginBottom: 3 }}>DISPLAY NAME</div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#e8f4f8" }}>{scenario.sender}</div>
         </div>
         {scenario.senderEmail && (
           <div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#6b8ba4", marginBottom: 3 }}>EMAIL ADDRESS</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginBottom: 3 }}>EMAIL ADDRESS</div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff6b35" }}>{scenario.senderEmail}</div>
           </div>
         )}
         {scenario.senderDomain && (
           <div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#6b8ba4", marginBottom: 3 }}>DOMAIN</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginBottom: 3 }}>DOMAIN</div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: scenario.isScam ? "#ff2d55" : "#00ff88" }}>{scenario.senderDomain}</div>
           </div>
         )}
         {showWarning && scenario.senderWarning && (
           <div style={{ backgroundColor: "rgba(255,45,85,0.1)", border: "2px solid #ff2d55", padding: "8px 10px" }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#ff2d55", lineHeight: 1.8 }}>{scenario.senderWarning}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55", lineHeight: 1.8 }}>{scenario.senderWarning}</div>
           </div>
         )}
         {showWarning && !scenario.isScam && (
           <div style={{ backgroundColor: "rgba(0,255,136,0.1)", border: "2px solid #00ff88", padding: "8px 10px" }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#00ff88", lineHeight: 1.8 }}>DOMAIN APPEARS LEGITIMATE</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#00ff88", lineHeight: 1.8 }}>DOMAIN APPEARS LEGITIMATE</div>
           </div>
         )}
       </div>
@@ -5060,11 +5060,11 @@ function ClueTooltip({ clue, onClose }: { clue: FamilyClue; onClose: () => void 
   return (
     <div style={{ position: "absolute", top: "25%", left: 12, right: 12, zIndex: 60, backgroundColor: "#111827", border: "4px solid #ffe66d", boxShadow: "4px 4px 0 #ffe66d", animation: "slideUp 0.2s ease-out" }}>
       <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "3px solid #2a3a5c" }}>
-        <div className="flex items-center gap-2"><IconBulb size={12} color="#ffe66d" /><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ffe66d" }}>CLUE</div></div>
+        <div className="flex items-center gap-2"><IconBulb size={12} color="#ffe66d" /><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ffe66d" }}>CLUE</div></div>
         <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><IconX size={14} color="#6b8ba4" /></button>
       </div>
       <div className="px-4 py-3 flex flex-col gap-2">
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff6b35" }}>{clue.label}</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ff6b35" }}>{clue.label}</div>
         <div style={{ backgroundColor: "rgba(255,107,53,0.15)", border: "2px solid #ff6b35", padding: "6px 8px", fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff6b35" }}>"{clue.text}"</div>
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.6 }}>{clue.explanation}</div>
       </div>
@@ -5092,7 +5092,7 @@ function SmsMockCard({ scenario, showWarning, onSenderTap }: {
   return (
     <div style={{ maxWidth: 270, margin: "0 auto", border: "4px solid #2a3a5c", boxShadow: "4px 4px 0 #2a3a5c" }}>
       <div style={{ backgroundColor: "#1a1a2e", padding: "5px 10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontFamily: "monospace", fontSize: 10, color: "#aaa" }}>9:41</div>
+        <div style={{ fontFamily: "monospace", fontSize: 12, color: "#aaa" }}>9:41</div>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 2 }}>
           {[6, 9, 12].map((h, i) => (
             <div key={i} style={{ width: 3, height: h, backgroundColor: "#aaa" }} />
@@ -5107,12 +5107,12 @@ function SmsMockCard({ scenario, showWarning, onSenderTap }: {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: "sans-serif", fontSize: 12, fontWeight: 600, color: "#1a1a1a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{scenario.sender}</div>
-          <div style={{ fontFamily: "sans-serif", fontSize: 9, color: "#888" }}>Tap to inspect sender</div>
+          <div style={{ fontFamily: "sans-serif", fontSize: 11, color: "#888" }}>Tap to inspect sender</div>
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 4, color: "#4ecdc4", border: "1px solid #4ecdc4", padding: "2px 4px", flexShrink: 0 }}>INFO</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#4ecdc4", border: "1px solid #4ecdc4", padding: "2px 4px", flexShrink: 0 }}>INFO</div>
       </button>
       <div style={{ backgroundColor: "#f5f5f7", padding: "12px 10px", minHeight: 100 }}>
-        <div style={{ textAlign: "center", fontFamily: "sans-serif", fontSize: 9, color: "#999", marginBottom: 10 }}>{scenario.timestamp}</div>
+        <div style={{ textAlign: "center", fontFamily: "sans-serif", fontSize: 11, color: "#999", marginBottom: 10 }}>{scenario.timestamp}</div>
         <div style={{ display: "flex", justifyContent: "flex-start" }}>
           <div style={{ backgroundColor: "#e5e5ea", borderRadius: "14px 14px 14px 2px", padding: "10px 12px", maxWidth: "85%", wordBreak: "break-word" }}>
             <div style={{ fontFamily: "sans-serif", fontSize: 13, color: "#1a1a1a", lineHeight: 1.55 }}>
@@ -5139,14 +5139,14 @@ function FamilyDrillIntroScreen({ onStart, onBack }: { onStart: () => void; onBa
   return (
     <div className="flex flex-col h-full" style={{ position: "relative" }}>
       <div className="flex items-center justify-between px-4" style={{ backgroundColor: "#0a0e1a", borderBottom: "4px solid #2a3a5c", minHeight: 56, flexShrink: 0 }}>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#00ff88" }}>FAMILY DRILL</div>
-        <div className="flex items-center gap-2"><IconShield size={14} color="#00ff88" /><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#00ff88" }}>4/4 READY</div></div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#00ff88" }}>FAMILY DRILL</div>
+        <div className="flex items-center gap-2"><IconShield size={14} color="#00ff88" /><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#00ff88" }}>4/4 READY</div></div>
       </div>
       <div className="flex-1 overflow-y-auto px-4 pb-6" style={{ scrollbarWidth: "none" }}>
         <div style={{ margin: "14px 0", backgroundColor: "#111827", border: "3px solid #00ff88", padding: "10px 14px" }}>
           <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2"><IconShield size={14} color="#00ff88" /><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#00ff88" }}>FAMILY TRUST</div></div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ffe66d" }}>100%</div>
+            <div className="flex items-center gap-2"><IconShield size={14} color="#00ff88" /><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#00ff88" }}>FAMILY TRUST</div></div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ffe66d" }}>100%</div>
           </div>
           <div style={{ height: 8, backgroundColor: "#0a0e1a", border: "2px solid #2a3a5c" }}>
             <div style={{ height: "100%", width: "100%", backgroundColor: "#00ff88", boxShadow: "0 0 8px #00ff88" }} />
@@ -5160,11 +5160,11 @@ function FamilyDrillIntroScreen({ onStart, onBack }: { onStart: () => void; onBa
             </div>
           ))}
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ffffff", textAlign: "center", marginBottom: 12, lineHeight: 1.8 }}>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ffffff", textAlign: "center", marginBottom: 12, lineHeight: 1.8 }}>
           Protect the whole household from scams.
         </div>
         <div style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "12px 14px", marginBottom: 16 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#4ecdc4", marginBottom: 8 }}>HOW IT WORKS</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#4ecdc4", marginBottom: 8 }}>HOW IT WORKS</div>
           {["Each family member faces a suspicious message.", "Inspect links and senders before deciding.", "Some messages are safe — read carefully!", "Wrong choices teach you what to watch for."].map((line, i) => (
             <div key={i} className="flex items-start gap-2 mb-2">
               <div style={{ width: 6, height: 6, backgroundColor: "#00ff88", flexShrink: 0, marginTop: 4 }} />
@@ -5173,7 +5173,7 @@ function FamilyDrillIntroScreen({ onStart, onBack }: { onStart: () => void; onBa
           ))}
           <div style={{ marginTop: 10, padding: "6px 8px", backgroundColor: "rgba(255,230,109,0.08)", border: "2px solid #ffe66d", display: "flex", alignItems: "center", gap: 6 }}>
             <IconCoin size={10} color="#ffe66d" />
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#ffe66d" }}>+30 COINS PER CORRECT · -10 PER WRONG</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ffe66d" }}>+30 COINS PER CORRECT · -10 PER WRONG</div>
           </div>
         </div>
         <div className="flex flex-col gap-3">
@@ -5186,14 +5186,14 @@ function FamilyDrillIntroScreen({ onStart, onBack }: { onStart: () => void; onBa
         <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.88)", zIndex: 80, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px" }}>
           <div style={{ backgroundColor: "#111827", border: "4px solid #4ecdc4", boxShadow: "4px 4px 0 #4ecdc4", width: "100%" }}>
             <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "3px solid #2a3a5c" }}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#4ecdc4" }}>HOW TO PLAY</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#4ecdc4" }}>HOW TO PLAY</div>
               <button onClick={() => setShowHowTo(false)} style={{ background: "none", border: "none", cursor: "pointer" }}><IconX size={14} color="#6b8ba4" /></button>
             </div>
             <div className="px-4 py-3 flex flex-col gap-3">
               {[["TAP SENDER", "Inspect sender identity and domain."], ["LONG-PRESS LINKS", "Reveal the actual URL before opening."], ["TAP CLUE TAGS", "Uncover red flags in the message."], ["READ CAREFULLY", "Not every message is a scam."], ["CHOOSE SAFELY", "Pick the best action for the family."]].map(([title, desc]) => (
                 <div key={title} className="flex items-start gap-3">
                   <IconBulb size={12} color="#ffe66d" />
-                  <div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#ffe66d", marginBottom: 2 }}>{title}</div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#6b8ba4", lineHeight: 1.4 }}>{desc}</div></div>
+                  <div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ffe66d", marginBottom: 2 }}>{title}</div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4", lineHeight: 1.4 }}>{desc}</div></div>
                 </div>
               ))}
               <PixelBtn onClick={() => setShowHowTo(false)} color="#4ecdc4" textColor="#0a0e1a" size="sm" full>GOT IT</PixelBtn>
@@ -5288,7 +5288,7 @@ function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNe
         <div style={{ width: 8, height: 8, backgroundColor: "#ff5f57", borderRadius: "50%" }} />
         <div style={{ width: 8, height: 8, backgroundColor: "#febc2e", borderRadius: "50%" }} />
         <div style={{ width: 8, height: 8, backgroundColor: "#28c840", borderRadius: "50%" }} />
-        <div style={{ fontFamily: "monospace", fontSize: 9, color: "#555", marginLeft: 6 }}>{typeLabels[scenario.type]}</div>
+        <div style={{ fontFamily: "monospace", fontSize: 11, color: "#555", marginLeft: 6 }}>{typeLabels[scenario.type]}</div>
       </div>
       <button onClick={() => setShowSenderPanel(true)} style={{ width: "100%", padding: "10px 12px", backgroundColor: "#f9f9f9", borderBottom: "1px solid #e0e0e0", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", textAlign: "left" }}>
         <div style={{ width: 32, height: 32, backgroundColor: scenario.isScam ? "#f4a261" : "#4ecdc4", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", flexShrink: 0 }}>
@@ -5297,22 +5297,22 @@ function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNe
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: "sans-serif", fontSize: 12, fontWeight: 600, color: "#1a1a1a" }}>
             {scenario.sender}
-            {scenario.senderEmail && <span style={{ fontWeight: 400, color: "#888", fontSize: 10 }}> &lt;{scenario.senderEmail}&gt;</span>}
+            {scenario.senderEmail && <span style={{ fontWeight: 400, color: "#888", fontSize: 12 }}> &lt;{scenario.senderEmail}&gt;</span>}
           </div>
-          {scenario.subject && <div style={{ fontFamily: "sans-serif", fontSize: 11, color: "#555", fontWeight: 600, marginTop: 1 }}>{scenario.subject}</div>}
+          {scenario.subject && <div style={{ fontFamily: "sans-serif", fontSize: 13, color: "#555", fontWeight: 600, marginTop: 1 }}>{scenario.subject}</div>}
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 4, color: "#4ecdc4", border: "1px solid #4ecdc4", padding: "2px 4px", flexShrink: 0 }}>INSPECT</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#4ecdc4", border: "1px solid #4ecdc4", padding: "2px 4px", flexShrink: 0 }}>INSPECT</div>
       </button>
       <div style={{ padding: "12px 14px", backgroundColor: "#fff" }}>
         <div style={{ fontFamily: "sans-serif", fontSize: 13, color: "#1a1a1a", lineHeight: 1.6, marginBottom: 8 }}>{scenario.message}</div>
         {scenario.invoiceDetails && (
           <div style={{ margin: "10px 0", backgroundColor: "#f8f8f8", border: "1px solid #ddd", padding: "12px" }}>
             <div style={{ fontFamily: "sans-serif", fontSize: 12, fontWeight: 700, color: "#333", marginBottom: 8 }}>Invoice details</div>
-            <div style={{ fontFamily: "sans-serif", fontSize: 11, color: "#888", marginBottom: 2 }}>Amount requested</div>
+            <div style={{ fontFamily: "sans-serif", fontSize: 13, color: "#888", marginBottom: 2 }}>Amount requested</div>
             <div style={{ fontFamily: "sans-serif", fontSize: 14, fontWeight: 700, color: "#333", marginBottom: 8 }}>{scenario.invoiceDetails.amount}</div>
-            <div style={{ fontFamily: "sans-serif", fontSize: 11, color: "#888", marginBottom: 4 }}>Note from seller</div>
+            <div style={{ fontFamily: "sans-serif", fontSize: 13, color: "#888", marginBottom: 4 }}>Note from seller</div>
             <div style={{ fontFamily: "sans-serif", fontSize: 12, color: "#c0392b", lineHeight: 1.5 }}>{scenario.invoiceDetails.noteFromSeller}</div>
-            <div style={{ fontFamily: "sans-serif", fontSize: 11, color: "#888", marginTop: 8 }}>Invoice number</div>
+            <div style={{ fontFamily: "sans-serif", fontSize: 13, color: "#888", marginTop: 8 }}>Invoice number</div>
             <div style={{ fontFamily: "sans-serif", fontSize: 12, color: "#333" }}>{scenario.invoiceDetails.invoiceNumber}</div>
           </div>
         )}
@@ -5320,14 +5320,14 @@ function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNe
           <div style={{ margin: "10px 0", border: "1px solid #e0e0e0", backgroundColor: "#f9f9f9", padding: "10px" }}>
             <div className="flex items-center gap-2 mb-2">
               <div style={{ width: 18, height: 18, backgroundColor: "#4285f4", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ color: "#fff", fontSize: 10, fontWeight: "bold" }}>D</span>
+                <span style={{ color: "#fff", fontSize: 12, fontWeight: "bold" }}>D</span>
               </div>
               <div style={{ fontFamily: "sans-serif", fontSize: 12, fontWeight: 600, color: "#333" }}>2026 Department Budget</div>
             </div>
             <div style={{ height: 40, backgroundColor: "#e0e0e0", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 6 }}>
               <span style={{ color: "#4285f4", fontSize: 20, fontWeight: "bold" }}>≡</span>
             </div>
-            <div style={{ fontFamily: "sans-serif", fontSize: 10, color: "#888" }}>Luke Johnson is the owner · Last edited 1 hour ago</div>
+            <div style={{ fontFamily: "sans-serif", fontSize: 12, color: "#888" }}>Luke Johnson is the owner · Last edited 1 hour ago</div>
           </div>
         )}
         {scenario.buttonLabel && scenario.buttonUrl && (
@@ -5342,19 +5342,19 @@ function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNe
   return (
     <div className="flex flex-col h-full" style={{ position: "relative", background: inDebrief ? (outcome === "wrong" ? "linear-gradient(180deg,#1a0a0f,#0a0e1a)" : "linear-gradient(180deg,#0a1a0f,#0a0e1a)") : undefined }}>
       <div className="flex items-center justify-between px-4" style={{ backgroundColor: "#0a0e1a", borderBottom: "4px solid #2a3a5c", minHeight: 48, flexShrink: 0 }}>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4" }}>ROUND {roundIndex + 1}/{totalRounds}</div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#ffe66d" }}>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4" }}>ROUND {roundIndex + 1}/{totalRounds}</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ffe66d" }}>
           {inDebrief ? "DEBRIEF" : `${foundCluesLocal.length}/${scenario.clues.length} CLUES`}
         </div>
       </div>
       <div className="flex items-center gap-3 px-4 py-2" style={{ backgroundColor: "#111827", borderBottom: `4px solid ${color}`, flexShrink: 0 }}>
         <AnimatedFamilyChar name={scenario.targetMember} size={36} />
         <div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#6b8ba4" }}>TARGET:</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color }}>{scenario.targetMember.toUpperCase()}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>TARGET:</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color }}>{scenario.targetMember.toUpperCase()}</div>
         </div>
         <div style={{ marginLeft: "auto", backgroundColor: "rgba(255,107,53,0.1)", border: `2px solid ${color}`, padding: "3px 7px" }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 4, color }}>{typeLabels[scenario.type] ?? "MSG"}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color }}>{typeLabels[scenario.type] ?? "MSG"}</div>
         </div>
       </div>
       {inDebrief && (() => {
@@ -5367,22 +5367,22 @@ function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNe
         const coins = FAMILY_COINS[outcome];
         return (
         <div style={{ backgroundColor: banner.bg, borderBottom: `4px solid ${banner.color}`, padding: "10px 16px", flexShrink: 0 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: banner.color, marginBottom: 4 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: banner.color, marginBottom: 4 }}>
             {banner.title}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" as const }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ffe66d" }}>+{FAMILY_XP[outcome]} XP</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ffe66d" }}>+{FAMILY_XP[outcome]} XP</div>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <IconCoin size={9} color={coins > 0 ? "#ffe66d" : coins < 0 ? "#ff2d55" : "#6b8ba4"} />
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: coins > 0 ? "#00ff88" : coins < 0 ? "#ff2d55" : "#6b8ba4" }}>{coins > 0 ? `+${coins}` : coins}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: coins > 0 ? "#00ff88" : coins < 0 ? "#ff2d55" : "#6b8ba4" }}>{coins > 0 ? `+${coins}` : coins}</div>
             </div>
             {outcome === "cautious" && (
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#6b8ba4" }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>
                 EVEN SAFER: <span style={{ color: "#00ff88" }}>{scenario.correctAction}</span>
               </div>
             )}
             {outcome === "wrong" && (
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#6b8ba4" }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>
                 CORRECT: <span style={{ color: "#00ff88" }}>{scenario.correctAction}</span>
               </div>
             )}
@@ -5397,20 +5397,20 @@ function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNe
         }
         {inDebrief && (
           <>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#4ecdc4", marginTop: 14, marginBottom: 8 }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#4ecdc4", marginTop: 14, marginBottom: 8 }}>
               TAP CLUES TO EXPLORE
             </div>
             <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 8, marginBottom: 12 }}>
               {scenario.clues.map((clue, i) => (
                 <button key={i} onClick={() => setActiveClue(clue)} style={{ backgroundColor: "rgba(255,107,53,0.15)", border: "3px solid #ff6b35", padding: "7px 13px", cursor: "pointer" }}>
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff6b35" }}>{clue.label}</div>
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ff6b35" }}>{clue.label}</div>
                 </button>
               ))}
             </div>
             <div style={{ backgroundColor: "#0d1526", border: "3px solid #4ecdc4", padding: "12px 14px", marginBottom: 8 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                 <IconBulb size={12} color="#ffe66d" />
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#ffe66d" }}>WHY?</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ffe66d" }}>WHY?</div>
               </div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.6 }}>{scenario.explanation}</div>
             </div>
@@ -5426,15 +5426,15 @@ function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNe
               style={{ background: "none", border: `2px solid ${lightbulbIdx >= scenario.clues.length - 1 ? "#1a2340" : "#ffe66d"}`, cursor: lightbulbIdx >= scenario.clues.length - 1 ? "default" : "pointer", padding: "4px 10px", display: "flex", alignItems: "center", gap: 5 }}
             >
               <IconBulb size={12} color={lightbulbIdx >= scenario.clues.length - 1 ? "#1a2340" : "#ffe66d"} />
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: lightbulbIdx >= scenario.clues.length - 1 ? "#1a2340" : "#ffe66d" }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: lightbulbIdx >= scenario.clues.length - 1 ? "#1a2340" : "#ffe66d" }}>
                 HINT{lightbulbIdx + 1 < scenario.clues.length ? ` (${scenario.clues.length - lightbulbIdx - 1})` : ""}
               </div>
             </button>
           </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 4, color: "#6b8ba4", marginBottom: 6, textAlign: "center" }}>WHAT SHOULD THE FAMILY DO?</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4", marginBottom: 6, textAlign: "center" }}>WHAT SHOULD THE FAMILY DO?</div>
           <div className="grid grid-cols-2 gap-2">
             {displayActions.map((action) => (
-              <button key={action} onClick={() => handleAction(action)} style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "8px 6px", cursor: "pointer", fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#e8f4f8", textAlign: "center", lineHeight: 1.5 }}>
+              <button key={action} onClick={() => handleAction(action)} style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "8px 6px", cursor: "pointer", fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#e8f4f8", textAlign: "center", lineHeight: 1.5 }}>
                 {action}
               </button>
             ))}
@@ -5487,7 +5487,7 @@ function FamilySummaryScreen({ answers, onPlayAgain, onIndividual, onHome }: {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center px-4" style={{ backgroundColor: "#0a0e1a", borderBottom: "4px solid #2a3a5c", minHeight: 52, flexShrink: 0 }}>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: headerColor }}>{header}</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: headerColor }}>{header}</div>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
         <div style={{ backgroundColor: "#111827", border: `4px solid ${headerColor}`, boxShadow: `4px 4px 0 ${headerColor}`, padding: "14px", marginBottom: 14 }}>
@@ -5499,13 +5499,13 @@ function FamilySummaryScreen({ answers, onPlayAgain, onIndividual, onHome }: {
               { label: "COINS EARNED", value: `${totalCoins >= 0 ? "+" : ""}${totalCoins}`, color: totalCoins >= 0 ? "#ffe66d" : "#ff2d55" },
             ].map((s) => (
               <div key={s.label} style={{ backgroundColor: "#0a0e1a", border: "2px solid #2a3a5c", padding: "8px 10px" }}>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 4, color: "#6b8ba4", marginBottom: 4 }}>{s.label}</div>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: s.color }}>{s.value}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4", marginBottom: 4 }}>{s.label}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: s.color }}>{s.value}</div>
               </div>
             ))}
           </div>
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#4ecdc4", marginBottom: 8 }}>FAMILY RESULTS</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#4ecdc4", marginBottom: 8 }}>FAMILY RESULTS</div>
         <div className="flex flex-col gap-2 mb-14">
           {["Grandma", "Mum", "Dad", "Kid"].map((name) => {
             const results = memberResults[name] ?? [];
@@ -5514,28 +5514,28 @@ function FamilySummaryScreen({ answers, onPlayAgain, onIndividual, onHome }: {
             return (
               <div key={name} className="flex items-center gap-3" style={{ backgroundColor: "#111827", border: "2px solid #2a3a5c", padding: "8px 12px" }}>
                 <AnimatedFamilyChar name={name} size={28} />
-                <div style={{ flex: 1, fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#e8f4f8" }}>{name.toUpperCase()}</div>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: sc }}>{status}</div>
+                <div style={{ flex: 1, fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#e8f4f8" }}>{name.toUpperCase()}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: sc }}>{status}</div>
               </div>
             );
           })}
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ffe66d", marginBottom: 8 }}>BADGES</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ffe66d", marginBottom: 8 }}>BADGES</div>
         <div className="grid grid-cols-2 gap-2 mb-14">
           {badges.map((b) => (
             <div key={b.name} style={{ backgroundColor: b.earned ? "#111827" : "#0a0e1a", border: `2px solid ${b.earned ? "#ffe66d" : "#1a2340"}`, padding: "8px 10px", opacity: b.earned ? 1 : 0.4 }}>
               <IconBadge size={18} color={b.earned ? "#ffe66d" : "#2a3a5c"} />
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: b.earned ? "#ffe66d" : "#2a3a5c", marginTop: 4, lineHeight: 1.5 }}>{b.name}</div>
-              {!b.earned && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 4, color: "#1a2340", marginTop: 2 }}>LOCKED</div>}
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: b.earned ? "#ffe66d" : "#2a3a5c", marginTop: 4, lineHeight: 1.5 }}>{b.name}</div>
+              {!b.earned && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#1a2340", marginTop: 2 }}>LOCKED</div>}
             </div>
           ))}
         </div>
         <div style={{ backgroundColor: "#0d1526", border: "3px solid #4ecdc4", padding: "12px 14px", marginBottom: 14 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#4ecdc4", marginBottom: 8 }}>TOP LESSONS</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#4ecdc4", marginBottom: 8 }}>TOP LESSONS</div>
           {["Always inspect the sender.", "Hover or long-press links before opening.", "Be careful with urgent messages.", "Never share passwords, OTPs, or card details.", "Ask family before acting on suspicious messages."].map((l, i) => (
             <div key={i} className="flex items-start gap-2 mb-2">
               <div style={{ width: 5, height: 5, backgroundColor: "#4ecdc4", flexShrink: 0, marginTop: 5 }} />
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#e8f4f8", lineHeight: 1.5 }}>{l}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#e8f4f8", lineHeight: 1.5 }}>{l}</div>
             </div>
           ))}
         </div>
@@ -5567,7 +5567,7 @@ function SettingsScreen({ profile, settings, muted, onToggleMute, onSettings, on
     onSettings({ drillDays: settings.drillDays.map((v, i) => (i === idx ? !v : v)) });
   const HourStepper = ({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) => (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4" }}>{label}</div>
+      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4" }}>{label}</div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <button onClick={() => onChange(value - 1)} aria-label={`${label} earlier`} style={{ width: 26, height: 26, backgroundColor: "#0a0e1a", border: "3px solid #2a3a5c", color: "#4ecdc4", cursor: "pointer", fontFamily: "'Share Tech Mono', monospace", fontSize: 12 }}>−</button>
         <div style={{ minWidth: 46, textAlign: "center", fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#e8f4f8" }}>{String(value).padStart(2, "0")}:00</div>
@@ -5589,17 +5589,17 @@ function SettingsScreen({ profile, settings, muted, onToggleMute, onSettings, on
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
 
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#4ecdc4", marginBottom: 14 }}>DRILL SETTINGS</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#4ecdc4", marginBottom: 14 }}>DRILL SETTINGS</div>
 
         <div style={{ marginBottom: 12 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginBottom: 8 }}>FREQUENCY</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4", marginBottom: 8 }}>FREQUENCY</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             {[{ id: "free", top: "FREE PLAY", sub: "Manual only" }, { id: "recurring", top: "RECURRING", sub: "Auto weekly" }].map((opt) => {
               const active = settings.drillFrequency === opt.id;
               return (
                 <button key={opt.id} onClick={() => onSettings({ drillFrequency: opt.id })} style={{ padding: "12px 8px", backgroundColor: active ? "#00ff88" : "#0a0e1a", border: `3px solid ${active ? "#00ff88" : "#2a3a5c"}`, boxShadow: active ? "3px 3px 0 #006633" : "none", cursor: "pointer", textAlign: "center" }}>
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: active ? "#0a0e1a" : "#6b8ba4", marginBottom: 4 }}>{opt.top}</div>
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: active ? "#0a1a0a" : "#2a3a5c" }}>{opt.sub}</div>
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: active ? "#0a0e1a" : "#6b8ba4", marginBottom: 4 }}>{opt.top}</div>
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: active ? "#0a1a0a" : "#2a3a5c" }}>{opt.sub}</div>
                 </button>
               );
             })}
@@ -5609,24 +5609,24 @@ function SettingsScreen({ profile, settings, muted, onToggleMute, onSettings, on
         {/* Drill schedule window — when real (surprise) drills are allowed to fire. */}
         <div style={{ border: "3px solid #2a3a5c", backgroundColor: "#111827", padding: "12px 14px", marginBottom: 12 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>DRILL SCHEDULE</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>DRILL SCHEDULE</div>
             <div style={{ display: "flex", alignItems: "center", gap: 5, backgroundColor: win.open ? "rgba(0,255,136,0.12)" : "rgba(255,230,109,0.1)", border: `2px solid ${win.open ? "#00ff88" : "#ffe66d"}`, padding: "3px 7px" }}>
               <div style={{ width: 6, height: 6, backgroundColor: win.open ? "#00ff88" : "#ffe66d" }} />
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: win.open ? "#00ff88" : "#ffe66d" }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: win.open ? "#00ff88" : "#ffe66d" }}>
                 {win.open ? "OPEN NOW" : `NEXT: ${win.nextLabel}`}
               </div>
             </div>
           </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#2a3a5c", marginBottom: 10, lineHeight: 1.6 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#2a3a5c", marginBottom: 10, lineHeight: 1.6 }}>
             When recurring drills may reach your real phone/inbox.
           </div>
 
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4", marginBottom: 6 }}>DAYS</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", marginBottom: 6 }}>DAYS</div>
           <div style={{ display: "flex", gap: 5, marginBottom: 14 }}>
             {DRILL_DAY_LABELS.map((d, i) => {
               const on = settings.drillDays[i];
               return (
-                <button key={i} onClick={() => toggleDrillDay(i)} aria-label={`${DRILL_DAY_NAMES[i]} ${on ? "on" : "off"}`} aria-pressed={on} style={{ flex: 1, padding: "8px 0", backgroundColor: on ? "#4ecdc4" : "#0a0e1a", border: `3px solid ${on ? "#4ecdc4" : "#2a3a5c"}`, cursor: "pointer", fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: on ? "#0a0e1a" : "#6b8ba4" }}>{d}</button>
+                <button key={i} onClick={() => toggleDrillDay(i)} aria-label={`${DRILL_DAY_NAMES[i]} ${on ? "on" : "off"}`} aria-pressed={on} style={{ flex: 1, padding: "8px 0", backgroundColor: on ? "#4ecdc4" : "#0a0e1a", border: `3px solid ${on ? "#4ecdc4" : "#2a3a5c"}`, cursor: "pointer", fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: on ? "#0a0e1a" : "#6b8ba4" }}>{d}</button>
               );
             })}
           </div>
@@ -5638,27 +5638,27 @@ function SettingsScreen({ profile, settings, muted, onToggleMute, onSettings, on
         </div>
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", backgroundColor: "#111827", border: "3px solid #2a3a5c", marginBottom: 8 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#e8f4f8" }}>FAMILY DRILL</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#e8f4f8" }}>FAMILY DRILL</div>
           <ToggleSwitchB on={settings.familyDrillEnabled} onToggle={() => onSettings({ familyDrillEnabled: !settings.familyDrillEnabled })} color="#c77dff" />
         </div>
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", backgroundColor: "#111827", border: "3px solid #2a3a5c", marginBottom: 8 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#e8f4f8" }}>NOTIFICATIONS</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#e8f4f8" }}>NOTIFICATIONS</div>
           <ToggleSwitchB on={settings.notificationsEnabled} onToggle={() => onSettings({ notificationsEnabled: !settings.notificationsEnabled })} color="#ffe66d" />
         </div>
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", backgroundColor: "#111827", border: "3px solid #2a3a5c", marginBottom: 28 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#e8f4f8" }}>SOUND</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#e8f4f8" }}>SOUND</div>
           <ToggleSwitchB on={soundOn} onToggle={onToggleMute} color="#00ff88" />
         </div>
 
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ffe66d", marginBottom: 14 }}>ACCOUNT</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ffe66d", marginBottom: 14 }}>ACCOUNT</div>
 
         <div style={{ padding: "14px 16px", backgroundColor: "#111827", border: "3px solid #2a3a5c", marginBottom: 8, display: "flex", alignItems: "center", gap: 12 }}>
           <PixelMascot size={36} color={profile.avatar.color} hat={profile.avatar.hat} eyes={profile.avatar.eyes} outfit={profile.avatar.outfit} />
           <div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ffffff" }}>{profile.name}</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#4ecdc4", marginTop: 4 }}>LVL 7 — WATCHER</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ffffff" }}>{profile.name}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#4ecdc4", marginTop: 4 }}>LVL 7 — WATCHER</div>
           </div>
         </div>
 
@@ -5673,14 +5673,14 @@ function SettingsScreen({ profile, settings, muted, onToggleMute, onSettings, on
             onClick={() => onNav(row.key)}
             style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "14px 16px", backgroundColor: "#111827", border: "3px solid #2a3a5c", cursor: "pointer", marginBottom: 4 }}
           >
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#e8f4f8" }}>{row.label}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#e8f4f8" }}>{row.label}</div>
             <NavChevron />
           </button>
         ))}
 
         <div style={{ marginBottom: 4, marginTop: 4 }}>
           <button onClick={() => toggleAccordion("reset")} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "14px 16px", backgroundColor: "#111827", border: "3px solid #2a3a5c", cursor: "pointer" }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff2d55" }}>RESET PROGRESS</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ff2d55" }}>RESET PROGRESS</div>
             <div style={{ transform: openAccordion === "reset" ? "rotate(180deg)" : "none", transition: "transform 0.15s", display: "flex" }}>
               <NavChevron />
             </div>
@@ -5703,7 +5703,7 @@ function SettingsScreen({ profile, settings, muted, onToggleMute, onSettings, on
         </div>
 
         <div style={{ margin: "24px 0 8px", border: "3px solid #1a2340", padding: "18px", textAlign: "center" }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#2a3a5c", lineHeight: 2.4 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#2a3a5c", lineHeight: 2.4 }}>
             DRILL MODE v2.0.0<br />
             SCAM FIGHTER TRAINING<br />
             © 2026 ALL RIGHTS RESERVED
@@ -5732,7 +5732,7 @@ function AccountSettingsScreen({ profile, onBack }: { profile: PlayerProfile; on
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
         {rows.map((row) => (
           <div key={row.label} style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "14px 16px", marginBottom: 10 }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", marginBottom: 4 }}>{row.label}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#6b8ba4", marginBottom: 4 }}>{row.label}</div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 14, color: row.color }}>{row.value}</div>
           </div>
         ))}
@@ -5748,12 +5748,12 @@ function PrivacySettingsScreen({ onBack }: { onBack: () => void }) {
       <SubPageHeader title="PRIVACY" titleColor="#4ecdc4" onBack={onBack} />
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
         <div style={{ backgroundColor: "#0d1526", border: "3px solid #4ecdc4", padding: "12px 14px", marginBottom: 12 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#4ecdc4", marginBottom: 6 }}>DATA PRIVACY</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#4ecdc4", marginBottom: 6 }}>DATA PRIVACY</div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.6 }}>Training data stays on this device. No personal data is collected or shared. Do not use real personal data in drills.</div>
         </div>
         {["Hide sensitive examples", "Clear drill history"].map((label, i) => (
           <div key={i} className="flex items-center justify-between px-4 py-3" style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", marginBottom: 8 }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#e8f4f8" }}>{label}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#e8f4f8" }}>{label}</div>
             <PixelToggle on={s[i]} onToggle={() => setS((arr) => arr.map((v, j) => j === i ? !v : v))} />
           </div>
         ))}
@@ -5770,7 +5770,7 @@ function AccessibilitySettingsScreen({ onBack }: { onBack: () => void }) {
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
         {["Reduce flashing effects", "Larger text", "High contrast mode", "Disable CRT scanlines", "Slower animations"].map((label, i) => (
           <div key={i} className="flex items-center justify-between px-4 py-3" style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", marginBottom: 8 }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#e8f4f8" }}>{label}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#e8f4f8" }}>{label}</div>
             <PixelToggle on={s[i]} onToggle={() => setS((arr) => arr.map((v, j) => j === i ? !v : v))} />
           </div>
         ))}
@@ -5785,12 +5785,12 @@ function AboutSettingsScreen({ onBack }: { onBack: () => void }) {
       <SubPageHeader title="ABOUT" titleColor="#ffe66d" onBack={onBack} />
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
         <div style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "14px 16px", marginBottom: 12 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#00ff88", marginBottom: 6 }}>DRILL MODE</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#4ecdc4", marginBottom: 4 }}>SCAM FIGHTER TRAINING</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#00ff88", marginBottom: 6 }}>DRILL MODE</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#4ecdc4", marginBottom: 4 }}>SCAM FIGHTER TRAINING</div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#6b8ba4" }}>v2.0.0</div>
         </div>
         <div style={{ backgroundColor: "rgba(255,107,53,0.1)", border: "3px solid #ff6b35", padding: "12px 14px" }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff6b35", marginBottom: 6 }}>DISCLAIMER</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ff6b35", marginBottom: 6 }}>DISCLAIMER</div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.6 }}>This app is a training simulation. It does not detect real scams automatically. All scenarios are fictional educational examples.</div>
         </div>
       </div>
@@ -5820,7 +5820,7 @@ function ProfileEditScreen({ profile, onRename, onBack, onAvatar, onHouse }: {
       <SubPageHeader title="EDIT PROFILE" titleColor="#4ecdc4" onBack={onBack} />
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
         <div style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "12px 14px", marginBottom: 12 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", marginBottom: 6 }}>USERNAME</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#6b8ba4", marginBottom: 6 }}>USERNAME</div>
           {editingName ? (
             <div className="flex gap-2 items-center" style={{ marginBottom: 4 }}>
               <input
@@ -5841,15 +5841,15 @@ function ProfileEditScreen({ profile, onRename, onBack, onAvatar, onHouse }: {
           )}
         </div>
         <button onClick={onAvatar} style={{ width: "100%", backgroundColor: "#111827", border: "3px solid #c77dff", padding: "12px 14px", cursor: "pointer", textAlign: "left", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#c77dff", marginBottom: 4 }}>CHANGE AVATAR</div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#6b8ba4" }}>Customise your pixel character</div></div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#c77dff" }}>›</div>
+          <div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#c77dff", marginBottom: 4 }}>CHANGE AVATAR</div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4" }}>Customise your pixel character</div></div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#c77dff" }}>›</div>
         </button>
         <button onClick={onHouse} style={{ width: "100%", backgroundColor: "#111827", border: "3px solid #00ff88", padding: "12px 14px", cursor: "pointer", textAlign: "left", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#00ff88", marginBottom: 4 }}>CUSTOMISE HOUSE</div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#6b8ba4" }}>Sell furniture and buy wallpapers</div></div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#00ff88" }}>›</div>
+          <div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#00ff88", marginBottom: 4 }}>CUSTOMISE HOUSE</div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4" }}>Sell furniture and buy wallpapers</div></div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#00ff88" }}>›</div>
         </button>
         <div style={{ backgroundColor: "#111827", border: "3px solid #ffe66d", padding: "12px 14px", marginBottom: 12 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ffe66d", marginBottom: 10 }}>PROFILE TITLE</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ffe66d", marginBottom: 10 }}>PROFILE TITLE</div>
           <PixelRadio options={["WATCHER", "SCAM BLOCKER", "LINK INSPECTOR", "FAMILY GUARDIAN"]} value={profileTitle} onChange={setProfileTitle} />
         </div>
         <PixelBtn onClick={onBack} color="#00ff88" textColor="#0a0e1a" size="sm" full>[ SAVE PROFILE ]</PixelBtn>
@@ -5887,15 +5887,15 @@ function AvatarCustomisationScreen({ avatar, onSave, onBack }: {
         </div>
         {colorRows.map((row) => (
           <div key={row.label} style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "12px 14px", marginBottom: 10 }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#c77dff", marginBottom: 8 }}>{row.label}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#c77dff", marginBottom: 8 }}>{row.label}</div>
             <div className="flex gap-3 flex-wrap">{palette.map((c) => (<button key={c} onClick={() => set({ [row.key]: c })} style={{ width: 32, height: 32, backgroundColor: c, border: `4px solid ${draft[row.key] === c ? "#fff" : "#0a0e1a"}`, cursor: "pointer" }} />))}</div>
           </div>
         ))}
         {optionRows.map((sec) => (
           <div key={sec.label} style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "12px 14px", marginBottom: 10 }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#c77dff", marginBottom: 8 }}>{sec.label}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#c77dff", marginBottom: 8 }}>{sec.label}</div>
             <div className="flex gap-2 flex-wrap">{sec.opts.map((opt) => { const on = draft[sec.key] === opt; return (
-              <button key={opt} onClick={() => set({ [sec.key]: opt })} style={{ backgroundColor: on ? "#c77dff" : "#0a0e1a", border: `2px solid ${on ? "#c77dff" : "#2a3a5c"}`, padding: "4px 8px", cursor: "pointer", fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: on ? "#0a0e1a" : "#6b8ba4" }}>{opt}</button>
+              <button key={opt} onClick={() => set({ [sec.key]: opt })} style={{ backgroundColor: on ? "#c77dff" : "#0a0e1a", border: `2px solid ${on ? "#c77dff" : "#2a3a5c"}`, padding: "4px 8px", cursor: "pointer", fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: on ? "#0a0e1a" : "#6b8ba4" }}>{opt}</button>
             ); })}</div>
           </div>
         ))}
@@ -5960,10 +5960,10 @@ function CustomizeScreen({ memberId, coins, purchasedItems, onBack, onSell }: {
     <div className="flex flex-col h-full">
       <div style={{ padding: "0 16px", minHeight: 52, backgroundColor: "#0a0e1a", borderBottom: `4px solid ${member.primaryColor}`, display: "flex", alignItems: "center", gap: 12 }}>
         <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><IconX size={16} color="#6b8ba4" /></button>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: member.primaryColor }}>CUSTOMIZE ROOM</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: member.primaryColor }}>CUSTOMIZE ROOM</div>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
           <IconCoin size={12} color={coins < 0 ? "#ff2d55" : "#ffe66d"} />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: coins < 0 ? "#ff2d55" : "#ffe66d" }}>{coins < 0 ? "-" : ""}{Math.abs(coins)}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: coins < 0 ? "#ff2d55" : "#ffe66d" }}>{coins < 0 ? "-" : ""}{Math.abs(coins)}</div>
         </div>
       </div>
 
@@ -5976,7 +5976,7 @@ function CustomizeScreen({ memberId, coins, purchasedItems, onBack, onSell }: {
             </div>
           )}
 
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", letterSpacing: 2, marginBottom: 10 }}>FURNITURE</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#6b8ba4", letterSpacing: 2, marginBottom: 10 }}>FURNITURE</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
             {unifiedItems.map(item => {
               const isSold = sold.includes(item.id);
@@ -5986,15 +5986,15 @@ function CustomizeScreen({ memberId, coins, purchasedItems, onBack, onSell }: {
                     {item.art}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: isSold ? "#6b8ba4" : "#e8f4f8" }}>{item.name}</div>
-                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4", marginTop: 4 }}>
+                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: isSold ? "#6b8ba4" : "#e8f4f8" }}>{item.name}</div>
+                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", marginTop: 4 }}>
                       {isSold ? "SOLD" : `SELL FOR ${item.sellValue} COINS`}
                     </div>
                   </div>
                   {!isSold && (
                     <button onClick={() => handleSell(item)} style={{ backgroundColor: isInDebt ? "#ff6b35" : "#2a3a5c", border: "none", cursor: "pointer", padding: "8px 12px", display: "flex", alignItems: "center", gap: 6 }}>
                       <IconCoin size={10} color={isInDebt ? "#0a0e1a" : "#ffe66d"} />
-                      <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: isInDebt ? "#0a0e1a" : "#ffe66d" }}>SELL</span>
+                      <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: isInDebt ? "#0a0e1a" : "#ffe66d" }}>SELL</span>
                     </button>
                   )}
                 </div>
@@ -6002,7 +6002,7 @@ function CustomizeScreen({ memberId, coins, purchasedItems, onBack, onSell }: {
             })}
           </div>
 
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", letterSpacing: 2, marginBottom: 10 }}>WALLPAPER SHOP</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#6b8ba4", letterSpacing: 2, marginBottom: 10 }}>WALLPAPER SHOP</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
             {WALLPAPERS.map(wp => (
               <button key={wp.id} style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}>
@@ -6011,10 +6011,10 @@ function CustomizeScreen({ memberId, coins, purchasedItems, onBack, onSell }: {
                     <WallpaperSwatch id={wp.id} />
                   </div>
                   <div style={{ backgroundColor: "#111827", padding: "6px 4px 5px", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#e8f4f8", textAlign: "center" }}>{wp.name}</div>
+                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#e8f4f8", textAlign: "center" }}>{wp.name}</div>
                     <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
                       <IconCoin size={7} color="#ffe66d" />
-                      <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#ffe66d" }}>{wp.price}</span>
+                      <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ffe66d" }}>{wp.price}</span>
                     </div>
                   </div>
                 </div>
@@ -6052,7 +6052,7 @@ function FamilyChatScreen({ messages, onSend, onBack }: {
           <IconX size={16} color="#6b8ba4" />
         </button>
         <IconChat size={16} color="#4ecdc4" />
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#4ecdc4" }}>FAMILY CHAT</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#4ecdc4" }}>FAMILY CHAT</div>
         <div style={{ marginLeft: "auto", width: 8, height: 8, backgroundColor: "#00ff88", animation: "pulse-dot 1.5s ease-in-out infinite" }} />
       </div>
 
@@ -6086,7 +6086,7 @@ function FamilyChatScreen({ messages, onSend, onBack }: {
                   ) : member ? (
                     <FamilyChar id={member.id} size={28} frame={0} />
                   ) : null}
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 4, color }}>
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color }}>
                     {isPixi ? "PIXI" : member?.name.slice(0, 3)}
                   </div>
                 </div>
@@ -6094,7 +6094,7 @@ function FamilyChatScreen({ messages, onSend, onBack }: {
               {isRight && (
                 <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
                   <PixelMascot size={28} />
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 4, color: "#00ff88" }}>YOU</div>
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#00ff88" }}>YOU</div>
                 </div>
               )}
               {/* Right column: bubble + timestamp */}
@@ -6102,7 +6102,7 @@ function FamilyChatScreen({ messages, onSend, onBack }: {
                 <div style={{ backgroundColor: bubbleBg, border: `2px solid ${color}`, padding: "8px 10px", fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: textColor, lineHeight: 1.6 }}>
                   {msg.text}
                 </div>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 4, color: "#2a3a5c" }}>{msg.time}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#2a3a5c" }}>{msg.time}</div>
               </div>
             </div>
           );
@@ -6118,7 +6118,7 @@ function FamilyChatScreen({ messages, onSend, onBack }: {
           style={{ flex: 1, backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "10px 12px", fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", outline: "none" }}
         />
         <button onClick={send} style={{ backgroundColor: "#4ecdc4", border: "3px solid #0a0e1a", boxShadow: "3px 3px 0 #0a0e1a", cursor: "pointer", padding: "0 14px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#0a0e1a" }}>▶</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#0a0e1a" }}>▶</div>
         </button>
       </div>
     </div>
@@ -6172,8 +6172,8 @@ function NotificationsScreen({
           <IconX size={16} color="#6b8ba4" />
         </button>
         <IconBell size={16} color="#ffe66d" />
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ffe66d" }}>NOTIFICATIONS</div>
-        <div style={{ marginLeft: "auto", fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: unreadCount > 0 ? "#ff2d55" : "#6b8ba4" }}>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ffe66d" }}>NOTIFICATIONS</div>
+        <div style={{ marginLeft: "auto", fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: unreadCount > 0 ? "#ff2d55" : "#6b8ba4" }}>
           {unreadCount > 0 ? `${unreadCount} UNREAD` : "ALL READ"}
         </div>
       </div>
@@ -6182,7 +6182,7 @@ function NotificationsScreen({
         {notifications.length === 0 ? (
           <div style={{ padding: "48px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
             <IconBell size={40} color="#2a3a5c" />
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4" }}>NO NOTIFICATIONS YET</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#6b8ba4" }}>NO NOTIFICATIONS YET</div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#6b8ba4", lineHeight: 1.5, maxWidth: 260 }}>
               Complete drills, collect payday, or claim daily rewards to see activity here.
             </div>
@@ -6217,23 +6217,23 @@ function NotificationsScreen({
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: isUnread ? "#e8f4f8" : "#6b8ba4", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: isUnread ? "#e8f4f8" : "#6b8ba4", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {n.title}
                       </div>
                       {isUnread && (
                         <div style={{ width: 6, height: 6, backgroundColor: "#ff2d55", flexShrink: 0, marginTop: 2 }} />
                       )}
                     </div>
-                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: isUnread ? "#4ecdc4" : "#4a5c78", marginTop: 4, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: isUnread ? "#4ecdc4" : "#4a5c78", marginTop: 4, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {n.body}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}>
                       {member && (
-                        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 4, color: member.primaryColor }}>
+                        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: member.primaryColor }}>
                           {member.name}
                         </div>
                       )}
-                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 4, color: "#2a3a5c" }}>
+                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#2a3a5c" }}>
                         {formatNotifTimestamp(n.timestamp)}
                       </div>
                     </div>
@@ -6294,9 +6294,9 @@ function NotificationDetailScreen({
     <div className="flex flex-col h-full">
       <div style={{ padding: "0 16px", minHeight: 52, backgroundColor: "#0a0e1a", borderBottom: `4px solid ${accent}`, display: "flex", alignItems: "center", gap: 12 }}>
         <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>{"< BACK"}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>{"< BACK"}</div>
         </button>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: accent }}>NOTIFICATION</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: accent }}>NOTIFICATION</div>
       </div>
 
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none", padding: "16px" }}>
@@ -6306,10 +6306,10 @@ function NotificationDetailScreen({
               {icon}
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: accent, lineHeight: 1.5 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: accent, lineHeight: 1.5 }}>
                 {notification.title}
               </div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#6b8ba4", marginTop: 4 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginTop: 4 }}>
                 {fullTimestamp}
               </div>
             </div>
@@ -6324,11 +6324,11 @@ function NotificationDetailScreen({
           <div style={{ marginTop: 14, backgroundColor: "#0a0e1a", border: `3px solid ${member.primaryColor}`, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12 }}>
             <FamilyChar id={member.id} size={40} frame={0} />
             <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#6b8ba4" }}>MEMBER</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: member.primaryColor, marginTop: 3 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>MEMBER</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: member.primaryColor, marginTop: 3 }}>
                 {member.name}
               </div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#6b8ba4", marginTop: 3 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginTop: 3 }}>
                 {member.role}
               </div>
             </div>
@@ -6368,7 +6368,7 @@ function PaydayScreen({ coins, onCollect, onClose }: { coins: Record<string, num
       <div style={{ padding: "0 16px", minHeight: 52, backgroundColor: "#0a0e1a", borderBottom: "4px solid #ffe66d", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <IconCoin size={18} color="#ffe66d" />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ffe66d" }}>PAYDAY SUNDAY</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ffe66d" }}>PAYDAY SUNDAY</div>
         </div>
         <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
           <IconX size={16} color="#6b8ba4" />
@@ -6379,27 +6379,27 @@ function PaydayScreen({ coins, onCollect, onClose }: { coins: Record<string, num
         <div style={{ padding: "16px" }}>
           <div style={{ backgroundColor: "#111827", border: "4px solid #ffe66d", boxShadow: "4px 4px 0 #ffe66d", padding: "14px 16px", marginBottom: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #2a3a5c", paddingBottom: 10, marginBottom: 10 }}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>PAY PERIOD</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ffe66d" }}>WK 28 — JUL 2024</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>PAY PERIOD</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ffe66d" }}>WK 28 — JUL 2024</div>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #2a3a5c", paddingBottom: 10, marginBottom: 10 }}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>BASE ALLOWANCE</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ffe66d" }}>+{weeklyBase}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>BASE ALLOWANCE</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ffe66d" }}>+{weeklyBase}</div>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #2a3a5c", paddingBottom: 10, marginBottom: 10 }}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>DRILL BONUS (SAFE)</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#00ff88" }}>+{drillBonus}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>DRILL BONUS (SAFE)</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#00ff88" }}>+{drillBonus}</div>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #2a3a5c", paddingBottom: 10, marginBottom: 10 }}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>SCAM PENALTY (UNSAFE)</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ff2d55" }}>{scamPenalty}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>SCAM PENALTY (UNSAFE)</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ff2d55" }}>{scamPenalty}</div>
             </div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#6b8ba4", lineHeight: 1.6 }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", lineHeight: 1.6 }}>
               Every member gets +{weeklyBase}. Safe members get +{drillBonus} bonus, scammed members get {scamPenalty} penalty.
             </div>
           </div>
 
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4", letterSpacing: 2, marginBottom: 10 }}>MEMBER BALANCES</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", letterSpacing: 2, marginBottom: 10 }}>MEMBER BALANCES</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
             {FAMILY_MEMBERS.map(m => {
               const balance = coins[m.id] ?? m.coins;
@@ -6409,19 +6409,19 @@ function PaydayScreen({ coins, onCollect, onClose }: { coins: Record<string, num
                 <div key={m.id} style={{ backgroundColor: "#111827", border: `3px solid ${isDebt ? "#ff2d55" : "#2a3a5c"}`, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12 }}>
                   <FamilyChar id={m.id} size={36} frame={frame} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: m.primaryColor }}>{m.name}</div>
-                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#6b8ba4", marginTop: 3 }}>
+                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: m.primaryColor }}>{m.name}</div>
+                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginTop: 3 }}>
                       {m.safeThisWeek ? "SAFE THIS WEEK" : "GOT SCAMMED"}
                     </div>
                     {isDebt && (
-                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 5, color: "#ff2d55", marginTop: 3 }}>IOU TO FAMILY FUND</div>
+                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55", marginTop: 3 }}>IOU TO FAMILY FUND</div>
                     )}
                   </div>
                   <div style={{ textAlign: "right" }}>
                     <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: isDebt ? "#ff2d55" : "#ffe66d" }}>
                       {isDebt ? "-" : "+"}{Math.abs(balance)}
                     </div>
-                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 4, color: "#6b8ba4", marginTop: 3 }}>COINS</div>
+                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4", marginTop: 3 }}>COINS</div>
                   </div>
                 </div>
               );
@@ -6432,7 +6432,7 @@ function PaydayScreen({ coins, onCollect, onClose }: { coins: Record<string, num
             <div style={{ backgroundColor: "rgba(255,45,85,0.06)", border: "3px solid #ff2d55", padding: "12px 14px", marginBottom: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                 <IconWarning size={14} color="#ff2d55" />
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#ff2d55" }}>FAMILY DEBT ALERT</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff2d55" }}>FAMILY DEBT ALERT</div>
               </div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff6b35", lineHeight: 1.5 }}>
                 One or more members are in debt. The family fund covers shortfalls this week, but debt members can sell furniture to recover coins. Tap a member's room to customize.
@@ -6443,7 +6443,7 @@ function PaydayScreen({ coins, onCollect, onClose }: { coins: Record<string, num
           <div style={{ backgroundColor: "rgba(0,255,136,0.06)", border: "3px solid #00ff88", padding: "12px 14px", marginBottom: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
               <IconBulb size={12} color="#ffe66d" />
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#ffe66d" }}>PAYDAY TIP</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ffe66d" }}>PAYDAY TIP</div>
             </div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#00ff88", lineHeight: 1.5 }}>
               Complete drills every week to earn your full salary bonus. Getting scammed costs the whole family — protect each other!
@@ -6453,7 +6453,7 @@ function PaydayScreen({ coins, onCollect, onClose }: { coins: Record<string, num
           {collected ? (
             <div style={{ backgroundColor: "#00ff88", border: "4px solid #0a0e1a", boxShadow: "4px 4px 0 #0a0e1a", padding: "16px", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
               <IconCheck size={16} color="#0a0e1a" />
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#0a0e1a" }}>COLLECTED!</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#0a0e1a" }}>COLLECTED!</div>
             </div>
           ) : (
             <PixelBtn onClick={handleCollect} color="#ffe66d" textColor="#0a0e1a" size="lg" full>[ COLLECT PAYDAY ]</PixelBtn>
@@ -6481,19 +6481,19 @@ function BottomNav({ activeTab, onTab, onDrillSelect }: { activeTab: Tab; onTab:
       {leftItems.map((item) => (
         <button key={item.tab} onClick={() => onTab(item.tab)} className="flex-1 flex flex-col items-center justify-center gap-1" style={{ background: "none", border: "none", borderTop: activeTab === item.tab ? `4px solid ${item.activeColor}` : "4px solid transparent", cursor: "pointer", paddingTop: 6 }}>
           {item.icon}
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 4, color: activeTab === item.tab ? item.activeColor : "#2a3a5c" }}>{item.label}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: activeTab === item.tab ? item.activeColor : "#2a3a5c" }}>{item.label}</div>
         </button>
       ))}
       <div data-tour="nav-drill" className="flex items-center justify-center px-1" style={{ flexShrink: 0 }}>
         <button onClick={onDrillSelect} style={{ backgroundColor: "#00ff88", border: "4px solid #0a0e1a", boxShadow: "0 -4px 0 #006633, 4px 0 0 #006633, -4px 0 0 #006633", cursor: "pointer", width: 58, height: 58, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, marginBottom: 6 }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 14, color: "#0a0e1a", lineHeight: 1 }}>▶</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 4, color: "#0a0e1a" }}>DRILL</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#0a0e1a" }}>DRILL</div>
         </button>
       </div>
       {rightItems.map((item) => (
         <button key={item.tab} onClick={() => onTab(item.tab)} className="flex-1 flex flex-col items-center justify-center gap-1" style={{ background: "none", border: "none", borderTop: activeTab === item.tab ? `4px solid ${item.activeColor}` : "4px solid transparent", cursor: "pointer", paddingTop: 6 }}>
           {item.icon}
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 4, color: activeTab === item.tab ? item.activeColor : "#2a3a5c" }}>{item.label}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: activeTab === item.tab ? item.activeColor : "#2a3a5c" }}>{item.label}</div>
         </button>
       ))}
     </div>
