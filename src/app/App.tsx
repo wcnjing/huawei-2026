@@ -1766,6 +1766,62 @@ const SHOP_CATALOGUE: ShopItem[] = [
   { id: "shop-window",    name: "PIXEL WINDOW", cost: 200, color: "#4ecdc4", art: "window" },
 ];
 
+// Coins and furniture are one piece of game state: persisting only ownership would
+// restore bought items after a reload while also refunding their cost. Keep them in one
+// versioned record so the store and Home always reconstruct the same room.
+const HOME_INVENTORY_KEY = "safespace_home_inventory_v1";
+type HomeInventory = {
+  coins: Record<string, number>;
+  soldItems: string[];
+  purchasedItems: Record<string, string[]>;
+};
+
+function defaultHomeInventory(): HomeInventory {
+  return {
+    coins: Object.fromEntries(FAMILY_MEMBERS.map(member => [member.id, member.coins])),
+    soldItems: [],
+    purchasedItems: Object.fromEntries(FAMILY_MEMBERS.map(member => [member.id, []])),
+  };
+}
+
+function loadHomeInventory(): HomeInventory {
+  const fallback = defaultHomeInventory();
+  try {
+    const raw = localStorage.getItem(HOME_INVENTORY_KEY);
+    if (!raw) return fallback;
+    const saved = JSON.parse(raw);
+    const validShopIds = new Set(SHOP_CATALOGUE.map(item => item.id));
+    const validFurnitureIds = new Set([
+      ...FURNITURE_STORE.map(item => item.id),
+      ...SHOP_CATALOGUE.map(item => item.id),
+    ]);
+    return {
+      coins: Object.fromEntries(FAMILY_MEMBERS.map(member => {
+        const value = saved?.coins?.[member.id];
+        return [member.id, Number.isFinite(value) ? value : member.coins];
+      })),
+      soldItems: Array.isArray(saved?.soldItems)
+        ? [...new Set(saved.soldItems.filter((id: unknown): id is string => typeof id === "string" && validFurnitureIds.has(id)))]
+        : [],
+      purchasedItems: Object.fromEntries(FAMILY_MEMBERS.map(member => {
+        const ids = saved?.purchasedItems?.[member.id];
+        return [
+          member.id,
+          Array.isArray(ids)
+            ? [...new Set(ids.filter((id: unknown): id is string => typeof id === "string" && validShopIds.has(id)))]
+            : [],
+        ];
+      })),
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function saveHomeInventory(inventory: HomeInventory) {
+  try { localStorage.setItem(HOME_INVENTORY_KEY, JSON.stringify(inventory)); } catch { /* private mode */ }
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // SHOP FURNITURE ART — inline pixel-art renders for each ShopItem.art key
 // ─────────────────────────────────────────────────────────────────────────
@@ -2847,7 +2903,63 @@ function FurnitureKid() {
   );
 }
 
-function DollhouseRoom({ member, onTap, coins, soldItems }: { member: FamilyMember; onTap: (m: FamilyMember) => void; coins: number; soldItems: string[] }) {
+function PurchasedRoomFurniture({ itemIds, accent }: { itemIds: string[]; accent: string }) {
+  const items = itemIds
+    .map(id => SHOP_CATALOGUE.find(item => item.id === id))
+    .filter((item): item is ShopItem => !!item);
+  if (items.length === 0) return null;
+
+  const visible = items.slice(0, 8);
+  const hiddenCount = items.length - visible.length;
+  const itemSize = items.length <= 2 ? 40 : items.length <= 4 ? 32 : 24;
+  const columns = Math.min(items.length, 4);
+  const gap = 4;
+  return (
+    <div
+      data-room-purchased-items={items.length}
+      aria-label={`${items.length} purchased furniture item${items.length === 1 ? "" : "s"} in room`}
+      style={{
+        position: "absolute",
+        right: 38,
+        bottom: 12,
+        width: columns * itemSize + Math.max(0, columns - 1) * gap,
+        display: "grid",
+        gridTemplateColumns: `repeat(${columns}, ${itemSize}px)`,
+        alignItems: "end",
+        justifyContent: "end",
+        gap,
+      }}
+    >
+      {visible.map(item => (
+        <div
+          key={item.id}
+          title={item.name}
+          style={{
+            width: itemSize,
+            height: itemSize,
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "center",
+            filter: `drop-shadow(1px 1px 0 ${memberShadowColor(accent)})`,
+          }}
+        >
+          <ShopFurnitureArt art={item.art} size={itemSize - 2} />
+        </div>
+      ))}
+      {hiddenCount > 0 && (
+        <div style={{ position: "absolute", right: 0, bottom: -16, backgroundColor: "#0a0e1a", border: `2px solid ${accent}`, padding: "1px 4px", fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: accent }}>
+          +{hiddenCount}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function memberShadowColor(accent: string) {
+  return accent === "#ffe66d" ? "#6b4f00" : "#0a0e1a";
+}
+
+function DollhouseRoom({ member, onTap, coins, soldItems, purchasedItems }: { member: FamilyMember; onTap: (m: FamilyMember) => void; coins: number; soldItems: string[]; purchasedItems: string[] }) {
   const frame = useIdleFrame(member.id === "kid" ? 3 : 2);
   const charSize = member.id === "dad" ? 48 : member.id === "kid" ? 36 : 44;
   const isInDebt = coins < 0;
@@ -2888,6 +3000,9 @@ function DollhouseRoom({ member, onTap, coins, soldItems }: { member: FamilyMemb
           {member.id === "dad" && <FurnitureDad />}
           {member.id === "kid" && <FurnitureKid />}
         </div>
+        {/* purchasedItems is the ownership source of truth; selling a shop item removes
+            it there, while buying it again adds it back and should render it again. */}
+        <PurchasedRoomFurniture itemIds={purchasedItems} accent={member.primaryColor} />
         <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
           <SafetyBadge safe={member.safeThisWeek} size={18} />
           <FamilyChar id={member.id} size={charSize} frame={frame} />
@@ -3061,13 +3176,15 @@ function MemberProfileOverlay({
   );
 }
 
-function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize, onRegister, onTutorial, coins, soldItems }: {
+function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize, onRegister, onTutorial, coins, soldItems, purchasedItems }: {
   onDrillSelect: () => void; onFamilyDrill: () => void;
   onPayday: () => void;
   onCustomize: (memberId: string) => void;
   onRegister: () => void;
   onTutorial: () => void;
-  coins: Record<string, number>; soldItems: string[];
+  coins: Record<string, number>;
+  soldItems: string[];
+  purchasedItems: Record<string, string[]>;
 }) {
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
   const registered = !!sessionToken();
@@ -3081,7 +3198,14 @@ function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize,
           <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 8, backgroundColor: "#2a3a5c", backgroundImage: "repeating-linear-gradient(0deg,#1a2a3c,#1a2a3c 4px,#2a3a5c 4px,#2a3a5c 8px)" }} />
           <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 8, backgroundColor: "#2a3a5c", backgroundImage: "repeating-linear-gradient(0deg,#1a2a3c,#1a2a3c 4px,#2a3a5c 4px,#2a3a5c 8px)" }} />
           {FAMILY_MEMBERS.map((member) => (
-            <DollhouseRoom key={member.id} member={member} onTap={setSelectedMember} coins={coins[member.id] ?? member.coins} soldItems={soldItems} />
+            <DollhouseRoom
+              key={member.id}
+              member={member}
+              onTap={setSelectedMember}
+              coins={coins[member.id] ?? member.coins}
+              soldItems={soldItems}
+              purchasedItems={purchasedItems[member.id] ?? []}
+            />
           ))}
         </div>
         <div style={{ height: 24, backgroundColor: "#1a2340", borderTop: "4px solid #2a3a5c", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -4304,6 +4428,7 @@ function ShopScreen({
               return (
                 <div
                   key={item.id}
+                  data-shop-item={item.id}
                   style={{
                     backgroundColor: "#111827",
                     border: `3px solid ${borderColor}`,
@@ -6637,14 +6762,18 @@ export default function App() {
   const updateSettings = (patch: Partial<AppSettings>) =>
     setSettings((prev) => { const next = { ...prev, ...patch }; saveSettings(next); return next; });
 
-  // Coin state
-  const [coins, setCoins] = useState<Record<string, number>>(
-    Object.fromEntries(FAMILY_MEMBERS.map(m => [m.id, m.coins]))
-  );
-  const [soldItems, setSoldItems] = useState<string[]>([]);
+  // Coin + furniture ownership must survive leaving/reopening the app. Loading them
+  // from the same snapshot also prevents a bought item and its deducted cost drifting
+  // apart after refresh.
+  const initialHomeInventory = useMemo(loadHomeInventory, []);
+  const [coins, setCoins] = useState<Record<string, number>>(initialHomeInventory.coins);
+  const [soldItems, setSoldItems] = useState<string[]>(initialHomeInventory.soldItems);
   const [purchasedItems, setPurchasedItems] = useState<Record<string, string[]>>(
-    Object.fromEntries(FAMILY_MEMBERS.map(m => [m.id, []]))
+    initialHomeInventory.purchasedItems
   );
+  useEffect(() => {
+    saveHomeInventory({ coins, soldItems, purchasedItems });
+  }, [coins, soldItems, purchasedItems]);
   const [claimedDailyToday, setClaimedDailyToday] = useState<Record<string, boolean>>(
     Object.fromEntries(FAMILY_MEMBERS.map(m => [m.id, false]))
   );
@@ -7116,6 +7245,7 @@ export default function App() {
                 onTutorial={() => setTourOpen(true)}
                 coins={coins}
                 soldItems={soldItems}
+                purchasedItems={purchasedItems}
               />
             )}
             {screen === "leaderboard" && <LeaderboardScreen />}
