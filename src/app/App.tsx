@@ -12,12 +12,22 @@ const TOKEN_KEY = "safespace_session_token";
 function sessionToken(): string | null {
   try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
 }
-function setSessionToken(token: string) {
-  try { localStorage.setItem(TOKEN_KEY, token); } catch { /* private mode: stay anonymous */ }
+function setSessionToken(token: string | null) {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch { /* private mode: stay anonymous */ }
 }
 function authHeaders(): Record<string, string> {
   const t = sessionToken();
   return t ? { authorization: `Bearer ${t}` } : {};
+}
+
+function handleApiAuth(response: Response): boolean {
+  if (response.status !== 401 || !sessionToken()) return false;
+  setSessionToken(null);
+  try { window.dispatchEvent(new Event("safespace-session-expired")); } catch { /* SSR/tests */ }
+  return true;
 }
 
 // First-run tutorial. Shown once, then replayable from Home — people forget, and a
@@ -74,22 +84,33 @@ function saveContact(c: ContactInfo) {
 async function apiGet<T>(path: string): Promise<T | null> {
   try {
     const r = await fetch(path, { headers: authHeaders() });
+    handleApiAuth(r);
     return r.ok ? ((await r.json()) as T) : null;
   } catch {
     return null;
   }
 }
 
-async function reportOutcome(outcome: string, channel: DrillType): Promise<number | null> {
+function createAttemptId(prefix = "attempt"): string {
+  try {
+    if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+      return `${prefix}_${crypto.randomUUID()}`;
+    }
+  } catch { /* fall through to a non-cryptographic UI id */ }
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+async function reportOutcome(outcome: string, channel: DrillType, attemptId: string): Promise<number | null> {
   try {
     const r = await fetch("/api/drills/practice-result", {
       method: "POST",
       headers: { "content-type": "application/json", ...authHeaders() },
-      body: JSON.stringify({ outcome, channel }),
+      body: JSON.stringify({ outcome, channel, attemptId, idempotencyKey: attemptId }),
     });
+    handleApiAuth(r);
     if (!r.ok) return null;
     const data = await r.json();
-    return data?.record?.xpGained ?? null;
+    return data?.record?.xpGained ?? data?.xpGained ?? null;
   } catch {
     return null;
   }
@@ -184,6 +205,34 @@ function saveSettings(s: AppSettings) {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch { /* private mode: not persisted */ }
 }
 
+type AccessibilityPrefs = {
+  reduceMotion: boolean;
+  largerText: boolean;
+  highContrast: boolean;
+  disableScanlines: boolean;
+};
+
+const ACCESSIBILITY_KEY = "safespace_accessibility_v1";
+const DEFAULT_ACCESSIBILITY: AccessibilityPrefs = {
+  reduceMotion: false,
+  largerText: false,
+  highContrast: false,
+  disableScanlines: false,
+};
+
+function loadAccessibility(): AccessibilityPrefs {
+  try {
+    const raw = localStorage.getItem(ACCESSIBILITY_KEY);
+    return raw ? { ...DEFAULT_ACCESSIBILITY, ...JSON.parse(raw) } : DEFAULT_ACCESSIBILITY;
+  } catch {
+    return DEFAULT_ACCESSIBILITY;
+  }
+}
+
+function saveAccessibility(prefs: AccessibilityPrefs) {
+  try { localStorage.setItem(ACCESSIBILITY_KEY, JSON.stringify(prefs)); } catch { /* private mode */ }
+}
+
 const DRILL_DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
 const DRILL_DAY_NAMES = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
@@ -238,6 +287,31 @@ interface FamilyScenario {
 type DrillType = "call" | "sms" | "email";
 type SmsOutcome = "reported" | "asked-family" | "clicked-link" | "closed-page";
 type EmailOutcome = "reported" | "asked-family" | "submitted-details" | "opened-attachment" | "cancelled-download";
+type CallOutcome =
+  | "hung_up"
+  | "disengaged"
+  | "caught_flag"
+  | "complied"
+  | "shared_data"
+  | "distress_offramp"
+  | "no_answer"
+  | "voicemail"
+  | "unscored";
+
+type RealDrillCompletion = { ok: boolean; error?: string };
+type NameUpdateResult = { ok: boolean; name?: string; error?: string };
+type DrillResultRecord = {
+  id?: string;
+  drillId?: string;
+  attemptId?: string;
+  outcome?: string | null;
+  result?: string;
+  screen?: Screen | null;
+  xpGained?: number;
+  channel?: DrillType;
+  unscoredReason?: string;
+};
+type NeutralResultNotice = { id: string; message: string };
 
 type LeaderboardRow = { rank: number; name: string; score: number; wins?: number; area?: string };
 
@@ -261,7 +335,7 @@ type CoinTxReason =
   | "family-drill-correct" | "family-drill-wrong"
   | "sell-furniture" | "buy-furniture"
   | "daily-reward"
-  | "payday-base" | "payday-bonus" | "payday-penalty";
+  | "payday-base" | "payday-bonus";
 
 type CoinTx = {
   id: string;
@@ -1377,10 +1451,16 @@ function XPBar({ current, max, color = "#00ff88" }: { current: number; max: numb
 // it never fully disappears — an invisible call-to-action reads as "not there yet".
 function Blink({ children, ms = 600, min = 0 }: { children: React.ReactNode; ms?: number; min?: number }) {
   const [vis, setVis] = useState(true);
+  const reduceMotion = loadAccessibility().reduceMotion
+    || (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
   useEffect(() => {
+    if (reduceMotion) {
+      setVis(true);
+      return;
+    }
     const t = setInterval(() => setVis((v) => !v), ms);
     return () => clearInterval(t);
-  }, [ms]);
+  }, [ms, reduceMotion]);
   return <span style={{ opacity: vis ? 1 : min, transition: `opacity ${Math.round(ms / 3)}ms linear` }}>{children}</span>;
 }
 
@@ -1672,6 +1752,13 @@ const RED_FLAGS: DrillFlag[] = [
   { id: "escalation", name: "FAKE ESCALATION", explanation: "Threatening to send police is a scare tactic. Real law enforcement does not coordinate with phone callers." },
 ];
 
+const LIVE_CALL_FLAGS: DrillFlag[] = [
+  { id: "official_impersonation", name: "OFFICIAL IMPERSONATION", explanation: "A caller claiming to be an officer is not proof of identity. End the call and contact the organisation through an independently verified number." },
+  { id: "otp_request", name: "OTP / SECRET REQUEST", explanation: "Legitimate staff should never ask you to read out an OTP, PIN, password or complete card number." },
+  { id: "transfer_pressure", name: "TRANSFER PRESSURE", explanation: "Urgent instructions to move money to a 'safe account' are a common scam pattern. Banks do not protect funds this way." },
+  { id: "urgency", name: "FAKE URGENCY", explanation: "Pressure to act immediately is designed to stop you checking the story with a trusted person or official channel." },
+];
+
 const SMS_FLAGS: DrillFlag[] = [
   { id: "sms_sender", name: "UNKNOWN SENDER", explanation: "Legitimate delivery companies use official sender IDs, not random numbers or unrecognised names." },
   { id: "sms_urgency", name: "FAKE URGENCY", explanation: "Deadlines pressure you to act without thinking. Real parcels give you more than a few hours." },
@@ -1705,17 +1792,6 @@ const HALL_OF_FAME = [
   { rank: 6, name: "DEFENDER1", score: 4422, wins: 44, area: "Southside" },
   { rank: 7, name: "IRONWALL", score: 3981, wins: 39, area: "Northside" },
   { rank: 8, name: "GUARDIAN7", score: 3100, wins: 31, area: "Downtown" },
-];
-
-const HALL_OF_SHAME = [
-  { rank: 1, name: "GULLIBLE_G", scammed: 47, loss: 12400, area: "Westside" },
-  { rank: 2, name: "EASY_MARK", scammed: 38, loss: 9800, area: "Uptown" },
-  { rank: 3, name: "CLK_ANYTHING", scammed: 31, loss: 7200, area: "Midtown" },
-  { rank: 4, name: "OOPS_IDIDIT", scammed: 24, loss: 4100, area: "Eastside" },
-  { rank: 5, name: "NOTSCAMPROOF", scammed: 18, loss: 3300, area: "Downtown" },
-  { rank: 6, name: "TRYHRDR_NXT", scammed: 12, loss: 2100, area: "Southside" },
-  { rank: 7, name: "DEFENDER1", scammed: 7, loss: 900, area: "Southside" },
-  { rank: 8, name: "PLAYER_001", scammed: 3, loss: 400, area: "Downtown" },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -1791,14 +1867,18 @@ function loadHomeInventory(): HomeInventory {
     if (!raw) return fallback;
     const saved = JSON.parse(raw);
     const validShopIds = new Set(SHOP_CATALOGUE.map(item => item.id));
-    const validFurnitureIds = new Set([
-      ...FURNITURE_STORE.map(item => item.id),
-      ...SHOP_CATALOGUE.map(item => item.id),
-    ]);
+    // Starter furniture is tracked as sold forever. Shop furniture is instead removed
+    // from purchasedItems when sold, because it can legitimately be bought again.
+    // Older snapshots may contain shop ids in soldItems; filtering those out is the
+    // backwards-compatible migration that restores the correct ownership semantics.
+    const validFurnitureIds = new Set(FURNITURE_STORE.map(item => item.id));
     return {
       coins: Object.fromEntries(FAMILY_MEMBERS.map(member => {
         const value = saved?.coins?.[member.id];
-        return [member.id, Number.isFinite(value) ? value : member.coins];
+        // Earlier builds could take coins away after a missed red flag and leave a
+        // family member in "debt". Training outcomes no longer create financial
+        // punishment, so migrate those legacy balances back to zero.
+        return [member.id, Math.max(0, Number.isFinite(value) ? value : member.coins)];
       })),
       soldItems: Array.isArray(saved?.soldItems)
         ? [...new Set(saved.soldItems.filter((id: unknown): id is string => typeof id === "string" && validFurnitureIds.has(id)))]
@@ -1820,6 +1900,48 @@ function loadHomeInventory(): HomeInventory {
 
 function saveHomeInventory(inventory: HomeInventory) {
   try { localStorage.setItem(HOME_INVENTORY_KEY, JSON.stringify(inventory)); } catch { /* private mode */ }
+}
+
+const REWARD_CLAIMS_KEY = "safespace_reward_claims_v1";
+type RewardClaims = {
+  dailyByMember: Record<string, string>;
+  paydayWeek: string | null;
+};
+
+function localDateKey(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+// Payday is a Sunday event, so use the local Sunday that begins the current week.
+// This avoids UTC rollover allowing a second claim near midnight in Singapore.
+function localWeekKey(date = new Date()): string {
+  const sunday = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  sunday.setDate(sunday.getDate() - sunday.getDay());
+  return localDateKey(sunday);
+}
+
+function loadRewardClaims(): RewardClaims {
+  const fallback: RewardClaims = { dailyByMember: {}, paydayWeek: null };
+  try {
+    const raw = localStorage.getItem(REWARD_CLAIMS_KEY);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return {
+      dailyByMember: parsed?.dailyByMember && typeof parsed.dailyByMember === "object"
+        ? parsed.dailyByMember
+        : {},
+      paydayWeek: typeof parsed?.paydayWeek === "string" ? parsed.paydayWeek : null,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function saveRewardClaims(claims: RewardClaims) {
+  try { localStorage.setItem(REWARD_CLAIMS_KEY, JSON.stringify(claims)); } catch { /* private mode */ }
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -2077,7 +2199,7 @@ function TitleScreen({ onNext }: { onNext: () => void }) {
           <PixelBtn onClick={onNext} color="#00ff88" size="lg">[ PRESS START ]</PixelBtn>
         </Blink>
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#2a3a5c" }}>
-          v2.0.0 © 2024 DRILL MODE
+          v2.0.0 © 2026 DRILL MODE
         </div>
       </div>
     </div>
@@ -2269,24 +2391,51 @@ function TelegramDrillIntroScreen({ onOpen, onBack }: { onOpen: () => void; onBa
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: REALISTIC PHONE DRILL INTRO — explains flow, disabled until backend
 // ─────────────────────────────────────────────────────────────────────────
-function RealisticPhoneDrillIntroScreen({ onBack, onRegister, scheduleBlocked, scheduleNextLabel }: { onBack: () => void; onRegister: () => void; scheduleBlocked: boolean; scheduleNextLabel: string }) {
+function RealisticPhoneDrillIntroScreen({ onBack, onRegister, onStarted, onSelfReport, scheduleBlocked, scheduleNextLabel }: {
+  onBack: () => void;
+  onRegister: () => void;
+  onStarted: (drillId?: string) => void;
+  onSelfReport: (win: boolean, drillId: string | null) => void;
+  scheduleBlocked: boolean;
+  scheduleNextLabel: string;
+}) {
   const [phase, setPhase] = useState<"idle" | "calling" | "sent">("idle");
   const [msg, setMsg] = useState("");
+  const [deliveryUnconfirmed, setDeliveryUnconfirmed] = useState(false);
+  const [drillId, setDrillId] = useState<string | null>(null);
   const registered = !!sessionToken();
 
   const placeCall = async () => {
-    setPhase("calling"); setMsg("");
+    setPhase("calling"); setMsg(""); setDeliveryUnconfirmed(false);
     try {
       // No body — the server dials the session user's OWN verified number, never one
       // from the request. That's the invariant that stops this dialling strangers.
       const r = await fetch("/api/drills/fire", { method: "POST", headers: { ...authHeaders() } });
+      handleApiAuth(r);
       const d = await r.json().catch(() => ({}));
       if (!r.ok || d.ok === false) {
         setMsg(d.error || "Could not place the call.");
         setPhase("idle"); return;
       }
+      const id = d.drillId ?? d.attemptId ?? d.attempt?.id ?? d.record?.id ?? d.id;
+      if (!id) {
+        setMsg("The call request may have been accepted, but its drill ID was missing. Do not retry; refresh later to recover any result.");
+        setDeliveryUnconfirmed(true);
+        setDrillId(null);
+        onStarted();
+        setPhase("sent");
+        return;
+      }
+      setDrillId(id);
+      setDeliveryUnconfirmed(d.deliveryConfirmed === false || d.status === "delivery-unconfirmed");
+      onStarted(id);
       setPhase("sent");
-    } catch { setMsg("Network error — check your connection."); setPhase("idle"); }
+    } catch {
+      setMsg("The connection dropped while starting the call, so delivery is unknown. Do not retry; refresh later to recover any result.");
+      setDeliveryUnconfirmed(true);
+      onStarted();
+      setPhase("sent");
+    }
   };
 
   return (
@@ -2334,12 +2483,16 @@ function RealisticPhoneDrillIntroScreen({ onBack, onRegister, scheduleBlocked, s
         </div>
 
         {phase === "sent" ? (
-          <div style={{ backgroundColor: "rgba(0,255,136,0.08)", border: "3px solid #00ff88", padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
-            <IconShield size={16} color="#00ff88" />
+          <div style={{ backgroundColor: deliveryUnconfirmed ? "rgba(255,230,109,0.08)" : "rgba(0,255,136,0.08)", border: `3px solid ${deliveryUnconfirmed ? "#ffe66d" : "#00ff88"}`, padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+            {deliveryUnconfirmed ? <IconWarning size={16} color="#ffe66d" /> : <IconShield size={16} color="#00ff88" />}
             <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#00ff88", marginBottom: 6 }}>CALL ON THE WAY</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: deliveryUnconfirmed ? "#ffe66d" : "#00ff88", marginBottom: 6 }}>
+                {deliveryUnconfirmed ? "CALL DELIVERY NOT CONFIRMED" : "CALL REQUEST ACCEPTED"}
+              </div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.5 }}>
-                Your phone should ring shortly. Answer it and stay sharp — hang up if it asks for anything real.
+                {deliveryUnconfirmed
+                  ? "The provider may have accepted the call, but SafeSpace could not confirm it. Do not retry — we will keep checking this drill for a result."
+                  : "Your phone should ring shortly. Answer it and stay sharp — hang up if it asks for anything real."}
               </div>
             </div>
           </div>
@@ -2361,7 +2514,13 @@ function RealisticPhoneDrillIntroScreen({ onBack, onRegister, scheduleBlocked, s
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {phase === "sent" ? (
-            <PixelBtn onClick={onBack} color="#00ff88" textColor="#0a0e1a" size="lg" full>[ DONE ]</PixelBtn>
+            <>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#ffe66d", textAlign: "center", marginBottom: 2, lineHeight: 1.5 }}>
+                HOW DID THE CALL GO?
+              </div>
+              <PixelBtn onClick={() => onSelfReport(true, drillId)} color="#00ff88" textColor="#0a0e1a" size="lg" full>[ I HUNG UP / STAYED SAFE ]</PixelBtn>
+              <PixelBtn onClick={() => onSelfReport(false, drillId)} color="#ff2d55" textColor="#ffffff" size="md" full>I ENGAGED / GAVE INFO</PixelBtn>
+            </>
           ) : registered && scheduleBlocked ? (
             <>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ffe66d", textAlign: "center", lineHeight: 1.5 }}>
@@ -2386,16 +2545,26 @@ function RealisticPhoneDrillIntroScreen({ onBack, onRegister, scheduleBlocked, s
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: REALISTIC SMS DRILL INTRO — fires a real text to the user's own number
 // ─────────────────────────────────────────────────────────────────────────
-function RealisticSmsDrillIntroScreen({ onBack, onRegister, onOutcome }: { onBack: () => void; onRegister: () => void; onOutcome: (win: boolean) => void; scheduleBlocked: boolean; scheduleNextLabel: string }) {
+function RealisticSmsDrillIntroScreen({ onBack, onRegister, onOutcome }: {
+  onBack: () => void;
+  onRegister: () => void;
+  onOutcome: (drillId: string, outcome: "reported" | "clicked_link") => Promise<RealDrillCompletion>;
+  scheduleBlocked: boolean;
+  scheduleNextLabel: string;
+}) {
   const [phase, setPhase] = useState<"idle" | "sending" | "sent">("idle");
   const [msg, setMsg] = useState("");
+  const [drillId, setDrillId] = useState<string | null>(null);
+  const [completing, setCompleting] = useState(false);
+  const [deliveryUnconfirmed, setDeliveryUnconfirmed] = useState(false);
   const registered = !!sessionToken();
 
   const sendText = async () => {
-    setPhase("sending"); setMsg("");
+    setPhase("sending"); setMsg(""); setDeliveryUnconfirmed(false);
     try {
       // No number in the body — the server texts the session user's OWN verified number.
       const r = await fetch("/api/drills/sms", { method: "POST", headers: { ...authHeaders() } });
+      handleApiAuth(r);
       const d = await r.json().catch(() => ({}));
       if (!r.ok || d.ok === false) {
         setMsg(d.error === "SMS drills are not configured"
@@ -2403,8 +2572,30 @@ function RealisticSmsDrillIntroScreen({ onBack, onRegister, onOutcome }: { onBac
           : (d.error || "Could not send the text."));
         setPhase("idle"); return;
       }
+      const id = d.drillId ?? d.attemptId ?? d.attempt?.id ?? d.record?.id ?? d.id;
+      if (!id) {
+        setMsg("The text request may have been accepted, but its drill ID was missing. Do not resend; refresh later to recover any result.");
+        setDeliveryUnconfirmed(true);
+        setPhase("sent");
+        return;
+      }
+      setDeliveryUnconfirmed(d.deliveryConfirmed === false || d.status === "delivery-unconfirmed");
+      setDrillId(id);
       setPhase("sent");
-    } catch { setMsg("Network error — check your connection."); setPhase("idle"); }
+    } catch {
+      setMsg("The connection dropped while sending, so delivery is unknown. Do not resend; refresh later to recover any result.");
+      setDeliveryUnconfirmed(true);
+      setPhase("sent");
+    }
+  };
+
+  const complete = async (outcome: "reported" | "clicked_link") => {
+    if (!drillId || completing) return;
+    setCompleting(true);
+    setMsg("");
+    const result = await onOutcome(drillId, outcome);
+    if (!result.ok) setMsg(result.error || "Could not save this result. Please try again.");
+    setCompleting(false);
   };
 
   return (
@@ -2441,12 +2632,18 @@ function RealisticSmsDrillIntroScreen({ onBack, onRegister, onOutcome }: { onBac
         </div>
 
         {phase === "sent" ? (
-          <div style={{ backgroundColor: "rgba(0,255,136,0.08)", border: "3px solid #00ff88", padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
-            <IconShield size={16} color="#00ff88" />
+          <div style={{ backgroundColor: deliveryUnconfirmed ? "rgba(255,230,109,0.08)" : "rgba(0,255,136,0.08)", border: `3px solid ${deliveryUnconfirmed ? "#ffe66d" : "#00ff88"}`, padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+            {deliveryUnconfirmed ? <IconWarning size={16} color="#ffe66d" /> : <IconShield size={16} color="#00ff88" />}
             <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#00ff88", marginBottom: 6 }}>TEXT SENT</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: deliveryUnconfirmed ? "#ffe66d" : "#00ff88", marginBottom: 6 }}>
+                {deliveryUnconfirmed ? "TEXT DELIVERY NOT CONFIRMED" : "TEXT REQUEST ACCEPTED"}
+              </div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.5 }}>
-                Check your messages, then come back and tell us how it went — a reveal text also follows to confirm it was a drill.
+                {deliveryUnconfirmed
+                  ? drillId
+                    ? "The provider may have accepted the text, but SafeSpace could not confirm it. Do not resend. If it arrives, use the actions below; a reveal text should follow."
+                    : "Delivery is unknown and the drill ID could not be recovered. Do not resend. If the text arrives, its safety reveal should still follow, but this attempt cannot be scored in the app."
+                  : "Check your messages, then come back and tell us how it went — a reveal text also follows to confirm it was a drill."}
               </div>
             </div>
           </div>
@@ -2466,13 +2663,15 @@ function RealisticSmsDrillIntroScreen({ onBack, onRegister, onOutcome }: { onBac
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {phase === "sent" ? (
-            <>
+            drillId ? <>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#ffe66d", textAlign: "center", marginBottom: 2, lineHeight: 1.5 }}>
-                HOW DID IT GO?
+                {deliveryUnconfirmed ? "IF THE TEXT ARRIVED, HOW DID IT GO?" : "HOW DID IT GO?"}
               </div>
-              <PixelBtn onClick={() => onOutcome(true)} color="#00ff88" textColor="#0a0e1a" size="lg" full>[ I SPOTTED THE SCAM ]</PixelBtn>
-              <PixelBtn onClick={() => onOutcome(false)} color="#ff2d55" textColor="#ffffff" size="md" full>I CLICKED / REPLIED</PixelBtn>
-            </>
+              <PixelBtn onClick={() => complete("reported")} color="#00ff88" textColor="#0a0e1a" size="lg" full disabled={completing || !drillId}>[ {deliveryUnconfirmed ? "IF IT ARRIVED: I SPOTTED IT" : "I SPOTTED THE SCAM"} ]</PixelBtn>
+              <PixelBtn onClick={() => complete("clicked_link")} color="#ff2d55" textColor="#ffffff" size="md" full disabled={completing || !drillId}>{deliveryUnconfirmed ? "IF IT ARRIVED: I CLICKED / REPLIED" : "I CLICKED / REPLIED"}</PixelBtn>
+            </> : (
+              <PixelBtn onClick={onBack} color="#ffe66d" textColor="#0a0e1a" size="lg" full>[ DONE — DO NOT RESEND ]</PixelBtn>
+            )
           ) : registered ? (
             // This is an explicit, consented manual send. The schedule only limits
             // surprise drills; applying it here made "TEXT ME NOW" unusable for most
@@ -2493,13 +2692,21 @@ function RealisticSmsDrillIntroScreen({ onBack, onRegister, onOutcome }: { onBac
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: REALISTIC EMAIL DRILL INTRO — explains flow, disabled until backend
 // ─────────────────────────────────────────────────────────────────────────
-function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, scheduleBlocked, scheduleNextLabel }: { onBack: () => void; onRegister: () => void; onOutcome: (win: boolean) => void; scheduleBlocked: boolean; scheduleNextLabel: string }) {
+function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, scheduleBlocked, scheduleNextLabel }: {
+  onBack: () => void;
+  onRegister: () => void;
+  onOutcome: (drillId: string, outcome: "reported" | "submitted_details") => Promise<RealDrillCompletion>;
+  scheduleBlocked: boolean;
+  scheduleNextLabel: string;
+}) {
   // "idle" shows the intro; tapping send opens the email popup (or nudges to register if
   // there's no session). "sent" is the success state.
-  const [phase, setPhase] = useState<"idle" | "ask-email" | "sent">("idle");
-  const [email, setEmail] = useState("");
+  const [phase, setPhase] = useState<"idle" | "ask-email" | "verify-email" | "sent">("idle");
+  const [email, setEmail] = useState(() => loadContact().email);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [drillId, setDrillId] = useState<string | null>(null);
+  const [deliveryUnconfirmed, setDeliveryUnconfirmed] = useState(false);
 
   const registered = !!sessionToken();
 
@@ -2508,22 +2715,60 @@ function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, schedul
     setPhase("ask-email");
   };
 
-  const submit = async () => {
+  const startEmailVerification = async () => {
     const addr = email.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr)) { setMsg("Enter a valid email address."); return; }
     setBusy(true); setMsg("");
     try {
-      // 1. Attach the address to THIS account (auth required) — never send to a raw
-      //    request address, that's the anti-phishing rule.
-      const save = await fetch("/api/me/email", {
+      const verify = await fetch("/api/me/email/verification/start", {
         method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
         body: JSON.stringify({ email: addr }),
       });
-      const sd = await save.json().catch(() => ({}));
-      if (!save.ok) { setMsg(sd.error || "Could not save email."); setBusy(false); return; }
+      handleApiAuth(verify);
+      const data = await verify.json().catch(() => ({}));
+      if (!verify.ok || data.ok === false) {
+        setMsg(data.error || "Could not send the verification email.");
+        setBusy(false);
+        return;
+      }
+      const contact = loadContact();
+      saveContact({ ...contact, email: addr });
+      if (data.verified) {
+        setMsg("That inbox is already verified. Sending your drill...");
+        await checkVerificationAndSend();
+        return;
+      }
+      setPhase("verify-email");
+      setMsg("Verification sent. Open the link in that inbox, then return here.");
+    } catch {
+      setMsg("The connection dropped, so the verification email may still arrive. Check your inbox before trying again.");
+    }
+    setBusy(false);
+  };
 
-      // 2. Fire the drill — the server sends to the stored address we just set.
+  const checkVerificationAndSend = async () => {
+    setBusy(true);
+    setMsg("");
+    setDeliveryUnconfirmed(false);
+    let fireRequestStarted = false;
+    try {
+      const status = await fetch("/api/me/email/status", { headers: { ...authHeaders() } });
+      handleApiAuth(status);
+      const statusData = await status.json().catch(() => ({}));
+      if (!status.ok) {
+        setMsg(statusData.error || "Could not check email verification.");
+        setBusy(false);
+        return;
+      }
+      if (!statusData.verified) {
+        setMsg("Not verified yet. Click the link in your email, then check again.");
+        setBusy(false);
+        return;
+      }
+
+      fireRequestStarted = true;
       const fire = await fetch("/api/drills/email", { method: "POST", headers: { ...authHeaders() } });
+      handleApiAuth(fire);
       const fd = await fire.json().catch(() => ({}));
       if (!fire.ok || fd.ok === false) {
         setMsg(fd.error === "email drills are not configured"
@@ -2531,8 +2776,35 @@ function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, schedul
           : (fd.error || "Could not send the email."));
         setBusy(false); return;
       }
+      const id = fd.drillId ?? fd.attemptId ?? fd.attempt?.id ?? fd.record?.id ?? fd.id;
+      if (!id) {
+        setMsg("The email request may have been accepted, but its drill ID was missing. Do not resend; refresh later to recover any result.");
+        setDeliveryUnconfirmed(true);
+        setPhase("sent");
+        setBusy(false);
+        return;
+      }
+      setDeliveryUnconfirmed(fd.deliveryConfirmed === false || fd.status === "delivery-unconfirmed");
+      setDrillId(id);
       setPhase("sent");
-    } catch { setMsg("Network error — check your connection."); }
+    } catch {
+      if (fireRequestStarted) {
+        setMsg("The connection dropped while sending, so delivery is unknown. Do not resend; refresh later to recover any result.");
+        setDeliveryUnconfirmed(true);
+        setPhase("sent");
+      } else {
+        setMsg("Network error — check your connection.");
+      }
+    }
+    setBusy(false);
+  };
+
+  const complete = async (outcome: "reported" | "submitted_details") => {
+    if (!drillId || busy) return;
+    setBusy(true);
+    setMsg("");
+    const result = await onOutcome(drillId, outcome);
+    if (!result.ok) setMsg(result.error || "Could not save this result. Please try again.");
     setBusy(false);
   };
 
@@ -2571,12 +2843,28 @@ function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, schedul
         </div>
 
         {phase === "sent" ? (
-          <div style={{ backgroundColor: "rgba(0,255,136,0.08)", border: "3px solid #00ff88", padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
-            <IconShield size={16} color="#00ff88" />
+          <div style={{ backgroundColor: deliveryUnconfirmed ? "rgba(255,230,109,0.08)" : "rgba(0,255,136,0.08)", border: `3px solid ${deliveryUnconfirmed ? "#ffe66d" : "#00ff88"}`, padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+            {deliveryUnconfirmed ? <IconWarning size={16} color="#ffe66d" /> : <IconShield size={16} color="#00ff88" />}
             <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#00ff88", marginBottom: 6 }}>EMAIL SENT</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: deliveryUnconfirmed ? "#ffe66d" : "#00ff88", marginBottom: 6 }}>
+                {deliveryUnconfirmed ? "EMAIL DELIVERY NOT CONFIRMED" : "EMAIL REQUEST ACCEPTED"}
+              </div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.5 }}>
-                Check your inbox (and spam), handle it as you would a real one, then tell us how it went below.
+                {deliveryUnconfirmed
+                  ? drillId
+                    ? "The provider may have accepted the email, but SafeSpace could not confirm it. Do not resend. If it arrives, handle it normally and use the actions below."
+                    : "Delivery is unknown and the drill ID could not be recovered. Do not resend. If the email arrives, use its signed reveal or report link; this app screen cannot score it."
+                  : "Check your inbox (and spam), handle it as you would a real one, then tell us how it went below."}
+              </div>
+            </div>
+          </div>
+        ) : phase === "verify-email" ? (
+          <div style={{ backgroundColor: "rgba(255,230,109,0.08)", border: "3px solid #ffe66d", padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <IconRealEmail size={16} color="#ffe66d" />
+            <div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ffe66d", marginBottom: 6 }}>VERIFY YOUR INBOX</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.5 }}>
+                We sent a verification link to {email}. Click it before sending a drill.
               </div>
             </div>
           </div>
@@ -2592,14 +2880,29 @@ function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, schedul
           </div>
         ) : null}
 
+        {msg && phase !== "ask-email" && (
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: msg.startsWith("Verification sent") ? "#00ff88" : "#ff6b35", marginBottom: 12, lineHeight: 1.5 }}>
+            {msg}
+          </div>
+        )}
+
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {phase === "sent" ? (
-            <>
+            drillId ? <>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#ffe66d", textAlign: "center", marginBottom: 2, lineHeight: 1.5 }}>
-                HOW DID IT GO?
+                {deliveryUnconfirmed ? "IF THE EMAIL ARRIVED, HOW DID IT GO?" : "HOW DID IT GO?"}
               </div>
-              <PixelBtn onClick={() => onOutcome(true)} color="#00ff88" textColor="#0a0e1a" size="lg" full>[ I SPOTTED THE SCAM ]</PixelBtn>
-              <PixelBtn onClick={() => onOutcome(false)} color="#ff2d55" textColor="#ffffff" size="md" full>I CLICKED / REPLIED</PixelBtn>
+              <PixelBtn onClick={() => complete("reported")} color="#00ff88" textColor="#0a0e1a" size="lg" full disabled={busy || !drillId}>[ {deliveryUnconfirmed ? "IF IT ARRIVED: I SPOTTED IT" : "I SPOTTED THE SCAM"} ]</PixelBtn>
+              <PixelBtn onClick={() => complete("submitted_details")} color="#ff2d55" textColor="#ffffff" size="md" full disabled={busy || !drillId}>{deliveryUnconfirmed ? "IF IT ARRIVED: I CLICKED / REPLIED" : "I CLICKED / REPLIED"}</PixelBtn>
+            </> : (
+              <PixelBtn onClick={onBack} color="#ffe66d" textColor="#0a0e1a" size="lg" full>[ DONE — DO NOT RESEND ]</PixelBtn>
+            )
+          ) : phase === "verify-email" ? (
+            <>
+              <PixelBtn onClick={checkVerificationAndSend} color="#ffe66d" textColor="#0a0e1a" size="lg" full disabled={busy}>
+                {busy ? "CHECKING..." : "[ CHECK VERIFICATION & SEND ]"}
+              </PixelBtn>
+              <PixelBtn onClick={() => { setPhase("ask-email"); setMsg(""); }} color="#1a2340" textColor="#6b8ba4" size="sm" full disabled={busy}>USE A DIFFERENT EMAIL</PixelBtn>
             </>
           ) : registered && scheduleBlocked ? (
             <>
@@ -2617,24 +2920,23 @@ function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, schedul
         </div>
       </div>
 
-      {/* Email capture popup. The address is saved to this account, then the drill fires
-          to it — so a user can only ever email themselves. */}
+      {/* The inbox must be verified through a link before the drill can be sent. */}
       {phase === "ask-email" && (
         <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={() => !busy && setPhase("idle")}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 320, backgroundColor: "#0a0e1a", border: "4px solid #ff6b35", boxShadow: "6px 6px 0 rgba(255,107,53,0.4)", padding: "18px 16px" }}>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ff6b35", marginBottom: 10 }}>YOUR EMAIL</div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#6b8ba4", marginBottom: 12, lineHeight: 1.5 }}>
-              We'll send the drill to this inbox. It's saved to your account — drills only ever go to you.
+              We'll email a verification link first. The drill can only be sent after the inbox owner clicks it.
             </div>
             <input
               autoFocus value={email} inputMode="email" autoCapitalize="none" placeholder="you@example.com"
               onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !busy) submit(); }}
+              onKeyDown={(e) => { if (e.key === "Enter" && !busy) startEmailVerification(); }}
               style={{ width: "100%", boxSizing: "border-box", fontFamily: "'Share Tech Mono', monospace", fontSize: 15, color: "#e8f4f8", background: "#111827", border: "3px solid #2a3a5c", padding: "10px 12px", outline: "none", marginBottom: 10 }}
             />
             {msg && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff2d55", marginBottom: 10 }}>{msg}</div>}
             <div style={{ display: "flex", gap: 10 }}>
-              <div style={{ flex: 1 }}><PixelBtn onClick={submit} color="#ff6b35" textColor="#0a0e1a" size="sm" full disabled={busy}>{busy ? "SENDING..." : "[ SEND ]"}</PixelBtn></div>
+              <div style={{ flex: 1 }}><PixelBtn onClick={startEmailVerification} color="#ff6b35" textColor="#0a0e1a" size="sm" full disabled={busy}>{busy ? "SENDING..." : "[ VERIFY ]"}</PixelBtn></div>
               <div style={{ flex: 1 }}><PixelBtn onClick={() => { if (!busy) { setPhase("idle"); setMsg(""); } }} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>CANCEL</PixelBtn></div>
             </div>
           </div>
@@ -2660,7 +2962,7 @@ type FamilyMember = {
 const FAMILY_MEMBERS: FamilyMember[] = [
   { id: "grandma", name: "GRANDMA", role: "ELDER GUARDIAN", level: 12, xp: 3800, xpMax: 4000, streak: 24, timesSafe: 89, timesScammed: 1, safeThisWeek: true, recentDrillResult: "WON", primaryColor: "#c77dff", roomName: "GRANDMA'S ROOM", roomBg: "#100c20", badgeCount: 7, badgeTotal: 9, coins: 1240 },
   { id: "mum", name: "MUM", role: "SHIELD BEARER", level: 9, xp: 2100, xpMax: 2500, streak: 16, timesSafe: 67, timesScammed: 2, safeThisWeek: true, recentDrillResult: "WON", primaryColor: "#00ff88", roomName: "MUM'S ROOM", roomBg: "#0c1a10", badgeCount: 5, badgeTotal: 9, coins: 850 },
-  { id: "dad", name: "DAD", role: "ROOKIE", level: 4, xp: 890, xpMax: 1200, streak: 0, timesSafe: 23, timesScammed: 7, safeThisWeek: false, recentDrillResult: "LOST", primaryColor: "#4ecdc4", roomName: "DAD'S ROOM", roomBg: "#081420", badgeCount: 2, badgeTotal: 9, coins: -120 },
+  { id: "dad", name: "DAD", role: "ROOKIE", level: 4, xp: 890, xpMax: 1200, streak: 0, timesSafe: 23, timesScammed: 7, safeThisWeek: false, recentDrillResult: "LOST", primaryColor: "#4ecdc4", roomName: "DAD'S ROOM", roomBg: "#081420", badgeCount: 2, badgeTotal: 9, coins: 0 },
   { id: "kid", name: "KID", role: "TRAINEE", level: 3, xp: 450, xpMax: 800, streak: 5, timesSafe: 12, timesScammed: 3, safeThisWeek: true, recentDrillResult: "WON", primaryColor: "#ffe66d", roomName: "KID'S ROOM", roomBg: "#161408", badgeCount: 3, badgeTotal: 9, coins: 300 },
 ];
 
@@ -2677,7 +2979,7 @@ const INITIAL_CHAT: ChatMsg[] = [
   { memberId:"pixi", isPixi:true, text:"Hi family! I'm PIXI, your scam-fighter coach. I'll drop by after drills to share tips and celebrate wins.", time:"9:12 AM" },
   { memberId:"grandma", text:"Did everyone do their drill this week? I spotted three red flags in mine!", time:"9:14 AM" },
   { memberId:"mum",     text:"Yes! The IRS one was really convincing. I almost fell for the urgency tactic.", time:"9:16 AM" },
-  { memberId:"dad",     text:"I failed mine... got tricked by the 'officer dispatch' threat. Feeling silly.", time:"9:18 AM" },
+  { memberId:"dad",     text:"I missed the 'officer dispatch' red flag. I want to practise that one again.", time:"9:18 AM" },
   { memberId:"mum",     text:"Don't be hard on yourself, Dad. That's exactly what they count on!", time:"9:19 AM" },
   { memberId:"grandma", text:"Remember — hang up first, verify later. That's the rule.", time:"9:21 AM" },
   { memberId:"kid",     text:"My teacher told us about gift card scams today at school! Just like in the app.", time:"9:24 AM" },
@@ -2685,11 +2987,17 @@ const INITIAL_CHAT: ChatMsg[] = [
 
 function useIdleFrame(fps = 2): number {
   const [frame, setFrame] = useState(0);
+  const reduceMotion = loadAccessibility().reduceMotion
+    || (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
   useEffect(() => {
+    if (reduceMotion) {
+      setFrame(0);
+      return;
+    }
     const t = setInterval(() => setFrame((f) => (f + 1) % 4), Math.floor(1000 / fps));
     return () => clearInterval(t);
-  }, [fps]);
-  return frame;
+  }, [fps, reduceMotion]);
+  return reduceMotion ? 0 : frame;
 }
 
 function CharGrandma({ size = 48, frame = 0 }: { size?: number; frame?: number }) {
@@ -2806,7 +3114,7 @@ function SafetyBadge({ safe, size = 20 }: { safe: boolean; size?: number }) {
         <IconShield size={size} color={color} />
       </div>
       <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color, letterSpacing: 0.5 }}>
-        {safe ? "SAFE" : "SCAMMED"}
+        {safe ? "SAFE" : "REVIEW"}
       </div>
     </div>
   );
@@ -2962,7 +3270,6 @@ function memberShadowColor(accent: string) {
 function DollhouseRoom({ member, onTap, coins, soldItems, purchasedItems }: { member: FamilyMember; onTap: (m: FamilyMember) => void; coins: number; soldItems: string[]; purchasedItems: string[] }) {
   const frame = useIdleFrame(member.id === "kid" ? 3 : 2);
   const charSize = member.id === "dad" ? 48 : member.id === "kid" ? 36 : 44;
-  const isInDebt = coins < 0;
   return (
     <button onClick={() => onTap(member)} style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", padding: "0", cursor: "pointer" }}>
       <div style={{ backgroundColor: member.roomBg, borderBottom: "4px solid #2a3a5c", position: "relative", height: 168, overflow: "hidden" }}>
@@ -2982,23 +3289,20 @@ function DollhouseRoom({ member, onTap, coins, soldItems, purchasedItems }: { me
         <div style={{ position: "absolute", top: 24, left: 12, fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>
           LVL {member.level}
         </div>
-        {isInDebt && (
-          <div style={{ position: "absolute", top: 38, left: 12, display: "flex", alignItems: "center", gap: 3, backgroundColor: "rgba(255,45,85,0.18)", border: "2px solid #ff2d55", padding: "2px 5px" }}>
-            <IconCoin size={8} color="#ff2d55" />
-            <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55" }}>IOU</span>
-          </div>
-        )}
-        <div style={{ position: "absolute", top: isInDebt ? 58 : 38, left: 12, display: "flex", alignItems: "center", gap: 3 }}>
-          <IconCoin size={8} color={coins < 0 ? "#ff2d55" : "#ffe66d"} />
-          <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: coins < 0 ? "#ff2d55" : "#ffe66d" }}>
-            {coins < 0 ? "-" : ""}{Math.abs(coins)}
+        <div style={{ position: "absolute", top: 38, left: 12, display: "flex", alignItems: "center", gap: 3 }}>
+          <IconCoin size={8} color="#ffe66d" />
+          <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ffe66d" }}>
+            {coins}
           </span>
         </div>
-        <div style={{ position: "absolute", left: 8, bottom: 12, display: "flex", alignItems: "flex-end", gap: 4 }}>
-          {member.id === "grandma" && <FurnitureGrandma />}
-          {member.id === "mum" && <FurnitureMum />}
-          {member.id === "dad" && <FurnitureDad />}
-          {member.id === "kid" && <FurnitureKid />}
+        <div style={{ position: "absolute", left: 8, bottom: 12, display: "flex", alignItems: "flex-end", gap: 3, maxWidth: 126 }}>
+          {FURNITURE_STORE
+            .filter(item => item.memberId === member.id && !soldItems.includes(item.id))
+            .map(item => (
+              <div key={item.id} title={item.name} style={{ width: 27, height: 30, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+                <FurnitureIcon itemId={item.id} size={26} />
+              </div>
+            ))}
         </div>
         {/* purchasedItems is the ownership source of truth; selling a shop item removes
             it there, while buying it again adds it back and should render it again. */}
@@ -3128,7 +3432,7 @@ function MemberProfileOverlay({
           <IconShield size={20} color={member.safeThisWeek ? "#00ff88" : "#ff2d55"} />
           <div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: member.safeThisWeek ? "#00ff88" : "#ff2d55" }}>
-              {member.safeThisWeek ? "SAFE THIS WEEK" : "SCAMMED THIS WEEK"}
+              {member.safeThisWeek ? "SAFE THIS WEEK" : "REVIEW THIS WEEK"}
             </div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", marginTop: 3 }}>
               Last drill: {member.recentDrillResult ?? "—"}
@@ -3139,7 +3443,7 @@ function MemberProfileOverlay({
           {[
             { label: "STREAK", val: member.streak === 0 ? "BROKEN" : `${member.streak}`, color: member.streak > 0 ? "#ff6b35" : "#ff2d55", icon: <IconFlame size={12} color={member.streak > 0 ? "#ff6b35" : "#ff2d55"} /> },
             { label: "SAFE", val: `${member.timesSafe}`, color: "#00ff88", icon: <IconShield size={12} color="#00ff88" /> },
-            { label: "SCAMMED", val: `${member.timesScammed}`, color: "#ff2d55", icon: <IconSkull size={12} color="#ff2d55" /> },
+            { label: "MISSED", val: `${member.timesScammed}`, color: "#ff2d55", icon: <IconBulb size={12} color="#ff2d55" /> },
           ].map((s) => (
             <div key={s.label} style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "10px 8px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
@@ -4033,11 +4337,46 @@ function ScamReasonSection({ flags }: { flags: DrillFlag[] }) {
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: RESULT
 // ─────────────────────────────────────────────────────────────────────────
-function getResultContent(win: boolean, drillType: DrillType, smsOutcome: SmsOutcome | null, emailOutcome: EmailOutcome | null) {
+function getResultContent(
+  win: boolean,
+  drillType: DrillType,
+  smsOutcome: SmsOutcome | null,
+  emailOutcome: EmailOutcome | null,
+  callOutcome: CallOutcome | null,
+) {
   if (drillType === "call") {
+    const liveContent: Partial<Record<CallOutcome, { header: string; feedback: string }>> = {
+      hung_up: {
+        header: "CALL ENDED SAFELY!",
+        feedback: "You refused the request and ended the call. That breaks the scammer's pressure loop.",
+      },
+      disengaged: {
+        header: "VERIFIED SAFELY!",
+        feedback: "You disengaged and chose an independent, official way to verify the story. That's the safest response.",
+      },
+      caught_flag: {
+        header: "RED FLAG SPOTTED!",
+        feedback: "You recognised the suspicious behaviour. Next time, end the call immediately and verify through an official channel.",
+      },
+      complied: {
+        header: "LET'S REVIEW",
+        feedback: "You agreed to an unsafe instruction. Pause before acting, end the call, and verify independently—even when the caller sounds official.",
+      },
+      shared_data: {
+        header: "SENSITIVE DATA SHARED",
+        feedback: "The drill detected that sensitive information or a completed payment was shared. A real caller should never receive an OTP, PIN, password or transfer.",
+      },
+    };
+    if (callOutcome && liveContent[callOutcome]) {
+      return {
+        ...liveContent[callOutcome]!,
+        xp: win ? 50 : 0,
+        flags: LIVE_CALL_FLAGS,
+      };
+    }
     return {
-      header: win ? "DRILL COMPLETE!" : "GAME OVER",
-      xp: win ? 320 : 50,
+      header: win ? "DRILL COMPLETE!" : "LET'S REVIEW",
+      xp: win ? 50 : 0,
       feedback: win ? "You correctly identified gift card payment as a scam tactic!" : "Never give gift card numbers to strangers on the phone!",
       flags: RED_FLAGS,
     };
@@ -4048,33 +4387,38 @@ function getResultContent(win: boolean, drillType: DrillType, smsOutcome: SmsOut
         smsOutcome === "asked-family" ? "You paused and checked before acting. Good thinking!" :
         smsOutcome === "closed-page" ? "You recognised the fake page and closed it before entering your details." :
         "You spotted the suspicious delivery message and avoided the phishing link.";
-      return { header: "SCAM BLOCKED!", xp: 280, feedback, flags: SMS_FLAGS };
+      return { header: "SCAM BLOCKED!", xp: 50, feedback, flags: SMS_FLAGS };
     }
-    return { header: "YOU GOT PHISHED!", xp: 50, feedback: "You tapped the link and reached a fake payment page. Scammers often use small fees to steal card details.", flags: SMS_FLAGS };
+    return { header: "LINK OPENED — REVIEW", xp: 0, feedback: "You tapped the link and reached a fake payment page. Scammers often use small fees to steal card details.", flags: SMS_FLAGS };
   }
   if (win) {
     const feedback =
       emailOutcome === "asked-family" ? "You paused and verified before trusting the email." :
       emailOutcome === "cancelled-download" ? "You stopped the download before opening the file." :
       "You inspected the email before clicking. Reporting phishing protects both you and your family.";
-    return { header: "PHISHING REPORTED!", xp: 350, feedback, flags: EMAIL_FLAGS };
+    return { header: "PHISHING REPORTED!", xp: 50, feedback, flags: EMAIL_FLAGS };
   }
   if (emailOutcome === "opened-attachment") {
-    return { header: "MALWARE TRIGGERED!", xp: 50, feedback: "You opened a suspicious ZIP attachment. Attachments can hide malware or fake forms.", flags: EMAIL_FLAGS };
+    return { header: "ATTACHMENT OPENED", xp: 0, feedback: "You opened a suspicious ZIP attachment. Attachments can hide malware or fake forms.", flags: EMAIL_FLAGS };
   }
-  return { header: "DETAILS STOLEN!", xp: 50, feedback: "You submitted details on a fake login page. Scammers use official-looking forms to steal passwords, IDs, and OTPs.", flags: EMAIL_FLAGS };
+  return { header: "DETAILS ENTERED — REVIEW", xp: 0, feedback: "You submitted details on a fake login page. Scammers use official-looking forms to steal passwords, IDs, and OTPs.", flags: EMAIL_FLAGS };
 }
 
-function ResultScreen({ win, drillType, smsOutcome, emailOutcome, activeMemberId, onPlayAgain, onGoHome, xpOverride }: { win: boolean; drillType: DrillType; smsOutcome: SmsOutcome | null; emailOutcome: EmailOutcome | null; activeMemberId: string; onPlayAgain: () => void; onGoHome: () => void; xpOverride?: number | null }) {
+function ResultScreen({ win, drillType, smsOutcome, emailOutcome, callOutcome, profileName, activeMemberId, onPlayAgain, onGoHome, xpOverride }: { win: boolean; drillType: DrillType; smsOutcome: SmsOutcome | null; emailOutcome: EmailOutcome | null; callOutcome: CallOutcome | null; profileName: string; activeMemberId: string; onPlayAgain: () => void; onGoHome: () => void; xpOverride?: number | null }) {
   const [showDetails, setShowDetails] = useState(false);
   useEffect(() => { const t = setTimeout(() => setShowDetails(true), 700); return () => clearTimeout(t); }, []);
 
-  const { header, xp, feedback, flags } = getResultContent(win, drillType, smsOutcome, emailOutcome);
+  const { header, xp, feedback, flags } = getResultContent(win, drillType, smsOutcome, emailOutcome, callOutcome);
   const drillLabel = drillType === "call" ? "CALL" : drillType === "sms" ? "SMS" : "EMAIL";
   const member = MEMBER_MAP[activeMemberId];
+  const resultName = drillType === "call" && callOutcome ? profileName : member?.name;
+  const resultNameColor = drillType === "call" && callOutcome ? "#4ecdc4" : member?.primaryColor;
+  // Missing a red flag is already the learning signal. Never take away a user's
+  // furniture currency for being fooled during a training exercise.
   const coinReward = win
     ? (drillType === "call" ? 50 : drillType === "sms" ? 40 : 60)
-    : (drillType === "call" ? -25 : drillType === "sms" ? -20 : -30);
+    : 0;
+  const displayedXp = xpOverride ?? xp;
 
   return (
     <div style={{ position: "relative", height: "100%", overflowY: "auto", scrollbarWidth: "none" }}>
@@ -4082,18 +4426,18 @@ function ResultScreen({ win, drillType, smsOutcome, emailOutcome, activeMemberId
       <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 20, padding: "32px 20px 36px" }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4", letterSpacing: 2 }}>
-            {drillLabel} DRILL — {win ? "SUCCESS" : "FAIL"}
+            {drillLabel} DRILL — {win ? "SUCCESS" : "REVIEW"}
           </div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: win ? 24 : 20, color: win ? "#00ff88" : "#ff2d55", textShadow: win ? "4px 4px 0 #006633, 0 0 30px rgba(0,255,136,0.7)" : "4px 4px 0 #660011, 0 0 30px rgba(255,45,85,0.7)", textAlign: "center", lineHeight: 1.3 }}>
             {header}
           </div>
           <div style={{ fontFamily: "'VT323', monospace", fontSize: 22, color: win ? "#4ecdc4" : "#ff6b35", textAlign: "center" }}>
-            {win ? '"Great instinct!"' : '"Stay alert next time."'}
+            {win ? '"Great instinct!"' : '"Let’s learn from this."'}
           </div>
-          {member && (
-            <div style={{ marginTop: 4, padding: "4px 10px", border: `2px solid ${member.primaryColor}`, backgroundColor: `${member.primaryColor}11`, display: "flex", alignItems: "center", gap: 6 }}>
+          {resultName && resultNameColor && (
+            <div style={{ marginTop: 4, padding: "4px 10px", border: `2px solid ${resultNameColor}`, backgroundColor: `${resultNameColor}11`, display: "flex", alignItems: "center", gap: 6 }}>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>FOR:</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: member.primaryColor }}>{member.name}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: resultNameColor }}>{resultName}</div>
             </div>
           )}
         </div>
@@ -4113,23 +4457,23 @@ function ResultScreen({ win, drillType, smsOutcome, emailOutcome, activeMemberId
               </div>
               <div className="flex justify-between items-center mb-2">
                 <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>XP GAINED</div>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ffe66d" }}>+{xpOverride ?? xp}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: displayedXp >= 0 ? "#ffe66d" : "#ff2d55" }}>{displayedXp >= 0 ? "+" : ""}{displayedXp}</div>
               </div>
               <div className="flex justify-between items-center mb-2">
                 <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>COINS</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <IconCoin size={12} color={coinReward >= 0 ? "#ffe66d" : "#ff2d55"} />
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: coinReward >= 0 ? "#00ff88" : "#ff2d55" }}>
-                    {coinReward >= 0 ? "+" : ""}{coinReward}
+                  <IconCoin size={12} color="#ffe66d" />
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: win ? "#00ff88" : "#4ecdc4" }}>
+                    {win ? `+${coinReward}` : "NO LOSS"}
                   </div>
                 </div>
               </div>
               <div className="flex justify-between items-center mb-3">
                 <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>STREAK</div>
                 <div className="flex items-center gap-2">
-                  {win ? <IconFlame size={14} color="#ff6b35" /> : <IconSkull size={14} color="#ff2d55" />}
+                  {win ? <IconFlame size={14} color="#ff6b35" /> : <IconBulb size={14} color="#ffe66d" />}
                   <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: win ? "#ff6b35" : "#ff2d55" }}>
-                    {win ? "EXTENDED" : "BROKEN"}
+                    {win ? "EXTENDED" : "READY TO REBUILD"}
                   </div>
                 </div>
               </div>
@@ -4153,7 +4497,7 @@ function ResultScreen({ win, drillType, smsOutcome, emailOutcome, activeMemberId
 // SCREEN: LEADERBOARD
 // ─────────────────────────────────────────────────────────────────────────
 function LeaderboardScreen() {
-  const [tab, setTab] = useState<"fame" | "shame">("fame");
+  const [tab, setTab] = useState<"fame" | "practice">("fame");
   return (
     <div className="flex flex-col h-full">
       <div className="flex" style={{ borderBottom: "4px solid #2a3a5c" }}>
@@ -4162,12 +4506,12 @@ function LeaderboardScreen() {
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: tab === "fame" ? "#00ff88" : "#2a3a5c" }}>HALL OF FAME</div>
         </button>
         <div style={{ width: 4, backgroundColor: "#2a3a5c" }} />
-        <button onClick={() => setTab("shame")} className="flex-1 flex flex-col items-center justify-center gap-1 py-3" style={{ backgroundColor: tab === "shame" ? "#1a0a10" : "#0a0e1a", border: "none", borderBottom: tab === "shame" ? "4px solid #ff2d55" : "4px solid transparent", cursor: "pointer" }}>
-          <IconSkull size={16} color={tab === "shame" ? "#ff2d55" : "#2a3a5c"} />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: tab === "shame" ? "#ff2d55" : "#2a3a5c" }}>HALL OF SHAME</div>
+        <button onClick={() => setTab("practice")} className="flex-1 flex flex-col items-center justify-center gap-1 py-3" style={{ backgroundColor: tab === "practice" ? "#1a0a10" : "#0a0e1a", border: "none", borderBottom: tab === "practice" ? "4px solid #ff6b35" : "4px solid transparent", cursor: "pointer" }}>
+          <IconBulb size={16} color={tab === "practice" ? "#ff6b35" : "#2a3a5c"} />
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: tab === "practice" ? "#ff6b35" : "#2a3a5c" }}>PRACTICE BOARD</div>
         </button>
       </div>
-      {tab === "fame" ? <FameBoard /> : <ShameBoard />}
+      {tab === "fame" ? <FameBoard /> : <LearningBoard />}
     </div>
   );
 }
@@ -4185,18 +4529,12 @@ function FameBoard() {
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
-      <div className="mx-4 mt-3 px-3 py-2 flex items-center justify-between" style={{ backgroundColor: "#111827", border: "3px solid #ffe66d" }}>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4" }}>DOWNTOWN AREA</div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ffe66d" }}>YOUR RANK: #12</div>
-      </div>
-      <div className="mx-4 mt-2 px-3 py-3 flex items-center gap-3" style={{ backgroundColor: "rgba(0,255,136,0.08)", border: "3px solid #00ff88" }}>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#00ff88" }}>#12</div>
+      <div className="mx-4 mt-3 px-3 py-3 flex items-center gap-3" style={{ backgroundColor: "rgba(0,255,136,0.08)", border: "3px solid #00ff88" }}>
         <PixelMascot size={28} />
-        <div className="flex-1">
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#00ff88" }}>YOU</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#4ecdc4" }}>2,340 PTS / 48 WINS</div>
+        <div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#00ff88", marginBottom: 4 }}>TRAINING PROGRESS</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#8da4b8", lineHeight: 1.5 }}>Ranks celebrate safe practice. Registered accounts see only their own entry and the demo family.</div>
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>LVL 7</div>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2" style={{ scrollbarWidth: "none" }}>
         {board.map((p) => (
@@ -4217,47 +4555,34 @@ function FameBoard() {
   );
 }
 
-function ShameBoard() {
+function LearningBoard() {
+  const habits = [
+    { title: "PAUSE", copy: "Urgency is a signal to slow down, not a reason to act faster.", color: "#ffe66d" },
+    { title: "VERIFY", copy: "End the conversation and use a number, app or site you find independently.", color: "#4ecdc4" },
+    { title: "KEEP SECRETS", copy: "Never share OTPs, PINs, passwords or full card details with an unexpected caller.", color: "#c77dff" },
+    { title: "REPORT", copy: "Reporting suspicious messages protects you and helps other people avoid the same lure.", color: "#00ff88" },
+  ];
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
-      <div className="mx-4 mt-3 px-3 py-2 flex items-center gap-2" style={{ backgroundColor: "rgba(255,45,85,0.08)", border: "3px solid #ff2d55" }}>
-        <IconWarning size={12} color="#ff2d55" />
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff2d55" }}>MOST SCAMMED IN YOUR AREA</div>
-      </div>
-      <div className="mx-4 mt-2 px-3 py-3 flex items-center gap-3" style={{ backgroundColor: "rgba(255,107,53,0.08)", border: "3px solid #ff6b35" }}>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ff6b35" }}>#8</div>
-        <PixelMascot size={28} />
-        <div className="flex-1">
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ff6b35" }}>YOU</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>3 TIMES SCAMMED</div>
+      <div className="mx-4 mt-3 px-3 py-3 flex items-center gap-3" style={{ backgroundColor: "rgba(255,107,53,0.08)", border: "3px solid #ff6b35" }}>
+        <IconBulb size={18} color="#ffe66d" />
+        <div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ff6b35", marginBottom: 4 }}>SAFETY HABITS</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#8da4b8", lineHeight: 1.5 }}>A missed drill is private. Use it to practise the next response—never to rank or shame someone.</div>
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#00ff88" }}>NOT BAD!</div>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2" style={{ scrollbarWidth: "none" }}>
-        {HALL_OF_SHAME.map((p, i) => {
-          const isYou = p.name === "PLAYER_001";
-          const shameColors = ["#ff2d55", "#ff2d55", "#ff2d55", "#ff6b35", "#ff6b35", "#ff6b35", "#ffe66d", "#ffe66d"];
-          const rowColor = shameColors[i] ?? "#2a3a5c";
-          return (
-            <div key={p.rank} className="flex items-center gap-3 px-3 py-3" style={{ backgroundColor: isYou ? "rgba(255,107,53,0.08)" : "#111827", border: `3px solid ${isYou ? "#ff6b35" : rowColor}`, boxShadow: i < 3 ? `3px 3px 0px ${rowColor}` : "none" }}>
-              <div className="flex items-center justify-center" style={{ width: 28 }}>
-                {i < 3 ? <IconSkull size={18} color={rowColor} /> : <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>#{p.rank}</div>}
-              </div>
-              <PixelAvatar rank={p.rank + 4} size={28} />
-              <div className="flex-1">
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: isYou ? "#ff6b35" : "#e8f4f8" }}>{isYou ? "YOU" : p.name}</div>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginTop: 2 }}>{p.area}</div>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: rowColor }}>{p.scammed}x</div>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>SCAMMED</div>
-              </div>
+        {habits.map((habit, index) => (
+          <div key={habit.title} className="flex items-start gap-3 px-3 py-3" style={{ backgroundColor: "#111827", border: `3px solid ${habit.color}` }}>
+            <div className="flex items-center justify-center" style={{ width: 28, height: 28, flexShrink: 0, backgroundColor: `${habit.color}18`, border: `2px solid ${habit.color}`, fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: habit.color }}>
+              {index + 1}
             </div>
-          );
-        })}
-        <div className="py-3 text-center" style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#2a3a5c" }}>
-          — KEEP TRAINING TO STAY OFF THIS LIST —
-        </div>
+            <div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: habit.color, marginBottom: 5 }}>{habit.title}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#b4c6d4", lineHeight: 1.5 }}>{habit.copy}</div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -4688,7 +5013,7 @@ function TourOverlay({ onDone }: { onDone: () => void }) {
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: REGISTER (phone-ownership + consent via OTP; dev bypass code offline)
 // ─────────────────────────────────────────────────────────────────────────
-function RegisterScreen({ onDone, onBack }: { onDone: () => void; onBack: () => void }) {
+function RegisterScreen({ onDone, onBack }: { onDone: (name: string) => void; onBack: () => void }) {
   // Seed from saved contact so returning users don't retype their details.
   const saved = loadContact();
   const [step, setStep] = useState<"phone" | "code">("phone");
@@ -4751,8 +5076,12 @@ function RegisterScreen({ onDone, onBack }: { onDone: () => void; onBack: () => 
       // Store the server-issued session token — this is what authorises real drills.
       if (d.token) setSessionToken(d.token);
       // Persist the verified details so they're remembered and available to email drills.
-      saveContact({ name: name.trim(), phone: phone.trim(), email: email.trim() });
-      setMsg("VERIFIED! You're registered."); setTimeout(onDone, 1000);
+      const verifiedName = typeof d.name === "string" && d.name.trim()
+        ? d.name.trim()
+        : name.trim();
+      saveContact({ name: verifiedName, phone: phone.trim(), email: email.trim() });
+      setMsg("VERIFIED! You're registered.");
+      setTimeout(() => onDone(verifiedName), 1000);
     } catch { setMsg("Network error"); }
     setBusy(false);
   }
@@ -5355,7 +5684,7 @@ function familyOutcome(scenario: FamilyScenario, action: string | null): FamilyO
 }
 
 const FAMILY_XP: Record<FamilyOutcome, number> = { correct: 100, cautious: 50, wrong: 25 };
-const FAMILY_COINS: Record<FamilyOutcome, number> = { correct: 30, cautious: 0, wrong: -10 };
+const FAMILY_COINS: Record<FamilyOutcome, number> = { correct: 30, cautious: 0, wrong: 0 };
 
 function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNext, onEnd }: {
   scenario: FamilyScenario; roundIndex: number; totalRounds: number;
@@ -5493,7 +5822,7 @@ function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNe
         const banner = {
           correct:  { title: "SAFE CHOICE!",   color: "#00ff88", bg: "rgba(0,255,136,0.15)" },
           cautious: { title: "CAUTIOUS — SMART", color: "#ffe66d", bg: "rgba(255,230,109,0.15)" },
-          wrong:    { title: "SCAMMER HIT!",   color: "#ff2d55", bg: "rgba(255,45,85,0.15)" },
+          wrong:    { title: "LET'S REVIEW",   color: "#ff6b35", bg: "rgba(255,107,53,0.15)" },
         }[outcome];
         const coins = FAMILY_COINS[outcome];
         return (
@@ -5504,8 +5833,8 @@ function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNe
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" as const }}>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ffe66d" }}>+{FAMILY_XP[outcome]} XP</div>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <IconCoin size={9} color={coins > 0 ? "#ffe66d" : coins < 0 ? "#ff2d55" : "#6b8ba4"} />
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: coins > 0 ? "#00ff88" : coins < 0 ? "#ff2d55" : "#6b8ba4" }}>{coins > 0 ? `+${coins}` : coins}</div>
+              <IconCoin size={9} color={coins > 0 ? "#ffe66d" : "#4ecdc4"} />
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: coins > 0 ? "#00ff88" : "#4ecdc4" }}>{coins > 0 ? `+${coins}` : "NO LOSS"}</div>
             </div>
             {outcome === "cautious" && (
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>
@@ -5640,8 +5969,8 @@ function FamilySummaryScreen({ answers, onPlayAgain, onIndividual, onHome }: {
         <div className="flex flex-col gap-2 mb-14">
           {["Grandma", "Mum", "Dad", "Kid"].map((name) => {
             const results = memberResults[name] ?? [];
-            const status = results.length === 0 ? "NO DATA" : results.every(Boolean) ? "SAFE" : results.some(Boolean) ? "NEEDS PRACTICE" : "SCAMMED";
-            const sc = status === "SAFE" ? "#00ff88" : status === "NEEDS PRACTICE" ? "#ffe66d" : status === "SCAMMED" ? "#ff2d55" : "#6b8ba4";
+            const status = results.length === 0 ? "NO DATA" : results.every(Boolean) ? "SAFE" : results.some(Boolean) ? "NEEDS PRACTICE" : "REVIEW TOGETHER";
+            const sc = status === "SAFE" ? "#00ff88" : status === "NO DATA" ? "#6b8ba4" : "#ffe66d";
             return (
               <div key={name} className="flex items-center gap-3" style={{ backgroundColor: "#111827", border: "2px solid #2a3a5c", padding: "8px 12px" }}>
                 <AnimatedFamilyChar name={name} size={28} />
@@ -5691,22 +6020,6 @@ function SettingsScreen({ profile, settings, muted, onToggleMute, onSettings, on
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
   const toggleAccordion = (key: string) => setOpenAccordion((prev) => (prev === key ? null : key));
 
-  // Live drill-window status, recomputed on each render (navigating here refreshes it).
-  const win = drillWindowStatus(settings);
-  const clampHour = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
-  const toggleDrillDay = (idx: number) =>
-    onSettings({ drillDays: settings.drillDays.map((v, i) => (i === idx ? !v : v)) });
-  const HourStepper = ({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) => (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4" }}>{label}</div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <button onClick={() => onChange(value - 1)} aria-label={`${label} earlier`} style={{ width: 26, height: 26, backgroundColor: "#0a0e1a", border: "3px solid #2a3a5c", color: "#4ecdc4", cursor: "pointer", fontFamily: "'Share Tech Mono', monospace", fontSize: 12 }}>−</button>
-        <div style={{ minWidth: 46, textAlign: "center", fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#e8f4f8" }}>{String(value).padStart(2, "0")}:00</div>
-        <button onClick={() => onChange(value + 1)} aria-label={`${label} later`} style={{ width: 26, height: 26, backgroundColor: "#0a0e1a", border: "3px solid #2a3a5c", color: "#4ecdc4", cursor: "pointer", fontFamily: "'Share Tech Mono', monospace", fontSize: 12 }}>+</button>
-      </div>
-    </div>
-  );
-
   const NavChevron = () => (
     <svg width={8} height={8} viewBox="0 0 4 4" style={{ imageRendering: "pixelated" }}>
       <rect x={0} y={1} width={1} height={1} fill="#6b8ba4" />
@@ -5720,63 +6033,7 @@ function SettingsScreen({ profile, settings, muted, onToggleMute, onSettings, on
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
 
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#4ecdc4", marginBottom: 14 }}>DRILL SETTINGS</div>
-
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4", marginBottom: 8 }}>FREQUENCY</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            {[{ id: "free", top: "FREE PLAY", sub: "Manual only" }, { id: "recurring", top: "RECURRING", sub: "Auto weekly" }].map((opt) => {
-              const active = settings.drillFrequency === opt.id;
-              return (
-                <button key={opt.id} onClick={() => onSettings({ drillFrequency: opt.id })} style={{ padding: "12px 8px", backgroundColor: active ? "#00ff88" : "#0a0e1a", border: `3px solid ${active ? "#00ff88" : "#2a3a5c"}`, boxShadow: active ? "3px 3px 0 #006633" : "none", cursor: "pointer", textAlign: "center" }}>
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: active ? "#0a0e1a" : "#6b8ba4", marginBottom: 4 }}>{opt.top}</div>
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: active ? "#0a1a0a" : "#2a3a5c" }}>{opt.sub}</div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Drill schedule window — when real (surprise) drills are allowed to fire. */}
-        <div style={{ border: "3px solid #2a3a5c", backgroundColor: "#111827", padding: "12px 14px", marginBottom: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>DRILL SCHEDULE</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 5, backgroundColor: win.open ? "rgba(0,255,136,0.12)" : "rgba(255,230,109,0.1)", border: `2px solid ${win.open ? "#00ff88" : "#ffe66d"}`, padding: "3px 7px" }}>
-              <div style={{ width: 6, height: 6, backgroundColor: win.open ? "#00ff88" : "#ffe66d" }} />
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: win.open ? "#00ff88" : "#ffe66d" }}>
-                {win.open ? "OPEN NOW" : `NEXT: ${win.nextLabel}`}
-              </div>
-            </div>
-          </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#2a3a5c", marginBottom: 10, lineHeight: 1.6 }}>
-            When recurring drills may reach your real phone/inbox.
-          </div>
-
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", marginBottom: 6 }}>DAYS</div>
-          <div style={{ display: "flex", gap: 5, marginBottom: 14 }}>
-            {DRILL_DAY_LABELS.map((d, i) => {
-              const on = settings.drillDays[i];
-              return (
-                <button key={i} onClick={() => toggleDrillDay(i)} aria-label={`${DRILL_DAY_NAMES[i]} ${on ? "on" : "off"}`} aria-pressed={on} style={{ flex: 1, padding: "8px 0", backgroundColor: on ? "#4ecdc4" : "#0a0e1a", border: `3px solid ${on ? "#4ecdc4" : "#2a3a5c"}`, cursor: "pointer", fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: on ? "#0a0e1a" : "#6b8ba4" }}>{d}</button>
-              );
-            })}
-          </div>
-
-          <div style={{ display: "flex", gap: 10 }}>
-            <HourStepper label="FROM" value={settings.drillStartHour} onChange={(v) => onSettings({ drillStartHour: clampHour(v, 0, settings.drillEndHour - 1) })} />
-            <HourStepper label="TO" value={settings.drillEndHour} onChange={(v) => onSettings({ drillEndHour: clampHour(v, settings.drillStartHour + 1, 24) })} />
-          </div>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", backgroundColor: "#111827", border: "3px solid #2a3a5c", marginBottom: 8 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#e8f4f8" }}>FAMILY DRILL</div>
-          <ToggleSwitchB on={settings.familyDrillEnabled} onToggle={() => onSettings({ familyDrillEnabled: !settings.familyDrillEnabled })} color="#c77dff" />
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", backgroundColor: "#111827", border: "3px solid #2a3a5c", marginBottom: 8 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#e8f4f8" }}>NOTIFICATIONS</div>
-          <ToggleSwitchB on={settings.notificationsEnabled} onToggle={() => onSettings({ notificationsEnabled: !settings.notificationsEnabled })} color="#ffe66d" />
-        </div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#4ecdc4", marginBottom: 14 }}>APP SETTINGS</div>
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", backgroundColor: "#111827", border: "3px solid #2a3a5c", marginBottom: 28 }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#e8f4f8" }}>SOUND</div>
@@ -5811,24 +6068,25 @@ function SettingsScreen({ profile, settings, muted, onToggleMute, onSettings, on
 
         <div style={{ marginBottom: 4, marginTop: 4 }}>
           <button onClick={() => toggleAccordion("reset")} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "14px 16px", backgroundColor: "#111827", border: "3px solid #2a3a5c", cursor: "pointer" }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ff2d55" }}>RESET PROGRESS</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ff2d55" }}>SIGN OUT THIS DEVICE</div>
             <div style={{ transform: openAccordion === "reset" ? "rotate(180deg)" : "none", transition: "transform 0.15s", display: "flex" }}>
               <NavChevron />
             </div>
           </button>
           {openAccordion === "reset" && (
             <div style={{ backgroundColor: "#0a0e1a", border: "3px solid #2a3a5c", borderTop: "none", padding: "14px 16px", animation: "slideUp 0.15s ease-out" }}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#ff2d55", marginBottom: 10, lineHeight: 1.5 }}>Signs you out on this device and clears your saved name, avatar and tutorial. Your account and XP are kept — sign back in to restore them.</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#ff2d55", marginBottom: 10, lineHeight: 1.5 }}>Removes this device's session and saved contact prefill. Your server account and XP are kept.</div>
               <PixelBtn onClick={() => {
                 // Use the key constants, not literals — a renamed constant would otherwise
                 // leave a key uncleared and this "sign out" would silently not sign out.
                 try {
                   localStorage.removeItem(TOKEN_KEY);
                   localStorage.removeItem(PROFILE_KEY);
+                  localStorage.removeItem(CONTACT_KEY);
                   localStorage.removeItem(TUTORIAL_KEY);
                 } catch { /* private mode: nothing to clear */ }
                 location.reload();
-              }} color="#ff2d55" textColor="#ffffff" size="sm" full>CONFIRM RESET</PixelBtn>
+              }} color="#ff2d55" textColor="#ffffff" size="sm" full>CONFIRM SIGN OUT</PixelBtn>
             </div>
           )}
         </div>
@@ -5869,6 +6127,7 @@ function AccountSettingsScreen({ profile, onBack }: { profile: PlayerProfile; on
         method: "POST",
         headers: { ...authHeaders() },
       });
+      handleApiAuth(r);
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.ok) {
         setDetachMessage(d.error || "Could not remove the verified number.");
@@ -5876,12 +6135,12 @@ function AccountSettingsScreen({ profile, onBack }: { profile: PlayerProfile; on
         return;
       }
 
-      try { localStorage.removeItem(TOKEN_KEY); } catch { /* private mode */ }
+      setSessionToken(null);
       saveContact({ ...loadContact(), phone: "+65" });
       setConfirmDetach(false);
       setDetachMessage("PHONE REMOVED — verify a number again to use real drills.");
     } catch {
-      setDetachMessage("Network error — your verified number was not changed.");
+      setDetachMessage("We couldn't confirm whether removal finished. Reopen Account settings before trying again.");
     }
     setDetaching(false);
   };
@@ -5932,19 +6191,24 @@ function AccountSettingsScreen({ profile, onBack }: { profile: PlayerProfile; on
 }
 
 function PrivacySettingsScreen({ onBack }: { onBack: () => void }) {
-  const [s, setS] = useState([false, false]);
   return (
     <div className="flex flex-col h-full">
       <SubPageHeader title="PRIVACY" titleColor="#4ecdc4" onBack={onBack} />
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
         <div style={{ backgroundColor: "#0d1526", border: "3px solid #4ecdc4", padding: "12px 14px", marginBottom: 12 }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#4ecdc4", marginBottom: 6 }}>DATA PRIVACY</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.6 }}>Training data stays on this device. No personal data is collected or shared. Do not use real personal data in drills.</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.6 }}>
+            Your name, verified phone number, optional email, drill outcomes and XP are stored by the service so real drills and progress can work. Room customisation and most display preferences stay in this browser.
+          </div>
         </div>
-        {["Hide sensitive examples", "Clear drill history"].map((label, i) => (
-          <div key={i} className="flex items-center justify-between px-4 py-3" style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", marginBottom: 8 }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#e8f4f8" }}>{label}</div>
-            <PixelToggle on={s[i]} onToggle={() => setS((arr) => arr.map((v, j) => j === i ? !v : v))} />
+        {[
+          ["REAL DRILLS", "Calls and SMS are sent only to your verified number. Email drills require the inbox owner to click a verification link first."],
+          ["SENSITIVE DATA", "Never enter real passwords, OTPs, card details or payment information during a drill. For real calls, Vapi processes a short transcript to score the drill; audio recording is disabled, and SafeSpace stores the outcome rather than the transcript."],
+          ["YOUR CONTROL", "You can remove your verified phone from Account settings at any time. This signs out active sessions and stops phone-based drills."],
+        ].map(([label, copy]) => (
+          <div key={label} style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "12px 14px", marginBottom: 8 }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#4ecdc4", marginBottom: 6 }}>{label}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#b4c6d4", lineHeight: 1.6 }}>{copy}</div>
           </div>
         ))}
       </div>
@@ -5952,16 +6216,30 @@ function PrivacySettingsScreen({ onBack }: { onBack: () => void }) {
   );
 }
 
-function AccessibilitySettingsScreen({ onBack }: { onBack: () => void }) {
-  const [s, setS] = useState([false, false, false, false, false]);
+function AccessibilitySettingsScreen({
+  prefs, onChange, onBack,
+}: {
+  prefs: AccessibilityPrefs;
+  onChange: (patch: Partial<AccessibilityPrefs>) => void;
+  onBack: () => void;
+}) {
+  const rows: { key: keyof AccessibilityPrefs; label: string; description: string }[] = [
+    { key: "reduceMotion", label: "REDUCE MOTION", description: "Stops flashing, spinning and animated transitions." },
+    { key: "largerText", label: "LARGER TEXT", description: "Raises the smallest pixel text to a more readable size." },
+    { key: "highContrast", label: "HIGH CONTRAST", description: "Strengthens colour and border contrast across the app." },
+    { key: "disableScanlines", label: "DISABLE CRT SCANLINES", description: "Removes the decorative screen-line overlay." },
+  ];
   return (
     <div className="flex flex-col h-full">
       <SubPageHeader title="ACCESSIBILITY" titleColor="#4ecdc4" onBack={onBack} />
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
-        {["Reduce flashing effects", "Larger text", "High contrast mode", "Disable CRT scanlines", "Slower animations"].map((label, i) => (
-          <div key={i} className="flex items-center justify-between px-4 py-3" style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", marginBottom: 8 }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#e8f4f8" }}>{label}</div>
-            <PixelToggle on={s[i]} onToggle={() => setS((arr) => arr.map((v, j) => j === i ? !v : v))} />
+        {rows.map(row => (
+          <div key={row.key} className="flex items-center justify-between px-4 py-3" style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", marginBottom: 8, gap: 12 }}>
+            <div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#e8f4f8", marginBottom: 5 }}>{row.label}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#8da4b8", lineHeight: 1.45 }}>{row.description}</div>
+            </div>
+            <PixelToggle on={prefs[row.key]} onToggle={() => onChange({ [row.key]: !prefs[row.key] })} />
           </div>
         ))}
       </div>
@@ -5989,19 +6267,30 @@ function AboutSettingsScreen({ onBack }: { onBack: () => void }) {
 }
 
 function ProfileEditScreen({ profile, onRename, onBack, onAvatar, onHouse }: {
-  profile: PlayerProfile; onRename: (name: string) => void;
+  profile: PlayerProfile; onRename: (name: string) => Promise<NameUpdateResult>;
   onBack: () => void; onAvatar: () => void; onHouse: () => void;
 }) {
   const [profileTitle, setProfileTitle] = useState("WATCHER");
   const [editingName, setEditingName] = useState(false);
   const [draftName, setDraftName] = useState(profile.name);
+  const [nameError, setNameError] = useState("");
+  const [savingName, setSavingName] = useState(false);
 
-  const commitName = () => {
-    // Match the server's own name rules: uppercase, trimmed, max 10 — so a name set
-    // here looks the same as one from phone registration.
-    const clean = draftName.trim().toUpperCase().slice(0, 10) || "PLAYER_001";
-    onRename(clean);
-    setDraftName(clean);
+  const commitName = async () => {
+    const clean = draftName.trim();
+    if (!/^[\p{L}][\p{L}\p{M} .'-]{0,29}$/u.test(clean)) {
+      setNameError("Name is required and may use letters, spaces, apostrophes or hyphens.");
+      return;
+    }
+    setNameError("");
+    setSavingName(true);
+    const result = await onRename(clean);
+    setSavingName(false);
+    if (!result.ok) {
+      setNameError(result.error || "Could not update your name.");
+      return;
+    }
+    setDraftName(result.name || clean);
     setEditingName(false);
   };
 
@@ -6016,12 +6305,15 @@ function ProfileEditScreen({ profile, onRename, onBack, onAvatar, onHouse }: {
               <input
                 autoFocus
                 value={draftName}
-                maxLength={10}
-                onChange={(e) => setDraftName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") commitName(); if (e.key === "Escape") { setDraftName(profile.name); setEditingName(false); } }}
-                style={{ flex: 1, minWidth: 0, fontFamily: "'Share Tech Mono', monospace", fontSize: 16, color: "#e8f4f8", background: "#0a0e1a", border: "2px solid #4ecdc4", padding: "6px 8px", outline: "none", textTransform: "uppercase" }}
+                maxLength={30}
+                onChange={(e) => { setDraftName(e.target.value); setNameError(""); }}
+                disabled={savingName}
+                onKeyDown={(e) => { if (e.key === "Enter" && !savingName) void commitName(); if (e.key === "Escape" && !savingName) { setDraftName(profile.name); setNameError(""); setEditingName(false); } }}
+                style={{ flex: 1, minWidth: 0, fontFamily: "'Share Tech Mono', monospace", fontSize: 16, color: "#e8f4f8", background: "#0a0e1a", border: `2px solid ${nameError ? "#ff2d55" : "#4ecdc4"}`, padding: "6px 8px", outline: "none" }}
               />
-              <PixelBtn onClick={commitName} color="#00ff88" textColor="#0a0e1a" size="sm">OK</PixelBtn>
+              <PixelBtn onClick={() => { void commitName(); }} color="#00ff88" textColor="#0a0e1a" size="sm" disabled={savingName}>
+                {savingName ? "SAVING..." : "OK"}
+              </PixelBtn>
             </div>
           ) : (
             <>
@@ -6029,6 +6321,7 @@ function ProfileEditScreen({ profile, onRename, onBack, onAvatar, onHouse }: {
               <PixelBtn onClick={() => { setDraftName(profile.name); setEditingName(true); }} color="#4ecdc4" textColor="#0a0e1a" size="sm">CHANGE NAME</PixelBtn>
             </>
           )}
+          {nameError && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ff2d55", lineHeight: 1.5, marginTop: 8 }}>{nameError}</div>}
         </div>
         <button onClick={onAvatar} style={{ width: "100%", backgroundColor: "#111827", border: "3px solid #c77dff", padding: "12px 14px", cursor: "pointer", textAlign: "left", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#c77dff", marginBottom: 4 }}>CHANGE AVATAR</div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4" }}>Customise your pixel character</div></div>
@@ -6098,12 +6391,16 @@ function AvatarCustomisationScreen({ avatar, onSave, onBack }: {
   );
 }
 
-function CustomizeScreen({ memberId, coins, purchasedItems, onBack, onSell }: {
-  memberId: string; coins: number; purchasedItems:string[]; onBack: () => void; onSell: (itemId: string, value: number) => void;
+function CustomizeScreen({ memberId, coins, purchasedItems, soldItems, onBack, onSell }: {
+  memberId: string;
+  coins: number;
+  purchasedItems: string[];
+  soldItems: string[];
+  onBack: () => void;
+  onSell: (memberId: string, itemId: string, value: number) => void;
 }) {
   const member = FAMILY_MEMBERS.find(m => m.id === memberId) ?? FAMILY_MEMBERS[1];
   const memberItems = FURNITURE_STORE.filter(i => i.memberId === memberId);
-  const [sold, setSold] = useState<string[]>([]);
   const isInDebt = coins < 0;
 
   const WALLPAPERS = [
@@ -6123,12 +6420,14 @@ function CustomizeScreen({ memberId, coins, purchasedItems, onBack, onSell }: {
   };
 
   const unifiedItems: UnifiedItem[] = [
-    ...memberItems.map<UnifiedItem>(item => ({
+    ...memberItems
+      .filter(item => !soldItems.includes(item.id))
+      .map<UnifiedItem>(item => ({
       id: item.id,
       name: item.name,
       sellValue: item.sellValue,
       art: <FurnitureIcon itemId={item.id} size={32} />,
-    })),
+      })),
     ...purchasedItems
       .map(id => SHOP_CATALOGUE.find(i => i.id === id))
       .filter((i): i is ShopItem => !!i)
@@ -6141,9 +6440,8 @@ function CustomizeScreen({ memberId, coins, purchasedItems, onBack, onSell }: {
   ];
 
   const handleSell = (item: UnifiedItem) => {
-    if (sold.includes(item.id)) return;
-    setSold(s => [...s, item.id]);
-    onSell(item.id, item.sellValue);
+    if (soldItems.includes(item.id)) return;
+    onSell(memberId, item.id, item.sellValue);
   };
 
   return (
@@ -6169,7 +6467,7 @@ function CustomizeScreen({ memberId, coins, purchasedItems, onBack, onSell }: {
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#6b8ba4", letterSpacing: 2, marginBottom: 10 }}>FURNITURE</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
             {unifiedItems.map(item => {
-              const isSold = sold.includes(item.id);
+              const isSold = soldItems.includes(item.id);
               return (
                 <div key={item.id} style={{ backgroundColor: "#111827", border: `3px solid ${isSold ? "#2a3a5c" : isInDebt ? "#ff6b35" : "#2a3a5c"}`, opacity: isSold ? 0.5 : 1, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12 }}>
                   <div style={{ width: 36, height: 36, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#0a0e1a", border: `2px solid ${isSold ? "#1a2340" : isInDebt ? "#ff6b35" : "#2a3a5c"}` }}>
@@ -6540,11 +6838,15 @@ function NotificationDetailScreen({
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: PAYDAY SUNDAY — now actually distributes coins via ledger
 // ─────────────────────────────────────────────────────────────────────────
-function PaydayScreen({ coins, onCollect, onClose }: { coins: Record<string, number>; onCollect: () => void; onClose: () => void }) {
-  const [collected, setCollected] = useState(false);
+function PaydayScreen({ coins, claimedThisWeek, onCollect, onClose }: { coins: Record<string, number>; claimedThisWeek: boolean; onCollect: () => void; onClose: () => void }) {
+  const [collected, setCollected] = useState(claimedThisWeek);
   const weeklyBase = 200;
   const drillBonus = 150;
-  const scamPenalty = -100;
+  const payPeriod = new Date().toLocaleDateString(undefined, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).toUpperCase();
 
   const handleCollect = () => {
     if (collected) return;
@@ -6570,7 +6872,7 @@ function PaydayScreen({ coins, onCollect, onClose }: { coins: Record<string, num
           <div style={{ backgroundColor: "#111827", border: "4px solid #ffe66d", boxShadow: "4px 4px 0 #ffe66d", padding: "14px 16px", marginBottom: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #2a3a5c", paddingBottom: 10, marginBottom: 10 }}>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>PAY PERIOD</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ffe66d" }}>WK 28 — JUL 2024</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ffe66d" }}>{payPeriod}</div>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #2a3a5c", paddingBottom: 10, marginBottom: 10 }}>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>BASE ALLOWANCE</div>
@@ -6581,11 +6883,11 @@ function PaydayScreen({ coins, onCollect, onClose }: { coins: Record<string, num
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#00ff88" }}>+{drillBonus}</div>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #2a3a5c", paddingBottom: 10, marginBottom: 10 }}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>SCAM PENALTY (UNSAFE)</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ff2d55" }}>{scamPenalty}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>OUTCOME TO REVIEW</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#4ecdc4" }}>NO COIN LOSS</div>
             </div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", lineHeight: 1.6 }}>
-              Every member gets +{weeklyBase}. Safe members get +{drillBonus} bonus, scammed members get {scamPenalty} penalty.
+              Every member gets +{weeklyBase}. Safe members get a +{drillBonus} bonus. A missed red flag never reduces an existing balance.
             </div>
           </div>
 
@@ -6593,23 +6895,19 @@ function PaydayScreen({ coins, onCollect, onClose }: { coins: Record<string, num
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
             {FAMILY_MEMBERS.map(m => {
               const balance = coins[m.id] ?? m.coins;
-              const isDebt = balance < 0;
               const frame = 0;
               return (
-                <div key={m.id} style={{ backgroundColor: "#111827", border: `3px solid ${isDebt ? "#ff2d55" : "#2a3a5c"}`, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+                <div key={m.id} style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "12px 14px", display: "flex", alignItems: "center", gap: 12 }}>
                   <FamilyChar id={m.id} size={36} frame={frame} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: m.primaryColor }}>{m.name}</div>
                     <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginTop: 3 }}>
-                      {m.safeThisWeek ? "SAFE THIS WEEK" : "GOT SCAMMED"}
+                      {m.safeThisWeek ? "SAFE THIS WEEK" : "REVIEW NEEDED"}
                     </div>
-                    {isDebt && (
-                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55", marginTop: 3 }}>IOU TO FAMILY FUND</div>
-                    )}
                   </div>
                   <div style={{ textAlign: "right" }}>
-                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: isDebt ? "#ff2d55" : "#ffe66d" }}>
-                      {isDebt ? "-" : "+"}{Math.abs(balance)}
+                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ffe66d" }}>
+                      +{balance}
                     </div>
                     <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4", marginTop: 3 }}>COINS</div>
                   </div>
@@ -6618,32 +6916,20 @@ function PaydayScreen({ coins, onCollect, onClose }: { coins: Record<string, num
             })}
           </div>
 
-          {FAMILY_MEMBERS.some(m => (coins[m.id] ?? m.coins) < 0) && (
-            <div style={{ backgroundColor: "rgba(255,45,85,0.06)", border: "3px solid #ff2d55", padding: "12px 14px", marginBottom: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                <IconWarning size={14} color="#ff2d55" />
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff2d55" }}>FAMILY DEBT ALERT</div>
-              </div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff6b35", lineHeight: 1.5 }}>
-                One or more members are in debt. The family fund covers shortfalls this week, but debt members can sell furniture to recover coins. Tap a member's room to customize.
-              </div>
-            </div>
-          )}
-
           <div style={{ backgroundColor: "rgba(0,255,136,0.06)", border: "3px solid #00ff88", padding: "12px 14px", marginBottom: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
               <IconBulb size={12} color="#ffe66d" />
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ffe66d" }}>PAYDAY TIP</div>
             </div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#00ff88", lineHeight: 1.5 }}>
-              Complete drills every week to earn your full salary bonus. Getting scammed costs the whole family — protect each other!
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#00ff88", lineHeight: 1.5 }}>
+              Complete drills every week to earn your full salary bonus. Missed red flags reduce the bonus, but every review helps the whole family improve.
             </div>
           </div>
 
           {collected ? (
             <div style={{ backgroundColor: "#00ff88", border: "4px solid #0a0e1a", boxShadow: "4px 4px 0 #0a0e1a", padding: "16px", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
               <IconCheck size={16} color="#0a0e1a" />
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#0a0e1a" }}>COLLECTED!</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#0a0e1a" }}>{claimedThisWeek ? "COLLECTED THIS WEEK" : "COLLECTED!"}</div>
             </div>
           ) : (
             <PixelBtn onClick={handleCollect} color="#ffe66d" textColor="#0a0e1a" size="lg" full>[ COLLECT PAYDAY ]</PixelBtn>
@@ -6728,17 +7014,61 @@ const MUSIC_SILENT_SCREENS: Screen[] = DRILL_SCREENS.filter(
   (s) => !MUSIC_OK_DURING_DRILL.includes(s),
 );
 
+const WAITING_CALL_KEY = "safespace_waiting_call_v1";
+const REAL_EVENT_IDS_KEY = "safespace_real_event_ids_v1";
+function loadWaitingCallId(): string | null {
+  try { return localStorage.getItem(WAITING_CALL_KEY); } catch { return null; }
+}
+function saveWaitingCallId(id: string | null) {
+  try {
+    if (id) localStorage.setItem(WAITING_CALL_KEY, id);
+    else localStorage.removeItem(WAITING_CALL_KEY);
+  } catch { /* private mode */ }
+}
+
+function claimRealEventId(id: string): boolean {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(REAL_EVENT_IDS_KEY) || "[]");
+    const ids = Array.isArray(parsed) ? parsed.filter(value => typeof value === "string") : [];
+    if (ids.includes(id)) return false;
+    localStorage.setItem(REAL_EVENT_IDS_KEY, JSON.stringify([...ids.slice(-199), id]));
+    return true;
+  } catch {
+    // Private mode has no durable local coin ledger, so duplicate cosmetic events are
+    // less harmful than suppressing feedback entirely.
+    return true;
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // ROOT
 // ─────────────────────────────────────────────────────────────────────────
 export default function App() {
+  const [, setSessionEpoch] = useState(0);
   const [screen, setScreen] = useState<Screen>("title");
   const [activeTab, setActiveTab] = useState<Tab>("home");
   const [drillType, setDrillType] = useState<DrillType>("call");
+  const [callOutcome, setCallOutcome] = useState<CallOutcome | null>(null);
   const [smsOutcome, setSmsOutcome] = useState<SmsOutcome | null>(null);
   const [emailOutcome, setEmailOutcome] = useState<EmailOutcome | null>(null);
   const [resultXp, setResultXp] = useState<number | null>(null);
   const [tourOpen, setTourOpen] = useState(false);
+  const [registrationReturn, setRegistrationReturn] = useState<Screen>("home");
+  const [waitingCallId, setWaitingCallId] = useState<string | null>(loadWaitingCallId);
+  const [pendingResultAckId, setPendingResultAckId] = useState<string | null>(null);
+  const [neutralResultNotice, setNeutralResultNotice] = useState<NeutralResultNotice | null>(null);
+  const pendingCheckRef = useRef<() => Promise<void>>(async () => {});
+  const handlingPendingIdsRef = useRef(new Set<string>());
+  const practiceAttemptIdsRef = useRef<Partial<Record<DrillType, string>>>({});
+  const displayedPracticeAttemptRef = useRef<string | null>(null);
+  const sellInFlightRef = useRef(new Set<string>());
+  const rewardClaimInFlightRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    const onExpired = () => setSessionEpoch(value => value + 1);
+    window.addEventListener("safespace-session-expired", onExpired);
+    return () => window.removeEventListener("safespace-session-expired", onExpired);
+  }, []);
 
   // Mute lives in the audio module (persisted to localStorage); this is just the mirror
   // React needs to re-render the header/settings toggles. Seeded from the persisted value.
@@ -6757,10 +7087,64 @@ export default function App() {
   const updateProfile = (patch: Partial<PlayerProfile>) =>
     setProfileState((prev) => { const next = { ...prev, ...patch }; saveProfile(next); return next; });
 
+  // A verified account owns the canonical drill name. Keep the cosmetic profile and
+  // registration prefill in sync with it, but retain local-only naming in demo/offline use.
+  useEffect(() => {
+    if (!sessionToken()) return;
+    apiGet<any>("/api/me").then((data) => {
+      const serverName = data?.name ?? data?.user?.name ?? data?.profile?.name;
+      if (typeof serverName !== "string" || !serverName.trim()) return;
+      const clean = serverName.trim();
+      updateProfile({ name: clean });
+      saveContact({ ...loadContact(), name: clean });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const updateVerifiedName = async (name: string): Promise<NameUpdateResult> => {
+    const clean = name.trim();
+    if (!clean) return { ok: false, error: "Name is required." };
+    if (!sessionToken()) {
+      updateProfile({ name: clean });
+      saveContact({ ...loadContact(), name: clean });
+      return { ok: true, name: clean };
+    }
+    try {
+      const response = await fetch("/api/me/name", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ name: clean }),
+      });
+      handleApiAuth(response);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return { ok: false, error: data.error || "Could not update your name." };
+      }
+      const canonical = data?.name ?? data?.user?.name ?? data?.profile?.name ?? clean;
+      const savedName = String(canonical).trim();
+      updateProfile({ name: savedName });
+      saveContact({ ...loadContact(), name: savedName });
+      return { ok: true, name: savedName };
+    } catch {
+      return {
+        ok: false,
+        error: "Could not reach the server. Your drill name was not changed.",
+      };
+    }
+  };
+
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
   // Persist settings so the drill schedule (and every other toggle) survives a reload.
   const updateSettings = (patch: Partial<AppSettings>) =>
     setSettings((prev) => { const next = { ...prev, ...patch }; saveSettings(next); return next; });
+
+  const [accessibility, setAccessibility] = useState<AccessibilityPrefs>(loadAccessibility);
+  const updateAccessibility = (patch: Partial<AccessibilityPrefs>) =>
+    setAccessibility((prev) => {
+      const next = { ...prev, ...patch };
+      saveAccessibility(next);
+      return next;
+    });
 
   // Coin + furniture ownership must survive leaving/reopening the app. Loading them
   // from the same snapshot also prevents a bought item and its deducted cost drifting
@@ -6774,9 +7158,14 @@ export default function App() {
   useEffect(() => {
     saveHomeInventory({ coins, soldItems, purchasedItems });
   }, [coins, soldItems, purchasedItems]);
-  const [claimedDailyToday, setClaimedDailyToday] = useState<Record<string, boolean>>(
-    Object.fromEntries(FAMILY_MEMBERS.map(m => [m.id, false]))
-  );
+  const [rewardClaims, setRewardClaims] = useState<RewardClaims>(loadRewardClaims);
+  useEffect(() => saveRewardClaims(rewardClaims), [rewardClaims]);
+  const todayKey = localDateKey();
+  const weekKey = localWeekKey();
+  const claimedDailyToday = Object.fromEntries(
+    FAMILY_MEMBERS.map(m => [m.id, rewardClaims.dailyByMember[m.id] === todayKey])
+  ) as Record<string, boolean>;
+  const paydayClaimedThisWeek = rewardClaims.paydayWeek === weekKey;
   const [customizeMemberId, setCustomizeMemberId] = useState<string>("mum");
   const [lastViewedMemberId, setLastViewedMemberId] = useState<string>("mum");
 
@@ -6819,12 +7208,11 @@ export default function App() {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
-  const emitNotifDrill = (memberId: string, drill: DrillType, outcome: "win" | "lose") => {
+  const emitNotifDrill = (memberId: string, drill: DrillType, outcome: "win" | "lose", displayName?: string) => {
     const member = MEMBER_MAP[memberId];
     if (!member) return;
     const rewards: Record<DrillType, number> = { call: 50, sms: 40, email: 60 };
-    const penalties: Record<DrillType, number> = { call: -25, sms: -20, email: -30 };
-    const delta = outcome === "win" ? rewards[drill] : penalties[drill];
+    const delta = outcome === "win" ? rewards[drill] : 0;
     const drillLabel = drill.toUpperCase();
     const kind: NotificationKind = outcome === "win"
       ? (drill === "call" ? "drill-win-call" : drill === "sms" ? "drill-win-sms" : "drill-win-email")
@@ -6833,11 +7221,11 @@ export default function App() {
       kind,
       memberId,
       title: outcome === "win"
-        ? `${member.name} won a ${drillLabel.toLowerCase()} drill`
-        : `${member.name} got caught by a ${drillLabel.toLowerCase()} scam`,
+        ? `${displayName ?? member.name} won a ${drillLabel.toLowerCase()} drill`
+        : `${displayName ?? member.name} has a ${drillLabel.toLowerCase()} drill to review`,
       body: outcome === "win"
         ? `+${delta} coins · Nice work spotting the red flags`
-        : `${delta} coins · Review the tips and try again`,
+        : `No coins lost · Review the tips and try again`,
     });
   };
 
@@ -6883,10 +7271,10 @@ export default function App() {
     return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
   };
 
-  const emitPixiDrillMessage = (memberId: string, drill: DrillType, outcome: "win" | "lose") => {
+  const emitPixiDrillMessage = (memberId: string, drill: DrillType, outcome: "win" | "lose", liveCallOutcome?: CallOutcome | null) => {
     const member = MEMBER_MAP[memberId];
     if (!member) return;
-    const name = member.name;
+    const name = drill === "call" && liveCallOutcome ? profile.name : member.name;
     const templates: Record<DrillType, { win: string; lose: string }> = {
       call: {
         win: `Nice hang-up, ${name}! Gift-card demands are always a scam. Great instinct.`,
@@ -6901,10 +7289,19 @@ export default function App() {
         lose: `${name} submitted details to a fake reward page. Always check the sender domain first. It happens — the important thing is spotting it next time.`,
       },
     };
+    const liveCallTemplates: Partial<Record<CallOutcome, string>> = {
+      hung_up: `Nice work, ${name}! You refused the caller and ended the pressure safely.`,
+      disengaged: `Excellent verification, ${name}. Ending the call and using an official channel is the safest move.`,
+      caught_flag: `${name} spotted the red flags. Next time, end the call as soon as the story stops adding up.`,
+      complied: `${name}, the caller got agreement to an unsafe step. Pause, hang up and verify independently next time.`,
+      shared_data: `${name}, sensitive information was shared in the drill. Real callers should never receive an OTP, PIN, password or transfer.`,
+    };
     appendChatMessage({
       memberId: "pixi",
       isPixi: true,
-      text: templates[drill][outcome],
+      text: drill === "call" && liveCallOutcome && liveCallTemplates[liveCallOutcome]
+        ? liveCallTemplates[liveCallOutcome]!
+        : templates[drill][outcome],
       time: nowTimeString(),
       incidentRef: { memberId, kind: outcome === "win" ? "drill-win" : "drill-lose" },
     });
@@ -6919,7 +7316,7 @@ export default function App() {
     } else if (correctCount >= Math.ceil(totalRounds / 2)) {
       text = `Family drill done: ${correctCount}/${totalRounds} correct. Some good instincts, some near-misses. Worth a debrief!`;
     } else {
-      text = `Family drill done: ${correctCount}/${totalRounds} correct. Scammers got through today — let's practice more this week.`;
+      text = `Family drill done: ${correctCount}/${totalRounds} correct. There are a few useful lessons to review — let's practise more this week.`;
     }
     appendChatMessage({
       memberId: "pixi",
@@ -6941,19 +7338,18 @@ export default function App() {
   };
 
   // Drill-outcome event helper (used by call/sms/email flows)
-  const emitDrillEvent = (memberId: string, drill: DrillType, outcome: "win" | "lose") => {
+  const emitDrillEvent = (memberId: string, drill: DrillType, outcome: "win" | "lose", liveCallOutcome?: CallOutcome | null) => {
     const rewards: Record<DrillType, number> = { call: 50, sms: 40, email: 60 };
-    const penalties: Record<DrillType, number> = { call: -25, sms: -20, email: -30 };
-    const delta = outcome === "win" ? rewards[drill] : penalties[drill];
+    const delta = outcome === "win" ? rewards[drill] : 0;
     const label = outcome === "win"
       ? `${drill.toUpperCase()} DRILL WON`
-      : `${drill.toUpperCase()} DRILL LOST`;
+      : `${drill.toUpperCase()} DRILL REVIEW`;
     const reason: CoinTxReason = outcome === "win"
       ? (drill === "call" ? "drill-win-call" : drill === "sms" ? "drill-win-sms" : "drill-win-email")
       : (drill === "call" ? "drill-lose-call" : drill === "sms" ? "drill-lose-sms" : "drill-lose-email");
     addCoinTx(memberId, delta, reason, label);
-    emitPixiDrillMessage(memberId, drill, outcome);
-    emitNotifDrill(memberId, drill, outcome);
+    emitPixiDrillMessage(memberId, drill, outcome, liveCallOutcome);
+    emitNotifDrill(memberId, drill, outcome, drill === "call" && liveCallOutcome ? profile.name : undefined);
   };
 
   // Family-round event helper
@@ -6968,13 +7364,19 @@ export default function App() {
 
   // Payday distribution: per-member, per-line-item entries in ledger
   const collectPayday = () => {
-    const base = 200, bonus = 150, penalty = -100;
+    const claimKey = `payday:${localWeekKey()}`;
+    if (rewardClaims.paydayWeek === localWeekKey() || rewardClaimInFlightRef.current.has(claimKey)) return;
+    rewardClaimInFlightRef.current.add(claimKey);
+    setRewardClaims(prev => {
+      const next = { ...prev, paydayWeek: localWeekKey() };
+      saveRewardClaims(next);
+      return next;
+    });
+    const base = 200, bonus = 150;
     FAMILY_MEMBERS.forEach(m => {
       addCoinTx(m.id, base, "payday-base", "PAYDAY BASE ALLOWANCE");
       if (m.safeThisWeek) {
         addCoinTx(m.id, bonus, "payday-bonus", "PAYDAY DRILL BONUS");
-      } else {
-        addCoinTx(m.id, penalty, "payday-penalty", "PAYDAY SCAM PENALTY");
       }
     });
     emitPixiPaydayMessage();
@@ -7004,7 +7406,12 @@ export default function App() {
   const showAppChrome = isMainTab || screen === "drill-select";
 
   const goHome = () => { setActiveTab("home"); setScreen("home"); };
-  const goDrillSelect = () => setScreen("drill-select");
+  const goDrillSelect = () => {
+    practiceAttemptIdsRef.current = {};
+    displayedPracticeAttemptRef.current = null;
+    setResultXp(null);
+    setScreen("drill-select");
+  };
   const goFamilyDrill = () => { setFamilyRoundIndex(0); setFamilyAnswers([]); setScreen("family-drill-intro"); };
 
   const handleTab = (tab: Tab) => { setActiveTab(tab); setScreen(tab as Screen); };
@@ -7026,45 +7433,181 @@ export default function App() {
     }
   };
 
-  useEffect(() => {
-    apiGet<{ pending: { screen: Screen; xpGained: number; channel?: DrillType } | null }>("/api/drills/pending-result").then((data) => {
-      if (data?.pending?.screen) {
-        const channel = data.pending.channel ?? "call";
-        const win = data.pending.screen === "result-win";
-        setDrillType(channel);
-        setResultXp(data.pending.xpGained);
-        setScreen(data.pending.screen);
-        // Real scored drills now tally coins + notify, exactly like the practice drills:
-        // resisting a real scam call rewards you, falling for it costs you. The result
-        // screen it lands on already shows the congrats / "why it was a scam" breakdown.
-        // (The server deletes the pending result on read, so this fires once per drill.)
-        emitDrillEvent(activeMemberId, channel, win ? "win" : "lose");
+  const acknowledgePendingResult = async (recordId: string): Promise<boolean> => {
+    try {
+      const response = await fetch(
+        `/api/drills/pending-result/${encodeURIComponent(recordId)}/ack`,
+        { method: "POST", headers: { ...authHeaders() } },
+      );
+      handleApiAuth(response);
+      if (!response.ok) {
+        handlingPendingIdsRef.current.delete(recordId);
+        return false;
       }
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      handlingPendingIdsRef.current.delete(recordId);
+      window.setTimeout(() => { void pendingCheckRef.current(); }, 0);
+      return true;
+    } catch {
+      handlingPendingIdsRef.current.delete(recordId);
+      return false;
+    }
+  };
+
+  const consumeDrillResult = async (record: DrillResultRecord): Promise<boolean> => {
+    const recordId = record.id ?? record.drillId;
+    if (!recordId) return false;
+    if (handlingPendingIdsRef.current.has(recordId)) return true;
+    handlingPendingIdsRef.current.add(recordId);
+
+    const channel = record.channel ?? "call";
+    const outcome = record.outcome as CallOutcome | undefined;
+    const safeCall = outcome === "hung_up" || outcome === "disengaged" || outcome === "caught_flag";
+    const failedCall = outcome === "complied" || outcome === "shared_data";
+    const win = record.screen
+      ? record.screen === "result-win"
+      : channel === "call"
+        ? safeCall
+        : record.result === "win";
+    const scored = record.screen === "result-win" || record.screen === "result-lose"
+      || (channel === "call" ? safeCall || failedCall : record.result === "win" || record.result === "lose");
+
+    if (scored) {
+      displayedPracticeAttemptRef.current = null;
+      setDrillType(channel);
+      setResultXp(typeof record.xpGained === "number" ? record.xpGained : null);
+      setCallOutcome(channel === "call" ? (outcome ?? null) : null);
+      if (channel === "sms") {
+        setSmsOutcome(record.outcome === "clicked_link" ? "clicked-link" : record.outcome === "reported" ? "reported" : null);
+      } else {
+        setSmsOutcome(null);
+      }
+      if (channel === "email") {
+        setEmailOutcome(record.outcome === "submitted_details" ? "submitted-details" : record.outcome === "reported" ? "reported" : null);
+      } else {
+        setEmailOutcome(null);
+      }
+      setScreen(win ? "result-win" : "result-lose");
+      setPendingResultAckId(recordId);
+      if (claimRealEventId(recordId)) {
+        emitDrillEvent(activeMemberId, channel, win ? "win" : "lose", channel === "call" ? outcome : null);
+      }
+    } else {
+      const reason = record.unscoredReason;
+      const message = outcome === "distress_offramp"
+        ? "The drill stopped safely when you opted out. It was not scored, and your streak was not changed."
+        : reason === "no_answer"
+          ? "The call was not answered, so this drill was not scored."
+          : reason === "voicemail"
+            ? "The call reached voicemail, so this drill was not scored."
+            : "There was not enough reliable evidence to score this call. No XP or streak change was applied.";
+      setNeutralResultNotice({ id: recordId, message });
+    }
+
+    const matchesWaitingCall = channel === "call"
+      && (waitingCallId === "awaiting" || record.attemptId === waitingCallId);
+    if (matchesWaitingCall) {
+      setWaitingCallId(null);
+      saveWaitingCallId(null);
+    }
+    return true;
+  };
+
+  pendingCheckRef.current = async () => {
+    if (!sessionToken()) return;
+    const data = await apiGet<{ pending: DrillResultRecord | null }>("/api/drills/pending-result");
+    if (data?.pending) await consumeDrillResult(data.pending);
+  };
+
+  useEffect(() => {
+    const check = () => { void pendingCheckRef.current(); };
+    const onVisibility = () => { if (document.visibilityState === "visible") check(); };
+    check();
+    window.addEventListener("focus", check);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("focus", check);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, []);
 
+  useEffect(() => {
+    if (!waitingCallId) return;
+    const timer = window.setInterval(() => { void pendingCheckRef.current(); }, 4000);
+    return () => window.clearInterval(timer);
+  }, [waitingCallId]);
+
   const persistPracticeOutcome = (outcome: string, channel: DrillType) => {
-    reportOutcome(outcome, channel).then((xp) => {
-      if (xp != null) setResultXp(xp);
+    const attemptId = practiceAttemptIdsRef.current[channel] ?? createAttemptId(`practice_${channel}`);
+    practiceAttemptIdsRef.current[channel] = attemptId;
+    displayedPracticeAttemptRef.current = attemptId;
+    setResultXp(null);
+    reportOutcome(outcome, channel, attemptId).then((xp) => {
+      if (xp != null && displayedPracticeAttemptRef.current === attemptId) setResultXp(xp);
     });
   };
 
-  // Real SMS/email drills are fire-and-forget — no signal comes back, so the user
-  // self-reports on the intro screen's "sent" step. Tally coins + notify and route to the
-  // result screen, which already shows the congrats (win) or scam-characteristics (lose).
-  const handleRealDrillOutcome = (channel: DrillType, win: boolean) => {
-    setDrillType(channel);
+  const handleRealDrillOutcome = async (
+    channel: "sms" | "email",
+    drillId: string,
+    outcome: "reported" | "clicked_link" | "submitted_details",
+  ): Promise<RealDrillCompletion> => {
+    try {
+      const response = await fetch(`/api/drills/${encodeURIComponent(drillId)}/complete`, {
+        method: "POST",
+        headers: { "content-type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ outcome }),
+      });
+      handleApiAuth(response);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.record) {
+        return { ok: false, error: data.error || "Could not save this result." };
+      }
+      const consumed = await consumeDrillResult({ ...data.record, channel });
+      return consumed ? { ok: true } : { ok: false, error: "Result saved and will be recovered automatically." };
+    } catch {
+      return { ok: false, error: "Network error. Your result will be recovered when the app reconnects." };
+    }
+  };
+
+  // Real phone drills fall back to self-report when the Vapi webhook can't score the call
+  // (no tunnel / not configured). Resolve it client-side: show the pass/fail result + tally
+  // coins, stop waiting on the webhook, and de-dupe by drillId so a later webhook result
+  // for the same call can't score it twice.
+  const handlePhoneSelfReport = (win: boolean, drillId: string | null) => {
+    if (waitingCallId) { setWaitingCallId(null); saveWaitingCallId(null); }
+    if (drillId) {
+      handlingPendingIdsRef.current.add(drillId);
+      claimRealEventId(drillId);
+    }
+    const outcome: CallOutcome = win ? "disengaged" : "complied";
+    displayedPracticeAttemptRef.current = null;
+    setDrillType("call");
     setSmsOutcome(null);
     setEmailOutcome(null);
+    setCallOutcome(outcome);
     setResultXp(null);
-    emitDrillEvent(activeMemberId, channel, win ? "win" : "lose");
+    emitDrillEvent(activeMemberId, "call", win ? "win" : "lose", outcome);
     setScreen(win ? "result-win" : "result-lose");
+  };
+
+  const leaveResultScreen = (destination: () => void) => {
+    const recordId = pendingResultAckId;
+    setPendingResultAckId(null);
+    destination();
+    if (recordId) void acknowledgePendingResult(recordId);
+  };
+
+  const dismissNeutralResult = () => {
+    const notice = neutralResultNotice;
+    if (!notice) return;
+    setNeutralResultNotice(null);
+    void acknowledgePendingResult(notice.id);
   };
 
 
   // Drill outcome handlers — all now emit coin events for activeMemberId
   const handleCallResult = (win: boolean) => {
+    setCallOutcome(null);
     persistPracticeOutcome(win ? "disengaged" : "complied", "call");
     emitDrillEvent(activeMemberId, "call", win ? "win" : "lose");
     setScreen(win ? "result-win" : "result-lose");
@@ -7081,12 +7624,14 @@ export default function App() {
   };
 
   const handleSmsWin = (outcome: SmsOutcome) => {
+    setCallOutcome(null);
     setSmsOutcome(outcome);
     persistPracticeOutcome(outcome === "closed-page" ? "closed_page" : outcome, "sms");
     emitDrillEvent(activeMemberId, "sms", "win");
     setScreen("result-win");
   };
   const handleSmsLose = (outcome: SmsOutcome) => {
+    setCallOutcome(null);
     setSmsOutcome(outcome);
     persistPracticeOutcome(outcome === "clicked-link" ? "clicked_link" : outcome, "sms");
     emitDrillEvent(activeMemberId, "sms", "lose");
@@ -7094,12 +7639,14 @@ export default function App() {
   };
 
   const handleEmailWin = (outcome: EmailOutcome) => {
+    setCallOutcome(null);
     setEmailOutcome(outcome);
     persistPracticeOutcome(outcome === "cancelled-download" ? "cancelled_download" : outcome, "email");
     emitDrillEvent(activeMemberId, "email", "win");
     setScreen("result-win");
   };
   const handleEmailLose = (outcome: EmailOutcome) => {
+    setCallOutcome(null);
     setEmailOutcome(outcome);
     persistPracticeOutcome(
       outcome === "submitted-details" ? "submitted_details" :
@@ -7131,24 +7678,29 @@ export default function App() {
   };
 
   // Furniture sell — now routes through ledger
-  const handleSellItem = (itemId: string, value: number) => {
-    setSoldItems(prev => [...prev, itemId]);
+  const handleSellItem = (memberId: string, itemId: string, value: number) => {
+    const saleKey = `${memberId}:${itemId}`;
+    if (sellInFlightRef.current.has(saleKey)) return;
     const starter = FURNITURE_STORE.find(i => i.id === itemId);
     if (starter) {
-      addCoinTx(starter.memberId, value, "sell-furniture", `SOLD ${starter.name}`);
+      if (starter.memberId !== memberId || soldItems.includes(itemId)) return;
+      sellInFlightRef.current.add(saleKey);
+      setSoldItems(prev => prev.includes(itemId) ? prev : [...prev, itemId]);
+      addCoinTx(memberId, value, "sell-furniture", `SOLD ${starter.name}`);
       return;
     }
     const shopItem = SHOP_CATALOGUE.find(i => i.id === itemId);
     if (shopItem) {
-      // Shop items are owned by whoever bought them; find via purchasedItems.
-      const ownerId = Object.keys(purchasedItems).find(mid => purchasedItems[mid]?.includes(itemId));
-      if (ownerId) {
-        // Also remove it from purchasedItems so it doesn't reappear in the shop's virtual house preview.
+      // The same catalogue item can belong to several members. Remove and credit only
+      // the member whose room initiated this sale.
+      if ((purchasedItems[memberId] ?? []).includes(itemId)) {
+        sellInFlightRef.current.add(saleKey);
+        // Also remove it from this member's purchasedItems so it disappears from their room.
         setPurchasedItems(prev => ({
           ...prev,
-          [ownerId]: (prev[ownerId] ?? []).filter(id => id !== itemId),
+          [memberId]: (prev[memberId] ?? []).filter(id => id !== itemId),
         }));
-        addCoinTx(ownerId, value, "sell-furniture", `SOLD ${shopItem.name}`);
+        addCoinTx(memberId, value, "sell-furniture", `SOLD ${shopItem.name}`);
       }
     }
   };
@@ -7159,6 +7711,7 @@ export default function App() {
     const currentCoins = coins[memberId] ?? 0;
     if (currentCoins < cost) return;
     if ((purchasedItems[memberId] ?? []).includes(itemId)) return;
+    sellInFlightRef.current.delete(`${memberId}:${itemId}`);
     setPurchasedItems(prev => ({
       ...prev,
       [memberId]: [...(prev[memberId] ?? []), itemId],
@@ -7167,8 +7720,18 @@ export default function App() {
   };
 
   const handleClaimDaily = (memberId: string) => {
-    if (claimedDailyToday[memberId]) return;
-    setClaimedDailyToday(prev => ({ ...prev, [memberId]: true }));
+    const claimDate = localDateKey();
+    const claimKey = `daily:${memberId}:${claimDate}`;
+    if (rewardClaims.dailyByMember[memberId] === claimDate || rewardClaimInFlightRef.current.has(claimKey)) return;
+    rewardClaimInFlightRef.current.add(claimKey);
+    setRewardClaims(prev => {
+      const next = {
+        ...prev,
+        dailyByMember: { ...prev.dailyByMember, [memberId]: claimDate },
+      };
+      saveRewardClaims(next);
+      return next;
+    });
     addCoinTx(memberId, DAILY_REWARD_AMOUNT, "daily-reward", "DAILY LOGIN REWARD");
     emitNotifDailyReward(memberId);
   };
@@ -7180,6 +7743,25 @@ export default function App() {
     setScreen("customize");
   };
 
+  const openRegistration = (returnTo: Screen) => {
+    setRegistrationReturn(returnTo);
+    setScreen("register");
+  };
+
+  const finishRegistration = (name: string) => {
+    const canonical = name.trim();
+    updateProfile({ name: canonical });
+    saveContact({ ...loadContact(), name: canonical });
+    setScreen(registrationReturn);
+  };
+
+  const beginWaitingForCall = (drillId?: string) => {
+    const id = drillId || "awaiting";
+    setWaitingCallId(id);
+    saveWaitingCallId(id);
+    void pendingCheckRef.current();
+  };
+
   const handleOpenTelegram = () => {
     window.open(TELEGRAM_BOT_URL, "_blank", "noopener,noreferrer");
   };
@@ -7187,13 +7769,18 @@ export default function App() {
   const { title, color } = getScreenTitle();
   const hasUnreadNotifications = notifications.some(n => !n.read);
 
-  // Real (surprise) drills only fire inside the scheduled window when Recurring is on.
-  // Free Play means manual anytime, so it's never schedule-blocked.
+  // These buttons explicitly request a drill now. Automatic scheduling is not exposed
+  // until a server-side scheduler exists, so a stale local preference must not block
+  // a user-initiated call or email.
   const drillWin = drillWindowStatus(settings);
-  const realDrillBlocked = settings.drillFrequency === "recurring" && !drillWin.open;
+  const realDrillBlocked = false;
 
   return (
-    <>
+    <div className={[
+      accessibility.reduceMotion ? "a11y-reduce-motion" : "",
+      accessibility.largerText ? "a11y-large-text" : "",
+      accessibility.highContrast ? "a11y-high-contrast" : "",
+    ].filter(Boolean).join(" ")}>
       <style>{`
         @keyframes twinkle { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
         @keyframes pulse-dot { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.6; } }
@@ -7202,8 +7789,25 @@ export default function App() {
         @keyframes slideDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes shake { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(4px); } }
         ::-webkit-scrollbar { display: none; }
+        .a11y-reduce-motion *, .a11y-reduce-motion *::before, .a11y-reduce-motion *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
+        .a11y-high-contrast { filter: contrast(1.22) saturate(1.08); }
+        .a11y-large-text [style*="font-size: 6px"] { font-size: 8px !important; }
+        .a11y-large-text [style*="font-size: 7px"] { font-size: 9px !important; }
+        .a11y-large-text [style*="font-size: 8px"] { font-size: 10px !important; }
+        .a11y-large-text [style*="font-size: 9px"] { font-size: 11px !important; }
+        .a11y-large-text [style*="font-size: 10px"] { font-size: 12px !important; }
+        .a11y-large-text [style*="font-size: 11px"] { font-size: 13px !important; }
+        .a11y-large-text [style*="font-size: 12px"] { font-size: 14px !important; }
+        .a11y-large-text [style*="font-size: 13px"] { font-size: 15px !important; }
+        .a11y-large-text [style*="font-size: 14px"] { font-size: 16px !important; }
+        .a11y-large-text [style*="font-size: 16px"] { font-size: 18px !important; }
       `}</style>
-      <Scanlines />
+      {!accessibility.disableScanlines && <Scanlines />}
       <PhoneFrame>
         <div className="flex flex-col flex-1 overflow-hidden">
           {showAppChrome && (
@@ -7233,7 +7837,7 @@ export default function App() {
                 }}
               />
             )}
-            {screen === "register" && <RegisterScreen onDone={() => setScreen("realistic-phone-intro")} onBack={goHome} />}
+            {screen === "register" && <RegisterScreen onDone={finishRegistration} onBack={() => setScreen(registrationReturn)} />}
 
             {screen === "home" && (
               <FamilyHomeScreen
@@ -7241,7 +7845,7 @@ export default function App() {
                 onFamilyDrill={goFamilyDrill}
                 onPayday={() => setScreen("payday")}
                 onCustomize={openCustomize}
-                onRegister={() => setScreen("register")}
+                onRegister={() => openRegistration("home")}
                 onTutorial={() => setTourOpen(true)}
                 coins={coins}
                 soldItems={soldItems}
@@ -7273,12 +7877,18 @@ export default function App() {
 
             {screen === "account-settings" && <AccountSettingsScreen profile={profile} onBack={() => setScreen("settings")} />}
             {screen === "privacy-settings" && <PrivacySettingsScreen onBack={() => setScreen("settings")} />}
-            {screen === "accessibility-settings" && <AccessibilitySettingsScreen onBack={() => setScreen("settings")} />}
+            {screen === "accessibility-settings" && (
+              <AccessibilitySettingsScreen
+                prefs={accessibility}
+                onChange={updateAccessibility}
+                onBack={() => setScreen("settings")}
+              />
+            )}
             {screen === "about-settings" && <AboutSettingsScreen onBack={() => setScreen("settings")} />}
             {screen === "profile-edit" && (
               <ProfileEditScreen
                 profile={profile}
-                onRename={(name) => updateProfile({ name })}
+                onRename={updateVerifiedName}
                 onBack={() => setScreen("profile")}
                 onAvatar={() => setScreen("avatar-customisation")}
                 onHouse={() => { setCustomizeMemberId(lastViewedMemberId); setActiveMemberId(lastViewedMemberId); setScreen("customize"); }}
@@ -7297,6 +7907,7 @@ export default function App() {
                 memberId={customizeMemberId}
                 coins={coins[customizeMemberId] ?? 0}
                 purchasedItems={purchasedItems[customizeMemberId] ?? []}
+                soldItems={soldItems}
                 onBack={goHome}
                 onSell={handleSellItem}
               />
@@ -7358,7 +7969,9 @@ export default function App() {
             {screen === "realistic-phone-intro" && (
               <RealisticPhoneDrillIntroScreen
                 onBack={() => setScreen("drill-select")}
-                onRegister={() => setScreen("register")}
+                onRegister={() => openRegistration("realistic-phone-intro")}
+                onStarted={beginWaitingForCall}
+                onSelfReport={handlePhoneSelfReport}
                 scheduleBlocked={realDrillBlocked}
                 scheduleNextLabel={drillWin.nextLabel}
               />
@@ -7366,8 +7979,8 @@ export default function App() {
             {screen === "realistic-sms-intro" && (
               <RealisticSmsDrillIntroScreen
                 onBack={() => setScreen("drill-select")}
-                onRegister={() => setScreen("register")}
-                onOutcome={(win) => handleRealDrillOutcome("sms", win)}
+                onRegister={() => openRegistration("realistic-sms-intro")}
+                onOutcome={(drillId, outcome) => handleRealDrillOutcome("sms", drillId, outcome)}
                 scheduleBlocked={realDrillBlocked}
                 scheduleNextLabel={drillWin.nextLabel}
               />
@@ -7375,13 +7988,13 @@ export default function App() {
             {screen === "realistic-email-intro" && (
               <RealisticEmailDrillIntroScreen
                 onBack={() => setScreen("drill-select")}
-                onRegister={() => setScreen("register")}
-                onOutcome={(win) => handleRealDrillOutcome("email", win)}
+                onRegister={() => openRegistration("realistic-email-intro")}
+                onOutcome={(drillId, outcome) => handleRealDrillOutcome("email", drillId, outcome)}
                 scheduleBlocked={realDrillBlocked}
                 scheduleNextLabel={drillWin.nextLabel}
               />
             )}
-            {screen === "payday" && <PaydayScreen coins={coins} onCollect={collectPayday} onClose={goHome} />}
+            {screen === "payday" && <PaydayScreen coins={coins} claimedThisWeek={paydayClaimedThisWeek} onCollect={collectPayday} onClose={goHome} />}
             {screen === "family-drill-intro" && <FamilyDrillIntroScreen onStart={() => setScreen("family-round")} onBack={goHome} />}
             {screen === "family-round" && (
               <FamilyRoundScreen
@@ -7477,9 +8090,11 @@ export default function App() {
                 drillType={drillType}
                 smsOutcome={smsOutcome}
                 emailOutcome={emailOutcome}
+                callOutcome={callOutcome}
+                profileName={profile.name}
                 activeMemberId={activeMemberId}
-                onPlayAgain={goDrillSelect}
-                onGoHome={goHome}
+                onPlayAgain={() => leaveResultScreen(goDrillSelect)}
+                onGoHome={() => leaveResultScreen(goHome)}
                 xpOverride={resultXp}
               />
             )}
@@ -7498,6 +8113,35 @@ export default function App() {
       {tourOpen && screen === "home" && (
         <TourOverlay onDone={() => { markTutorialSeen(); setTourOpen(false); }} />
       )}
-    </>
+      {neutralResultNotice && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="neutral-result-title"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 80,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+            backgroundColor: "rgba(0,0,0,0.78)",
+          }}
+        >
+          <div style={{ width: "min(340px, 100%)", backgroundColor: "#0d1526", border: "4px solid #4ecdc4", boxShadow: "6px 6px 0 #071018", padding: "18px 16px" }}>
+            <div id="neutral-result-title" style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 12, color: "#4ecdc4", lineHeight: 1.5, marginBottom: 12 }}>
+              DRILL NOT SCORED
+            </div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 14, color: "#e8f4f8", lineHeight: 1.6, marginBottom: 16 }}>
+              {neutralResultNotice.message}
+            </div>
+            <PixelBtn onClick={dismissNeutralResult} color="#4ecdc4" textColor="#0a0e1a" size="md" full>
+              [ GOT IT ]
+            </PixelBtn>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
