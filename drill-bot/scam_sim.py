@@ -2,17 +2,17 @@
 scam_sim.py — LIVE scam simulation for the SafeSpace Drill Bot.
 
 The bot role-plays a scammer over several turns. The user replies in their own
-words; an LLM (Reka, with optional OpenAI fallback) improvises realistic
-pushback and pressure — the reflex-under-stress practice that scripted drills
-can't give. Ends with a coach-style debrief.
+words; an LLM (OpenAI) improvises realistic pushback and pressure — the
+reflex-under-stress practice that scripted drills can't give. Ends with a
+coach-style debrief.
 
 Commands added:
     /simulate  - start a live scam simulation
     /end       - stop the current simulation and get feedback
 
 Setup:
-    pip install reka-api          (and/or openai)
-    Put REKA_API_KEY in your .env (optionally OPENAI_API_KEY as fallback).
+    pip install openai
+    Put OPENAI_API_KEY in your .env.
 
 Everything is consensual role-play for anti-scam training. The scammer persona
 never uses real links, real numbers, or real payment details.
@@ -33,66 +33,44 @@ from telegram.ext import (
 
 log = logging.getLogger("drill_bot.sim")
 
-REKA_API_KEY = os.getenv("REKA_API_KEY", "")
-REKA_MODEL = os.getenv("REKA_MODEL", "reka-flash")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 MAX_TURNS = 6  # scammer replies before the sim auto-ends
 
 # ---------------------------------------------------------------------------
-# LLM clients (lazy, provider-agnostic)
+# LLM client
 # ---------------------------------------------------------------------------
-_reka = None
 _oai = None
-if REKA_API_KEY:
-    try:
-        from reka.client import AsyncReka
-
-        _reka = AsyncReka(api_key=REKA_API_KEY)
-    except ImportError:
-        log.warning("REKA_API_KEY set but 'reka-api' not installed (pip install reka-api).")
 if OPENAI_API_KEY:
     try:
         from openai import AsyncOpenAI
 
         _oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
     except ImportError:
-        pass
+        log.warning("OPENAI_API_KEY set but 'openai' not installed (pip install openai).")
 
 
 def llm_available() -> bool:
-    return _reka is not None or _oai is not None
+    return _oai is not None
 
 
 async def ask_llm(system: str, convo: list) -> str | None:
     """Return the model's reply text, or None on failure.
     `convo` is a list of {"role": "user"|"assistant", "content": str}."""
-    # --- Try Reka first ---
-    if _reka is not None:
-        try:
-            messages = [{"role": "user", "content": system}] + convo
-            resp = await _reka.chat.create(model=REKA_MODEL, messages=messages)
-            # Response shape: resp.responses[0].message.content
-            try:
-                return resp.responses[0].message.content.strip()
-            except Exception:
-                return str(resp).strip()
-        except Exception as e:
-            log.warning("Reka call failed (%s): %s", type(e).__name__, e)
-    # --- Fallback: OpenAI ---
-    if _oai is not None:
-        try:
-            resp = await _oai.chat.completions.create(
-                model=OPENAI_MODEL,
-                messages=[{"role": "system", "content": system}] + convo,
-                temperature=0.9,
-                timeout=20,
-            )
-            return resp.choices[0].message.content.strip()
-        except Exception as e:
-            log.warning("OpenAI call failed (%s): %s", type(e).__name__, e)
-    return None
+    if _oai is None:
+        return None
+    try:
+        resp = await _oai.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=[{"role": "system", "content": system}] + convo,
+            temperature=0.9,
+            timeout=20,
+        )
+        return resp.choices[0].message.content.strip()
+    except Exception as e:
+        log.warning("OpenAI call failed (%s): %s", type(e).__name__, e)
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -186,8 +164,8 @@ def _looks_compromised(text: str) -> bool:
 async def simulate_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not llm_available():
         await update.message.reply_text(
-            "⚠️ Live simulation needs an LLM key. Add REKA_API_KEY (and run "
-            "`pip install reka-api`) to your .env, then restart."
+            "⚠️ Live simulation needs an LLM key. Add OPENAI_API_KEY to your "
+            ".env, then restart."
         )
         return
     import random

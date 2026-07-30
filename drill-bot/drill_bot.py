@@ -737,6 +737,7 @@ WELCOME_TEXT = (
     "Commands:\n"
     "/drill - get a random drill right now\n"
     "/simulate - live scam role-play (I play the scammer)\n"
+    "/end - stop the current simulation and get your debrief\n"
     "/trending - this week's real trending scams\n"
     "/stats - see your accuracy and streak\n"
     "/leaderboard - see who's sharpest\n"
@@ -772,6 +773,9 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "scam, or it might be genuine.\n"
         "2. Decide: tap 🚩 Scam or ✅ Legit.\n"
         "3. I'll tell you if you're right and explain the tell-tale signs.\n\n"
+        "Prefer a live back-and-forth? Send /simulate and I'll role-play a "
+        "scammer — reply as you would for real, then send /end anytime to stop "
+        "and get a debrief.\n\n"
         "Watch both ways: missing a scam is costly, but flagging a real message "
         "(a false alarm) counts against you too. Everything is simulated — no "
         "real links, payments or data."
@@ -986,7 +990,7 @@ def main():
     app.add_handler(CallbackQueryHandler(button))
 
     # Live LLM-powered scam simulation (/simulate, /end). Optional — only active
-    # if a REKA_API_KEY (or OpenAI key) is set. Registered in its own module.
+    # if an OPENAI_API_KEY is set. Registered in its own module.
     try:
         import scam_sim
 
