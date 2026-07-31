@@ -15,7 +15,12 @@ process.env.UPSTASH_REDIS_REST_TOKEN = 'fake-token';
 
 // Imported after the env is set — store.js reads it lazily, but this keeps the
 // intent obvious.
-const { applyOutcome, getUser } = await import('./store.js');
+const {
+  applyOutcome,
+  getUser,
+  completeDrillAttempt,
+  reservePhoneVerificationSend,
+} = await import('./store.js');
 
 const DB_KEY = 'safespace:db';
 const VERSION_KEY = 'safespace:db:version';
@@ -29,6 +34,7 @@ const seedDoc = () => ({
     },
   },
   drills: [],
+  drillAttempts: { byId: {}, byProviderId: {}, byActionTokenHash: {} },
   pendingResults: {},
   consentEvents: [],
 });
@@ -135,4 +141,81 @@ test('gives up rather than spinning forever when it can never win', async () => 
     () => applyOutcome({ userId: 'you', outcome: 'disengaged', practice: false }),
     /too many concurrent writers/,
   );
+});
+
+test('concurrent duplicate provider callbacks score exactly once through Redis CAS', async () => {
+  const doc = seedDoc();
+  doc.drillAttempts.byId.attempt_1 = {
+    id: 'attempt_1',
+    userId: 'you',
+    channel: 'call',
+    status: 'sent',
+    providerId: 'call_1',
+    createdAt: new Date().toISOString(),
+  };
+  doc.drillAttempts.byProviderId.call_1 = 'attempt_1';
+  redis.set(DB_KEY, JSON.stringify(doc));
+  redis.set(VERSION_KEY, '1');
+
+  const results = await Promise.all([
+    completeDrillAttempt({ providerId: 'call_1', outcome: 'hung_up' }),
+    completeDrillAttempt({ providerId: 'call_1', outcome: 'hung_up' }),
+  ]);
+  assert.deepEqual(results.map((result) => result.status).sort(), ['completed', 'duplicate']);
+  assert.equal(results.filter((result) => result.applied).length, 1);
+
+  const stored = JSON.parse(redis.get(DB_KEY));
+  assert.equal(stored.users.you.timesSafe, 1);
+  assert.equal(stored.drills.length, 1);
+  assert.equal(stored.pendingResults.you.length, 1);
+  assert.equal(stored.drillAttempts.byId.attempt_1.status, 'completed');
+});
+
+test('concurrent phone verification reservations enforce one durable quota through CAS', async () => {
+  redis.set(DB_KEY, JSON.stringify(seedDoc()));
+  redis.set(VERSION_KEY, '1');
+  const now = Date.parse('2026-07-30T00:00:00.000Z');
+
+  const reservations = await Promise.allSettled([
+    reservePhoneVerificationSend({
+      phone: '+6591234567',
+      now,
+      cooldownMs: 0,
+      maxSends: 1,
+    }),
+    reservePhoneVerificationSend({
+      phone: '+6591234567',
+      now,
+      cooldownMs: 0,
+      maxSends: 1,
+    }),
+  ]);
+
+  assert.equal(
+    reservations.filter((result) => result.status === 'fulfilled').length,
+    1,
+  );
+  const rejected = reservations.find((result) => result.status === 'rejected');
+  assert.equal(rejected?.reason?.code, 'VERIFICATION_RATE_LIMITED');
+
+  const stored = JSON.parse(redis.get(DB_KEY));
+  const destinationBuckets = Object.values(
+    stored.verificationRateLimits['phone-destination'],
+  );
+  assert.deepEqual(destinationBuckets, [[now]]);
+});
+
+test('an unknown provider id is a no-op on Redis too', async () => {
+  redis.set(DB_KEY, JSON.stringify(seedDoc()));
+  redis.set(VERSION_KEY, '1');
+  const before = redis.get(DB_KEY);
+
+  const result = await completeDrillAttempt({
+    providerId: 'unknown_call',
+    outcome: 'shared_data',
+  });
+  assert.equal(result.status, 'unknown');
+  assert.equal(result.applied, false);
+  assert.equal(redis.get(DB_KEY), before, 'unknown callbacks must not write the document');
+  assert.equal(redis.get(VERSION_KEY), '1', 'unknown callbacks must not advance CAS version');
 });

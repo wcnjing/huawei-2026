@@ -1,7 +1,7 @@
 // Run with: node --test
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkVerification, startVerification, rateLimited, verifyMode, DEV_CODE } from './verify.js';
+import { checkVerification, startVerification, verifyMode, DEV_CODE } from './verify.js';
 
 function clearVerifyEnv() {
   delete process.env.TWILIO_ACCOUNT_SID;
@@ -39,17 +39,4 @@ test('dev bypass works ONLY when explicitly opted into', async () => {
   assert.equal(await checkVerification('+6590000001', DEV_CODE), true);
   assert.equal(await checkVerification('+6590000001', '123456'), false);
   clearVerifyEnv();
-});
-
-// --- Rate limiting ----------------------------------------------------------
-
-test('rate limit: a second send within 30s is blocked', () => {
-  const p = '+6590000002';
-  assert.equal(rateLimited(p), false); // first send allowed
-  assert.equal(rateLimited(p), true); // immediate resend blocked
-});
-
-test('rate limit is per-number (independent counters)', () => {
-  assert.equal(rateLimited('+6590000003'), false);
-  assert.equal(rateLimited('+6590000004'), false);
 });

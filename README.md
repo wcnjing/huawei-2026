@@ -1,119 +1,139 @@
 # SafeSpace — Drill Mode
 
-**Consent-based scam drills for families.** An adaptive AI calls you when you're not
-expecting it, plays a realistic scammer, escalates the way a real one would — then turns
-it into a debrief. Knowledge isn't a reflex; you can't read your way into staying calm
-when a "police officer" says your account is being drained *right now*. So you drill it.
+**Consent-based scam drills for families.** SafeSpace turns scam awareness into
+practice: realistic call, SMS and email scenarios followed by a clear reveal and
+debrief.
 
 Built for Huawei Tech4City 2026.
 
----
+## What is implemented
 
-## What's actually real
-
-Being precise about this matters — it's the difference between a credible demo and a
-claim that collapses under a judge's question.
-
-| Channel | Status |
+| Channel | Live path |
 |---|---|
-| **Voice call** | ✅ **Real.** Places a genuine phone call (Vapi → Twilio), Claude drives the persona, Azure Singapore-English voice. Verified end to end — a live call ran 2m10s and the real-OTP safety tripwire fired correctly. Cost: **$0.18** per call. |
-| **Phone registration (OTP)** | ✅ **Real.** Twilio Verify sends an actual SMS code. Fully self-serve in-app. |
-| **SMS drill** | ✅ **Real.** Sends an actual scam text (Twilio Programmable SMS) from a curated scenario library, then a guaranteed reveal text. Verified end to end — both messages delivered. |
-| **Email drill** | ✅ **Real.** Generates a phishing email (OpenAI) and delivers it (Google Apps Script) to the user's **own registered address** — never one named in a request. The relay enforces a shared secret and fails closed — verified against the live deployment: correct secret accepted, wrong secret rejected, no-recipient refused. Refuses with 503 until `OPENAI_API_KEY` + `GOOGLE_SCRIPT_URL` + `GOOGLE_SCRIPT_SECRET` are set. |
+| **Voice call** | Vapi places a real call only to the session user's verified number. The transient assistant uses fictional institutions, a distress off-ramp, an OTP safety tripwire and structured post-call analysis. No-answer, voicemail, provider errors and insufficient evidence are **unscored**, not wins or losses. |
+| **Phone ownership** | Twilio Verify sends the registration OTP. Missing provider configuration fails closed; the fixed development code works only when `ALLOW_DEV_VERIFY=true` is explicitly set. |
+| **SMS drill** | Twilio Programmable Messaging sends a curated fictional scenario. A signed first-party link opens a confirmation/reveal flow, and a provider-durable reveal SMS is scheduled first as a fallback. |
+| **Email ownership** | A signed, 30-minute ownership link opens a confirmation page; ownership changes only after an explicit POST confirmation. Proving a phone number does not prove ownership of an email address. |
+| **Email drill** | Google Apps Script renders escaped, allow-listed fictional templates. It rejects arbitrary HTML, uses signed first-party reveal/report links, and durably schedules a safety follow-up before sending bait. No OpenAI key is used. |
 
-⚠️ **Trial-account caveat:** while Twilio is on a trial, every outbound SMS is prefixed
-`"Sent from your Twilio trial account - "`, which gives the drill away, and both calls and
-texts can only reach numbers on the verified-caller-ID list. Upgrading removes both.
+Real drills are **manual, explicit “send/call me now” actions**. SafeSpace does not run
+a background recurring-drill scheduler. Practice versions of all three channels remain
+fully simulated and award half XP.
 
-The in-app call/SMS/email drills also exist as **practice mode**: fully simulated, free,
-and safe to run on stage. Real drills award full XP; practice awards half.
-
----
+> **Twilio trial caveat:** trial accounts add a Twilio prefix to outbound SMS and can
+> contact only verified destinations. That makes a drill easier to recognise.
 
 ## Quick start
 
+SafeSpace requires Node 22.9 or newer because the server scripts use
+`--env-file-if-exists`.
+
 ```sh
 npm install
-cp .env.example .env      # works offline as-is; add keys for real calls
-npm start                 # build + serve  →  http://localhost:3000
-npm test                  # 57 tests
+cp .env.example .env
+npm start                 # build + serve at http://localhost:3000
+npm test                  # isolated backend regression suite
 ```
 
-Without any credentials you still get: the full game UI, practice drills across all three
-channels, XP/streaks/leaderboard, phone registration (via a dev bypass code), and the
-simulated surprise-call loop.
-
----
+With no provider credentials, the game UI, seeded demo family and in-app practice
+drills still work. Real phone registration and live channels correctly return
+“not configured.” For an offline registration demo, deliberately set
+`ALLOW_DEV_VERIFY=true`; for the result-loop helper, also set
+`ENABLE_DEMO_ROUTES=true`. Never use either flag in production.
 
 ## Layout
 
+```text
+src/               React 18 + Vite 6 + Tailwind 4 pixel-game UI
+server/            Express API, provider integrations and persistence
+deploy/            nginx and systemd configuration
+api/               Vercel serverless entry point
+smsdrill/           standalone historical SMS prototype
+drill-bot/          standalone Python prototype
+vapi-voice-poc/     standalone Python voice proof of concept
 ```
-src/               React 18 + Vite 6 + Tailwind 4 — the retro pixel game UI
-server/            Express backend: drill API + serves the built app  (see server/README.md)
-smsdrill/          Standalone static SMS-drill prototype
-drill-bot/         Standalone Python drill bot
-vapi-voice-poc/    Standalone Python POC that proved the real-call path
-```
 
-`main` is the app (`src/` + `server/`). The other three directories are independent
-prototypes that don't run as part of it. A separate Next.js email app lives on the
-`huawei-webapp` branch; its sending logic has been ported into `server/email.js`.
+`main` is the application in `src/` and `server/`; the prototype directories are not
+part of its runtime.
 
-**Docs:** [`server/README.md`](server/README.md) (API, tests, going live) ·
-[`PITCH_SLIDES.md`](PITCH_SLIDES.md) (deck spec) ·
-[`FIGMA_TO_REACT.md`](FIGMA_TO_REACT.md) (design→code handoff)
-
----
+Further reading: [backend/API guide](server/README.md),
+[deployment guide](DEPLOY.md), [manual test plan](TESTPLAN.md), and
+[pitch deck specification](PITCH_SLIDES.md).
 
 ## Configuration
 
-Everything lives in `.env` (gitignored). See `.env.example` for the annotated list.
+Copy [.env.example](.env.example) and use a different random value for each secret.
 
-| Purpose | Vars |
+| Purpose | Required values |
 |---|---|
-| Real calls | `VAPI_API_KEY`, `VAPI_PHONE_NUMBER_ID` |
-| Real OTP SMS | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID` |
-| Call outcomes → XP | `PUBLIC_URL` (a tunnel), `VAPI_WEBHOOK_SECRET` |
-| Email drills | `OPENAI_API_KEY`, `GOOGLE_SCRIPT_URL`, `GOOGLE_SCRIPT_SECRET` |
-| Offline demo only | `ALLOW_DEV_VERIFY`, `ENABLE_DEMO_ROUTES` |
+| Real calls | `VAPI_API_KEY`, `VAPI_PHONE_NUMBER_ID`, HTTPS `PUBLIC_URL`, `VAPI_WEBHOOK_SECRET` (32+ chars) |
+| Phone OTP | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID` |
+| Detach/reconnect account recovery | `IDENTITY_LOOKUP_SECRET` (stable, random, 32+ chars) |
+| SMS drills | Twilio account values, `TWILIO_MESSAGING_SERVICE_SID`, `DRILL_LINK_SECRET`, and an HTTPS action origin |
+| Email ownership/drills | `GOOGLE_SCRIPT_URL`, `GOOGLE_SCRIPT_SECRET`, `DRILL_LINK_SECRET`, and an HTTPS action origin |
+| Persistent serverless storage | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` |
 
-⚠️ **Turn the last two off before anything public.** They enable a fixed bypass code and
-a route that writes drill results. The server prints a warning at startup when either is on.
+The action origin is `PUBLIC_URL`, or `EMAIL_ACTION_ORIGIN` when only messaging links
+need a public origin. Apps Script must have matching `SAFESPACE_SECRET` and
+`SAFESPACE_LINK_ORIGIN` Script Properties and must be authorised once for MailApp and
+time-trigger access.
 
----
+Optional lifecycle controls:
 
-## Safety model
+- `SESSION_TTL_MS`: default 30 days, minimum 1 minute.
+- `REAL_DRILL_COOLDOWN_MS`: default 5 minutes per user and channel.
+- `SMS_REVEAL_DELAY_MS`: 15 minutes–35 days; default 16 minutes.
+- `EMAIL_SAFETY_FOLLOWUP_DELAY_MS`: 1 minute–24 hours; default 10 minutes.
 
-This product calls real people and pretends to be a scammer, so the safeguards are the
-core loop, not a polish pass:
+## Safety and integrity model
 
-- **Consent gate** — nothing fires for a user without a recorded opt-in, and every grant
-  is written to a consent audit trail.
-- **Proven identity** — a real drill only ever reaches the number *you* verified. The
-  target comes from your session, never from the request; a consent flag records past
-  consent and is explicitly **not** treated as authorisation.
-- **Distress off-ramp** — "stop" / "is this a drill?" breaks character immediately.
-- **Real-data tripwire** — start reading a real OTP and the call stops mid-sentence,
-  without repeating the digits back. *Verified firing on a live call.*
-- **Always reveals** — every drill ends with a scripted, verbatim reveal.
-- **Never punishes distress** — bailing out scores neutral, not a loss.
-- **Fictional institutions only** — no real bank or agency is ever impersonated.
-- **No caller-ID spoofing** — illegal in SG, and we don't.
-- **Fails closed everywhere** — missing config disables a feature rather than silently
-  degrading it (misconfigured OTP refuses instead of accepting a bypass code; an
-  unconfigured webhook rejects instead of accepting forged outcomes).
+- **Consent and ownership:** real calls/SMS target only the verified phone on the
+  authenticated account; email drills require inbox ownership verification.
+- **Expiring sessions:** newly issued bearer sessions are hashed at rest and expire
+  after 30 days by default. Removing the verified phone withdraws consent and revokes
+  every session.
+- **Reconnect-safe phone removal:** detaching deletes the raw phone but retains a keyed
+  HMAC lookup. Re-verifying the same number reconnects the existing account and
+  progress. If SafeSpace cannot create that recovery lookup, removal fails with 503
+  instead of orphaning the account. `IDENTITY_LOOKUP_SECRET` must remain stable and
+  separate from the other secrets.
+- **Durable verification throttles:** OTP starts are capped per destination and per
+  resolved client address, while email ownership sends are capped per account and
+  destination. Configure `TRUST_PROXY_HOPS` only for a known proxy path, and add a
+  provider/CDN edge limit for production defense in depth.
+- **Fictional institutions:** production scenarios never impersonate a real bank,
+  agency or brand.
+- **Distress off-ramp:** asking to stop or identifying the drill ends the call and never
+  costs XP or a streak.
+- **No ambiguous failures:** structured call analysis is preferred. Conservative
+  role-aware fallback scoring requires explicit evidence; no-answer, voicemail, missing
+  analysis and ambiguous transcripts are unscored.
+- **Scanner-safe, exactly-once outcomes:** signed-link GET requests only render
+  confirmation pages, so inbox/link previews cannot mutate state. Explicit POST
+  confirmation completes a reserved attempt once; unknown/replayed callbacks cannot
+  award or remove XP twice.
+- **Recoverable results:** pending results are read non-destructively and removed only
+  after the client explicitly acknowledges displaying them.
+- **Durable reveals:** SMS uses Twilio fixed scheduling; email uses persisted Apps
+  Script jobs and time triggers. Bait is not sent when the safety follow-up cannot be
+  scheduled. If bait delivery becomes ambiguous after scheduling, the reveal remains
+  active and the client is told not to retry immediately.
+- **No arbitrary mail content:** the Apps Script relay accepts structured message kinds
+  and renders its own escaped templates.
+- **Call-data boundary:** Vapi and its transcriber process call audio and transcript
+  content so the drill can be classified. SafeSpace requests audio recording, video,
+  packet capture and provider logging off, and its own store persists the outcome and
+  attempt metadata—not the transcript. Provider-side processing or retention is still
+  governed by the provider configuration and contract.
+- **Fails closed:** partial provider configuration disables that live feature rather
+  than silently weakening verification or webhook authentication.
 
----
+## Current operational limits
 
-## Known gaps
-
-Honest list — none of these block a demo:
-
-- The Vapi webhook has never been exercised by a real call end to end (needs a tunnel).
-  Outcome-scoring logic is unit-tested; the live wiring isn't.
-- The JSON store does unsynchronised read-modify-write, so concurrent requests can lose
-  an update. Fine for a demo; swap for Postgres before real users.
-- Sessions never expire.
-- The Home screen renders mock family data — `/api/family` is live but currently unused
-  by the UI.
-- `smsdrill/` impersonates a real bank, which contradicts the fictional-institution rule.
+- There is no automatic recurring-drill scheduler; users explicitly start real drills.
+- The file store is safe for one Node process and writes by atomic replacement. Use
+  Upstash for multi-instance or serverless deployments.
+- Provider acceptance is not the same as carrier/inbox delivery. Delivery status
+  monitoring is still an operational concern.
+- Call classification is intentionally conservative. Ambiguous interactions may be
+  unscored and require a later retry.

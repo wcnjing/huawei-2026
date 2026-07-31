@@ -1,11 +1,11 @@
-// Real email drill: generate a phishing-style email, then send it.
-// Ported from the standalone email-webapp (huawei-webapp branch) into this backend so
-// all three channels - call, SMS, email - run through one consent-gated API.
+// Email drills use a deliberately small, curated scenario library. No generated HTML
+// reaches the mail provider: the Apps Script relay receives a scenario id plus validated
+// action URLs and renders an allow-listed template itself.
 //
-// No new npm deps: OpenAI is called over plain HTTP, same as Vapi/Twilio elsewhere.
-// FAILS CLOSED - if either provider is unconfigured, nothing is sent.
-
-const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
+// FAILS CLOSED:
+//   * an absolute first-party origin and signed action URLs are required;
+//   * a durable safety follow-up must be accepted by Apps Script before bait is sent;
+//   * arbitrary subject/body/html fields are never sent to the relay.
 
 export class EmailUnavailable extends Error {
   constructor(msg) {
@@ -15,96 +15,302 @@ export class EmailUnavailable extends Error {
   }
 }
 
-// GOOGLE_SCRIPT_SECRET is required, not optional: the Apps Script web app is deployed
-// with access "Anyone", so the shared secret is the only thing standing between that
-// public URL and an open mail relay. No secret -> we refuse to send at all.
+export class EmailLinkInvalid extends Error {
+  constructor(msg) {
+    super(msg);
+    this.name = 'EmailLinkInvalid';
+    this.code = 'EMAIL_LINK_INVALID';
+  }
+}
+
+export class EmailDeliveryUnconfirmed extends Error {
+  constructor(message, details = {}, cause = null) {
+    super(message);
+    this.name = 'EmailDeliveryUnconfirmed';
+    this.code = 'EMAIL_DELIVERY_UNCONFIRMED';
+    this.details = details;
+    this.cause = cause;
+  }
+}
+
+export const DEFAULT_EMAIL_SAFETY_FOLLOWUP_MS = 10 * 60 * 1000;
+export const MIN_EMAIL_SAFETY_FOLLOWUP_MS = 60 * 1000;
+export const MAX_EMAIL_SAFETY_FOLLOWUP_MS = 24 * 60 * 60 * 1000;
+
+// These ids are also allow-listed in apps-script/Code.gs, where the final escaped HTML
+// is rendered. All organisations are fictional.
+export const EMAIL_SCENARIOS = [
+  { id: 'bank', sender: 'Meridian Bank', subject: 'Security alert: review required' },
+  { id: 'parcel', sender: 'ParcelLink', subject: 'Delivery fee still outstanding' },
+  { id: 'password', sender: 'CloudMail', subject: 'Password reset confirmation needed' },
+  { id: 'govt', sender: 'Office of Public Trust', subject: 'Notice requires your response' },
+  { id: 'scholarship', sender: 'Northstar Scholars', subject: 'Your scholarship selection' },
+  { id: 'job', sender: 'WorkHarbor', subject: 'Remote role: onboarding required' },
+  { id: 'refund', sender: 'NovaCart', subject: 'Refund could not be processed' },
+  { id: 'account', sender: 'CloudMail', subject: 'Account suspension warning' },
+];
+
+function relayConfigured() {
+  return Boolean(process.env.GOOGLE_SCRIPT_URL && process.env.GOOGLE_SCRIPT_SECRET);
+}
+
+function configuredActionOrigin() {
+  const raw = process.env.PUBLIC_URL || process.env.EMAIL_ACTION_ORIGIN || '';
+  try {
+    const parsed = new URL(raw);
+    if (
+      parsed.protocol !== 'https:'
+      || parsed.username
+      || parsed.password
+      || (parsed.pathname !== '/' && parsed.pathname !== '')
+      || parsed.search
+      || parsed.hash
+    ) return null;
+    return parsed.origin;
+  } catch {
+    return null;
+  }
+}
+
+export function emailVerificationConfigured() {
+  return relayConfigured() && Boolean(configuredActionOrigin());
+}
+
 export function emailConfigured() {
-  return Boolean(
-    process.env.OPENAI_API_KEY && process.env.GOOGLE_SCRIPT_URL && process.env.GOOGLE_SCRIPT_SECRET,
+  return emailVerificationConfigured() && validFollowupDelay(
+    process.env.EMAIL_SAFETY_FOLLOWUP_DELAY_MS,
   );
 }
 
-const SCAM_TOPICS = [
-  'a bank account security alert',
-  'an undelivered parcel with an unpaid fee',
-  'a password reset you did not request',
-  'a government agency claiming an unpaid fine',
-  'a scholarship you have been selected for',
-  'a remote job offer requiring an upfront training fee',
-  'an online order refund needing payment details',
-  'an account suspension unless you verify now',
-];
+function validFollowupDelay(raw) {
+  if (raw === undefined || raw === null || raw === '') return true;
+  const delay = Number(raw);
+  return Number.isFinite(delay)
+    && delay >= MIN_EMAIL_SAFETY_FOLLOWUP_MS
+    && delay <= MAX_EMAIL_SAFETY_FOLLOWUP_MS;
+}
 
-// Same persona contract as the voice drill: FICTIONAL institutions only, bounded
-// pressure, and a reveal that is scripted rather than improvised.
-export function buildPrompt(revealUrl, reportUrl, name) {
-  const topic = SCAM_TOPICS[Math.floor(Math.random() * SCAM_TOPICS.length)];
-  return [
-    'You are writing ONE phishing-style email for a CONSENTED SafeSpace safety drill.',
-    'The recipient has explicitly opted in to being drilled.',
-    'RECIPIENT NAME: ' + String(name || '').trim(),
-    '',
-    'TOPIC: ' + topic,
-    '',
-    'RULES:',
-    '- Invent a FICTIONAL sender organisation. Never name a real bank, agency or brand.',
-    '- Subject line + 2-4 short sentences. Urgent but professional, like real phishing.',
-    '- Address the recipient by their exact name once in the opening greeting.',
-    '- Apply pressure, but never threaten harm or legal arrest.',
-    '- Include exactly two links, as real anchor tags:',
-    '    the bait link  -> ' + revealUrl,
-    '    a "Report as suspicious" link -> ' + reportUrl,
-    '- Return ONLY HTML body content (<p>, <strong>, <a>). No <html>/<head>/<body> tags.',
-    '- Do NOT include the words "drill" or "SafeSpace" anywhere - clicking the bait link',
-    '  is what reveals it. A giveaway in the email defeats the exercise.',
-  ].join('\n');
+export function resolveEmailFollowupDelay(value) {
+  const raw = value
+    ?? process.env.EMAIL_SAFETY_FOLLOWUP_DELAY_MS
+    ?? DEFAULT_EMAIL_SAFETY_FOLLOWUP_MS;
+  if (!validFollowupDelay(raw)) {
+    throw new EmailUnavailable(
+      `email safety follow-up delay must be between ${MIN_EMAIL_SAFETY_FOLLOWUP_MS} `
+      + `and ${MAX_EMAIL_SAFETY_FOLLOWUP_MS} ms`,
+    );
+  }
+  return Number(raw);
+}
+
+function signedTokenShape(value) {
+  return /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{16,}$/.test(value);
 }
 
 /**
- * Generate + send one drill email. Throws EmailUnavailable if unconfigured,
- * or Error on a provider failure (callers must not echo the message to clients).
+ * Validate—not generate—a link supplied by the caller. Signature verification remains
+ * the destination route's responsibility; here we enforce HTTPS, the configured
+ * first-party origin, the expected action path, and the signed-token wire format.
  */
-export async function sendDrillEmail({ to, name }) {
-  if (!emailConfigured()) {
-    throw new EmailUnavailable(
-      'OPENAI_API_KEY, GOOGLE_SCRIPT_URL and GOOGLE_SCRIPT_SECRET must be set to send drill emails',
+export function validateEmailActionUrl(value, expectedPath) {
+  const origin = configuredActionOrigin();
+  try {
+    const parsed = new URL(String(value || ''));
+    if (
+      !origin
+      || parsed.protocol !== 'https:'
+      || parsed.origin !== origin
+      || parsed.pathname !== expectedPath
+      || parsed.username
+      || parsed.password
+      || parsed.hash
+      || !signedTokenShape(parsed.searchParams.get('token') || '')
+    ) {
+      throw new Error('invalid');
+    }
+    return parsed.toString();
+  } catch {
+    throw new EmailLinkInvalid(
+      `${expectedPath} URL must be an absolute, signed first-party HTTPS URL matching `
+      + 'PUBLIC_URL (or EMAIL_ACTION_ORIGIN)',
     );
   }
-  const base = (process.env.PUBLIC_URL || '').replace(/\/+$/, '');
-  const revealUrl = base + '/drill-reveal';
-  const reportUrl = base + '/drill-report';
+}
 
-  // 1. Generate the body.
-  const gen = await fetch(OPENAI_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: 'Bearer ' + process.env.OPENAI_API_KEY,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: process.env.EMAIL_MODEL || 'gpt-4o-mini',
-      messages: [{ role: 'user', content: buildPrompt(revealUrl, reportUrl, name) }],
-    }),
-  });
-  const genData = await gen.json();
-  if (!gen.ok) throw new Error('OpenAI ' + gen.status + ': ' + JSON.stringify(genData));
-  const html = genData?.choices?.[0]?.message?.content;
-  if (!html) throw new Error('OpenAI returned no content');
+export function pickEmailScenario(id) {
+  if (id) return EMAIL_SCENARIOS.find((scenario) => scenario.id === id) || EMAIL_SCENARIOS[0];
+  return EMAIL_SCENARIOS[Math.floor(Math.random() * EMAIL_SCENARIOS.length)];
+}
 
-  // 2. Send it.
-  const send = await fetch(process.env.GOOGLE_SCRIPT_URL, {
+function recipient(value) {
+  const email = String(value || '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new EmailUnavailable('a valid recipient email is required');
+  }
+  return email;
+}
+
+function recipientName(value) {
+  return String(value || '').trim().slice(0, 80);
+}
+
+async function relay(payload) {
+  if (!relayConfigured()) {
+    throw new EmailUnavailable('GOOGLE_SCRIPT_URL and GOOGLE_SCRIPT_SECRET must be set');
+  }
+  const response = await fetch(process.env.GOOGLE_SCRIPT_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      secret: process.env.GOOGLE_SCRIPT_SECRET,
-      email: to,
-      subject: 'Immediate Action Required',
-      html,
-    }),
+    body: JSON.stringify({ secret: process.env.GOOGLE_SCRIPT_SECRET, ...payload }),
   });
-  const sendData = await send.json().catch(() => ({}));
-  if (!send.ok || sendData?.success === false) {
-    throw new Error('Mail sender failed: ' + JSON.stringify(sendData));
+  let data;
+  try {
+    data = await response.json();
+  } catch (cause) {
+    const error = new Error('mail sender returned an unreadable response');
+    error.code = response.ok ? 'EMAIL_DELIVERY_AMBIGUOUS' : 'EMAIL_PROVIDER_REJECTED';
+    error.cause = cause;
+    throw error;
   }
+  if (!response.ok || data?.success !== true) {
+    const error = new Error('Mail sender failed: ' + JSON.stringify(data));
+    error.code = 'EMAIL_PROVIDER_REJECTED';
+    throw error;
+  }
+  return data;
+}
+
+/**
+ * Sends the ownership challenge only. The caller must persist pending state and verify
+ * the token when /email-verify is opened.
+ */
+export async function sendEmailOwnershipVerification({ to, name, verificationUrl }) {
+  if (!emailVerificationConfigured()) {
+    throw new EmailUnavailable(
+      'GOOGLE_SCRIPT_URL, GOOGLE_SCRIPT_SECRET and HTTPS PUBLIC_URL '
+      + '(or EMAIL_ACTION_ORIGIN) must be configured',
+    );
+  }
+  const safeUrl = validateEmailActionUrl(verificationUrl, '/email-verify');
+  await relay({
+    kind: 'email-verification',
+    email: recipient(to),
+    recipientName: recipientName(name),
+    verificationUrl: safeUrl,
+  });
   return { ok: true };
+}
+
+/**
+ * Ask Apps Script to persist a follow-up job and create a provider-side time trigger.
+ * This is intentionally a separate request so sendDrillEmail can confirm scheduling
+ * before it sends any bait.
+ */
+export async function scheduleEmailSafetyFollowup({ to, name, sendAt }) {
+  const parsedSendAt = new Date(sendAt);
+  if (!Number.isFinite(parsedSendAt.getTime())) {
+    throw new EmailUnavailable('a valid safety follow-up sendAt time is required');
+  }
+  const data = await relay({
+    kind: 'schedule-safety-followup',
+    email: recipient(to),
+    recipientName: recipientName(name),
+    sendAt: parsedSendAt.toISOString(),
+  });
+  if (data?.scheduled !== true || !data?.jobId) {
+    throw new EmailUnavailable('mail relay did not confirm the safety follow-up schedule');
+  }
+  return { jobId: String(data.jobId), sendAt: parsedSendAt.toISOString() };
+}
+
+export async function cancelEmailSafetyFollowup(jobId) {
+  if (!jobId) return { canceled: false };
+  const data = await relay({ kind: 'cancel-safety-followup', jobId: String(jobId) });
+  return { canceled: data?.canceled === true };
+}
+
+/** Sends an immediate, unambiguous manual safety follow-up. */
+export async function sendEmailSafetyFollowup({ to, name }) {
+  await relay({
+    kind: 'safety-followup',
+    email: recipient(to),
+    recipientName: recipientName(name),
+  });
+  return { ok: true };
+}
+
+/**
+ * Send one drill email. Both action URLs must be generated and supplied by the caller.
+ * @param {{to: string, name: string, scenarioId?: string, revealUrl: string,
+ *   reportUrl: string, safetyFollowupAfterMs?: number}} opts
+ */
+export async function sendDrillEmail({
+  to,
+  name,
+  scenarioId,
+  revealUrl,
+  reportUrl,
+  safetyFollowupAfterMs,
+}) {
+  if (!emailConfigured()) {
+    throw new EmailUnavailable(
+      'GOOGLE_SCRIPT_URL, GOOGLE_SCRIPT_SECRET and HTTPS PUBLIC_URL '
+      + '(or EMAIL_ACTION_ORIGIN) must be configured; EMAIL_SAFETY_FOLLOWUP_DELAY_MS '
+      + 'must be between 1 minute and 24 hours when set',
+    );
+  }
+
+  const target = recipient(to);
+  const safeName = recipientName(name);
+  const safeRevealUrl = validateEmailActionUrl(revealUrl, '/drill-reveal');
+  const safeReportUrl = validateEmailActionUrl(reportUrl, '/drill-report');
+  if (safeRevealUrl === safeReportUrl) {
+    throw new EmailLinkInvalid('revealUrl and reportUrl must be different signed action URLs');
+  }
+  const scenario = pickEmailScenario(scenarioId);
+  const delay = resolveEmailFollowupDelay(safetyFollowupAfterMs);
+  const safetyFollowupAt = new Date(Date.now() + delay).toISOString();
+
+  const scheduled = await scheduleEmailSafetyFollowup({
+    to: target,
+    name: safeName,
+    sendAt: safetyFollowupAt,
+  });
+
+  try {
+    await relay({
+      kind: 'drill',
+      email: target,
+      recipientName: safeName,
+      scenarioId: scenario.id,
+      revealUrl: safeRevealUrl,
+      reportUrl: safeReportUrl,
+    });
+  } catch (baitError) {
+    if (baitError?.code === 'EMAIL_PROVIDER_REJECTED') {
+      // A structured provider rejection confirms that no bait was accepted, so the
+      // standalone follow-up can be removed without risking an unrevealed drill.
+      try {
+        await cancelEmailSafetyFollowup(scheduled.jobId);
+      } catch (cancelError) {
+        console.error('[email] rejected bait follow-up cancellation failed:', cancelError);
+      }
+      throw baitError;
+    }
+    // A timeout or lost response does not prove the provider rejected the bait. Keep
+    // the durable follow-up: canceling it could leave an accepted bait email
+    // unrevealed. The caller treats this as delivery-unknown, not as a safe retry.
+    throw new EmailDeliveryUnconfirmed(
+      'email delivery could not be confirmed; safety follow-up remains scheduled',
+      { scenarioId: scenario.id, safetyFollowupAt, safetyJobId: scheduled.jobId },
+      baitError,
+    );
+  }
+
+  return {
+    ok: true,
+    scenarioId: scenario.id,
+    safetyFollowupAt,
+    safetyJobId: scheduled.jobId,
+  };
 }

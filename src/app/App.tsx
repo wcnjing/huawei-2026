@@ -4417,7 +4417,7 @@ function ResultScreen({ win, drillType, smsOutcome, emailOutcome, callOutcome, p
   // furniture currency for being fooled during a training exercise.
   const coinReward = win
     ? (drillType === "call" ? 50 : drillType === "sms" ? 40 : 60)
-    : 0;
+    : (drillType === "call" ? -25 : drillType === "sms" ? -20 : -30);
   const displayedXp = xpOverride ?? xp;
 
   return (
@@ -4462,9 +4462,9 @@ function ResultScreen({ win, drillType, smsOutcome, emailOutcome, callOutcome, p
               <div className="flex justify-between items-center mb-2">
                 <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>COINS</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <IconCoin size={12} color="#ffe66d" />
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: win ? "#00ff88" : "#4ecdc4" }}>
-                    {win ? `+${coinReward}` : "NO LOSS"}
+                  <IconCoin size={12} color={coinReward >= 0 ? "#ffe66d" : "#ff2d55"} />
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: coinReward >= 0 ? "#00ff88" : "#ff2d55" }}>
+                    {coinReward >= 0 ? `+${coinReward}` : coinReward}
                   </div>
                 </div>
               </div>
@@ -7340,10 +7340,11 @@ export default function App() {
   // Drill-outcome event helper (used by call/sms/email flows)
   const emitDrillEvent = (memberId: string, drill: DrillType, outcome: "win" | "lose", liveCallOutcome?: CallOutcome | null) => {
     const rewards: Record<DrillType, number> = { call: 50, sms: 40, email: 60 };
-    const delta = outcome === "win" ? rewards[drill] : 0;
+    const penalties: Record<DrillType, number> = { call: -25, sms: -20, email: -30 };
+    const delta = outcome === "win" ? rewards[drill] : penalties[drill];
     const label = outcome === "win"
       ? `${drill.toUpperCase()} DRILL WON`
-      : `${drill.toUpperCase()} DRILL REVIEW`;
+      : `${drill.toUpperCase()} DRILL LOST`;
     const reason: CoinTxReason = outcome === "win"
       ? (drill === "call" ? "drill-win-call" : drill === "sms" ? "drill-win-sms" : "drill-win-email")
       : (drill === "call" ? "drill-lose-call" : drill === "sms" ? "drill-lose-sms" : "drill-lose-email");

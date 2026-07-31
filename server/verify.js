@@ -41,19 +41,6 @@ function basicAuth() {
   return `Basic ${t}`;
 }
 
-// --- Simple in-memory rate limit: <=5 sends/hour/number, >=30s apart. ---
-// Blocks SMS-pumping abuse on an open register endpoint. Swap for Redis in production.
-const sends = new Map(); // phone -> number[] (timestamps)
-export function rateLimited(phone) {
-  const now = Date.now();
-  const hits = (sends.get(phone) || []).filter((t) => now - t < 3_600_000);
-  if (hits.length >= 5) return true;
-  if (hits.length && now - hits[hits.length - 1] < 30_000) return true;
-  hits.push(now);
-  sends.set(phone, hits);
-  return false;
-}
-
 /** Send a verification code. Returns { dev, devCode? }. Throws if verification is disabled. */
 export async function startVerification(phone) {
   const mode = verifyMode();

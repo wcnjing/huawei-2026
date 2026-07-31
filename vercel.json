@@ -9,6 +9,9 @@
   },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api" },
+    { "source": "/drill-reveal", "destination": "/api" },
+    { "source": "/drill-report", "destination": "/api" },
+    { "source": "/email-verify", "destination": "/api" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
