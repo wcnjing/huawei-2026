@@ -2038,8 +2038,8 @@ function DrillSelectScreen({
       eyebrow: "PHONE · LIVE",
       description: "Receive a simulated scam call on your verified phone.",
       action: "SET UP CALL",
-      color: "#00ff88",
-      icon: <IconPhone size={24} color="#00ff88" />,
+      color: "#c77dff",
+      icon: <IconPhone size={24} color="#c77dff" />,
       onClick: onRealisticPhone,
     },
     {
@@ -4459,7 +4459,7 @@ function SpeechBubble({ step, index, total, onNext, onSkip, onBack, style, inner
   step: TourStep; index: number; total: number;
   onNext: () => void; onSkip: () => void; onBack: () => void;
   style?: React.CSSProperties;
-  innerRef?: React.RefObject<HTMLDivElement | null>;
+  innerRef?: React.RefObject<HTMLDivElement>;
 }) {
   const last = index === total - 1;
   return (
