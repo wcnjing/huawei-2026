@@ -130,6 +130,11 @@ test('GET /api/family never exposes phone or email', async () => {
   assert.ok(!body.includes('"email"'), 'email must not be serialised');
 });
 
+test('GET /api/shame is not exposed as a public failure ranking', async () => {
+  const res = await fetch(base + '/api/shame');
+  assert.equal(res.status, 404);
+});
+
 test('GET /api/me ignores a client-supplied ?user= (no reading other accounts)', async () => {
   const res = await fetch(base + '/api/me?user=usr_someone_else');
   assert.equal(res.status, 200);

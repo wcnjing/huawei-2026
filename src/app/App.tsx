@@ -1872,6 +1872,7 @@ function loadHomeInventory(): HomeInventory {
     // Older snapshots may contain shop ids in soldItems; filtering those out is the
     // backwards-compatible migration that restores the correct ownership semantics.
     const validFurnitureIds = new Set(FURNITURE_STORE.map(item => item.id));
+    const savedSoldItems: unknown[] = Array.isArray(saved?.soldItems) ? saved.soldItems : [];
     return {
       coins: Object.fromEntries(FAMILY_MEMBERS.map(member => {
         const value = saved?.coins?.[member.id];
@@ -1880,16 +1881,18 @@ function loadHomeInventory(): HomeInventory {
         // punishment, so migrate those legacy balances back to zero.
         return [member.id, Math.max(0, Number.isFinite(value) ? value : member.coins)];
       })),
-      soldItems: Array.isArray(saved?.soldItems)
-        ? [...new Set(saved.soldItems.filter((id: unknown): id is string => typeof id === "string" && validFurnitureIds.has(id)))]
-        : [],
+      soldItems: [...new Set(savedSoldItems.filter(
+        (id): id is string => typeof id === "string" && validFurnitureIds.has(id),
+      ))],
       purchasedItems: Object.fromEntries(FAMILY_MEMBERS.map(member => {
-        const ids = saved?.purchasedItems?.[member.id];
+        const savedIds: unknown[] = Array.isArray(saved?.purchasedItems?.[member.id])
+          ? saved.purchasedItems[member.id]
+          : [];
         return [
           member.id,
-          Array.isArray(ids)
-            ? [...new Set(ids.filter((id: unknown): id is string => typeof id === "string" && validShopIds.has(id)))]
-            : [],
+          [...new Set(savedIds.filter(
+            (id): id is string => typeof id === "string" && validShopIds.has(id),
+          ))],
         ];
       })),
     };
@@ -2207,7 +2210,64 @@ function TitleScreen({ onNext }: { onNext: () => void }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// SCREEN: DRILL SELECT 
+// SAFETY HABITS — collapsible reference card on the Drill tab. Deliberately tucked
+// behind a dropdown, not shown up front: Drill Mode is about building reflexes under
+// pressure, not reciting rules, so this is a look-it-up-if-you-want reference, never
+// the thing standing between someone and a drill.
+// ─────────────────────────────────────────────────────────────────────────
+const SAFETY_TIPS: { num: number; title: string; color: string; text: string }[] = [
+  { num: 1, title: "PAUSE", color: "#ffe66d", text: "Urgency is a signal to slow down, not a reason to act faster." },
+  { num: 2, title: "VERIFY", color: "#4ecdc4", text: "End the conversation and use a number, app or site you find independently." },
+  { num: 3, title: "KEEP SECRETS", color: "#c77dff", text: "Never share OTPs, PINs, passwords or full card details with an unexpected caller." },
+  { num: 4, title: "REPORT", color: "#00ff88", text: "Reporting suspicious messages protects you and helps other people avoid the same lure." },
+];
+
+function SafetyHabitsDropdown() {
+  const [open, setOpen] = useState(false);
+  const panelId = "safety-habits-panel";
+  return (
+    <div style={{ marginTop: 4 }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-controls={panelId}
+        className="flex items-start gap-3"
+        style={{ width: "100%", textAlign: "left", backgroundColor: "rgba(255,107,53,0.08)", border: "3px solid #ff6b35", padding: "12px 14px", cursor: "pointer" }}
+      >
+        <IconBadge size={22} color="#ffe66d" />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex items-center justify-between" style={{ gap: 8 }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ff6b35", letterSpacing: 1 }}>SAFETY HABITS</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff6b35" }}>{open ? "▲" : "▼"}</div>
+          </div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.5, marginTop: 6 }}>
+            A missed drill is private. Use it to practise the next response — never to rank or shame someone.
+          </div>
+        </div>
+      </button>
+
+      {open && (
+        <div id={panelId} className="flex flex-col gap-3" style={{ marginTop: 10 }}>
+          {SAFETY_TIPS.map((tip) => (
+            <div key={tip.num} className="flex items-start gap-3" style={{ backgroundColor: "#111827", border: `3px solid ${tip.color}`, padding: 14 }}>
+              <div style={{ width: 34, height: 34, flexShrink: 0, border: `2px solid ${tip.color}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: tip.color }}>{tip.num}</span>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: tip.color, letterSpacing: 1, marginBottom: 4 }}>{tip.title}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#b4c6d4", lineHeight: 1.5 }}>{tip.text}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// SCREEN: DRILL SELECT
 // ─────────────────────────────────────────────────────────────────────────
 function DrillSelectScreen({
   onRealisticPhone, onRealisticSms, onTelegram, onRealisticEmail, onFamily,
@@ -2316,6 +2376,9 @@ function DrillSelectScreen({
             <PixelBtn onClick={drill.onClick} color={drill.color} textColor="#0a0e1a" size="md" full>{drill.action}</PixelBtn>
           </div>
         ))}
+
+        <SafetyHabitsDropdown />
+
         <div style={{ height: 4 }} />
       </div>
     </div>
@@ -4556,12 +4619,6 @@ function FameBoard() {
 }
 
 function LearningBoard() {
-  const habits = [
-    { title: "PAUSE", copy: "Urgency is a signal to slow down, not a reason to act faster.", color: "#ffe66d" },
-    { title: "VERIFY", copy: "End the conversation and use a number, app or site you find independently.", color: "#4ecdc4" },
-    { title: "KEEP SECRETS", copy: "Never share OTPs, PINs, passwords or full card details with an unexpected caller.", color: "#c77dff" },
-    { title: "REPORT", copy: "Reporting suspicious messages protects you and helps other people avoid the same lure.", color: "#00ff88" },
-  ];
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       <div className="mx-4 mt-3 px-3 py-3 flex items-center gap-3" style={{ backgroundColor: "rgba(255,107,53,0.08)", border: "3px solid #ff6b35" }}>
@@ -4572,14 +4629,14 @@ function LearningBoard() {
         </div>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2" style={{ scrollbarWidth: "none" }}>
-        {habits.map((habit, index) => (
-          <div key={habit.title} className="flex items-start gap-3 px-3 py-3" style={{ backgroundColor: "#111827", border: `3px solid ${habit.color}` }}>
-            <div className="flex items-center justify-center" style={{ width: 28, height: 28, flexShrink: 0, backgroundColor: `${habit.color}18`, border: `2px solid ${habit.color}`, fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: habit.color }}>
-              {index + 1}
+        {SAFETY_TIPS.map((tip) => (
+          <div key={tip.title} className="flex items-start gap-3 px-3 py-3" style={{ backgroundColor: "#111827", border: `3px solid ${tip.color}` }}>
+            <div className="flex items-center justify-center" style={{ width: 28, height: 28, flexShrink: 0, backgroundColor: `${tip.color}18`, border: `2px solid ${tip.color}`, fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: tip.color }}>
+              {tip.num}
             </div>
             <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: habit.color, marginBottom: 5 }}>{habit.title}</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#b4c6d4", lineHeight: 1.5 }}>{habit.copy}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: tip.color, marginBottom: 5 }}>{tip.title}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#b4c6d4", lineHeight: 1.5 }}>{tip.text}</div>
             </div>
           </div>
         ))}
@@ -4893,7 +4950,7 @@ function SpeechBubble({ step, index, total, onNext, onSkip, onBack, style, inner
   step: TourStep; index: number; total: number;
   onNext: () => void; onSkip: () => void; onBack: () => void;
   style?: React.CSSProperties;
-  innerRef?: React.RefObject<HTMLDivElement | null>;
+  innerRef?: React.RefObject<HTMLDivElement>;
 }) {
   const last = index === total - 1;
   return (
