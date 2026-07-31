@@ -5,7 +5,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath, pathToFileURL } from 'url';
 import {
-  getUser, getUserByPhone, getFamily, getLeaderboard, applyOutcome, takePendingResult,
+  getUser, getUserByPhone, getFamily, getLeaderboard, getShameboard, applyOutcome, takePendingResult,
   recordDrillFired, registerVerifiedUser, setUserEmail, detachVerifiedPhone, publicUser,
   createSession, getUserIdByToken,
 } from './store.js';
@@ -91,6 +91,9 @@ api.get('/api/me', async (req, res) => {
 api.get('/api/health', (_req, res) => res.json({ ok: true, uptime: Math.round(process.uptime()) }));
 
 api.get('/api/leaderboard', async (_req, res) => res.json(await getLeaderboard()));
+
+// Same household, ranked by scam count instead of XP — powers the Hall of Shame tab.
+api.get('/api/shame', async (_req, res) => res.json(await getShameboard()));
 
 api.get('/api/family', async (_req, res) => res.json(await getFamily()));
 

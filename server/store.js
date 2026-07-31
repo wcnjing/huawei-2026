@@ -186,6 +186,20 @@ export async function getFamily() {
   return Object.values(db.users).map(publicUser);
 }
 
+// Shameboard = the same household ranked the other way: most-scammed first. Mirrors
+// getLeaderboard() in shape so the client can wire it up the same way (fetch, fall back
+// to a local mock if the network is down). Everyone in `db.users` IS the family — this
+// store has no cross-household concept — so no extra scoping is needed here.
+export async function getShameboard() {
+  const { db } = await readDb();
+  return Object.values(db.users)
+    .sort((a, b) => b.timesScammed - a.timesScammed)
+    .map((u, i) => ({
+      rank: i + 1, id: u.id, name: u.name, scammed: u.timesScammed,
+      streak: u.streak, level: u.level, role: u.role,
+    }));
+}
+
 /**
  * Apply a finished drill's outcome to a user: award XP, adjust streak/stats,
  * and (for scored real calls) queue a pending result the app shows on next open.

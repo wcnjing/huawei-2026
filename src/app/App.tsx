@@ -240,6 +240,7 @@ type SmsOutcome = "reported" | "asked-family" | "clicked-link" | "closed-page";
 type EmailOutcome = "reported" | "asked-family" | "submitted-details" | "opened-attachment" | "cancelled-download";
 
 type LeaderboardRow = { rank: number; name: string; score: number; wins?: number; area?: string };
+type ShameRow = { rank: number; id?: string; name: string; scammed: number; streak?: number; area?: string };
 
 type FurnitureItem = { id: string; name: string; sellValue: number; memberId: string };
 type ChatMsg = {
@@ -1707,17 +1708,6 @@ const HALL_OF_FAME = [
   { rank: 8, name: "GUARDIAN7", score: 3100, wins: 31, area: "Downtown" },
 ];
 
-const HALL_OF_SHAME = [
-  { rank: 1, name: "GULLIBLE_G", scammed: 47, loss: 12400, area: "Westside" },
-  { rank: 2, name: "EASY_MARK", scammed: 38, loss: 9800, area: "Uptown" },
-  { rank: 3, name: "CLK_ANYTHING", scammed: 31, loss: 7200, area: "Midtown" },
-  { rank: 4, name: "OOPS_IDIDIT", scammed: 24, loss: 4100, area: "Eastside" },
-  { rank: 5, name: "NOTSCAMPROOF", scammed: 18, loss: 3300, area: "Downtown" },
-  { rank: 6, name: "TRYHRDR_NXT", scammed: 12, loss: 2100, area: "Southside" },
-  { rank: 7, name: "DEFENDER1", scammed: 7, loss: 900, area: "Southside" },
-  { rank: 8, name: "PLAYER_001", scammed: 3, loss: 400, area: "Downtown" },
-];
-
 // ─────────────────────────────────────────────────────────────────────────
 // FURNITURE STORE
 // ─────────────────────────────────────────────────────────────────────────
@@ -2609,6 +2599,15 @@ const FAMILY_MEMBERS: FamilyMember[] = [
 ];
 
 const MEMBER_MAP = Object.fromEntries(FAMILY_MEMBERS.map(m => [m.id, m]));
+
+// Offline fallback for the Hall of Shame — the actual household, ranked by scam count,
+// used only until /api/shame answers. Replaces the old fake-stranger mock (GULLIBLE_G
+// etc.); this board is about the family, not a made-up neighborhood.
+function familyShameFallback(): ShameRow[] {
+  return [...FAMILY_MEMBERS]
+    .sort((a, b) => b.timesScammed - a.timesScammed)
+    .map((m, i) => ({ rank: i + 1, id: m.id, name: m.name, scammed: m.timesScammed, streak: m.streak, area: m.role }));
+}
 
 // Pixi — the AI coach. Not a real family member; synthetic entry for chat rendering.
 const PIXI_MEMBER = {
@@ -4028,7 +4027,7 @@ function ResultScreen({ win, drillType, smsOutcome, emailOutcome, activeMemberId
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: LEADERBOARD
 // ─────────────────────────────────────────────────────────────────────────
-function LeaderboardScreen() {
+function LeaderboardScreen({ activeMemberId }: { activeMemberId: string }) {
   const [tab, setTab] = useState<"fame" | "shame">("fame");
   return (
     <div className="flex flex-col h-full">
@@ -4043,7 +4042,7 @@ function LeaderboardScreen() {
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: tab === "shame" ? "#ff2d55" : "#2a3a5c" }}>HALL OF SHAME</div>
         </button>
       </div>
-      {tab === "fame" ? <FameBoard /> : <ShameBoard />}
+      {tab === "fame" ? <FameBoard /> : <ShameBoard activeMemberId={activeMemberId} />}
     </div>
   );
 }
@@ -4093,25 +4092,42 @@ function FameBoard() {
   );
 }
 
-function ShameBoard() {
+function ShameBoard({ activeMemberId }: { activeMemberId: string }) {
+  const [board, setBoard] = useState<ShameRow[]>(familyShameFallback);
+
+  useEffect(() => {
+    apiGet<ShameRow[]>("/api/shame").then((rows) => {
+      if (rows && rows.length) {
+        setBoard(rows.map((r) => ({ ...r, area: r.area ?? (r.id ? MEMBER_MAP[r.id]?.role : undefined) ?? "FAMILY" })));
+      }
+    });
+  }, []);
+
+  // "You" is whoever is currently active on this shared device, not a fixed identity —
+  // matches how the rest of the app (shop, drills) tracks the active family member.
+  const you = board.find((p) => p.id === activeMemberId);
+  const youTag = you == null ? "" : you.scammed <= 2 ? "NOT BAD!" : you.scammed <= 5 ? "KEEP GOING" : "STEP IT UP";
+
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       <div className="mx-4 mt-3 px-3 py-2 flex items-center gap-2" style={{ backgroundColor: "rgba(255,45,85,0.08)", border: "3px solid #ff2d55" }}>
         <IconWarning size={12} color="#ff2d55" />
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff2d55" }}>MOST SCAMMED IN YOUR AREA</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff2d55" }}>MOST SCAMMED IN THE FAMILY</div>
       </div>
-      <div className="mx-4 mt-2 px-3 py-3 flex items-center gap-3" style={{ backgroundColor: "rgba(255,107,53,0.08)", border: "3px solid #ff6b35" }}>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ff6b35" }}>#8</div>
-        <PixelMascot size={28} />
-        <div className="flex-1">
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ff6b35" }}>YOU</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>3 TIMES SCAMMED</div>
+      {you && (
+        <div className="mx-4 mt-2 px-3 py-3 flex items-center gap-3" style={{ backgroundColor: "rgba(255,107,53,0.08)", border: "3px solid #ff6b35" }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ff6b35" }}>#{you.rank}</div>
+          <PixelMascot size={28} />
+          <div className="flex-1">
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ff6b35" }}>YOU</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>{you.scammed} TIME{you.scammed === 1 ? "" : "S"} SCAMMED</div>
+          </div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#00ff88" }}>{youTag}</div>
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#00ff88" }}>NOT BAD!</div>
-      </div>
+      )}
       <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2" style={{ scrollbarWidth: "none" }}>
-        {HALL_OF_SHAME.map((p, i) => {
-          const isYou = p.name === "PLAYER_001";
+        {board.map((p, i) => {
+          const isYou = p.id === activeMemberId;
           const shameColors = ["#ff2d55", "#ff2d55", "#ff2d55", "#ff6b35", "#ff6b35", "#ff6b35", "#ffe66d", "#ffe66d"];
           const rowColor = shameColors[i] ?? "#2a3a5c";
           return (
@@ -7118,7 +7134,7 @@ export default function App() {
                 soldItems={soldItems}
               />
             )}
-            {screen === "leaderboard" && <LeaderboardScreen />}
+            {screen === "leaderboard" && <LeaderboardScreen activeMemberId={activeMemberId} />}
             {screen === "store" && (
               <ShopScreen
                 activeMemberId={activeMemberId}
