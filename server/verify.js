@@ -11,6 +11,8 @@
 
 export const DEV_CODE = '000000';
 
+let forcedDevWarned = false;
+
 export class VerificationUnavailable extends Error {
   constructor() {
     super('phone verification is not configured (set TWILIO_* keys, or ALLOW_DEV_VERIFY=true for offline demos)');
@@ -29,6 +31,21 @@ function twilioConfigured() {
 
 /** 'twilio' | 'dev' | 'disabled' */
 export function verifyMode() {
+  // ESCAPE HATCH — DEMO ONLY. Normally Twilio wins so a typo'd TWILIO_* var can never
+  // silently downgrade to "accept 000000 from anyone" (see the header comment). This
+  // forces the bypass even with Twilio fully configured, which means ANY caller can
+  // claim ANY number and have SafeSpace place a real drill call to it. It is named to
+  // be greppable and is meant to be removed after the demo, not shipped.
+  if (process.env.UNSAFE_FORCE_DEV_VERIFY === 'true') {
+    if (!forcedDevWarned) {
+      forcedDevWarned = true;
+      console.warn(
+        '[verify] UNSAFE_FORCE_DEV_VERIFY=true — phone ownership is NOT being checked. '
+          + 'Anyone can register any number. Unset this before real use.',
+      );
+    }
+    return 'dev';
+  }
   if (twilioConfigured()) return 'twilio';
   if (process.env.ALLOW_DEV_VERIFY === 'true') return 'dev';
   return 'disabled';
