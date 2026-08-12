@@ -516,10 +516,11 @@ export async function takePendingResult(userId) {
 }
 
 export class DrillAttemptConflict extends Error {
-  constructor(message, { retryAfterMs = 0, attempt = null } = {}) {
+  constructor(message, { retryAfterMs = 0, attempt = null, reason = 'active' } = {}) {
     super(message);
     this.name = 'DrillAttemptConflict';
     this.code = 'DRILL_ATTEMPT_CONFLICT';
+    this.reason = reason;
     this.retryAfterMs = retryAfterMs;
     this.attempt = publicAttempt(attempt);
   }
@@ -588,6 +589,7 @@ export async function createDrillAttempt({
       const elapsed = latest ? createdAtMs - Date.parse(latest.createdAt) : Infinity;
       if (elapsed < minimumGap) {
         throw new DrillAttemptConflict('drill attempt is on cooldown', {
+          reason: 'cooldown',
           retryAfterMs: Math.ceil(minimumGap - elapsed),
           attempt: latest,
         });

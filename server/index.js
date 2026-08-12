@@ -199,8 +199,12 @@ function attemptConflict(res, error) {
   }
   const retryAfterMs = Math.max(0, Number(error.retryAfterMs) || 0);
   if (retryAfterMs) res.set('Retry-After', String(Math.max(1, Math.ceil(retryAfterMs / 1000))));
+  const seconds = Math.max(1, Math.ceil(retryAfterMs / 1000));
   res.status(409).json({
-    error: 'a recent drill is already active; wait before starting another',
+    error: error.reason === 'cooldown'
+      ? `the last drill finished; this channel is on cooldown for another ${seconds}s`
+      : 'a drill is already active; wait for it to finish',
+    reason: error.reason || 'active',
     retryAfterMs,
   });
   return true;
