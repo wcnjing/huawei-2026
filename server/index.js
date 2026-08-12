@@ -340,6 +340,10 @@ api.post('/api/verify/start', async (req, res) => {
       phone,
       requesterKey: req.ip,
       maxRequesterSends: process.env.PHONE_VERIFICATION_REQUESTER_MAX_PER_HOUR,
+      // The dev bypass returns a fixed code without texting anyone, so the
+      // per-destination caps protect nothing here. Same reasoning as the
+      // 'disabled' short-circuit above.
+      skipDestinationLimit: verifyMode() === 'dev',
     });
   } catch (error) {
     if (
@@ -350,8 +354,13 @@ api.post('/api/verify/start', async (req, res) => {
       if (retryAfterMs) {
         res.set('Retry-After', String(Math.max(1, Math.ceil(retryAfterMs / 1000))));
       }
+      const seconds = Math.max(1, Math.ceil(retryAfterMs / 1000));
+      const wait = seconds >= 120 ? `${Math.ceil(seconds / 60)} minutes` : `${seconds}s`;
       return res.status(429).json({
-        error: 'too many attempts, wait a bit',
+        error: error.reason === 'requester_hourly'
+          ? `too many verification requests from this network; try again in ${wait}`
+          : `too many codes sent to this number; try again in ${wait}`,
+        reason: error.reason || 'rate_limited',
         retryAfterMs,
       });
     }

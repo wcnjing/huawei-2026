@@ -954,10 +954,11 @@ export class EmailVerificationConflict extends Error {
 }
 
 export class VerificationRateLimitConflict extends Error {
-  constructor(message, { retryAfterMs = 0 } = {}) {
+  constructor(message, { retryAfterMs = 0, reason = 'rate_limited' } = {}) {
     super(message);
     this.name = 'VerificationRateLimitConflict';
     this.code = 'VERIFICATION_RATE_LIMITED';
+    this.reason = reason;
     this.retryAfterMs = retryAfterMs;
   }
 }
@@ -1086,6 +1087,10 @@ export async function reservePhoneVerificationSend({
   rateWindowMs = ONE_HOUR_MS,
   maxSends = PHONE_VERIFICATION_DESTINATION_MAX,
   maxRequesterSends = PHONE_VERIFICATION_REQUESTER_MAX,
+  // The destination caps exist to stop us texting a real phone repeatedly. When the
+  // caller sends no SMS at all (dev bypass), they guard nothing and only block demos.
+  // The requester cap still applies: it bounds writes to this store either way.
+  skipDestinationLimit = false,
 } = {}) {
   const destination = String(phone || '').trim();
   const requester = String(requesterKey || '').trim();
@@ -1101,20 +1106,24 @@ export async function reservePhoneVerificationSend({
   );
 
   return mutate((db) => {
-    const hits = prepareRateLimit(db, {
-      scope: 'phone-destination',
-      subject: destination,
-      nowMs: requestedAtMs,
-      windowMs: boundedWindowMs,
-    });
-    if (hits.length >= destinationMax) {
+    const hits = skipDestinationLimit
+      ? null
+      : prepareRateLimit(db, {
+          scope: 'phone-destination',
+          subject: destination,
+          nowMs: requestedAtMs,
+          windowMs: boundedWindowMs,
+        });
+    if (hits && hits.length >= destinationMax) {
       throw new VerificationRateLimitConflict('phone verification hourly limit reached', {
+        reason: 'destination_hourly',
         retryAfterMs: retryAfterForWindow(hits, requestedAtMs, boundedWindowMs),
       });
     }
-    const latest = hits.length ? hits[hits.length - 1] : null;
+    const latest = hits?.length ? hits[hits.length - 1] : null;
     if (latest !== null && requestedAtMs - latest < boundedCooldownMs) {
       throw new VerificationRateLimitConflict('phone verification is on cooldown', {
+        reason: 'destination_cooldown',
         retryAfterMs: Math.max(1, Math.ceil(
           boundedCooldownMs - (requestedAtMs - latest),
         )),
@@ -1131,6 +1140,7 @@ export async function reservePhoneVerificationSend({
       : null;
     if (requesterHits && requesterHits.length >= requesterMax) {
       throw new VerificationRateLimitConflict('phone verification requester limit reached', {
+        reason: 'requester_hourly',
         retryAfterMs: retryAfterForWindow(
           requesterHits,
           requestedAtMs,
@@ -1139,11 +1149,11 @@ export async function reservePhoneVerificationSend({
       });
     }
 
-    hits.push(requestedAtMs);
+    if (hits) hits.push(requestedAtMs);
     if (requesterHits) requesterHits.push(requestedAtMs);
     return {
       ok: true,
-      remaining: Math.max(0, destinationMax - hits.length),
+      remaining: hits ? Math.max(0, destinationMax - hits.length) : null,
     };
   });
 }

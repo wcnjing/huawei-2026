@@ -379,6 +379,30 @@ test('POST /api/verify/start caps one requester across different phone numbers',
   }
 });
 
+// The dev bypass texts nobody, so the per-destination caps guard nothing and would
+// only stop a demo from running the same number repeatedly. The requester cap still
+// applies (covered above) — that one bounds writes to the store, not SMS to a phone.
+test('POST /api/verify/start does not burn the destination cap in dev mode', async () => {
+  freshStore();
+  const previousDev = process.env.ALLOW_DEV_VERIFY;
+  const previousMax = process.env.PHONE_VERIFICATION_REQUESTER_MAX_PER_HOUR;
+  process.env.ALLOW_DEV_VERIFY = 'true';
+  process.env.PHONE_VERIFICATION_REQUESTER_MAX_PER_HOUR = '100';
+  try {
+    // Well past both the 5/hour destination cap and the 30s cooldown, same number.
+    for (let i = 0; i < 8; i += 1) {
+      const res = await post('/api/verify/start', { phone: '+6598000009' });
+      assert.equal(res.status, 200, `send ${i + 1} to one number should not be capped in dev`);
+    }
+  } finally {
+    if (previousDev === undefined) delete process.env.ALLOW_DEV_VERIFY;
+    else process.env.ALLOW_DEV_VERIFY = previousDev;
+    if (previousMax === undefined) delete process.env.PHONE_VERIFICATION_REQUESTER_MAX_PER_HOUR;
+    else process.env.PHONE_VERIFICATION_REQUESTER_MAX_PER_HOUR = previousMax;
+    freshStore();
+  }
+});
+
 // The email supplied at registration becomes a real send target, so it is validated
 // before the OTP is even checked — junk must never reach the store.
 test('POST /api/verify/check rejects a malformed email before anything else', async () => {
