@@ -240,6 +240,19 @@ function callConfigured() {
   );
 }
 
+// The landing page a drill link opens. `variant` gives the outcome a clear, distinct
+// look so the two results can't be mistaken for each other:
+//   win     — they reported / didn't fall for it (green)
+//   lose    — they clicked the scam link (red; the teaching "gotcha")
+//   neutral — confirm steps, invalid/expired links, errors (teal)
+// Retro to match the app, but self-contained (no external font — the strict CSP on these
+// pages allows inline styles only).
+const PAGE_VARIANTS = {
+  win: { bg: '#07130d', panel: '#0d2117', edge: '#00ff88', shadow: '#031a0e', accent: '#00ff88', ink: '#eafff2', mark: '✔', tag: 'DRILL PASSED' },
+  lose: { bg: '#170a0d', panel: '#210f11', edge: '#ff2d55', shadow: '#1a0509', accent: '#ff6b35', ink: '#ffeef1', mark: '✖', tag: 'GOTCHA' },
+  neutral: { bg: '#0a0e1a', panel: '#111827', edge: '#4ecdc4', shadow: '#04121a', accent: '#4ecdc4', ink: '#e8f4f8', mark: '🛡', tag: 'SAFESPACE' },
+};
+
 function educationalPage({
   title,
   heading,
@@ -247,7 +260,9 @@ function educationalPage({
   status = 200,
   confirmAction = null,
   confirmLabel = null,
+  variant = 'neutral',
 }) {
+  const v = PAGE_VARIANTS[variant] || PAGE_VARIANTS.neutral;
   const html = `<!doctype html>
 <html lang="en">
 <head>
@@ -255,17 +270,35 @@ function educationalPage({
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>${title}</title>
   <style>
-    :root{color-scheme:dark}body{margin:0;background:#07130d;color:#eafff2;font:16px/1.55 system-ui,sans-serif}
-    main{max-width:38rem;margin:12vh auto;padding:2rem;border:2px solid #00e884;background:#0d2117;box-shadow:8px 8px 0 #031008}
-    h1{color:#00ff91;margin-top:0}a{color:#8affc1}.mark{font-size:2.5rem}
-    button{padding:.8rem 1rem;border:0;background:#00e884;color:#04110a;font:700 1rem system-ui,sans-serif;cursor:pointer}
+    :root{color-scheme:dark}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+      background:${v.bg};color:${v.ink};font:16px/1.6 ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;padding:20px}
+    main{width:100%;max-width:34rem;padding:2rem 1.75rem;background:${v.panel};
+      border:4px solid ${v.edge};box-shadow:10px 10px 0 ${v.shadow}}
+    .tag{font-size:.7rem;letter-spacing:.35em;color:${v.accent};text-transform:uppercase;margin-bottom:1rem}
+    .mark{display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;
+      border:4px solid ${v.edge};color:${v.accent};font-size:2rem;font-weight:700;margin-bottom:1rem}
+    h1{margin:.25rem 0 1rem;font-size:1.35rem;line-height:1.3;letter-spacing:.02em;color:${v.accent};text-transform:uppercase}
+    p{margin:.6rem 0}
+    button{margin-top:1.25rem;padding:.9rem 1.2rem;border:4px solid ${v.bg};background:${v.accent};
+      color:${v.bg};font:700 .95rem ui-monospace,monospace;letter-spacing:.08em;cursor:pointer;
+      box-shadow:5px 5px 0 ${v.shadow}}
+    button:active{transform:translate(3px,3px);box-shadow:2px 2px 0 ${v.shadow}}
+    a{color:${v.accent}}
+    .home{display:inline-block;margin-top:1.5rem;font-size:.8rem;letter-spacing:.1em;text-transform:uppercase}
   </style>
 </head>
-<body><main><div class="mark" aria-hidden="true">🛡️</div><h1>${heading}</h1><p>${message}</p>
-${confirmAction && confirmLabel
+<body><main>
+  <div class="tag">${v.tag}</div>
+  <div class="mark" aria-hidden="true">${v.mark}</div>
+  <h1>${heading}</h1>
+  <p>${message}</p>
+  ${confirmAction && confirmLabel
     ? `<form method="post" action="${confirmAction}"><button type="submit">${confirmLabel}</button></form>`
     : ''}
-<p><a href="/">Return to SafeSpace</a></p></main></body></html>`;
+  <a class="home" href="/">▸ Return to SafeSpace</a>
+</main></body></html>`;
   return { html, status };
 }
 
@@ -824,21 +857,24 @@ async function signedDrillAction(req, res, action, outcome, shouldComplete) {
       message: 'SafeSpace kept the first confirmed action and did not replace it with this one.',
     });
   }
+  const duplicate = completion.status === 'duplicate';
   if (action === 'report') {
+    // Reported it → SUCCESS.
     return sendEducationalPage(res, {
-      title: 'Drill reported',
-      heading: completion.status === 'duplicate'
-        ? 'This report was already recorded'
-        : 'Good catch — this was a SafeSpace drill',
-      message: 'Reporting suspicious messages and checking through an official channel are strong scam-safety habits.',
+      variant: 'win',
+      title: 'Drill passed — you reported it',
+      heading: duplicate ? 'Already reported — nice work' : 'Good catch. This was a SafeSpace drill.',
+      message: duplicate
+        ? 'You spotted this one and reported it. That instinct — report, then verify through an official channel — is exactly what keeps scammers out.'
+        : 'That message was fake, and you did the right thing. Reporting it and checking through an official app or number you find yourself is the reflex that beats real scams.',
     });
   }
+  // Clicked the link → FAILURE. This is the teaching moment.
   return sendEducationalPage(res, {
-    title: 'SafeSpace drill reveal',
-    heading: completion.status === 'duplicate'
-      ? 'This link was already recorded'
-      : 'Stop — this was a SafeSpace drill',
-    message: 'You are safe. The organisation and alert were fictional. In a real message, close the page and verify through an official app, number, or website you find yourself.',
+    variant: 'lose',
+    title: 'Gotcha — this was a SafeSpace drill',
+    heading: duplicate ? 'You already opened this drill link' : 'Gotcha — this was a SafeSpace drill',
+    message: 'The message and the organisation were fictional, so you are completely safe. But in a real scam, that click is the moment you would have handed over your details or money. Next time: stop, and check through an official app, number, or website you find yourself — never the link in the message.',
   });
 }
 
