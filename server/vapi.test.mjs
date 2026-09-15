@@ -1,6 +1,7 @@
 // Run with: node --test
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import {
   outcomeFromVapiWebhook, classifyCallTranscript, fireDrillCall, buildFirstMessage,
   buildAssistant, CALL_OUTCOMES, parseVapiCallReport, callIdFromVapiWebhook,
@@ -241,4 +242,61 @@ test('transient call assistant requests a constrained structured outcome', () =>
   assert.equal(assistant.artifactPlan.videoRecordingEnabled, false);
   assert.equal(assistant.artifactPlan.loggingEnabled, false);
   assert.equal(assistant.artifactPlan.transcriptPlan.enabled, true);
+});
+
+// --- Scam intel: the default persona is untouched ----------------------------
+// These hashes were taken from the call as it shipped before scam intel existed. With no
+// tactic, a drill must be byte-for-byte that call. If you change the persona or the safety
+// rules on purpose, update them; if this fails and you did not, intel leaked into the
+// default path.
+test('with no tactic, the call prompt and opener are byte-for-byte the pre-intel call', () => {
+  const sha256 = (text) => crypto.createHash('sha256').update(text).digest('hex');
+  const assistant = buildAssistant('JUDGE');
+  assert.equal(
+    sha256(assistant.model.messages[0].content),
+    '84a8b23ecec405d3138dcc255eccae5baafec7371a1a35a35e0dab18b10f65bb',
+  );
+  assert.equal(sha256(assistant.firstMessage), '9a762ed2735a1253b9a612bfa605ce1b2ea810df6597ad2fb84333256841c652');
+});
+
+test('a malformed tactic is ignored rather than half-applied', () => {
+  const plain = buildAssistant('JUDGE');
+  for (const tactic of [{}, { roleBlock: 42 }, { roleBlock: 'ROLE: x', opener: { caller: 'A' } }]) {
+    const assistant = buildAssistant('JUDGE', tactic);
+    assert.equal(assistant.model.messages[0].content, plain.model.messages[0].content);
+    assert.equal(assistant.firstMessage, plain.firstMessage);
+  }
+});
+
+test('fireDrillCall sends a rendered tactic ahead of the unchanged safety rules', async () => {
+  process.env.VAPI_API_KEY = 'k';
+  process.env.VAPI_PHONE_NUMBER_ID = 'p';
+  const realFetch = global.fetch;
+  let sent;
+  global.fetch = async (_url, options) => {
+    sent = JSON.parse(options.body);
+    return new Response(JSON.stringify({ id: 'call_456', status: 'queued' }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+  try {
+    await fireDrillCall({
+      toNumber: '+6591234567',
+      name: 'JUDGE',
+      tactic: {
+        roleBlock: 'ROLE: test persona',
+        opener: { caller: 'Rachel', org: 'ParcelLink customer care', topic: 'a parcel held under your name' },
+      },
+    });
+  } finally {
+    global.fetch = realFetch;
+    delete process.env.VAPI_API_KEY;
+    delete process.env.VAPI_PHONE_NUMBER_ID;
+  }
+  assert.match(sent.assistant.firstMessage, /This is Rachel from ParcelLink customer care/);
+  const system = sent.assistant.model.messages[0].content;
+  assert.ok(system.startsWith('ROLE: test persona\nSTYLE:'));
+  assert.ok(system.includes('HARD SAFETY RULES'));
+  assert.ok(!system.includes('Officer Tan'));
 });

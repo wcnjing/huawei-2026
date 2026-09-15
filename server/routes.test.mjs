@@ -38,11 +38,13 @@ const {
   getUser,
   listPendingResults,
   markDrillAttemptSent,
+  mergeTacticCards,
   registerVerifiedUser,
 } = await import('./store.js');
 const {
   createDrillActionToken,
 } = await import('./drill-links.js');
+const { cardId, validateCard } = await import('./intel/validate.js');
 
 let server;
 let base;
@@ -50,6 +52,7 @@ const nativeFetch = globalThis.fetch;
 const relayRequests = [];
 let vapiMode = null;
 let vapiRequestCount = 0;
+const vapiRequests = [];
 
 // Keep provider I/O hermetic while preserving real HTTP requests to the local server.
 globalThis.fetch = async (input, init) => {
@@ -66,6 +69,13 @@ globalThis.fetch = async (input, init) => {
     vapiRequestCount += 1;
     if (vapiMode === 'network-error') {
       throw new TypeError('simulated connection reset after request delivery');
+    }
+    if (vapiMode === 'capture') {
+      vapiRequests.push(JSON.parse(String(init?.body || '{}')));
+      return new Response(JSON.stringify({ id: `call_${vapiRequestCount}`, status: 'queued' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
     }
     throw new Error('unexpected Vapi request in route test');
   }
@@ -581,4 +591,91 @@ test('signed drill action links reject the wrong action and score only once', as
   assert.equal((await getUser('you')).timesScammed, afterFirst.timesScammed);
   assert.equal((await listPendingResults('you')).length, 1);
   freshStore();
+});
+
+// ─── Scam intel ───────────────────────────────────────────────────────────
+test('the intel refresh cannot be triggered without the cron secret', async () => {
+  const previousSecret = process.env.CRON_SECRET;
+  const previousKey = process.env.ANTHROPIC_API_KEY;
+  delete process.env.CRON_SECRET;
+  delete process.env.ANTHROPIC_API_KEY;
+  const secret = 'route-test-cron-secret-is-at-least-32-characters';
+  try {
+    assert.equal((await fetch(base + '/api/intel/refresh')).status, 503, 'unconfigured means unavailable, never open');
+    process.env.CRON_SECRET = secret;
+    assert.equal((await fetch(base + '/api/intel/refresh')).status, 401);
+    assert.equal(
+      (await fetch(base + '/api/intel/refresh', { headers: { authorization: 'Bearer wrong' } })).status,
+      401,
+    );
+    assert.equal((await post('/api/intel/refresh', {}, { authorization: `Bearer ${secret}x` })).status, 401);
+    const authorised = await post('/api/intel/refresh', {}, { authorization: `Bearer ${secret}` });
+    assert.equal(authorised.status, 503, 'with no summariser key it stops before fetching anything');
+  } finally {
+    if (previousSecret === undefined) delete process.env.CRON_SECRET;
+    else process.env.CRON_SECRET = previousSecret;
+    if (previousKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+    else process.env.ANTHROPIC_API_KEY = previousKey;
+  }
+});
+
+test('call drills use a live tactic card only when intel is enabled', async () => {
+  freshStore();
+  const { card } = validateCard({
+    tacticName: 'Held parcel verification code',
+    impersonates: 'delivery_company',
+    pretext: 'A courier says a parcel is held until you confirm a code sent to your phone',
+    pressureLever: 'urgency',
+    theAsk: 'read_otp',
+    redFlags: ['unexpected parcel', 'asked for a one-time code'],
+  });
+  await mergeTacticCards([{
+    id: cardId(card),
+    ...card,
+    sourceId: 'route-test',
+    sourceLabel: 'Route test source',
+    sourceUrl: 'https://intel.test/advisory',
+    fetchedAt: new Date().toISOString(),
+  }]);
+  const plainUser = await registerVerifiedUser({ phone: '+6592224444', name: 'Plain Owner' });
+  const intelUser = await registerVerifiedUser({ phone: '+6592225555', name: 'Intel Owner' });
+  const previous = {
+    key: process.env.VAPI_API_KEY,
+    phone: process.env.VAPI_PHONE_NUMBER_ID,
+    intel: process.env.INTEL_ENABLED,
+  };
+  process.env.VAPI_API_KEY = 'route-test-vapi-key';
+  process.env.VAPI_PHONE_NUMBER_ID = 'route-test-phone-id';
+  vapiMode = 'capture';
+  vapiRequests.length = 0;
+
+  try {
+    delete process.env.INTEL_ENABLED;
+    const plain = await post('/api/drills/fire', {}, { authorization: `Bearer ${await createSession(plainUser.id)}` });
+    assert.equal(plain.status, 200);
+    assert.equal((await plain.json()).tactic, null);
+    assert.match(vapiRequests[0].assistant.firstMessage, /Officer Tan from the Office of Public Trust/);
+
+    process.env.INTEL_ENABLED = 'true';
+    const withIntel = await post('/api/drills/fire', {}, { authorization: `Bearer ${await createSession(intelUser.id)}` });
+    assert.equal(withIntel.status, 200);
+    const body = await withIntel.json();
+    assert.equal(body.tactic.sourceUrl, 'https://intel.test/advisory');
+    const assistant = vapiRequests[1].assistant;
+    assert.match(assistant.firstMessage, /Rachel from ParcelLink customer care/);
+    const system = assistant.model.messages[0].content;
+    assert.ok(system.indexOf('COVER STORY:') < system.indexOf('HARD SAFETY RULES'));
+    assert.ok(system.includes('REVEAL SCRIPT'));
+  } finally {
+    vapiMode = null;
+    for (const [name, value] of [
+      ['VAPI_API_KEY', previous.key],
+      ['VAPI_PHONE_NUMBER_ID', previous.phone],
+      ['INTEL_ENABLED', previous.intel],
+    ]) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+    freshStore();
+  }
 });

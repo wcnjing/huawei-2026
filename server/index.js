@@ -21,6 +21,7 @@ import {
   getLeaderboard,
   getUser,
   getUserIdByToken,
+  listLiveTacticCards,
   markDrillAttemptFailed,
   markDrillAttemptSent,
   peekPendingResult,
@@ -57,6 +58,7 @@ import {
 } from './drill-links.js';
 import { KNOWN_OUTCOMES } from './xp.js';
 import { educationalPage } from './pages.js';
+import { renderTactic } from './intel/render.js';
 
 const E164 = /^\+[1-9]\d{6,14}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -250,6 +252,29 @@ function callConfigured() {
 function sendEducationalPage(res, options) {
   const page = educationalPage(options);
   return res.status(page.status).type('html').send(page.html);
+}
+
+// Scam intel is opt-in. Off, empty, stale or broken all mean the same thing on the call
+// path: the default persona, exactly as before intel existed. A lookup failure is logged
+// and never stops a call being placed.
+async function tacticForCall() {
+  if (process.env.INTEL_ENABLED !== 'true') return null;
+  try {
+    const cards = await listLiveTacticCards();
+    const rendered = cards.map((card) => renderTactic(card)).filter(Boolean);
+    if (rendered.length < cards.length) {
+      console.error(`[intel] ${cards.length - rendered.length} stored tactic card(s) failed re-validation`);
+    }
+    return rendered.length ? rendered[crypto.randomInt(rendered.length)] : null;
+  } catch (error) {
+    console.error('[intel] tactic lookup failed; using the default persona:', error?.message || error);
+    return null;
+  }
+}
+
+function intelRefreshSecret() {
+  const secret = String(process.env.CRON_SECRET || '');
+  return secret.length >= 32 ? secret : null;
 }
 
 // --- Read models -----------------------------------------------------------
@@ -572,12 +597,14 @@ api.post('/api/drills/fire', async (req, res) => {
     throw error;
   }
 
+  const tactic = await tacticForCall();
   let call;
   try {
     call = await fireDrillCall({
       toNumber: user.phone,
       name: user.name,
       attemptId: attempt.id,
+      tactic,
     });
     if (!call?.id) throw new Error('Vapi accepted the request without a call id');
   } catch (error) {
@@ -605,7 +632,13 @@ api.post('/api/drills/fire', async (req, res) => {
     // tell the user to retry and accidentally place a second call.
     console.error('[api] call placed but sent-state persistence failed:', error?.message || error);
   }
-  return res.json({ ok: true, drillId: attempt.id, callId: call.id, status: call.status });
+  return res.json({
+    ok: true,
+    drillId: attempt.id,
+    callId: call.id,
+    status: call.status,
+    tactic: tactic ? tactic.card : null,
+  });
 });
 
 api.post('/api/drills/email', async (req, res) => {
@@ -878,6 +911,29 @@ api.post('/api/webhooks/vapi', async (req, res) => {
     return fail(res, 500, 'could not record call outcome', error);
   }
 });
+
+// --- Scam intel refresh -----------------------------------------------------
+// GET is what Vercel Cron sends, with "Authorization: Bearer $CRON_SECRET"; POST is the
+// same job as a manual demo trigger. Both need the secret, because a refresh spends model
+// tokens and fetches third-party sites. The job is imported on demand so the Claude SDK is
+// never loaded on the call path.
+async function handleIntelRefresh(req, res) {
+  const secret = intelRefreshSecret();
+  if (!secret) return fail(res, 503, 'intel refresh not configured');
+  if (!timingSafeEqualStr(req.get('authorization') || '', `Bearer ${secret}`)) {
+    return fail(res, 401, 'unauthorized');
+  }
+  try {
+    const { runIntelRefresh } = await import('./intel/refresh.js');
+    return res.json({ ok: true, ...(await runIntelRefresh()) });
+  } catch (error) {
+    if (error?.code === 'INTEL_UNAVAILABLE') return fail(res, 503, 'intel refresh not configured', error);
+    return fail(res, 500, 'intel refresh failed', error);
+  }
+}
+
+api.get('/api/intel/refresh', handleIntelRefresh);
+api.post('/api/intel/refresh', handleIntelRefresh);
 
 // Offline-only helper. It is absent unless explicitly enabled and still validates the
 // same outcome vocabulary as production paths.

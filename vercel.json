@@ -7,6 +7,9 @@
       "includeFiles": "server/**"
     }
   },
+  "crons": [
+    { "path": "/api/intel/refresh", "schedule": "0 19 * * *" }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api" },
     { "source": "/drill-reveal", "destination": "/api" },

@@ -1295,3 +1295,58 @@ export async function getUserIdByToken(token) {
   }
   return session.userId ?? null;
 }
+
+// --- Scam intel tactic cards ------------------------------------------------
+// A bounded rotating set, not an archive. Every request that reads this document pays
+// for what is stored here, so the set is capped and old cards age out. Cards are written
+// only by the refresh job after validation, and re-validated again before any call uses
+// one, so nothing here is trusted for having been stored.
+
+export const MAX_TACTIC_CARDS = 10;
+export const DEFAULT_TACTIC_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+export function tacticMaxAgeMs() {
+  const configured = Number(process.env.INTEL_CARD_MAX_AGE_MS);
+  return Number.isFinite(configured)
+    && configured >= 60 * 60 * 1000
+    && configured <= 180 * 24 * 60 * 60 * 1000
+    ? configured
+    : DEFAULT_TACTIC_MAX_AGE_MS;
+}
+
+function liveTacticCards(cards, nowMs, maxAgeMs) {
+  return (Array.isArray(cards) ? cards : []).filter((card) => {
+    const fetchedAt = Date.parse(card?.fetchedAt);
+    // A timestamp from the future is as suspect as a stale one.
+    return Number.isFinite(fetchedAt) && fetchedAt <= nowMs + 5 * 60 * 1000 && nowMs - fetchedAt <= maxAgeMs;
+  });
+}
+
+export async function listLiveTacticCards({ now = Date.now(), maxAgeMs = tacticMaxAgeMs() } = {}) {
+  const { db } = await readDb();
+  return liveTacticCards(db.intel?.cards, now, maxAgeMs);
+}
+
+/**
+ * Merge freshly validated cards into the live set: newest first, one card per id, capped.
+ * Re-running a refresh with the same results only refreshes timestamps, so a duplicated
+ * cron invocation cannot grow the set.
+ */
+export async function mergeTacticCards(incoming, { now = Date.now(), maxAgeMs = tacticMaxAgeMs() } = {}) {
+  return mutate((db) => {
+    const byId = new Map();
+    const candidates = liveTacticCards(
+      [...(Array.isArray(incoming) ? incoming : []), ...(Array.isArray(db.intel?.cards) ? db.intel.cards : [])],
+      now,
+      maxAgeMs,
+    );
+    for (const card of candidates) {
+      if (typeof card?.id === 'string' && !byId.has(card.id)) byId.set(card.id, card);
+    }
+    const cards = [...byId.values()]
+      .sort((a, b) => Date.parse(b.fetchedAt) - Date.parse(a.fetchedAt))
+      .slice(0, MAX_TACTIC_CARDS);
+    db.intel = { cards, updatedAt: new Date(now).toISOString() };
+    return cards;
+  });
+}
