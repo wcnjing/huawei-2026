@@ -1,4 +1,5 @@
 // SafeSpace backend — serves the built React app and the consent-gated drill API.
+import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import crypto from 'crypto';
