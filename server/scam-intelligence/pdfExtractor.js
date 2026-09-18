@@ -1,14 +1,23 @@
 import { PDFParse } from 'pdf-parse';
-import fs from 'fs/promises';
+import supabase from '../supabase.js';
 
 /**
- * Extract English text from page 1 of a scam bulletin PDF.
+ * Download a scam bulletin PDF from Supabase Storage
+ * and extract text from page 1.
  *
- * @param {string} filePath - Absolute path to the PDF
- * @returns {Promise<string>} Extracted English text from page 1
+ * @param {string} storagePath - Path inside the scam-bulletins bucket
+ * @returns {Promise<string>} Extracted text from page 1
  */
-export async function extractPdfText(filePath) {
-  const buffer = await fs.readFile(filePath);
+export async function extractPdfText(storagePath) {
+  const { data, error } = await supabase.storage
+    .from('scam-bulletins')
+    .download(storagePath);
+
+  if (error) {
+    throw new Error(`Failed to download PDF: ${error.message}`);
+  }
+
+  const buffer = Buffer.from(await data.arrayBuffer());
 
   const parser = new PDFParse({
     data: buffer,
