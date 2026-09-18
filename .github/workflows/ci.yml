@@ -11,6 +11,18 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: safespace-test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -h 127.0.0.1"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,5 +31,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
-      - run: npm test
+      - name: Tests on PGlite
+        run: npm test
+      - name: Tests on Postgres 17, including the race tests
+        run: npm test
+        env:
+          TEST_DATABASE_URL: postgres://postgres:safespace-test@localhost:5432/postgres
       - run: npm run build
