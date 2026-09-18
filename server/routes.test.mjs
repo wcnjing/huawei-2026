@@ -8,12 +8,8 @@
 // dev-verify bypass. That is the configuration whose guarantees actually matter.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
+import { resetDb, setupTestDb, teardownTestDb } from './testdb.mjs';
 
-const TEST_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'safespace-routes-'));
-const DATA_FILE = path.join(TEST_DIR, 'data.json');
 const WEBHOOK_SECRET = 'route-test-vapi-secret-is-at-least-32-characters';
 const LINK_SECRET = 'route-test-drill-link-secret-is-at-least-32-characters';
 const RELAY_URL = 'https://mail-relay.test/exec';
@@ -22,7 +18,6 @@ const VAPI_URL = 'https://api.vapi.ai/call';
 // Production-shaped env, set BEFORE importing the app.
 delete process.env.ENABLE_DEMO_ROUTES;
 delete process.env.ALLOW_DEV_VERIFY;
-process.env.SAFESPACE_DATA_FILE = DATA_FILE;
 process.env.VAPI_WEBHOOK_SECRET = WEBHOOK_SECRET;
 process.env.DRILL_LINK_SECRET = LINK_SECRET;
 process.env.IDENTITY_LOOKUP_SECRET = 'route-test-identity-lookup-secret-over-32-characters';
@@ -30,6 +25,7 @@ process.env.PUBLIC_URL = 'https://safespace.test';
 process.env.GOOGLE_SCRIPT_URL = RELAY_URL;
 process.env.GOOGLE_SCRIPT_SECRET = 'route-test-relay-secret';
 
+await setupTestDb();
 const { app } = await import('./index.js');
 const {
   createDrillAttempt,
@@ -82,7 +78,7 @@ globalThis.fetch = async (input, init) => {
   return nativeFetch(input, init);
 };
 
-const freshStore = () => fs.rmSync(DATA_FILE, { force: true });
+const freshStore = resetDb;
 
 before(async () => {
   // Register the callback as part of listen(). Attaching a one-shot `listening`
@@ -107,7 +103,7 @@ after(async () => {
     );
   }
   globalThis.fetch = nativeFetch;
-  fs.rmSync(TEST_DIR, { recursive: true, force: true });
+  await teardownTestDb();
 });
 
 const post = (p, body, headers = {}) =>
@@ -165,7 +161,7 @@ test('POST /api/drills/fire cannot be aimed at another user via the body', async
 });
 
 test('uncertain call delivery is kept active and cannot be immediately retried', async () => {
-  freshStore();
+  await freshStore();
   const user = await registerVerifiedUser({ phone: '+6592223333', name: 'Call Owner' });
   const token = await createSession(user.id);
   const headers = { authorization: `Bearer ${token}` };
@@ -198,7 +194,7 @@ test('uncertain call delivery is kept active and cannot be immediately retried',
     else process.env.VAPI_API_KEY = previousApiKey;
     if (previousPhoneId === undefined) delete process.env.VAPI_PHONE_NUMBER_ID;
     else process.env.VAPI_PHONE_NUMBER_ID = previousPhoneId;
-    freshStore();
+    await freshStore();
   }
 });
 
@@ -227,7 +223,7 @@ test('POST /api/me/phone/detach is refused without a session token', async () =>
 });
 
 test('POST /api/me/phone/detach removes the phone and revokes the calling session', async () => {
-  freshStore();
+  await freshStore();
   const user = await registerVerifiedUser({ phone: '+6591234567', name: 'Detach' });
   const token = await createSession(user.id);
   const headers = { authorization: `Bearer ${token}` };
@@ -238,7 +234,7 @@ test('POST /api/me/phone/detach removes the phone and revokes the calling sessio
   assert.equal((await getUser(user.id)).phone, undefined);
   assert.equal((await getUser(user.id)).consentToDrills, false);
   assert.equal((await post('/api/me/phone/detach', {}, headers)).status, 401);
-  freshStore();
+  await freshStore();
 });
 
 test('POST /api/drills/sms cannot be aimed at another number via the body', async () => {
@@ -261,7 +257,7 @@ test('POST /api/webhooks/vapi fails closed when no secret is configured', async 
 });
 
 test('an authenticated webhook cannot attribute an unknown call to the demo user', async () => {
-  freshStore();
+  await freshStore();
   const before = await getUser('you');
   const res = await post(
     '/api/webhooks/vapi',
@@ -283,11 +279,11 @@ test('an authenticated webhook cannot attribute an unknown call to the demo user
   assert.deepEqual(await res.json(), { ignored: true, reason: 'unknown attempt' });
   assert.deepEqual(await getUser('you'), before);
   assert.deepEqual(await listPendingResults('you'), []);
-  freshStore();
+  await freshStore();
 });
 
 test('a no-answer webhook is unscored, durable until ACK, and exactly once', async () => {
-  freshStore();
+  await freshStore();
   const attempt = await createDrillAttempt({
     userId: 'you',
     channel: 'call',
@@ -339,7 +335,7 @@ test('a no-answer webhook is unscored, durable until ACK, and exactly once', asy
     (await (await fetch(base + '/api/drills/pending-result')).json()).pending,
     null,
   );
-  freshStore();
+  await freshStore();
 });
 
 // ─── Demo backdoor (review finding 4) ─────────────────────────────────────
@@ -359,17 +355,17 @@ test('POST /api/verify/start rejects a non-E.164 phone', async () => {
 });
 
 test('an unconfigured verification provider does not consume the durable send quota', async () => {
-  freshStore();
+  await freshStore();
   const payload = { phone: '+6598765432' };
   const first = await post('/api/verify/start', payload);
   const second = await post('/api/verify/start', payload);
   assert.equal(first.status, 503);
   assert.equal(second.status, 503, 'no provider send occurred, so no cooldown should be reserved');
-  freshStore();
+  await freshStore();
 });
 
 test('POST /api/verify/start caps one requester across different phone numbers', async () => {
-  freshStore();
+  await freshStore();
   const previousDev = process.env.ALLOW_DEV_VERIFY;
   const previousMax = process.env.PHONE_VERIFICATION_REQUESTER_MAX_PER_HOUR;
   process.env.ALLOW_DEV_VERIFY = 'true';
@@ -385,7 +381,7 @@ test('POST /api/verify/start caps one requester across different phone numbers',
     else process.env.ALLOW_DEV_VERIFY = previousDev;
     if (previousMax === undefined) delete process.env.PHONE_VERIFICATION_REQUESTER_MAX_PER_HOUR;
     else process.env.PHONE_VERIFICATION_REQUESTER_MAX_PER_HOUR = previousMax;
-    freshStore();
+    await freshStore();
   }
 });
 
@@ -393,7 +389,7 @@ test('POST /api/verify/start caps one requester across different phone numbers',
 // only stop a demo from running the same number repeatedly. The requester cap still
 // applies (covered above) — that one bounds writes to the store, not SMS to a phone.
 test('POST /api/verify/start does not burn the destination cap in dev mode', async () => {
-  freshStore();
+  await freshStore();
   const previousDev = process.env.ALLOW_DEV_VERIFY;
   const previousMax = process.env.PHONE_VERIFICATION_REQUESTER_MAX_PER_HOUR;
   process.env.ALLOW_DEV_VERIFY = 'true';
@@ -409,7 +405,7 @@ test('POST /api/verify/start does not burn the destination cap in dev mode', asy
     else process.env.ALLOW_DEV_VERIFY = previousDev;
     if (previousMax === undefined) delete process.env.PHONE_VERIFICATION_REQUESTER_MAX_PER_HOUR;
     else process.env.PHONE_VERIFICATION_REQUESTER_MAX_PER_HOUR = previousMax;
-    freshStore();
+    await freshStore();
   }
 });
 
@@ -435,7 +431,7 @@ test('POST /api/verify/check requires a valid name before verification', async (
 
 // ─── Anonymous practice still works (no regression for the demo) ──────────
 test('anonymous practice drills still score against the demo account', async () => {
-  freshStore();
+  await freshStore();
   const payload = {
     outcome: 'reported',
     channel: 'email',
@@ -457,7 +453,7 @@ test('anonymous practice drills still score against the demo account', async () 
   assert.equal(duplicateBody.status, 'duplicate');
   assert.equal(duplicateBody.applied, false);
   assert.equal(duplicateBody.record.id, record.id);
-  freshStore();
+  await freshStore();
 });
 
 test('practice scoring rejects missing ids, unknown channels and unknown outcomes', async () => {
@@ -484,7 +480,7 @@ test('practice scoring rejects missing ids, unknown channels and unknown outcome
 });
 
 test('email ownership uses an opaque token and changes only after explicit POST', async () => {
-  freshStore();
+  await freshStore();
   relayRequests.length = 0;
   const user = await registerVerifiedUser({ phone: '+6591112222', name: 'Inbox Owner' });
   const token = await createSession(user.id);
@@ -553,11 +549,11 @@ test('email ownership uses an opaque token and changes only after explicit POST'
     emailHint: 'o***@example.com',
     pending: false,
   });
-  freshStore();
+  await freshStore();
 });
 
 test('signed drill action links reject the wrong action and score only once', async () => {
-  freshStore();
+  await freshStore();
   const before = await getUser('you');
   const attempt = await createDrillAttempt({ userId: 'you', channel: 'email' });
   await markDrillAttemptSent(attempt.id);
@@ -590,7 +586,7 @@ test('signed drill action links reject the wrong action and score only once', as
   assert.equal(replay.status, 200);
   assert.equal((await getUser('you')).timesScammed, afterFirst.timesScammed);
   assert.equal((await listPendingResults('you')).length, 1);
-  freshStore();
+  await freshStore();
 });
 
 // ─── Scam intel ───────────────────────────────────────────────────────────
@@ -620,7 +616,7 @@ test('the intel refresh cannot be triggered without the cron secret', async () =
 });
 
 test('call drills use a live tactic card only when intel is enabled', async () => {
-  freshStore();
+  await freshStore();
   const { card } = validateCard({
     tacticName: 'Held parcel verification code',
     impersonates: 'delivery_company',
@@ -676,6 +672,6 @@ test('call drills use a live tactic card only when intel is enabled', async () =
       if (value === undefined) delete process.env[name];
       else process.env[name] = value;
     }
-    freshStore();
+    await freshStore();
   }
 });

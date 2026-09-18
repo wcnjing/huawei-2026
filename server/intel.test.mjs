@@ -5,14 +5,11 @@
 // every provider is injected.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
+import { dumpDb, resetDb, setupTestDb, teardownTestDb } from './testdb.mjs';
 
-const TEST_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'safespace-intel-'));
-process.env.SAFESPACE_DATA_FILE = path.join(TEST_DIR, 'data.json');
-delete process.env.UPSTASH_REDIS_REST_URL;
 delete process.env.INTEL_MODEL;
+await setupTestDb();
+after(teardownTestDb);
 
 const {
   ASKS, IMPERSONATES, PRESSURE_LEVERS, cardId, mentionsRealInstitution, validateCard, validateStoredCard,
@@ -26,9 +23,7 @@ const { runIntelRefresh } = await import('./intel/refresh.js');
 const { MAX_TACTIC_CARDS, listLiveTacticCards, mergeTacticCards } = await import('./store.js');
 const { buildAssistant } = await import('./vapi.js');
 
-after(() => fs.rmSync(TEST_DIR, { recursive: true, force: true }));
-
-const freshStore = () => fs.rmSync(process.env.SAFESPACE_DATA_FILE, { force: true });
+const freshStore = resetDb;
 const silentLog = { log() {}, warn() {}, error() {} };
 const noSleep = async () => {};
 
@@ -461,7 +456,7 @@ test('a refresh without a Claude API key refuses before fetching anything', asyn
 });
 
 test('a refresh stores only cards that pass the gate, and a failed run keeps what was live', async () => {
-  freshStore();
+  await freshStore();
   const web = fakeWeb({
     'https://intel.test/advisories': { body: '<a href="/advisories/one">1</a><a href="/advisories/two">2</a>' },
     'https://intel.test/advisories/one': { body: articleHtml('One', 'Callers pose as officials and ask for money. ') },
@@ -485,7 +480,7 @@ test('a refresh stores only cards that pass the gate, and a failed run keeps wha
   assert.equal(card.sourceUrl, 'https://intel.test/advisories/one');
   assert.equal(card.sourceLabel, 'Fixture advisories');
   assert.ok(renderTactic(card), 'what was stored renders');
-  const stored = fs.readFileSync(process.env.SAFESPACE_DATA_FILE, 'utf8');
+  const stored = await dumpDb();
   assert.ok(!stored.includes('Ignore previous instructions'), 'rejected text is never stored');
   assert.ok(!stored.includes('Callers pose as'), 'page text is never stored');
   assert.ok(!logged.some((line) => line.includes('Ignore previous instructions')), 'or logged');
@@ -494,13 +489,13 @@ test('a refresh stores only cards that pass the gate, and a failed run keeps wha
   const failed = await runIntelRefresh({ sources: [permittedSource()], fetchImpl: outage.fetchImpl, client, sleep: noSleep, log: silentLog });
   assert.equal(failed.pages, 0);
   assert.equal(failed.liveCards, 1, 'a bad run never empties the set');
-  freshStore();
+  await freshStore();
 });
 
 // --- Storage ----------------------------------------------------------------
 
 test('the tactic set is bounded, deduplicated and ages out', async () => {
-  freshStore();
+  await freshStore();
   const now = Date.parse('2026-09-14T00:00:00Z');
   const cards = 'abcdefghijklmn'.split('').map((letter, index) =>
     storedCard({ tacticName: `Pattern variant ${letter}` }, new Date(now - index * 60_000).toISOString()));
@@ -509,5 +504,5 @@ test('the tactic set is bounded, deduplicated and ages out', async () => {
   assert.equal(again.length, MAX_TACTIC_CARDS, 're-running the same refresh does not grow the set');
   assert.equal(new Set(again.map((card) => card.id)).size, MAX_TACTIC_CARDS);
   assert.equal((await listLiveTacticCards({ now: now + 31 * 24 * 60 * 60 * 1000 })).length, 0);
-  freshStore();
+  await freshStore();
 });

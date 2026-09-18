@@ -1,26 +1,21 @@
-// Tiny whole-document store. Fine for a POC/demo — swap for Postgres (per the spec's
-// data model) when it's real. Seeds from data.seed.json on first run.
+// SafeSpace data store, on Postgres: Supabase in production, PGlite locally and in tests
+// (see db.js). Every export keeps the contract it had on the old whole-document store,
+// so server/index.js did not change when the storage moved.
 //
-// Two backends, chosen by environment:
-//
-//   file  (default)  — server/data.json on a real disk. Used by `npm run dev` and by
-//                      the Huawei ECS deploy, where the disk persists across restarts.
-//   redis (Upstash)  — used when UPSTASH_REDIS_REST_URL is set.
-//
-// The Redis backend exists because serverless hosts (Vercel, Lambda) give you a
-// READ-ONLY filesystem. There, the very first `fs.copyFileSync` below throws EROFS and
-// every endpoint 500s — the app doesn't degrade, it dies. Upstash is reachable over
-// plain HTTP, so no TCP connection pooling is needed and no driver dependency either.
-//
-// Both backends keep the same "load the whole document, mutate, save it back" shape, so
-// the logic below is identical either way. The difference is that several serverless
-// instances can run at once, which makes the read-modify-write race real rather than
-// theoretical — hence the compare-and-set in `mutate`.
-import fs from 'fs';
-import path from 'path';
+// Each write is one transaction that locks exactly what it reads: a user row, an attempt
+// row, or, where the row may not exist yet, an advisory lock on a hashed key. Writes for
+// different users no longer wait for each other.
 import crypto from 'crypto';
-import { fileURLToPath } from 'url';
 import { computeResult, KNOWN_OUTCOMES } from './xp.js';
+import { query, transaction } from './db.js';
+import {
+  INSERT_USER_SQL,
+  UPDATE_USER_SQL,
+  attemptFromRow,
+  resultFromRow,
+  userFromRow,
+  userValues,
+} from './rows.js';
 
 // Fields that must NEVER leave the server in a list/leaderboard response.
 // `phone` is PII; sessions are bearer credentials.
@@ -42,208 +37,6 @@ export function publicUser(u) {
   return safe;
 }
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DEFAULT_DATA_FILE = path.join(__dirname, 'data.json');
-const SEED_FILE = path.join(__dirname, 'data.seed.json');
-
-// Tests and one-off tools must never have to delete the application's normal data
-// file. Resolve this lazily so a test can select an isolated path even if another
-// module imported the store first.
-function dataFile() {
-  const configured = String(process.env.SAFESPACE_DATA_FILE || '').trim();
-  return configured ? path.resolve(configured) : DEFAULT_DATA_FILE;
-}
-
-const DB_KEY = 'safespace:db';
-const VERSION_KEY = 'safespace:db:version';
-
-// Read lazily rather than at import time so tests can point the store at a backend
-// after the module has already been loaded.
-const redisUrl = () => process.env.UPSTASH_REDIS_REST_URL;
-const usingRedis = () => Boolean(redisUrl());
-
-// Read from disk once per process. Until the store has been written to, EVERY request
-// falls back to the seed, so without this each one paid a synchronous disk read inside
-// the request path — on a serverless host, in the handler.
-//
-// The raw TEXT is cached rather than the parsed object, and re-parsed per call on
-// purpose: callers mutate the document they are handed, so they each need their own
-// copy. Parsing is the cheap half; the disk hit was the expensive one.
-let seedText = null;
-function readSeed() {
-  if (seedText === null) seedText = fs.readFileSync(SEED_FILE, 'utf-8');
-  return JSON.parse(seedText);
-}
-
-// --- File backend -----------------------------------------------------------
-
-function fileRead() {
-  // Read first and handle the miss, rather than checking existence and then reading:
-  // the file can be removed in between (a reset, a redeploy, another test process),
-  // and an ENOENT thrown from inside a request is a 500 for something recoverable.
-  try {
-    return { db: JSON.parse(fs.readFileSync(dataFile(), 'utf-8')), version: null };
-  } catch (e) {
-    if (e.code !== 'ENOENT') throw e;
-    // No file yet: hand back the seed. Whoever is mutating will persist it on save,
-    // so a pure read never has to write.
-    return { db: readSeed(), version: null };
-  }
-}
-
-function fileWrite(db) {
-  const destination = dataFile();
-  fs.mkdirSync(path.dirname(destination), { recursive: true });
-  const temporary = `${destination}.${process.pid}.${crypto.randomUUID()}.tmp`;
-  let fd;
-  try {
-    // Write and fsync a complete sibling file, then atomically replace the old
-    // document. A crash can now leave an unused .tmp file, but never half JSON.
-    fd = fs.openSync(temporary, 'wx', 0o600);
-    fs.writeFileSync(fd, JSON.stringify(db, null, 2));
-    fs.fsyncSync(fd);
-    fs.closeSync(fd);
-    fd = undefined;
-    fs.renameSync(temporary, destination);
-  } catch (error) {
-    if (fd !== undefined) fs.closeSync(fd);
-    try { fs.unlinkSync(temporary); } catch (cleanupError) {
-      if (cleanupError.code !== 'ENOENT') throw cleanupError;
-    }
-    throw error;
-  }
-  return true; // a single process writing synchronously cannot lose a race with itself
-}
-
-// --- Redis backend ----------------------------------------------------------
-
-async function redisCmd(args) {
-  const res = await fetch(redisUrl(), {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(args.map(String)),
-  });
-  if (!res.ok) throw new Error(`upstash returned ${res.status}`);
-  const body = await res.json();
-  if (body.error) throw new Error(`upstash: ${body.error}`);
-  return body.result;
-}
-
-async function redisRead() {
-  const [raw, version] = await redisCmd(['MGET', DB_KEY, VERSION_KEY]);
-  // Empty database: fall back to the seed, and record that we expected no version so
-  // the first write only lands if nobody else seeded it first.
-  if (raw == null) return { db: readSeed(), version: null };
-  return { db: JSON.parse(raw), version };
-}
-
-// Writes only if the version we read is still current, so two instances handling
-// requests at the same time can't silently clobber each other's XP updates. Redis
-// runs this atomically; `false` is what a missing key looks like inside Lua.
-const CAS_SCRIPT = `
-local current = redis.call('GET', KEYS[2])
-if current == ARGV[2] or (current == false and ARGV[2] == '') then
-  redis.call('SET', KEYS[1], ARGV[1])
-  redis.call('INCR', KEYS[2])
-  return 1
-end
-return 0
-`;
-
-async function redisWrite(db, version) {
-  const ok = await redisCmd([
-    'EVAL', CAS_SCRIPT, 2, DB_KEY, VERSION_KEY, JSON.stringify(db), version ?? '',
-  ]);
-  return Number(ok) === 1;
-}
-
-// --- Document access --------------------------------------------------------
-
-async function readDb() {
-  return usingRedis() ? redisRead() : fileRead();
-}
-
-/**
- * Returned by a `mutate` callback that decided nothing needs changing — the write is
- * then skipped entirely, so a read-only outcome costs a read rather than a round trip
- * plus a write.
- */
-const UNCHANGED = Symbol('store.unchanged');
-const unchanged = (value = null) => ({ [UNCHANGED]: true, value });
-let fileMutationTail = Promise.resolve();
-
-function mutationResult(result) {
-  if (result === UNCHANGED) return { changed: false, value: null };
-  if (result?.[UNCHANGED]) return { changed: false, value: result.value };
-  return { changed: true, value: result };
-}
-
-/**
- * Read the document, apply `fn` to it, and save it back — retrying if a concurrent
- * writer got there first. `fn` must be pure enough to run more than once: it may be
- * replayed against a fresher copy of the document. Return `UNCHANGED` from `fn` to
- * skip the write.
- */
-async function mutate(fn) {
-  if (!usingRedis()) {
-    // `async` requests can both read before either writes even though writeFileSync is
-    // synchronous. Serialize the complete read/mutate/rename transaction in-process.
-    const run = async () => {
-      const { db } = fileRead();
-      const result = mutationResult(fn(db));
-      if (result.changed) fileWrite(db);
-      return result.value;
-    };
-    const queued = fileMutationTail.then(run, run);
-    // Keep the queue usable after a rejected mutation.
-    fileMutationTail = queued.then(() => undefined, () => undefined);
-    return queued;
-  }
-
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const { db, version } = await readDb();
-    const result = mutationResult(fn(db));
-    if (!result.changed) return result.value;
-
-    const saved = usingRedis() ? await redisWrite(db, version) : fileWrite(db);
-    if (saved) return result.value;
-
-    // Retry immediately and every writer that just collided retries in lockstep,
-    // colliding again. A little jittered backoff spreads them out.
-    await new Promise((r) => setTimeout(r, 10 * (attempt + 1) + Math.random() * 15));
-  }
-  throw new Error('store: gave up after 5 attempts, too many concurrent writers');
-}
-
-export async function getUser(id) {
-  const { db } = await readDb();
-  return db.users[id] || null;
-}
-
-export async function listConsentedUsers() {
-  const { db } = await readDb();
-  return Object.values(db.users).filter((u) => u.consentToDrills);
-}
-
-// Leaderboard = users ranked by xp, shaped for the React LeaderboardScreen.
-// Explicit field list — never spreads the raw user, so PII can't leak in.
-export async function getLeaderboard() {
-  const { db } = await readDb();
-  return Object.values(db.users)
-    .sort((a, b) => b.xp - a.xp)
-    .map((u, i) => ({ rank: i + 1, id: u.id, name: u.name, score: u.xp, level: u.level, wins: u.timesSafe }));
-}
-
-// All family members, shaped for the React FamilyHomeScreen (dollhouse rooms).
-// Projected — this endpoint is world-readable, so it must not carry phone numbers.
-export async function getFamily() {
-  const { db } = await readDb();
-  return Object.values(db.users).map(publicUser);
-}
-
 const OUTCOME_SET = new Set(KNOWN_OUTCOMES);
 const ACTIVE_ATTEMPT_STATUSES = new Set(['created', 'sent']);
 const TERMINAL_ATTEMPT_STATUSES = new Set(['completed', 'failed']);
@@ -252,6 +45,8 @@ const EMAIL_VERIFICATION_ACCOUNT_MAX = 5;
 const EMAIL_VERIFICATION_DESTINATION_MAX = 3;
 const PHONE_VERIFICATION_DESTINATION_MAX = 5;
 const PHONE_VERIFICATION_REQUESTER_MAX = 20;
+
+const sha256 = (value) => crypto.createHash('sha256').update(String(value)).digest('hex');
 
 function positiveNumber(value, fallback) {
   const parsed = Number(value);
@@ -262,123 +57,94 @@ function positiveInteger(value, fallback) {
   return Math.max(1, Math.floor(positiveNumber(value, fallback)));
 }
 
-function rateLimitSubjectKey(scope, subject) {
-  const material = `${scope}\0${String(subject)}`;
-  const lookupSecret = String(process.env.IDENTITY_LOOKUP_SECRET || '').trim();
-  // Production already requires this secret for detach-safe account recovery, so use
-  // it to stop an exposed rate-limit document from becoming an enumerable phone/email
-  // directory. Development still gets stable non-raw keys before that secret is set.
-  return lookupSecret.length >= 32
-    ? crypto.createHmac('sha256', lookupSecret).update(material).digest('hex')
-    : crypto.createHash('sha256').update(material).digest('hex');
-}
+// --- Transaction helpers ------------------------------------------------------
 
-/**
- * Return the still-active timestamps for one pseudonymous rate-limit subject. Old
- * entries across the scope are compacted on every successful reservation, so the
- * durable document does not retain destinations after their enforcement window.
- */
-function prepareRateLimit(db, {
-  scope,
-  subject,
-  nowMs,
-  windowMs,
-}) {
-  db.verificationRateLimits = db.verificationRateLimits || {};
-  const bucket = db.verificationRateLimits[scope]
-    && typeof db.verificationRateLimits[scope] === 'object'
-    ? db.verificationRateLimits[scope]
-    : {};
-  db.verificationRateLimits[scope] = bucket;
-
-  for (const [key, rawHits] of Object.entries(bucket)) {
-    const active = Array.isArray(rawHits)
-      ? rawHits
-        .map(Number)
-        .filter((hit) => Number.isFinite(hit) && nowMs - hit < windowMs)
-      : [];
-    if (active.length) bucket[key] = active;
-    else delete bucket[key];
-  }
-
-  const key = rateLimitSubjectKey(scope, subject);
-  const hits = bucket[key] || [];
-  bucket[key] = hits;
-  return hits;
-}
-
-function retryAfterForWindow(hits, nowMs, windowMs) {
-  const oldest = Math.min(...hits);
-  return Math.max(1, Math.ceil(windowMs - (nowMs - oldest)));
-}
-
-function pendingQueue(db, userId, create = false) {
-  const current = db.pendingResults?.[userId];
-  if (Array.isArray(current)) return current;
-  if (!create) return current && typeof current === 'object' ? [current] : [];
-
-  db.pendingResults = db.pendingResults || {};
-  // Transparently migrate the old one-result shape the next time this user is written.
-  const queue = current && typeof current === 'object' ? [current] : [];
-  db.pendingResults[userId] = queue;
-  return queue;
-}
-
-function attemptState(db, create = false) {
-  const current = db.drillAttempts;
-  if (
-    current?.byId && typeof current.byId === 'object'
-    && current?.byProviderId && typeof current.byProviderId === 'object'
-    && current?.byActionTokenHash && typeof current.byActionTokenHash === 'object'
-  ) return current;
-  if (!create) return { byId: {}, byProviderId: {}, byActionTokenHash: {} };
-
-  db.drillAttempts = {
-    byId: current?.byId || {},
-    byProviderId: current?.byProviderId || {},
-    byActionTokenHash: current?.byActionTokenHash || {},
-  };
-  return db.drillAttempts;
-}
-
-function publicAttempt(attempt) {
-  if (!attempt) return null;
-  const safe = { ...attempt };
-  delete safe.actionTokenHash;
-  return safe;
-}
-
-function findAttempt(state, { attemptId, providerId, actionTokenHash } = {}) {
-  const providerAttemptId = providerId ? state.byProviderId[providerId] : null;
-  const tokenAttemptId = actionTokenHash ? state.byActionTokenHash[actionTokenHash] : null;
-
-  // If two supplied identifiers resolve to different attempts, fail closed rather
-  // than allowing provider metadata to complete somebody else's attempt.
-  const resolved = [providerAttemptId, attemptId, tokenAttemptId].filter(
-    (id) => id && state.byId[id],
+async function lockUser(tx, userId) {
+  const { rows } = await tx.query(
+    'select * from safespace.users where id = $1 for update',
+    [String(userId)],
   );
-  if (new Set(resolved).size > 1) return null;
-  return state.byId[resolved[0]] || null;
+  return userFromRow(rows[0]);
 }
 
-function queueResult(db, userId, record) {
-  pendingQueue(db, userId, true).push(record);
-}
-
-function applyOutcomeToDb(db, {
-  userId,
-  outcome,
-  channel,
-  practice,
-  recordId,
-  at,
-  attemptId = null,
-  providerId = null,
-}) {
-  const user = db.users[userId];
+async function requireLockedUser(tx, userId) {
+  const user = await lockUser(tx, userId);
   if (!user) throw new Error(`unknown user ${userId}`);
-  if (!OUTCOME_SET.has(outcome)) throw new Error(`unknown outcome ${outcome}`);
+  return user;
+}
 
+async function readUser(tx, userId) {
+  const { rows } = await tx.query('select * from safespace.users where id = $1', [String(userId)]);
+  return userFromRow(rows[0]);
+}
+
+async function saveUser(tx, user) {
+  const { rows } = await tx.query(UPDATE_USER_SQL, [user.id, ...userValues(user)]);
+  return userFromRow(rows[0]);
+}
+
+async function insertUser(tx, user) {
+  const { rows } = await tx.query(INSERT_USER_SQL, [user.id, ...userValues(user)]);
+  return userFromRow(rows[0]);
+}
+
+/** Serialise on a key that may have no row yet. Released when the transaction ends. */
+async function advisoryLock(tx, key) {
+  await tx.query('select pg_advisory_xact_lock(hashtextextended($1, 0))', [key]);
+}
+
+async function logConsent(tx, { userId, type, channel, at }) {
+  await tx.query(
+    'insert into safespace.consent_events (user_id, type, channel, at) values ($1, $2, $3, $4)',
+    [userId, type, channel, at],
+  );
+}
+
+// --- Read models ---------------------------------------------------------------
+
+export async function getUser(id) {
+  if (!id) return null;
+  const { rows } = await query('select * from safespace.users where id = $1', [String(id)], 'getUser');
+  return userFromRow(rows[0]);
+}
+
+export async function listConsentedUsers() {
+  const { rows } = await query(
+    'select * from safespace.users where consent_to_drills order by created_at, id',
+    [],
+    'listConsentedUsers',
+  );
+  return rows.map(userFromRow);
+}
+
+// Leaderboard = users ranked by xp, shaped for the React LeaderboardScreen.
+// Explicit field list — never spreads the raw user, so PII can't leak in.
+export async function getLeaderboard() {
+  const { rows } = await query(
+    'select id, name, xp, level, times_safe from safespace.users order by xp desc, created_at, id',
+    [],
+    'getLeaderboard',
+  );
+  return rows.map((u, i) => ({
+    rank: i + 1, id: u.id, name: u.name, score: u.xp, level: u.level, wins: u.times_safe,
+  }));
+}
+
+// All family members, shaped for the React FamilyHomeScreen (dollhouse rooms).
+// Projected — this endpoint is world-readable, so it must not carry phone numbers.
+export async function getFamily() {
+  const { rows } = await query('select * from safespace.users order by created_at, id', [], 'getFamily');
+  return rows.map((row) => publicUser(userFromRow(row)));
+}
+
+/** The cheapest possible round trip, for the keep-alive cron. */
+export async function pingDb() {
+  await query('select 1', [], 'pingDb');
+}
+
+// --- Scoring ------------------------------------------------------------------
+
+function scoreUser(user, outcome, practice) {
   const r = computeResult(outcome, { practice });
   user.xp += r.xp;
   while (user.xp >= user.xpMax) {
@@ -396,7 +162,46 @@ function applyOutcomeToDb(db, {
     user.safeThisWeek = false;
   }
   if (r.result === 'WON' || r.result === 'LOST') user.recentDrillResult = r.result;
+  return r;
+}
 
+async function insertResult(tx, record, practiceSourceKey = null) {
+  await tx.query(
+    `insert into safespace.drill_results
+       (id, user_id, channel, outcome, practice, result, screen, xp_gained, at,
+        attempt_id, provider_id, unscored_reason, practice_source_key)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+    [
+      record.id, record.userId, record.channel, record.outcome, record.practice,
+      record.result, record.screen, record.xpGained, record.at, record.attemptId ?? null,
+      record.providerId ?? null, record.unscoredReason ?? null, practiceSourceKey,
+    ],
+  );
+}
+
+async function readResult(tx, id) {
+  const { rows } = await tx.query('select * from safespace.drill_results where id = $1', [id]);
+  return resultFromRow(rows[0]);
+}
+
+// Every real (non-practice) result stays pending until the client explicitly ACKs it,
+// SAFE outcomes included: they have no result screen, but delivery still clears the
+// client's "awaiting call" marker. The pending queue is `acknowledged_at is null`.
+async function applyOutcomeInTx(tx, {
+  userId,
+  outcome,
+  channel,
+  practice,
+  recordId,
+  at,
+  attemptId = null,
+  providerId = null,
+  practiceSourceKey = null,
+}) {
+  const user = await requireLockedUser(tx, userId);
+  if (!OUTCOME_SET.has(outcome)) throw new Error(`unknown outcome ${outcome}`);
+
+  const r = scoreUser(user, outcome, practice);
   const record = {
     id: recordId,
     userId,
@@ -410,14 +215,8 @@ function applyOutcomeToDb(db, {
     ...(attemptId ? { attemptId } : {}),
     ...(providerId ? { providerId } : {}),
   };
-  db.drills = db.drills || [];
-  db.drills.push(record);
-
-  // Every real drill gets surfaced until the client explicitly ACKs it. SAFE outcomes
-  // have no result screen, but delivery is still needed to clear the client's
-  // "awaiting call" marker without turning an opt-out into a win or loss.
-  if (!practice) queueResult(db, userId, record);
-  return { record, user };
+  await insertResult(tx, record, practiceSourceKey);
+  return { record, user: await saveUser(tx, user) };
 }
 
 /**
@@ -428,15 +227,15 @@ function applyOutcomeToDb(db, {
 export async function applyOutcome({ userId, outcome, channel = 'call', practice = false }) {
   const recordId = `drill_${crypto.randomUUID()}`;
   const at = new Date().toISOString();
-  return mutate((db) => applyOutcomeToDb(db, {
-    userId, outcome, channel, practice, recordId, at,
-  }));
+  return transaction(
+    (tx) => applyOutcomeInTx(tx, { userId, outcome, channel, practice, recordId, at }),
+    'applyOutcome',
+  );
 }
 
 /**
  * Idempotent practice scoring for retrying/double-clicking clients. The client id is
- * namespaced to the authenticated user and stored as a digest to keep arbitrary input
- * out of document keys.
+ * namespaced to the authenticated user and stored only as a digest.
  */
 export async function applyPracticeOutcomeOnce({
   userId,
@@ -447,41 +246,46 @@ export async function applyPracticeOutcomeOnce({
   const cleanId = String(clientAttemptId || '').trim();
   if (!cleanId) throw new Error('clientAttemptId is required');
   if (cleanId.length > 200) throw new Error('clientAttemptId is too long');
-  const sourceKey = crypto.createHash('sha256')
-    .update(`practice\0${userId}\0${cleanId}`)
-    .digest('hex');
+  const sourceKey = sha256(`practice\0${userId}\0${cleanId}`);
   const recordId = `drill_${crypto.randomUUID()}`;
   const at = new Date().toISOString();
 
-  return mutate((db) => {
-    db.outcomeSourceIds = db.outcomeSourceIds || {};
-    const existingId = db.outcomeSourceIds[sourceKey];
-    if (existingId) {
-      const record = db.drills?.find((item) => item.id === existingId) || null;
-      return unchanged({
-        status: 'duplicate',
-        applied: false,
-        record,
-        user: db.users[userId] || null,
-      });
+  return transaction(async (tx) => {
+    // Locking the user serialises a double-click; the unique key is the backstop.
+    const user = await lockUser(tx, userId);
+    const { rows } = await tx.query(
+      'select * from safespace.drill_results where practice_source_key = $1',
+      [sourceKey],
+    );
+    if (rows[0]) {
+      return { status: 'duplicate', applied: false, record: resultFromRow(rows[0]), user };
     }
-    const { record, user } = applyOutcomeToDb(db, {
+    const scored = await applyOutcomeInTx(tx, {
       userId,
       outcome,
       channel,
       practice: true,
       recordId,
       at,
+      practiceSourceKey: sourceKey,
     });
-    db.outcomeSourceIds[sourceKey] = record.id;
-    return { status: 'completed', applied: true, record, user };
-  });
+    return { status: 'completed', applied: true, record: scored.record, user: scored.user };
+  }, 'applyPracticeOutcomeOnce');
 }
+
+// --- Pending results ----------------------------------------------------------
 
 /** Non-destructive result reads. The first item is the next result to display. */
 export async function listPendingResults(userId) {
-  const { db } = await readDb();
-  return [...pendingQueue(db, userId)];
+  if (!userId) return [];
+  const { rows } = await query(
+    `select * from safespace.drill_results
+      where user_id = $1 and practice = false and acknowledged_at is null
+      order by seq`,
+    [String(userId)],
+    'listPendingResults',
+  );
+  return rows.map(resultFromRow);
 }
 
 export async function peekPendingResult(userId) {
@@ -492,17 +296,14 @@ export async function peekPendingResult(userId) {
 /** Remove exactly the result the client confirms it displayed. */
 export async function ackPendingResult(userId, resultId) {
   if (!userId || !resultId) return null;
-  return mutate((db) => {
-    const queue = pendingQueue(db, userId);
-    const index = queue.findIndex((record) => record?.id === resultId);
-    if (index < 0) return unchanged(null);
-
-    // Calling pendingQueue in create mode also persists migration of a legacy singleton.
-    const writableQueue = pendingQueue(db, userId, true);
-    const [acknowledged] = writableQueue.splice(index, 1);
-    if (writableQueue.length === 0) delete db.pendingResults[userId];
-    return acknowledged;
-  });
+  const { rows } = await query(
+    `update safespace.drill_results set acknowledged_at = now()
+      where id = $1 and user_id = $2 and practice = false and acknowledged_at is null
+      returning *`,
+    [String(resultId), String(userId)],
+    'ackPendingResult',
+  );
+  return resultFromRow(rows[0]);
 }
 
 /**
@@ -513,6 +314,15 @@ export async function takePendingResult(userId) {
   const pending = await peekPendingResult(userId);
   if (!pending) return null;
   return ackPendingResult(userId, pending.id);
+}
+
+// --- Provider attempts ----------------------------------------------------------
+
+function publicAttempt(attempt) {
+  if (!attempt) return null;
+  const safe = { ...attempt };
+  delete safe.actionTokenHash;
+  return safe;
 }
 
 export class DrillAttemptConflict extends Error {
@@ -526,10 +336,23 @@ export class DrillAttemptConflict extends Error {
   }
 }
 
+async function lockAttempt(tx, attemptId) {
+  const { rows } = await tx.query(
+    'select * from safespace.drill_attempts where id = $1 for update',
+    [String(attemptId)],
+  );
+  return attemptFromRow(rows[0]);
+}
+
+async function attemptByProviderId(tx, providerId) {
+  const { rows } = await tx.query('select * from safespace.drill_attempts where provider_id = $1', [providerId]);
+  return attemptFromRow(rows[0]);
+}
+
 /**
  * Reserve an attempt before contacting a provider. When cooldownMs is supplied this
- * atomically enforces one active attempt and a per-user/channel cooldown, including
- * across Redis instances.
+ * atomically enforces one active attempt and a per-user/channel cooldown, across every
+ * server instance: the user row lock serialises them.
  */
 export async function createDrillAttempt({
   userId,
@@ -544,170 +367,177 @@ export async function createDrillAttempt({
 
   const attemptId = `attempt_${crypto.randomUUID()}`;
   const actionToken = mintActionToken ? crypto.randomBytes(32).toString('base64url') : null;
-  const actionTokenHash = actionToken
-    ? crypto.createHash('sha256').update(actionToken).digest('hex')
-    : null;
+  const actionTokenHash = actionToken ? sha256(actionToken) : null;
   const createdAt = new Date().toISOString();
   const createdAtMs = Date.parse(createdAt);
   const cleanProviderId = String(providerId || '').trim() || null;
-  const firedRecordId = `fired_${crypto.randomUUID()}`;
 
-  return mutate((db) => {
-    if (!db.users[userId]) throw new Error(`unknown user ${userId}`);
-    const state = attemptState(db, true);
+  return transaction(async (tx) => {
+    await requireLockedUser(tx, userId);
 
-    if (cleanProviderId && state.byProviderId[cleanProviderId]) {
-      const existing = state.byId[state.byProviderId[cleanProviderId]];
-      if (existing?.userId === userId && existing?.channel === channel) {
-        return unchanged(publicAttempt(existing));
+    if (cleanProviderId) {
+      const existing = await attemptByProviderId(tx, cleanProviderId);
+      if (existing) {
+        if (existing.userId === userId && existing.channel === channel) return publicAttempt(existing);
+        throw new DrillAttemptConflict('provider id already belongs to another attempt', {
+          attempt: existing,
+        });
       }
-      throw new DrillAttemptConflict('provider id already belongs to another attempt', {
-        attempt: existing,
-      });
     }
 
     const minimumGap = Math.max(0, Number(cooldownMs) || 0);
     if (minimumGap > 0) {
-      const matching = Object.values(state.byId)
-        .filter((attempt) => attempt.userId === userId && attempt.channel === channel)
-        .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+      // Only attempts inside the window can conflict. An older attempt is past cooldown.
+      const { rows } = await tx.query(
+        `select * from safespace.drill_attempts
+          where user_id = $1 and channel = $2 and created_at > $3
+          order by created_at desc`,
+        [userId, channel, new Date(createdAtMs - minimumGap).toISOString()],
+      );
+      const recent = rows.map(attemptFromRow);
       // A provider callback can be lost. Treat an active marker as a lock only for the
       // cooldown window; otherwise one missing webhook would block this channel forever.
-      const active = matching.find((attempt) =>
-        ACTIVE_ATTEMPT_STATUSES.has(attempt.status)
-        && createdAtMs - Date.parse(attempt.createdAt) < minimumGap);
+      const active = recent.find((attempt) => ACTIVE_ATTEMPT_STATUSES.has(attempt.status));
       if (active) {
         throw new DrillAttemptConflict('a drill attempt is already active', {
           attempt: active,
-          retryAfterMs: Math.max(
-            0,
-            minimumGap - (createdAtMs - Date.parse(active.createdAt)),
-          ),
+          retryAfterMs: Math.max(0, minimumGap - (createdAtMs - Date.parse(active.createdAt))),
         });
       }
-      const latest = matching[0];
-      const elapsed = latest ? createdAtMs - Date.parse(latest.createdAt) : Infinity;
-      if (elapsed < minimumGap) {
-        throw new DrillAttemptConflict('drill attempt is on cooldown', {
-          reason: 'cooldown',
-          retryAfterMs: Math.ceil(minimumGap - elapsed),
-          attempt: latest,
-        });
+      const latest = recent[0];
+      if (latest) {
+        const elapsed = createdAtMs - Date.parse(latest.createdAt);
+        if (elapsed < minimumGap) {
+          throw new DrillAttemptConflict('drill attempt is on cooldown', {
+            reason: 'cooldown',
+            retryAfterMs: Math.ceil(minimumGap - elapsed),
+            attempt: latest,
+          });
+        }
       }
     }
 
-    const attempt = {
-      id: attemptId,
-      userId,
-      channel,
-      status,
-      providerId: cleanProviderId,
-      createdAt,
-      ...(status === 'sent' ? { sentAt: createdAt } : {}),
-      ...(actionTokenHash ? { actionTokenHash } : {}),
-    };
-    state.byId[attemptId] = attempt;
-    if (cleanProviderId) state.byProviderId[cleanProviderId] = attemptId;
-    if (actionTokenHash) state.byActionTokenHash[actionTokenHash] = attemptId;
-
-    db.drills = db.drills || [];
-    db.drills.push({
-      id: firedRecordId,
-      attemptId,
-      userId,
-      channel,
-      ...(cleanProviderId ? { providerId: cleanProviderId, callId: cleanProviderId } : {}),
-      status,
-      at: createdAt,
-    });
-    return { ...publicAttempt(attempt), ...(actionToken ? { actionToken } : {}) };
-  });
+    const { rows } = await tx.query(
+      `insert into safespace.drill_attempts
+         (id, user_id, channel, status, provider_id, action_token_hash, created_at, sent_at)
+       values ($1, $2, $3, $4, $5, $6, $7, $8)
+       returning *`,
+      [
+        attemptId, userId, channel, status, cleanProviderId, actionTokenHash, createdAt,
+        status === 'sent' ? createdAt : null,
+      ],
+    );
+    return { ...publicAttempt(attemptFromRow(rows[0])), ...(actionToken ? { actionToken } : {}) };
+  }, 'createDrillAttempt');
 }
 
 export async function getDrillAttempt(idOrProviderId) {
   if (!idOrProviderId) return null;
-  const { db } = await readDb();
-  const state = attemptState(db);
-  const attempt = state.byId[idOrProviderId]
-    || state.byId[state.byProviderId[idOrProviderId]]
-    || null;
-  return publicAttempt(attempt);
+  const { rows } = await query(
+    `select * from safespace.drill_attempts where id = $1 or provider_id = $1
+      order by (id = $1) desc limit 1`,
+    [String(idOrProviderId)],
+    'getDrillAttempt',
+  );
+  return publicAttempt(attemptFromRow(rows[0]));
 }
 
 export async function getDrillAttemptByActionToken(actionToken) {
   if (!actionToken) return null;
-  const actionTokenHash = crypto.createHash('sha256').update(String(actionToken)).digest('hex');
-  const { db } = await readDb();
-  const state = attemptState(db);
-  return publicAttempt(findAttempt(state, { actionTokenHash }));
+  const { rows } = await query(
+    'select * from safespace.drill_attempts where action_token_hash = $1',
+    [sha256(actionToken)],
+    'getDrillAttemptByActionToken',
+  );
+  return publicAttempt(attemptFromRow(rows[0]));
 }
 
 export async function getRecentDrillAttempt({ userId, channel = 'call', since = 0 } = {}) {
   if (!userId) return null;
   const sinceMs = since instanceof Date ? since.getTime() : Number(since) || Date.parse(since) || 0;
-  const { db } = await readDb();
-  const attempts = Object.values(attemptState(db).byId)
-    .filter((attempt) =>
-      attempt.userId === userId
-      && attempt.channel === channel
-      && Date.parse(attempt.createdAt) >= sinceMs)
-    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
-  return publicAttempt(attempts[0] || null);
+  const { rows } = await query(
+    `select * from safespace.drill_attempts
+      where user_id = $1 and channel = $2 and created_at >= $3
+      order by created_at desc limit 1`,
+    [String(userId), channel, new Date(sinceMs).toISOString()],
+    'getRecentDrillAttempt',
+  );
+  return publicAttempt(attemptFromRow(rows[0]));
 }
 
 export async function markDrillAttemptSent(attemptId, { providerId = null } = {}) {
   if (!attemptId) throw new Error('attemptId is required');
   const cleanProviderId = String(providerId || '').trim() || null;
   const sentAt = new Date().toISOString();
-  return mutate((db) => {
-    const state = attemptState(db, true);
-    const attempt = state.byId[attemptId];
-    if (!attempt) return unchanged(null);
-    if (TERMINAL_ATTEMPT_STATUSES.has(attempt.status)) return unchanged(publicAttempt(attempt));
+  return transaction(async (tx) => {
+    const attempt = await lockAttempt(tx, attemptId);
+    if (!attempt) return null;
+    if (TERMINAL_ATTEMPT_STATUSES.has(attempt.status)) return publicAttempt(attempt);
 
-    const owner = cleanProviderId ? state.byProviderId[cleanProviderId] : null;
-    if (owner && owner !== attemptId) {
-      throw new DrillAttemptConflict('provider id already belongs to another attempt', {
-        attempt: state.byId[owner],
-      });
+    if (cleanProviderId) {
+      const owner = await attemptByProviderId(tx, cleanProviderId);
+      if (owner && owner.id !== attempt.id) {
+        throw new DrillAttemptConflict('provider id already belongs to another attempt', {
+          attempt: owner,
+        });
+      }
     }
     if (attempt.providerId && cleanProviderId && attempt.providerId !== cleanProviderId) {
-      throw new DrillAttemptConflict('attempt already has a different provider id', {
-        attempt,
-      });
+      throw new DrillAttemptConflict('attempt already has a different provider id', { attempt });
     }
-    if (cleanProviderId) {
-      attempt.providerId = cleanProviderId;
-      state.byProviderId[cleanProviderId] = attemptId;
-    }
-    attempt.status = 'sent';
-    attempt.sentAt = attempt.sentAt || sentAt;
-    return publicAttempt(attempt);
-  });
+    const { rows } = await tx.query(
+      `update safespace.drill_attempts
+          set status = 'sent', provider_id = coalesce($2, provider_id), sent_at = coalesce(sent_at, $3)
+        where id = $1
+        returning *`,
+      [attempt.id, cleanProviderId, sentAt],
+    );
+    return publicAttempt(attemptFromRow(rows[0]));
+  }, 'markDrillAttemptSent');
 }
 
 export async function markDrillAttemptFailed(attemptId, { reason = 'provider_error' } = {}) {
   if (!attemptId) throw new Error('attemptId is required');
   const completedAt = new Date().toISOString();
-  return mutate((db) => {
-    const state = attemptState(db, true);
-    const attempt = state.byId[attemptId];
-    if (!attempt) return unchanged(null);
-    if (TERMINAL_ATTEMPT_STATUSES.has(attempt.status)) return unchanged(publicAttempt(attempt));
-    attempt.status = 'failed';
-    attempt.scored = false;
-    attempt.failureReason = String(reason || 'provider_error').slice(0, 80);
-    attempt.completedAt = completedAt;
-    if (attempt.actionTokenHash) {
-      delete state.byActionTokenHash[attempt.actionTokenHash];
-      delete attempt.actionTokenHash;
-    }
-    return publicAttempt(attempt);
-  });
+  return transaction(async (tx) => {
+    const attempt = await lockAttempt(tx, attemptId);
+    if (!attempt) return null;
+    if (TERMINAL_ATTEMPT_STATUSES.has(attempt.status)) return publicAttempt(attempt);
+    const { rows } = await tx.query(
+      `update safespace.drill_attempts
+          set status = 'failed', scored = false, failure_reason = $2, completed_at = $3,
+              action_token_hash = null
+        where id = $1
+        returning *`,
+      [attempt.id, String(reason || 'provider_error').slice(0, 80), completedAt],
+    );
+    return publicAttempt(attemptFromRow(rows[0]));
+  }, 'markDrillAttemptFailed');
+}
+
+const FINISH_ATTEMPT_SQL = `update safespace.drill_attempts
+    set status = $2, scored = $3, outcome = $4, failure_reason = $5, completed_at = $6,
+        result_record_id = $7, provider_id = coalesce(provider_id, $8), action_token_hash = null
+  where id = $1
+  returning *`;
+
+/**
+ * Resolve and lock the attempt the identifiers name. If they name more than one attempt,
+ * fail closed rather than let provider metadata complete somebody else's attempt.
+ */
+async function lockAttemptByIdentifiers(tx, { providerId, attemptId, actionTokenHash }) {
+  const { rows } = await tx.query(
+    `select * from safespace.drill_attempts
+      where provider_id = $1 or id = $2 or action_token_hash = $3
+      order by id
+      for update`,
+    [providerId, attemptId, actionTokenHash],
+  );
+  return rows.length === 1 ? attemptFromRow(rows[0]) : null;
 }
 
 /**
- * Resolve and complete a provider attempt in one mutation. Unknown identifiers and
+ * Resolve and complete a provider attempt in one transaction. Unknown identifiers and
  * terminal/replayed callbacks never touch XP. Supplying no outcome records an
  * operational, unscored failure rather than silently turning missing evidence into a win.
  */
@@ -719,46 +549,36 @@ export async function completeDrillAttempt({
   unscoredReason = null,
 } = {}) {
   const cleanProviderId = String(providerId || '').trim() || null;
-  const actionTokenHash = actionToken
-    ? crypto.createHash('sha256').update(String(actionToken)).digest('hex')
-    : null;
-  if (!cleanProviderId && !attemptId && !actionTokenHash) {
+  const cleanAttemptId = attemptId ? String(attemptId) : null;
+  const actionTokenHash = actionToken ? sha256(actionToken) : null;
+  if (!cleanProviderId && !cleanAttemptId && !actionTokenHash) {
     throw new Error('providerId, attemptId or actionToken is required');
   }
   if (outcome && !OUTCOME_SET.has(outcome)) throw new Error(`unknown outcome ${outcome}`);
 
   const completedAt = new Date().toISOString();
   const recordId = `drill_${crypto.randomUUID()}`;
-  return mutate((db) => {
-    const state = attemptState(db, true);
-    const attempt = findAttempt(state, {
+  return transaction(async (tx) => {
+    const attempt = await lockAttemptByIdentifiers(tx, {
       providerId: cleanProviderId,
-      attemptId,
+      attemptId: cleanAttemptId,
       actionTokenHash,
     });
     if (!attempt) {
-      return unchanged({
-        status: 'unknown', applied: false, attempt: null, record: null, user: null,
-      });
+      return { status: 'unknown', applied: false, attempt: null, record: null, user: null };
     }
     if (TERMINAL_ATTEMPT_STATUSES.has(attempt.status)) {
-      const record = attempt.resultRecordId
-        ? db.drills?.find((item) => item.id === attempt.resultRecordId) || null
-        : null;
-      return unchanged({
+      return {
         status: 'duplicate',
         applied: false,
         attempt: publicAttempt(attempt),
-        record,
-        user: db.users[attempt.userId] || null,
-      });
+        record: attempt.resultRecordId ? await readResult(tx, attempt.resultRecordId) : null,
+        user: await readUser(tx, attempt.userId),
+      };
     }
 
+    const recordProviderId = attempt.providerId || cleanProviderId;
     if (!outcome) {
-      if (cleanProviderId && !attempt.providerId) {
-        attempt.providerId = cleanProviderId;
-        state.byProviderId[cleanProviderId] = attempt.id;
-      }
       const record = {
         id: recordId,
         userId: attempt.userId,
@@ -770,33 +590,23 @@ export async function completeDrillAttempt({
         xpGained: 0,
         at: completedAt,
         attemptId: attempt.id,
-        ...(attempt.providerId
-          ? { providerId: attempt.providerId }
-          : {}),
+        ...(recordProviderId ? { providerId: recordProviderId } : {}),
         unscoredReason: String(unscoredReason || 'analysis_missing').slice(0, 80),
       };
-      db.drills = db.drills || [];
-      db.drills.push(record);
-      queueResult(db, attempt.userId, record);
-      attempt.status = 'failed';
-      attempt.scored = false;
-      attempt.failureReason = record.unscoredReason;
-      attempt.completedAt = completedAt;
-      attempt.resultRecordId = record.id;
-      if (attempt.actionTokenHash) {
-        delete state.byActionTokenHash[attempt.actionTokenHash];
-        delete attempt.actionTokenHash;
-      }
+      await insertResult(tx, record);
+      const { rows } = await tx.query(FINISH_ATTEMPT_SQL, [
+        attempt.id, 'failed', false, null, record.unscoredReason, completedAt, record.id, cleanProviderId,
+      ]);
       return {
         status: 'unscored',
         applied: false,
-        attempt: publicAttempt(attempt),
+        attempt: publicAttempt(attemptFromRow(rows[0])),
         record,
-        user: db.users[attempt.userId] || null,
+        user: await readUser(tx, attempt.userId),
       };
     }
 
-    const { record, user } = applyOutcomeToDb(db, {
+    const { record, user } = await applyOutcomeInTx(tx, {
       userId: attempt.userId,
       outcome,
       channel: attempt.channel,
@@ -804,29 +614,19 @@ export async function completeDrillAttempt({
       recordId,
       at: completedAt,
       attemptId: attempt.id,
-      providerId: attempt.providerId || cleanProviderId,
+      providerId: recordProviderId,
     });
-    attempt.status = 'completed';
-    attempt.scored = true;
-    attempt.outcome = outcome;
-    attempt.completedAt = completedAt;
-    attempt.resultRecordId = record.id;
-    if (cleanProviderId && !attempt.providerId) {
-      attempt.providerId = cleanProviderId;
-      state.byProviderId[cleanProviderId] = attempt.id;
-    }
-    if (attempt.actionTokenHash) {
-      delete state.byActionTokenHash[attempt.actionTokenHash];
-      delete attempt.actionTokenHash;
-    }
+    const { rows } = await tx.query(FINISH_ATTEMPT_SQL, [
+      attempt.id, 'completed', true, outcome, null, completedAt, record.id, cleanProviderId,
+    ]);
     return {
       status: 'completed',
       applied: true,
-      attempt: publicAttempt(attempt),
+      attempt: publicAttempt(attemptFromRow(rows[0])),
       record,
       user,
     };
-  });
+  }, 'completeDrillAttempt');
 }
 
 /** Backward-compatible post-send helper used by the existing call/email/SMS routes. */
@@ -838,6 +638,8 @@ export async function recordDrillFired({ userId, channel = 'call', callId = null
     status: 'sent',
   });
 }
+
+// --- Accounts -------------------------------------------------------------------
 
 function normaliseUserName(name) {
   return String(name || '').trim().toUpperCase().slice(0, 30);
@@ -865,22 +667,34 @@ function phoneLookupHash(phone, { required = false } = {}) {
 }
 
 // Upsert a phone-verified user and log a 'granted' consent event (the audit trail).
-// Called by /api/verify/check after OTP succeeds. Guests are keyed by their number.
+// Called by /api/verify/check after OTP succeeds.
 export async function registerVerifiedUser({ phone, name, email }) {
   const cleanName = normaliseUserName(name);
   if (!cleanName) throw new Error('name is required');
   const lookupHash = phoneLookupHash(phone);
-  return mutate((db) => {
+  const newId = `usr_${crypto.randomUUID()}`;
+  const at = new Date().toISOString();
+
+  return transaction(async (tx) => {
+    // Two OTP checks for the same new number must not create two accounts. There is no
+    // row to lock yet, so serialise on a digest of the number. The unique index on
+    // phone is the backstop.
+    await advisoryLock(tx, `register:${sha256(`register\0${phone}`)}`);
+
     // Look up by phone, but key the record by an OPAQUE id. Using the phone number as the
     // primary key made it PII that leaked through every id-bearing response and URL.
-    let user = Object.values(db.users).find((u) => u.phone === phone);
-    if (!user && lookupHash) {
-      user = Object.values(db.users).find((u) => u.phoneLookupHash === lookupHash);
+    let { rows } = await tx.query('select * from safespace.users where phone = $1 for update', [phone]);
+    if (!rows[0] && lookupHash) {
+      ({ rows } = await tx.query(
+        'select * from safespace.users where phone_lookup_hash = $1 for update',
+        [lookupHash],
+      ));
     }
-    if (!user) {
-      const id = `usr_${crypto.randomUUID()}`;
+    let user = userFromRow(rows[0]);
+    const isNew = !user;
+    if (isNew) {
       user = {
-        id,
+        id: newId,
         name: cleanName,
         role: 'ROOKIE',
         phone,
@@ -889,7 +703,6 @@ export async function registerVerifiedUser({ phone, name, email }) {
         primaryColor: '#4ecdc4', badgeCount: 0, badgeTotal: 9,
         roomName: 'GUEST ROOM', roomBg: '#081420', safeThisWeek: true, recentDrillResult: null,
       };
-      db.users[id] = user;
     }
     user.phone = phone;
     if (lookupHash) user.phoneLookupHash = lookupHash;
@@ -913,35 +726,34 @@ export async function registerVerifiedUser({ phone, name, email }) {
       }
     }
     user.consentToDrills = true;
-    db.consentEvents = db.consentEvents || [];
-    db.consentEvents.push({ userId: user.id, type: 'granted', channel: 'otp', at: new Date().toISOString() });
-    return db.users[user.id];
-  });
+
+    const saved = isNew ? await insertUser(tx, user) : await saveUser(tx, user);
+    await logConsent(tx, { userId: saved.id, type: 'granted', channel: 'otp', at });
+    return saved;
+  }, 'registerVerifiedUser');
 }
 
 export async function setUserName(userId, name) {
   const cleanName = normaliseUserName(name);
   if (!cleanName) throw new Error('name is required');
-  return mutate((db) => {
-    const user = db.users[userId];
-    if (!user) throw new Error(`unknown user ${userId}`);
+  return transaction(async (tx) => {
+    const user = await requireLockedUser(tx, userId);
     user.name = cleanName;
-    return user;
-  });
+    return saveUser(tx, user);
+  }, 'setUserName');
 }
 
 // Backward-compatible storage helper. Setting an address never marks it verified:
 // controlling the account's phone is not proof that the caller owns this inbox.
 export async function setUserEmail(userId, email) {
-  return mutate((db) => {
-    const user = db.users[userId];
-    if (!user) throw new Error(`unknown user ${userId}`);
+  return transaction(async (tx) => {
+    const user = await requireLockedUser(tx, userId);
     user.email = String(email).trim().toLowerCase();
     user.pendingEmail = user.email;
     delete user.emailVerifiedAt;
     delete user.emailVerificationTokenHash;
-    return user;
-  });
+    return saveUser(tx, user);
+  }, 'setUserEmail');
 }
 
 export class EmailVerificationConflict extends Error {
@@ -960,6 +772,67 @@ export class VerificationRateLimitConflict extends Error {
     this.code = 'VERIFICATION_RATE_LIMITED';
     this.reason = reason;
     this.retryAfterMs = retryAfterMs;
+  }
+}
+
+// --- Rate limits ------------------------------------------------------------------
+
+function rateLimitSubjectKey(scope, subject) {
+  const material = `${scope}\0${String(subject)}`;
+  const lookupSecret = String(process.env.IDENTITY_LOOKUP_SECRET || '').trim();
+  // Production already requires this secret for detach-safe account recovery, so use
+  // it to stop an exposed rate-limit table from becoming an enumerable phone/email
+  // directory. Development still gets stable non-raw keys before that secret is set.
+  return lookupSecret.length >= 32
+    ? crypto.createHmac('sha256', lookupSecret).update(material).digest('hex')
+    : crypto.createHash('sha256').update(material).digest('hex');
+}
+
+function retryAfterForWindow(hits, nowMs, windowMs) {
+  const oldest = Math.min(...hits);
+  return Math.max(1, Math.ceil(windowMs - (nowMs - oldest)));
+}
+
+/**
+ * Lock each (scope, subject) and read its still-active hits, oldest first. Locks are
+ * taken in sorted order so two requests touching the same keys cannot deadlock.
+ */
+async function lockRateLimits(tx, subjects, { nowMs, windowMs }) {
+  const buckets = subjects.map(({ scope, subject }) => ({
+    scope,
+    key: rateLimitSubjectKey(scope, subject),
+    hits: [],
+  }));
+  for (const lockKey of buckets.map(({ scope, key }) => `rate:${scope}:${key}`).sort()) {
+    await advisoryLock(tx, lockKey);
+  }
+  const cutoff = new Date(nowMs - windowMs).toISOString();
+  for (const bucket of buckets) {
+    const { rows } = await tx.query(
+      `select hit_at from safespace.rate_limit_hits
+        where scope = $1 and subject_key = $2 and hit_at > $3
+        order by hit_at`,
+      [bucket.scope, bucket.key, cutoff],
+    );
+    bucket.hits = rows.map((row) => new Date(row.hit_at).getTime());
+  }
+  return buckets;
+}
+
+/** Record one send per bucket, and delete hits whose window has passed. */
+async function recordRateLimitHits(tx, buckets, { nowMs, windowMs }) {
+  const cutoff = new Date(nowMs - windowMs).toISOString();
+  // Expired hits are deleted, not kept: the table must not become a record of every
+  // number and inbox that was ever verified.
+  for (const scope of new Set(buckets.map((bucket) => bucket.scope))) {
+    await tx.query('delete from safespace.rate_limit_hits where scope = $1 and hit_at <= $2', [scope, cutoff]);
+  }
+  const at = new Date(nowMs).toISOString();
+  for (const bucket of buckets) {
+    await tx.query(
+      'insert into safespace.rate_limit_hits (scope, subject_key, hit_at) values ($1, $2, $3)',
+      [bucket.scope, bucket.key, at],
+    );
   }
 }
 
@@ -983,27 +856,24 @@ export async function beginEmailVerification({
   if (!userId || !normalized || opaqueId.length < 32) {
     throw new Error('userId, email and an opaque verificationId are required');
   }
-  const tokenHash = crypto.createHash('sha256').update(opaqueId).digest('hex');
+  const tokenHash = sha256(opaqueId);
   const requestedAtMs = Number(now);
   if (!Number.isFinite(requestedAtMs)) throw new Error('now must be a finite timestamp');
   const requestedAt = new Date(requestedAtMs).toISOString();
-  const boundedWindowMs = positiveNumber(rateWindowMs, ONE_HOUR_MS);
+  const windowMs = positiveNumber(rateWindowMs, ONE_HOUR_MS);
   const accountMax = positiveInteger(maxAccountSends, EMAIL_VERIFICATION_ACCOUNT_MAX);
-  const destinationMax = positiveInteger(
-    maxDestinationSends,
-    EMAIL_VERIFICATION_DESTINATION_MAX,
-  );
+  const destinationMax = positiveInteger(maxDestinationSends, EMAIL_VERIFICATION_DESTINATION_MAX);
 
-  return mutate((db) => {
-    const user = db.users[userId];
-    if (!user) throw new Error(`unknown user ${userId}`);
+  return transaction(async (tx) => {
+    // Row lock first, advisory locks second: the lock order every writer follows.
+    const user = await requireLockedUser(tx, userId);
     if (user.email === normalized && user.emailVerifiedAt) {
       // Explicitly choosing the verified address again cancels any abandoned change
       // request and invalidates its older link.
       delete user.pendingEmail;
       delete user.emailVerificationRequestedAt;
       delete user.emailVerificationTokenHash;
-      return { alreadyVerified: true, user };
+      return { alreadyVerified: true, user: await saveUser(tx, user) };
     }
 
     const previousMs = Date.parse(user.emailVerificationRequestedAt || '');
@@ -1014,37 +884,34 @@ export async function beginEmailVerification({
       });
     }
 
-    const accountHits = prepareRateLimit(db, {
-      scope: 'email-account',
-      subject: userId,
-      nowMs: requestedAtMs,
-      windowMs: boundedWindowMs,
-    });
-    if (accountHits.length >= accountMax) {
+    const window = { nowMs: requestedAtMs, windowMs };
+    const [account, destination] = await lockRateLimits(tx, [
+      { scope: 'email-account', subject: userId },
+      { scope: 'email-destination', subject: normalized },
+    ], window);
+    if (account.hits.length >= accountMax) {
       throw new EmailVerificationConflict('email verification account limit reached', {
-        retryAfterMs: retryAfterForWindow(accountHits, requestedAtMs, boundedWindowMs),
+        retryAfterMs: retryAfterForWindow(account.hits, requestedAtMs, windowMs),
       });
     }
-
-    const destinationHits = prepareRateLimit(db, {
-      scope: 'email-destination',
-      subject: normalized,
-      nowMs: requestedAtMs,
-      windowMs: boundedWindowMs,
-    });
-    if (destinationHits.length >= destinationMax) {
+    if (destination.hits.length >= destinationMax) {
       throw new EmailVerificationConflict('email verification destination limit reached', {
-        retryAfterMs: retryAfterForWindow(destinationHits, requestedAtMs, boundedWindowMs),
+        retryAfterMs: retryAfterForWindow(destination.hits, requestedAtMs, windowMs),
       });
     }
 
-    accountHits.push(requestedAtMs);
-    destinationHits.push(requestedAtMs);
+    await recordRateLimitHits(tx, [account, destination], window);
     user.pendingEmail = normalized;
     user.emailVerificationRequestedAt = requestedAt;
     user.emailVerificationTokenHash = tokenHash;
-    return { alreadyVerified: false, user };
-  });
+    return { alreadyVerified: false, user: await saveUser(tx, user) };
+  }, 'beginEmailVerification');
+}
+
+function tokenMatches(expectedHash, suppliedHash) {
+  const expected = String(expectedHash || '');
+  return expected.length === suppliedHash.length
+    && crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(suppliedHash));
 }
 
 /**
@@ -1058,26 +925,22 @@ export async function cancelEmailVerification(userId, email, verificationId) {
   if (!userId || !normalized || opaqueId.length < 32) {
     throw new Error('userId, email and an opaque verificationId are required');
   }
-  const suppliedHash = crypto.createHash('sha256').update(opaqueId).digest('hex');
-  return mutate((db) => {
-    const user = db.users[userId];
-    if (!user) throw new Error(`unknown user ${userId}`);
-    if (user.pendingEmail !== normalized) return unchanged(user);
-    const expectedHash = String(user.emailVerificationTokenHash || '');
-    const tokenMatches = expectedHash.length === suppliedHash.length
-      && crypto.timingSafeEqual(Buffer.from(expectedHash), Buffer.from(suppliedHash));
-    if (!tokenMatches) return unchanged(user);
+  const suppliedHash = sha256(opaqueId);
+  return transaction(async (tx) => {
+    const user = await requireLockedUser(tx, userId);
+    if (user.pendingEmail !== normalized) return user;
+    if (!tokenMatches(user.emailVerificationTokenHash, suppliedHash)) return user;
     delete user.pendingEmail;
     delete user.emailVerificationRequestedAt;
     delete user.emailVerificationTokenHash;
-    return user;
-  });
+    return saveUser(tx, user);
+  }, 'cancelEmailVerification');
 }
 
 /**
- * Atomically reserve one public phone-OTP send. This replaces the process-local limiter
- * for the production route, so multiple serverless instances enforce the same 30-second
- * gap, five-per-hour destination cap and requester-wide cap across unique numbers.
+ * Atomically reserve one public phone-OTP send, so every server instance enforces the
+ * same 30-second gap, five-per-hour destination cap and requester-wide cap across
+ * unique numbers.
  */
 export async function reservePhoneVerificationSend({
   phone,
@@ -1097,65 +960,48 @@ export async function reservePhoneVerificationSend({
   if (!destination) throw new Error('phone is required');
   const requestedAtMs = Number(now);
   if (!Number.isFinite(requestedAtMs)) throw new Error('now must be a finite timestamp');
-  const boundedWindowMs = positiveNumber(rateWindowMs, ONE_HOUR_MS);
+  const windowMs = positiveNumber(rateWindowMs, ONE_HOUR_MS);
   const boundedCooldownMs = Math.max(0, Number(cooldownMs) || 0);
   const destinationMax = positiveInteger(maxSends, PHONE_VERIFICATION_DESTINATION_MAX);
-  const requesterMax = positiveInteger(
-    maxRequesterSends,
-    PHONE_VERIFICATION_REQUESTER_MAX,
-  );
+  const requesterMax = positiveInteger(maxRequesterSends, PHONE_VERIFICATION_REQUESTER_MAX);
 
-  return mutate((db) => {
-    const hits = skipDestinationLimit
-      ? null
-      : prepareRateLimit(db, {
-          scope: 'phone-destination',
-          subject: destination,
-          nowMs: requestedAtMs,
-          windowMs: boundedWindowMs,
-        });
+  return transaction(async (tx) => {
+    const subjects = [
+      ...(skipDestinationLimit ? [] : [{ scope: 'phone-destination', subject: destination }]),
+      ...(requester ? [{ scope: 'phone-requester', subject: requester }] : []),
+    ];
+    const window = { nowMs: requestedAtMs, windowMs };
+    const buckets = await lockRateLimits(tx, subjects, window);
+    const destinationBucket = buckets.find((bucket) => bucket.scope === 'phone-destination') || null;
+    const requesterBucket = buckets.find((bucket) => bucket.scope === 'phone-requester') || null;
+
+    const hits = destinationBucket?.hits ?? null;
     if (hits && hits.length >= destinationMax) {
       throw new VerificationRateLimitConflict('phone verification hourly limit reached', {
         reason: 'destination_hourly',
-        retryAfterMs: retryAfterForWindow(hits, requestedAtMs, boundedWindowMs),
+        retryAfterMs: retryAfterForWindow(hits, requestedAtMs, windowMs),
       });
     }
     const latest = hits?.length ? hits[hits.length - 1] : null;
     if (latest !== null && requestedAtMs - latest < boundedCooldownMs) {
       throw new VerificationRateLimitConflict('phone verification is on cooldown', {
         reason: 'destination_cooldown',
-        retryAfterMs: Math.max(1, Math.ceil(
-          boundedCooldownMs - (requestedAtMs - latest),
-        )),
+        retryAfterMs: Math.max(1, Math.ceil(boundedCooldownMs - (requestedAtMs - latest))),
       });
     }
-
-    const requesterHits = requester
-      ? prepareRateLimit(db, {
-          scope: 'phone-requester',
-          subject: requester,
-          nowMs: requestedAtMs,
-          windowMs: boundedWindowMs,
-        })
-      : null;
-    if (requesterHits && requesterHits.length >= requesterMax) {
+    if (requesterBucket && requesterBucket.hits.length >= requesterMax) {
       throw new VerificationRateLimitConflict('phone verification requester limit reached', {
         reason: 'requester_hourly',
-        retryAfterMs: retryAfterForWindow(
-          requesterHits,
-          requestedAtMs,
-          boundedWindowMs,
-        ),
+        retryAfterMs: retryAfterForWindow(requesterBucket.hits, requestedAtMs, windowMs),
       });
     }
 
-    if (hits) hits.push(requestedAtMs);
-    if (requesterHits) requesterHits.push(requestedAtMs);
+    await recordRateLimitHits(tx, buckets, window);
     return {
       ok: true,
-      remaining: hits ? Math.max(0, destinationMax - hits.length) : null,
+      remaining: hits ? Math.max(0, destinationMax - (hits.length + 1)) : null,
     };
-  });
+  }, 'reservePhoneVerificationSend');
 }
 
 /**
@@ -1164,16 +1010,11 @@ export async function reservePhoneVerificationSend({
  * verification for a different inbox.
  */
 export async function setVerifiedUserEmail(userId, verificationId) {
-  const opaqueId = String(verificationId || '').trim();
-  const suppliedHash = crypto.createHash('sha256').update(opaqueId).digest('hex');
+  const suppliedHash = sha256(String(verificationId || '').trim());
   const verifiedAt = new Date().toISOString();
-  return mutate((db) => {
-    const user = db.users[userId];
-    if (!user) throw new Error(`unknown user ${userId}`);
-    const expectedHash = String(user.emailVerificationTokenHash || '');
-    const tokenMatches = expectedHash.length === suppliedHash.length
-      && crypto.timingSafeEqual(Buffer.from(expectedHash), Buffer.from(suppliedHash));
-    if (!user.pendingEmail || !tokenMatches) {
+  return transaction(async (tx) => {
+    const user = await requireLockedUser(tx, userId);
+    if (!user.pendingEmail || !tokenMatches(user.emailVerificationTokenHash, suppliedHash)) {
       const error = new Error('email verification is no longer current');
       error.code = 'EMAIL_VERIFICATION_STALE';
       throw error;
@@ -1183,24 +1024,19 @@ export async function setVerifiedUserEmail(userId, verificationId) {
     delete user.pendingEmail;
     delete user.emailVerificationRequestedAt;
     delete user.emailVerificationTokenHash;
-    db.consentEvents = db.consentEvents || [];
-    db.consentEvents.push({
-      userId,
-      type: 'email-verified',
-      channel: 'email',
-      at: verifiedAt,
-    });
-    return user;
-  });
+    const saved = await saveUser(tx, user);
+    await logConsent(tx, { userId, type: 'email-verified', channel: 'email', at: verifiedAt });
+    return saved;
+  }, 'setVerifiedUserEmail');
 }
 
 // Remove the verified phone and every session whose authority came from that
 // verification. Progress and optional email remain intact so the account can reconnect
 // a number later without losing its training history.
 export async function detachVerifiedPhone(userId) {
-  return mutate((db) => {
-    const user = db.users[userId];
-    if (!user) throw new Error(`unknown user ${userId}`);
+  const at = new Date().toISOString();
+  return transaction(async (tx) => {
+    const user = await requireLockedUser(tx, userId);
     if (!user.phone) {
       const error = new Error('no verified phone on file');
       error.code = 'PHONE_NOT_ATTACHED';
@@ -1209,29 +1045,19 @@ export async function detachVerifiedPhone(userId) {
 
     // Preserve only a keyed lookup so a later OTP for the same number reconnects this
     // account and its progress. Never detach without it: doing so would silently orphan
-    // the account that the UI promises to preserve.
-    // Recompute even when a legacy hash exists. This proves the currently deployed
-    // secret is available and refreshes an attached account after an intentional key
-    // rotation; trusting an old hash could delete the last usable lookup and orphan it.
+    // the account that the UI promises to preserve. Recompute even when a hash exists,
+    // which proves the deployed secret is available and migrates to a rotated key.
     user.phoneLookupHash = phoneLookupHash(user.phone, { required: true });
     delete user.phone;
     user.consentToDrills = false;
-    db.sessions = db.sessions || {};
-    for (const [token, session] of Object.entries(db.sessions)) {
-      if (session.userId === userId) delete db.sessions[token];
-    }
-    db.consentEvents = db.consentEvents || [];
-    db.consentEvents.push({
-      userId,
-      type: 'withdrawn',
-      channel: 'account',
-      at: new Date().toISOString(),
-    });
-    return user;
-  });
+    const saved = await saveUser(tx, user);
+    await tx.query('delete from safespace.sessions where user_id = $1', [user.id]);
+    await logConsent(tx, { userId: user.id, type: 'withdrawn', channel: 'account', at });
+    return saved;
+  }, 'detachVerifiedPhone');
 }
 
-// --- Sessions -------------------------------------------------------------
+// --- Sessions -------------------------------------------------------------------
 // A drill places a real phone call, so the caller must prove who they are with a
 // server-issued bearer token. A client-supplied user id is an assertion, not proof.
 
@@ -1244,63 +1070,46 @@ function sessionTtlMs() {
 
 /** Issue a session token for a verified user. Returns the opaque token. */
 export async function createSession(userId) {
-  // Generated outside `mutate` so a retry reuses the same token rather than minting
-  // a fresh one on every attempt and leaving the losers orphaned in the document.
   const token = crypto.randomBytes(32).toString('hex');
-  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
   const createdAt = new Date();
-  const ttlMs = sessionTtlMs();
-  await mutate((db) => {
-    db.sessions = db.sessions || {};
-    db.sessions[tokenHash] = {
-      userId,
-      createdAt: createdAt.toISOString(),
-      expiresAt: new Date(createdAt.getTime() + ttlMs).toISOString(),
-    };
-  });
+  await query(
+    `insert into safespace.sessions (token_hash, user_id, created_at, expires_at)
+     values ($1, $2, $3, $4)`,
+    [
+      sha256(token),
+      String(userId),
+      createdAt.toISOString(),
+      new Date(createdAt.getTime() + sessionTtlMs()).toISOString(),
+    ],
+    'createSession',
+  );
   return token;
 }
 
 /** Look up a user by phone (server-internal only — never expose phone to clients). */
 export async function getUserByPhone(phone) {
   if (!phone) return null;
-  const { db } = await readDb();
-  return Object.values(db.users).find((u) => u.phone === phone) || null;
+  const { rows } = await query('select * from safespace.users where phone = $1', [phone], 'getUserByPhone');
+  return userFromRow(rows[0]);
 }
 
 /** Resolve a bearer token to its user id, or null. */
 export async function getUserIdByToken(token) {
   if (!token) return null;
-  const { db } = await readDb();
-  const tokenHash = crypto.createHash('sha256').update(String(token)).digest('hex');
-  const digestSession = db.sessions?.[tokenHash];
-  const legacySession = db.sessions?.[token];
-  // The raw-token lookup keeps existing local demo sessions usable for one bounded
-  // migration. A successful lookup immediately replaces the bearer key with its digest.
-  const session = digestSession || legacySession;
+  const { rows } = await query(
+    'select user_id, expires_at from safespace.sessions where token_hash = $1',
+    [sha256(token)],
+    'getUserIdByToken',
+  );
+  const session = rows[0];
   if (!session) return null;
-  const expiresAt = session.expiresAt
-    ? Date.parse(session.expiresAt)
-    : Date.parse(session.createdAt || '') + sessionTtlMs();
-  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) return null;
-
-  if (!digestSession && legacySession) {
-    await mutate((fresh) => {
-      const current = fresh.sessions?.[token];
-      if (!current) return unchanged(null);
-      fresh.sessions[tokenHash] = current;
-      delete fresh.sessions[token];
-      return current.userId;
-    });
-  }
-  return session.userId ?? null;
+  return new Date(session.expires_at).getTime() > Date.now() ? session.user_id : null;
 }
 
-// --- Scam intel tactic cards ------------------------------------------------
-// A bounded rotating set, not an archive. Every request that reads this document pays
-// for what is stored here, so the set is capped and old cards age out. Cards are written
-// only by the refresh job after validation, and re-validated again before any call uses
-// one, so nothing here is trusted for having been stored.
+// --- Scam intel tactic cards ------------------------------------------------------
+// A bounded rotating set, not an archive. Cards are written only by the refresh job
+// after validation, and re-validated again before any call uses one, so nothing here is
+// trusted for having been stored.
 
 export const MAX_TACTIC_CARDS = 10;
 export const DEFAULT_TACTIC_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -1322,9 +1131,14 @@ function liveTacticCards(cards, nowMs, maxAgeMs) {
   });
 }
 
+async function storedTacticCards(runner) {
+  const { rows } = await runner('select card from safespace.tactic_cards order by fetched_at desc');
+  return rows.map((row) => row.card);
+}
+
 export async function listLiveTacticCards({ now = Date.now(), maxAgeMs = tacticMaxAgeMs() } = {}) {
-  const { db } = await readDb();
-  return liveTacticCards(db.intel?.cards, now, maxAgeMs);
+  const cards = await storedTacticCards((sql) => query(sql, [], 'listLiveTacticCards'));
+  return liveTacticCards(cards, now, maxAgeMs);
 }
 
 /**
@@ -1333,10 +1147,12 @@ export async function listLiveTacticCards({ now = Date.now(), maxAgeMs = tacticM
  * cron invocation cannot grow the set.
  */
 export async function mergeTacticCards(incoming, { now = Date.now(), maxAgeMs = tacticMaxAgeMs() } = {}) {
-  return mutate((db) => {
+  return transaction(async (tx) => {
+    await advisoryLock(tx, 'safespace:tactic-cards');
+    const existing = await storedTacticCards((sql) => tx.query(sql));
     const byId = new Map();
     const candidates = liveTacticCards(
-      [...(Array.isArray(incoming) ? incoming : []), ...(Array.isArray(db.intel?.cards) ? db.intel.cards : [])],
+      [...(Array.isArray(incoming) ? incoming : []), ...existing],
       now,
       maxAgeMs,
     );
@@ -1346,7 +1162,14 @@ export async function mergeTacticCards(incoming, { now = Date.now(), maxAgeMs = 
     const cards = [...byId.values()]
       .sort((a, b) => Date.parse(b.fetchedAt) - Date.parse(a.fetchedAt))
       .slice(0, MAX_TACTIC_CARDS);
-    db.intel = { cards, updatedAt: new Date(now).toISOString() };
+
+    await tx.query('delete from safespace.tactic_cards');
+    for (const card of cards) {
+      await tx.query(
+        'insert into safespace.tactic_cards (id, card, fetched_at) values ($1, $2, $3)',
+        [card.id, JSON.stringify(card), card.fetchedAt],
+      );
+    }
     return cards;
-  });
+  }, 'mergeTacticCards');
 }

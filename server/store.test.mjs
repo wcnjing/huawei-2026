@@ -2,13 +2,11 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
-const TEST_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'safespace-store-'));
-const DATA_FILE = path.join(TEST_DIR, 'data.json');
-process.env.SAFESPACE_DATA_FILE = DATA_FILE;
+import { dumpDb, resetDb, setupTestDb, teardownTestDb } from './testdb.mjs';
+
 process.env.IDENTITY_LOOKUP_SECRET = 'store-test-identity-lookup-secret-over-32-characters';
+await setupTestDb();
+after(teardownTestDb);
 
 const {
   publicUser, registerVerifiedUser, setUserEmail, detachVerifiedPhone, getUser,
@@ -20,28 +18,28 @@ const {
   setVerifiedUserEmail, EmailVerificationConflict, reservePhoneVerificationSend,
   VerificationRateLimitConflict,
 } = await import('./store.js');
+const { query } = await import('./db.js');
 
-const freshStore = () => fs.rmSync(DATA_FILE, { force: true });
-after(() => fs.rmSync(TEST_DIR, { recursive: true, force: true }));
+const freshStore = resetDb;
 
 // Regression: user ids used to BE the phone number, which made every id-bearing
 // response and URL carry PII. Ids must now be opaque and the phone kept separate.
 test('registerVerifiedUser gives an opaque id, never the phone number', async () => {
-  freshStore();
+  await freshStore();
   const u = await registerVerifiedUser({ phone: '+6591234567', name: 'Judge' });
   assert.ok(u.id.startsWith('usr_'), `id should be opaque, got ${u.id}`);
   assert.ok(!u.id.includes('6591234567'), 'the id must not embed the phone number');
   assert.equal(u.phone, '+6591234567', 'the phone is still stored server-side for dialling');
-  freshStore();
+  await freshStore();
 });
 
 test('registerVerifiedUser requires a name', async () => {
-  freshStore();
+  await freshStore();
   await assert.rejects(
     () => registerVerifiedUser({ phone: '+6591234567', name: '   ' }),
     /name is required/,
   );
-  freshStore();
+  await freshStore();
 });
 
 // Guards the PII invariant: /api/family and /api/me are world-readable, so a user
@@ -52,26 +50,28 @@ test('registerVerifiedUser requires a name', async () => {
 // the SAME account — otherwise they silently lose their XP, streak and history, and the
 // leaderboard fills with duplicates of one person.
 test('re-registering the same phone reuses the account and re-logs consent', async () => {
-  freshStore();
+  await freshStore();
   const first = await registerVerifiedUser({ phone: '+6591234567', name: 'Judge' });
   const again = await registerVerifiedUser({ phone: '+6591234567', name: 'Judge' });
 
   assert.equal(again.id, first.id, 'same number must map to the same account');
 
-  const db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
-  const mine = Object.values(db.users).filter((u) => u.phone === '+6591234567');
+  const { rows: mine } = await query('select id from safespace.users where phone = $1', ['+6591234567']);
   assert.equal(mine.length, 1, 'must not create a duplicate user');
 
-  const events = db.consentEvents.filter((e) => e.userId === first.id);
+  const { rows: events } = await query(
+    'select type, channel from safespace.consent_events where user_id = $1',
+    [first.id],
+  );
   assert.equal(events.length, 2, 'each grant is its own audit event, even a repeat');
   assert.ok(events.every((e) => e.type === 'granted' && e.channel === 'otp'));
-  freshStore();
+  await freshStore();
 });
 
 // Everything that places a real call or sends a real message trusts this lookup. A token
 // that resolves when it shouldn't is an account takeover; one that is guessable is worse.
 test('new sessions persist only a digest, expire, and resolve only the bearer token', async () => {
-  freshStore();
+  await freshStore();
   const u = await registerVerifiedUser({ phone: '+6591234567', name: 'Judge' });
   const token = await createSession(u.id);
 
@@ -85,55 +85,27 @@ test('new sessions persist only a digest, expire, and resolve only the bearer to
   const secondToken = await createSession(u.id);
   assert.notEqual(secondToken, token, 'each session gets a distinct token');
 
-  const db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-  assert.ok(db.sessions[tokenHash], 'the keyed digest must resolve the session');
-  assert.equal(db.sessions[token], undefined, 'the raw bearer credential must not be a key');
-  assert.ok(!fs.readFileSync(DATA_FILE, 'utf-8').includes(token));
-  assert.ok(Number.isFinite(Date.parse(db.sessions[tokenHash].expiresAt)));
+  const { rows: sessions } = await query(
+    'select expires_at from safespace.sessions where token_hash = $1',
+    [tokenHash],
+  );
+  assert.equal(sessions.length, 1, 'the keyed digest must resolve the session');
+  assert.ok(!(await dumpDb()).includes(token), 'the raw bearer credential must never be stored');
+  assert.ok(Number.isFinite(new Date(sessions[0].expires_at).getTime()));
 
-  db.sessions[tokenHash].expiresAt = new Date(0).toISOString();
-  fs.writeFileSync(DATA_FILE, JSON.stringify(db));
+  await query(
+    'update safespace.sessions set expires_at = $2 where token_hash = $1',
+    [tokenHash, new Date(0).toISOString()],
+  );
   assert.equal(await getUserIdByToken(token), null, 'an expired session must not resolve');
-  freshStore();
-});
-
-test('legacy raw-key sessions inherit the configured TTL instead of living forever', async () => {
-  freshStore();
-  const previousTtl = process.env.SESSION_TTL_MS;
-  process.env.SESSION_TTL_MS = '60000';
-  try {
-    const user = await registerVerifiedUser({ phone: '+6591234567', name: 'Judge' });
-    const db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
-    db.sessions = {
-      legacy_recent: {
-        userId: user.id,
-        createdAt: new Date().toISOString(),
-      },
-      legacy_expired: {
-        userId: user.id,
-        createdAt: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-      },
-      legacy_malformed: {
-        userId: user.id,
-      },
-    };
-    fs.writeFileSync(DATA_FILE, JSON.stringify(db));
-
-    assert.equal(await getUserIdByToken('legacy_recent'), user.id);
-    assert.equal(await getUserIdByToken('legacy_expired'), null);
-    assert.equal(await getUserIdByToken('legacy_malformed'), null);
-  } finally {
-    if (previousTtl === undefined) delete process.env.SESSION_TTL_MS;
-    else process.env.SESSION_TTL_MS = previousTtl;
-    freshStore();
-  }
+  await freshStore();
 });
 
 // A registered user who skipped the optional email at sign-up can add one later, so the
 // email drill has a target. Stored normalised (trimmed, lowercased) like registration does.
 test('setUserEmail attaches an email to an existing user, normalised', async () => {
-  freshStore();
+  await freshStore();
   const u = await registerVerifiedUser({ phone: '+6591234567', name: 'Judge' });
   assert.equal(u.email, undefined, 'starts with no email');
 
@@ -144,11 +116,11 @@ test('setUserEmail attaches an email to an existing user, normalised', async () 
   assert.equal((await getUser(u.id)).email, 'judge@example.com', 'persisted');
 
   await assert.rejects(() => setUserEmail('usr_nope', 'x@y.com'), /unknown user/);
-  freshStore();
+  await freshStore();
 });
 
 test('detachVerifiedPhone removes the number, withdraws consent and revokes all sessions', async () => {
-  freshStore();
+  await freshStore();
   const u = await registerVerifiedUser({
     phone: '+6591234567',
     name: 'Judge',
@@ -164,16 +136,18 @@ test('detachVerifiedPhone removes the number, withdraws consent and revokes all 
   assert.equal(await getUserIdByToken(firstToken), null);
   assert.equal(await getUserIdByToken(secondToken), null);
 
-  const db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
-  assert.ok(db.consentEvents.some(
-    (event) => event.userId === u.id && event.type === 'withdrawn' && event.channel === 'account',
-  ));
+  const { rows: withdrawn } = await query(
+    `select 1 from safespace.consent_events
+      where user_id = $1 and type = 'withdrawn' and channel = 'account'`,
+    [u.id],
+  );
+  assert.equal(withdrawn.length, 1);
   await assert.rejects(() => detachVerifiedPhone('usr_nope'), /unknown user/);
-  freshStore();
+  await freshStore();
 });
 
 test('re-verifying a detached phone reconnects the preserved account without storing the raw number', async () => {
-  freshStore();
+  await freshStore();
   const original = await registerVerifiedUser({
     phone: '+6591234567',
     name: 'Judge',
@@ -188,11 +162,11 @@ test('re-verifying a detached phone reconnects the preserved account without sto
   const xpBeforeDetach = (await getUser(original.id)).xp;
 
   await detachVerifiedPhone(original.id);
-  const detachedDb = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
-  assert.equal(detachedDb.users[original.id].phone, undefined);
-  assert.match(detachedDb.users[original.id].phoneLookupHash, /^[a-f0-9]{64}$/);
+  const { rows: [detachedRow] } = await query('select * from safespace.users where id = $1', [original.id]);
+  assert.equal(detachedRow.phone, null);
+  assert.match(detachedRow.phone_lookup_hash, /^[a-f0-9]{64}$/);
   assert.ok(
-    !JSON.stringify(detachedDb.users[original.id]).includes('+6591234567'),
+    !JSON.stringify(detachedRow).includes('+6591234567'),
     'the detached user record must not retain the raw number',
   );
 
@@ -204,11 +178,11 @@ test('re-verifying a detached phone reconnects the preserved account without sto
   assert.equal(reattached.xp, xpBeforeDetach, 'progress must survive detachment');
   assert.equal(reattached.email, 'judge@example.com', 'email ownership state must survive detachment');
   assert.equal(reattached.consentToDrills, true);
-  freshStore();
+  await freshStore();
 });
 
 test('detach requires the current recovery secret and refreshes an attached legacy hash', async () => {
-  freshStore();
+  await freshStore();
   const configuredSecret = process.env.IDENTITY_LOOKUP_SECRET;
   try {
     const user = await registerVerifiedUser({
@@ -216,8 +190,8 @@ test('detach requires the current recovery secret and refreshes an attached lega
       name: 'Judge',
     });
     const token = await createSession(user.id);
-    const before = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'))
-      .users[user.id].phoneLookupHash;
+    const before = (await query('select phone_lookup_hash from safespace.users where id = $1', [user.id]))
+      .rows[0].phone_lookup_hash;
 
     delete process.env.IDENTITY_LOOKUP_SECRET;
     await assert.rejects(
@@ -240,7 +214,7 @@ test('detach requires the current recovery secret and refreshes an attached lega
     assert.equal(reattached.id, user.id);
   } finally {
     process.env.IDENTITY_LOOKUP_SECRET = configuredSecret;
-    freshStore();
+    await freshStore();
   }
 });
 
@@ -294,16 +268,16 @@ test('publicUser tolerates null/undefined', () => {
 });
 
 test('setUserName uses the same mandatory normalisation as registration', async () => {
-  freshStore();
+  await freshStore();
   const updated = await setUserName('you', '  Alice Tan  ');
   assert.equal(updated.name, 'ALICE TAN');
   assert.equal((await getUser('you')).name, 'ALICE TAN');
   await assert.rejects(() => setUserName('you', '   '), /name is required/);
-  freshStore();
+  await freshStore();
 });
 
 test('email verification changes ownership state only for the current pending address', async () => {
-  freshStore();
+  await freshStore();
   const user = await registerVerifiedUser({ phone: '+6591234567', name: 'Judge' });
   const firstVerificationId = 'a'.repeat(43);
   const secondVerificationId = 'b'.repeat(43);
@@ -323,7 +297,7 @@ test('email verification changes ownership state only for the current pending ad
     .update(firstVerificationId)
     .digest('hex'));
   assert.ok(
-    !fs.readFileSync(DATA_FILE, 'utf8').includes(firstVerificationId),
+    !(await dumpDb()).includes(firstVerificationId),
     'the opaque verification credential must be stored only as a digest',
   );
 
@@ -378,17 +352,17 @@ test('email verification changes ownership state only for the current pending ad
     (error) => error.code === 'EMAIL_VERIFICATION_STALE',
   );
 
-  const db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
-  assert.ok(db.consentEvents.some(
-    (event) => event.userId === user.id
-      && event.type === 'email-verified'
-      && event.channel === 'email',
-  ));
-  freshStore();
+  const { rows: verifiedEvents } = await query(
+    `select 1 from safespace.consent_events
+      where user_id = $1 and type = 'email-verified' and channel = 'email'`,
+    [user.id],
+  );
+  assert.equal(verifiedEvents.length, 1);
+  await freshStore();
 });
 
 test('a failed verification send can release only its matching pending reservation', async () => {
-  freshStore();
+  await freshStore();
   const user = await registerVerifiedUser({ phone: '+6591234567', name: 'Judge' });
   const firstVerificationId = 'f'.repeat(43);
   const newerVerificationId = 'g'.repeat(43);
@@ -430,11 +404,11 @@ test('a failed verification send can release only its matching pending reservati
   );
   assert.equal((await getUser(user.id)).pendingEmail, undefined);
   assert.equal((await getUser(user.id)).emailVerificationRequestedAt, undefined);
-  freshStore();
+  await freshStore();
 });
 
 test('email verification enforces durable per-account and per-destination limits', async () => {
-  freshStore();
+  await freshStore();
   const now = Date.parse('2026-07-30T00:00:00.000Z');
   const first = await registerVerifiedUser({ phone: '+6591234567', name: 'First' });
 
@@ -463,7 +437,7 @@ test('email verification enforces durable per-account and per-destination limits
       && error.retryAfterMs > 0,
   );
 
-  freshStore();
+  await freshStore();
   const users = await Promise.all([
     registerVerifiedUser({ phone: '+6590000001', name: 'One' }),
     registerVerifiedUser({ phone: '+6590000002', name: 'Two' }),
@@ -494,16 +468,15 @@ test('email verification enforces durable per-account and per-destination limits
       && error.retryAfterMs > 0,
   );
 
-  const db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
-  assert.ok(db.verificationRateLimits['email-account']);
-  assert.ok(db.verificationRateLimits['email-destination']);
-  assert.ok(!Object.keys(db.verificationRateLimits['email-destination'])
-    .some((key) => key.includes('shared@example.com')));
-  freshStore();
+  const { rows: hits } = await query('select scope, subject_key from safespace.rate_limit_hits');
+  assert.ok(hits.some((hit) => hit.scope === 'email-account'));
+  assert.ok(hits.some((hit) => hit.scope === 'email-destination'));
+  assert.ok(!JSON.stringify(hits).includes('shared@example.com'));
+  await freshStore();
 });
 
 test('phone verification send limits are durable and destination-scoped', async () => {
-  freshStore();
+  await freshStore();
   const now = Date.parse('2026-07-30T00:00:00.000Z');
   await reservePhoneVerificationSend({
     phone: '+6591234567',
@@ -535,14 +508,14 @@ test('phone verification send limits are durable and destination-scoped', async 
     maxSends: 2,
   });
 
-  const db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
-  assert.ok(db.verificationRateLimits['phone-destination']);
-  assert.ok(!JSON.stringify(db.verificationRateLimits).includes('+6591234567'));
-  freshStore();
+  const { rows: hits } = await query('select scope from safespace.rate_limit_hits');
+  assert.ok(hits.some((hit) => hit.scope === 'phone-destination'));
+  assert.ok(!(await dumpDb()).includes('+6591234567'));
+  await freshStore();
 });
 
 test('phone verification also caps one requester across rotating destinations', async () => {
-  freshStore();
+  await freshStore();
   const now = Date.parse('2026-07-30T00:00:00.000Z');
   for (let i = 0; i < 2; i += 1) {
     await reservePhoneVerificationSend({
@@ -573,14 +546,14 @@ test('phone verification also caps one requester across rotating destinations', 
     maxRequesterSends: 2,
   });
 
-  const db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
-  assert.ok(db.verificationRateLimits['phone-requester']);
-  assert.ok(!JSON.stringify(db.verificationRateLimits).includes('203.0.113.10'));
-  freshStore();
+  const { rows: hits } = await query('select scope from safespace.rate_limit_hits');
+  assert.ok(hits.some((hit) => hit.scope === 'phone-requester'));
+  assert.ok(!(await dumpDb()).includes('203.0.113.10'));
+  await freshStore();
 });
 
 test('email ownership reservation rejects missing or short opaque verification ids', async () => {
-  freshStore();
+  await freshStore();
   const user = await registerVerifiedUser({ phone: '+6591234567', name: 'Judge' });
   await assert.rejects(
     () => beginEmailVerification({
@@ -597,11 +570,11 @@ test('email ownership reservation rejects missing or short opaque verification i
     }),
     /opaque verificationId/,
   );
-  freshStore();
+  await freshStore();
 });
 
 test('a provider attempt is reserved, sent and looked up by either id', async () => {
-  freshStore();
+  await freshStore();
   const created = await createDrillAttempt({ userId: 'you', channel: 'call' });
   assert.equal(created.status, 'created');
   assert.equal(created.providerId, null);
@@ -611,11 +584,11 @@ test('a provider attempt is reserved, sent and looked up by either id', async ()
   assert.equal(sent.providerId, 'call_123');
   assert.equal((await getDrillAttempt(created.id)).id, created.id);
   assert.equal((await getDrillAttempt('call_123')).id, created.id);
-  freshStore();
+  await freshStore();
 });
 
 test('completing a provider attempt applies its outcome exactly once', async () => {
-  freshStore();
+  await freshStore();
   const attempt = await createDrillAttempt({
     userId: 'you',
     channel: 'call',
@@ -639,11 +612,11 @@ test('completing a provider attempt applies its outcome exactly once', async () 
   assert.equal(afterUser.timesScammed, before.timesScammed);
   assert.equal((await getDrillAttempt(attempt.id)).status, 'completed');
   assert.equal((await listPendingResults('you')).length, 1);
-  freshStore();
+  await freshStore();
 });
 
 test('unknown provider calls cannot mutate any user or queue a result', async () => {
-  freshStore();
+  await freshStore();
   const before = await getUser('you');
   const result = await completeDrillAttempt({
     providerId: 'call_not_ours',
@@ -655,11 +628,11 @@ test('unknown provider calls cannot mutate any user or queue a result', async ()
   assert.equal(result.applied, false);
   assert.deepEqual(afterUser, before);
   assert.deepEqual(await listPendingResults('you'), []);
-  freshStore();
+  await freshStore();
 });
 
 test('an operational call failure is unscored and remains pending until ACK', async () => {
-  freshStore();
+  await freshStore();
   const attempt = await createDrillAttempt({
     userId: 'you',
     channel: 'call',
@@ -688,11 +661,11 @@ test('an operational call failure is unscored and remains pending until ACK', as
   assert.equal((await ackPendingResult('you', pending.id)).id, pending.id);
   assert.deepEqual(await listPendingResults('you'), []);
   assert.equal((await getDrillAttempt(attempt.id)).scored, false);
-  freshStore();
+  await freshStore();
 });
 
 test('a distress safety exit remains neutral but is visible until the client ACKs it', async () => {
-  freshStore();
+  await freshStore();
   const attempt = await createDrillAttempt({
     userId: 'you',
     channel: 'call',
@@ -719,11 +692,11 @@ test('a distress safety exit remains neutral but is visible until the client ACK
   assert.equal((await peekPendingResult('you')).id, pending.id);
   assert.equal((await ackPendingResult('you', pending.id)).id, pending.id);
   assert.equal(await peekPendingResult('you'), null);
-  freshStore();
+  await freshStore();
 });
 
 test('pending results survive reads and disappear only after an explicit matching ACK', async () => {
-  freshStore();
+  await freshStore();
   await applyOutcome({ userId: 'you', outcome: 'hung_up', practice: false });
   await applyOutcome({ userId: 'you', outcome: 'caught_flag', practice: false });
 
@@ -738,11 +711,11 @@ test('pending results survive reads and disappear only after an explicit matchin
   assert.equal(acknowledged.id, firstRead.id);
   assert.equal((await listPendingResults('you')).length, 1);
   assert.notEqual((await peekPendingResult('you')).id, firstRead.id);
-  freshStore();
+  await freshStore();
 });
 
 test('practice client attempt ids prevent double-click XP farming', async () => {
-  freshStore();
+  await freshStore();
   const before = await getUser('you');
   const results = await Promise.all([
     applyPracticeOutcomeOnce({
@@ -760,11 +733,11 @@ test('practice client attempt ids prevent double-click XP farming', async () => 
   assert.equal(results[0].record.id, results[1].record.id);
   assert.equal(results[0].record.outcome, 'hung_up');
   assert.equal((await getUser('you')).timesSafe, before.timesSafe + 1);
-  freshStore();
+  await freshStore();
 });
 
 test('attempt action tokens are stored hashed and can be used only once', async () => {
-  freshStore();
+  await freshStore();
   const attempt = await createDrillAttempt({
     userId: 'you',
     channel: 'email',
@@ -773,8 +746,7 @@ test('attempt action tokens are stored hashed and can be used only once', async 
   assert.ok(attempt.actionToken);
   assert.equal((await getDrillAttemptByActionToken(attempt.actionToken)).id, attempt.id);
 
-  const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-  assert.ok(!raw.includes(attempt.actionToken), 'raw action token must never be persisted');
+  assert.ok(!(await dumpDb()).includes(attempt.actionToken), 'raw action token must never be persisted');
   const completed = await completeDrillAttempt({
     actionToken: attempt.actionToken,
     outcome: 'reported',
@@ -785,11 +757,11 @@ test('attempt action tokens are stored hashed and can be used only once', async 
     (await completeDrillAttempt({ actionToken: attempt.actionToken, outcome: 'reported' })).status,
     'unknown',
   );
-  freshStore();
+  await freshStore();
 });
 
 test('cooldown and one-active-attempt checks are atomic and recognizable', async () => {
-  freshStore();
+  await freshStore();
   const first = await createDrillAttempt({
     userId: 'you',
     channel: 'sms',
@@ -806,16 +778,5 @@ test('cooldown and one-active-attempt checks are atomic and recognizable', async
     () => createDrillAttempt({ userId: 'you', channel: 'sms', cooldownMs: 60_000 }),
     (error) => error.code === 'DRILL_ATTEMPT_CONFLICT' && error.retryAfterMs > 0,
   );
-  freshStore();
-});
-
-test('file writes are complete atomic replacements with no leftover temp file', async () => {
-  freshStore();
-  await setUserName('you', 'Atomic');
-  assert.doesNotThrow(() => JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8')));
-  assert.deepEqual(
-    fs.readdirSync(TEST_DIR).filter((name) => name.endsWith('.tmp')),
-    [],
-  );
-  freshStore();
+  await freshStore();
 });
