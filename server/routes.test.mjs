@@ -675,3 +675,9 @@ test('call drills use a live tactic card only when intel is enabled', async () =
     await freshStore();
   }
 });
+
+test('the database keep-alive answers without a session', async () => {
+  const response = await fetch(`${base}/api/health/db`);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { ok: true });
+});

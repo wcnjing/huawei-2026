@@ -26,6 +26,7 @@ import {
   markDrillAttemptFailed,
   markDrillAttemptSent,
   peekPendingResult,
+  pingDb,
   publicUser,
   registerVerifiedUser,
   reservePhoneVerificationSend,
@@ -282,6 +283,17 @@ function intelRefreshSecret() {
 
 api.get('/api/health', (_req, res) => {
   res.json({ ok: true, uptime: Math.round(process.uptime()) });
+});
+
+// Called daily by a Vercel cron (vercel.json): a free-tier Supabase project pauses after
+// a week without activity. It reveals nothing beyond reachability, so it needs no session.
+api.get('/api/health/db', async (_req, res) => {
+  try {
+    await pingDb();
+    return res.json({ ok: true });
+  } catch (error) {
+    return fail(res, 503, 'database unreachable', error);
+  }
 });
 
 api.get('/api/me', async (req, res) => {
