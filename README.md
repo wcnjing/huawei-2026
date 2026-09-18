@@ -33,6 +33,7 @@ npm install
 cp .env.example .env
 npm start                 # build + serve at http://localhost:3000
 npm test                  # isolated backend regression suite
+npm run test:pg           # same suite on real Postgres (needs Docker)
 ```
 
 With no provider credentials, the game UI, seeded demo family and in-app practice
@@ -71,7 +72,7 @@ Copy [.env.example](.env.example) and use a different random value for each secr
 | Detach/reconnect account recovery | `IDENTITY_LOOKUP_SECRET` (stable, random, 32+ chars) |
 | SMS drills | Twilio account values, `TWILIO_MESSAGING_SERVICE_SID`, `DRILL_LINK_SECRET`, and an HTTPS action origin |
 | Email ownership/drills | `GOOGLE_SCRIPT_URL`, `GOOGLE_SCRIPT_SECRET`, `DRILL_LINK_SECRET`, and an HTTPS action origin |
-| Persistent serverless storage | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` |
+| Database | `DATABASE_URL` (Supabase in production), plus `DATABASE_CA_CERT` in production |
 
 The action origin is `PUBLIC_URL`, or `EMAIL_ACTION_ORIGIN` when only messaging links
 need a public origin. Apps Script must have matching `SAFESPACE_SECRET` and
@@ -131,8 +132,8 @@ Optional lifecycle controls:
 ## Current operational limits
 
 - There is no automatic recurring-drill scheduler; users explicitly start real drills.
-- The file store is safe for one Node process and writes by atomic replacement. Use
-  Upstash for multi-instance or serverless deployments.
+- Data lives in Postgres: Supabase in production. Without `DATABASE_URL`, the server
+  uses PGlite in `server/.pglite/`, for local development only.
 - Provider acceptance is not the same as carrier/inbox delivery. Delivery status
   monitoring is still an operational concern.
 - Call classification is intentionally conservative. Ambiguous interactions may be

@@ -140,7 +140,7 @@ curl -XPOST localhost:3000/api/drills/simulate -H 'content-type: application/jso
 ## 6. Guardrails
 
 - Work on `drill-mode-backend`; commit in working increments; **don't push to `main`**.
-- `.env` is gitignored — never commit it. `server/data.json` is runtime state, also ignored.
+- `.env` is gitignored — never commit it. `server/.pglite/` is local database state, also ignored.
 - Don't upgrade React/Vite/Tailwind majors as a drive-by.
 - Figma Make output is verbose and mock-data-heavy: **strip hardcoded arrays** when wiring to the
   API, but keep one as the offline fallback.

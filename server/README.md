@@ -21,10 +21,10 @@ practice drills and normal UI reads remain available.
 
 ## Tests
 
-`npm test` uses Node's built-in `node:test` runner. Provider calls and Redis are mocked;
-no network account is required. File-store tests set `SAFESPACE_DATA_FILE` to isolated
-temporary paths, so the suite never resets or deletes the application's
-`server/data.json`.
+`npm test` uses Node's built-in `node:test` runner. Provider calls are mocked, and each
+test file gets its own in-memory PGlite database, so no account, network or install is
+needed. `npm run test:pg` runs the same suite against Postgres 17 in Docker, including
+the race tests PGlite cannot run; CI runs both.
 
 | File | Coverage |
 |---|---|
@@ -34,8 +34,10 @@ temporary paths, so the suite never resets or deletes the application's
 | `sms.test.mjs` | Fictional scenarios, reserved domains, Twilio schedule-before-bait ordering and cancellation |
 | `email.test.mjs` | First-party links, durable follow-up ordering, relay escaping and rejection of arbitrary HTML |
 | `vapi.test.mjs` | Structured call analysis, role-aware fallback, operational/unscored endings and attempt metadata |
-| `store.test.mjs` | PII projection, sessions, attempts, exactly-once completion, pending ACK and atomic file writes |
-| `store.redis.test.mjs` | Upstash compare-and-set retries and concurrent duplicate callback handling |
+| `store.test.mjs` | PII projection, sessions, attempts, exactly-once completion and pending ACK |
+| `store.concurrency.test.mjs` | Races on real Postgres: lost updates, cooldowns, OTP caps, duplicate webhooks, duplicate registration |
+| `db.test.mjs` | Schema placement and row-level security, migrations, database selection, retries, error redaction |
+| `rows.test.mjs` | Row ↔ object mapping that keeps the API's JSON unchanged |
 | `routes.test.mjs` | HTTP authentication, ownership, replay, input validation and production-shaped fail-closed behavior |
 
 ## HTTP API
@@ -176,10 +178,11 @@ The simulation route writes a non-practice result and must not exist in producti
 
 ## Persistence
 
-The default backend is `server/data.json`. Writes are serialized within one process and
-replace the document atomically, so a crash cannot leave half-written JSON. Set both
-Upstash REST variables for multi-instance or serverless deployments; Redis mutations
-use versioned compare-and-set with retries.
+Data lives in Postgres, in the `safespace` schema: Supabase in production, PGlite
+(`server/.pglite/`) locally. Each write is one transaction that locks only the rows it
+reads, so different users never wait for each other. Schema changes are SQL files in
+`supabase/migrations/`, applied with `npx supabase db push` on Supabase and
+automatically on PGlite.
 
 New sessions are stored as hashes and expire after 30 days unless `SESSION_TTL_MS`
 overrides the duration. Real attempts have a default five-minute per-user/channel

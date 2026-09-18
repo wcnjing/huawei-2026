@@ -4,14 +4,12 @@ Three ways to run this, depending on what you need:
 
 | | When to use it | Storage |
 |---|---|---|
-| [**Tunnel from a laptop**](#local-demo-over-a-tunnel) | Demo day. Live HTTPS in 2 minutes, no account, no card. | `server/data.json` on your disk |
-| [**Huawei Cloud ECS**](#deploying-to-huawei-cloud-ecs) | The "hosted on Huawei Cloud" story in the pitch. | `server/data.json` on the VM disk |
-| [**Vercel + Upstash**](#deploying-to-vercel--upstash) | A permanent URL with nothing to keep running. | Upstash Redis |
+| [**Tunnel from a laptop**](#local-demo-over-a-tunnel) | Demo day. Live HTTPS in 2 minutes, no account, no card. | PGlite on your disk, or a Supabase dev project |
+| [**Huawei Cloud ECS**](#deploying-to-huawei-cloud-ecs) | The "hosted on Huawei Cloud" story in the pitch. | Supabase Postgres |
+| [**Vercel + Supabase**](#deploying-to-vercel--supabase) | A permanent URL with nothing to keep running. | Supabase Postgres |
 
-**Pick storage before you pick a host.** The default file store needs a real disk. On a
-serverless host the filesystem is read-only, so it cannot write at all — which is why
-the Vercel path requires Upstash and is not optional there. See
-[Storage backends](#storage-backends).
+**Every hosted deploy uses Postgres on Supabase.** See [Database](#database). The
+server refuses to start in production without `DATABASE_URL`.
 
 ---
 
@@ -32,8 +30,8 @@ Two things to know: **the URL changes every restart** (so don't put it on a slid
 update `PUBLIC_URL` plus the Apps Script `SAFESPACE_LINK_ORIGIN` each time), and the
 laptop must stay awake.
 
-`npm test` uses temporary file-store paths and never resets the application's
-`server/data.json`, so it is safe to run before or after registering the demo phone.
+`npm test` uses in-memory databases and never touches `server/.pglite/`, so it is safe
+to run before or after registering the demo phone.
 
 ---
 
@@ -42,8 +40,8 @@ laptop must stay awake.
 Target: one small ECS instance (Ubuntu 22.04+, 1 vCPU / 2 GB is plenty) running Node
 behind nginx. Also satisfies the "hosted on Huawei Cloud" part of the pitch.
 
-**Why ECS suits this app:** it's a normal VM with a real disk, so `server/data.json`
-survives restarts and redeploys, with no external database to configure.
+**Why ECS:** a normal long-running VM in Huawei Cloud. Data lives in Supabase Postgres,
+so the VM holds no state and can be rebuilt freely.
 
 ---
 
@@ -106,6 +104,9 @@ nano .env
 ALLOW_DEV_VERIFY=
 ENABLE_DEMO_ROUTES=
 NODE_ENV=production
+
+DATABASE_URL=postgres://...          # Supabase session pooler URI, port 5432
+DATABASE_CA_CERT="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"
 
 PUBLIC_URL=https://YOUR_DOMAIN        # no trailing slash
 VAPI_WEBHOOK_SECRET=<openssl rand -hex 32>
@@ -257,7 +258,8 @@ npm install && npm run build && npm prune --omit=dev   # build tools are devDepe
 systemctl restart safespace
 ```
 
-`server/data.json` is untouched by this — users, XP and consent records persist.
+Data lives in Supabase, so redeploys never touch it. Apply new migrations first with
+`npx supabase db push`.
 
 ---
 
@@ -280,9 +282,7 @@ dev flag is set in production — fix that before anyone else gets the URL.
 
 ## Known limits
 
-- **Single instance only, on the file backend.** Two processes sharing one `data.json`
-  are unsupported. One process serializes mutations and atomically replaces the file;
-  Redis uses compare-and-set and is safe to run multi-instance.
+- Run as many instances as you like: every write is a Postgres transaction.
 - Newly issued sessions expire after 30 days by default. Adjust `SESSION_TTL_MS` to
   match your security policy; detaching a phone revokes all of that account's sessions.
 - `IDENTITY_LOOKUP_SECRET` is durable account-recovery material. Back it up securely
@@ -291,38 +291,46 @@ dev flag is set in production — fix that before anyone else gets the URL.
   authenticated user action.
 - Provider acceptance cannot guarantee carrier or inbox delivery. Monitor provider
   delivery logs for production use.
-- Back up `server/data.json` if the consent audit trail matters:
-  `cp server/data.json /var/backups/safespace-$(date +%F).json`
+- Supabase takes daily backups on paid plans. On the free plan, export with
+  `npx supabase db dump --data-only` before risky changes.
 
 ---
 
-# Deploying to Vercel + Upstash
+# Deploying to Vercel + Supabase
 
-A permanent URL with no server to keep alive. Requires Upstash: Vercel's filesystem is
-read-only, so the default file store cannot work there at all.
+A permanent URL with no server to keep alive.
 
-## 1. Create the Redis database
+## 1. Create the database
 
-[upstash.com](https://upstash.com) → sign up (free, no card) → **Create Database** →
-Redis, single region, pick the region closest to your Vercel region. From the database
-page copy **UPSTASH_REDIS_REST_URL** and **UPSTASH_REDIS_REST_TOKEN** (the REST pair, not
-the `redis://` connection string — the store speaks HTTP).
+In the team's Supabase organisation create a project in **Singapore** (Vercel functions
+are pinned to `sin1` in `vercel.json`). Then, from the repo root:
+
+```sh
+npx supabase login
+npx supabase link --project-ref YOUR_PROJECT_REF
+npx supabase db push          # creates the safespace schema and the demo family
+```
+
+From **Connect** copy the **transaction pooler** URI (port 6543) as `DATABASE_URL`. From
+**Database settings → SSL configuration** download the CA certificate for
+`DATABASE_CA_CERT`.
 
 ## 2. Import the repo
 
 [vercel.com](https://vercel.com) → **Add New → Project** → import the GitHub repo.
-`vercel.json` already sets the build command, output directory and API routing, so leave
-the framework settings alone.
+`vercel.json` already sets the build command, output directory, region and API routing,
+so leave the framework settings alone.
 
 ## 3. Set environment variables
 
-In **Settings → Environment Variables**, add the same values as `.env`, plus the two
-Upstash ones. Two must be left **empty**:
+In **Settings → Environment Variables**, add the same values as `.env`. Use a separate
+dev project's values for the **Preview** environment and the prod project's for
+**Production**. Two must be left **empty**:
 
 | Variable | Value |
 |---|---|
-| `UPSTASH_REDIS_REST_URL` | from step 1 |
-| `UPSTASH_REDIS_REST_TOKEN` | from step 1 |
+| `DATABASE_URL` | the transaction pooler URI from step 1 |
+| `DATABASE_CA_CERT` | the CA certificate PEM from step 1 |
 | `PUBLIC_URL` | `https://your-project.vercel.app` — no trailing slash |
 | `VAPI_WEBHOOK_SECRET` | `openssl rand -hex 32` |
 | `DRILL_LINK_SECRET` | a different `openssl rand -hex 32` |
@@ -335,38 +343,33 @@ Upstash ones. Two must be left **empty**:
 | `ENABLE_DEMO_ROUTES` | **empty** — it exposes an unauthenticated write route |
 
 Then **Deploy**, and run the [post-deploy checklist](#post-deploy-checklist) against the
-Vercel URL.
+Vercel URL, adding `curl https://YOUR_DOMAIN/api/health/db` (expect `{"ok":true}`).
 
 ## Notes
 
-- `vercel.json` sets `includeFiles: "server/**"` because `data.seed.json` is read at
-  runtime through a path built from `import.meta.url`. Vercel's bundler cannot see that,
-  and without it the function fails with ENOENT on first request.
-- The store seeds from `data.seed.json` on first write, so the first deploy starts with
-  the demo family already populated.
 - Signed messaging links are top-level paths (`/drill-reveal`, `/drill-report` and
   `/email-verify`) and must route to the Express function, not the SPA fallback. The
   post-deploy checklist above catches an incorrect rewrite immediately.
-- Free tier is 500k Redis commands/month. Each app open is a read; each drill is a
-  read plus a write. Nowhere near the limit at demo scale.
+- A daily cron calls `/api/health/db` because a free-tier Supabase project pauses after
+  a week without activity. For anything important, such as the final, use a paid plan.
+- Vercel protects preview deployments with a login, so Vapi's end-of-call webhook
+  cannot reach one. Test the full call loop locally through a tunnel instead, with
+  `DATABASE_URL` pointed at the dev project.
 
 ---
 
-# Storage backends
+# Database
 
-Selected by environment, so the same code runs on all three hosts:
-
-| `UPSTASH_REDIS_REST_URL` | Backend | Used by |
+| `DATABASE_URL` | Database | Used by |
 |---|---|---|
-| unset | `server/data.json` on local disk | `npm run dev`, tunnel demo, ECS |
-| set | Upstash Redis | Vercel, or any serverless host |
+| unset | PGlite in `server/.pglite/` | `npm start` and the tunnel demo on a laptop |
+| set | Postgres (Supabase) | Vercel, ECS, and anyone testing against the dev project |
 
-Both keep the same whole-document shape. The file backend serializes mutations inside
-one Node process and atomically renames complete files. Redis additionally guards every
-write with a Lua compare-and-set on a version key: several serverless instances can run
-at once, so a losing writer replays its change against the fresh document instead of
-overwriting whoever won. `server/store.redis.test.mjs` covers that against a fake Redis,
-so it runs with no account and no network.
+Schema changes are SQL files in `supabase/migrations/`. Apply them to Supabase with
+`npx supabase db push`. PGlite applies them on startup, and `npm run db:migrate`
+applies them to any other Postgres, such as a future Huawei Cloud database. It refuses
+Supabase hosts, which the CLI manages.
 
-Tests select isolated temporary files with `SAFESPACE_DATA_FILE`; they do not remove the
-normal `server/data.json`.
+Every write is a transaction that locks only what it reads, so any number of server
+instances can run at once. `server/store.concurrency.test.mjs` proves that against a
+real Postgres (`npm run test:pg`, and CI).

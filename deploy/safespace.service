@@ -26,7 +26,8 @@ RestartSec=3
 StartLimitIntervalSec=60
 StartLimitBurst=5
 
-# Hardening. The app only ever writes server/data.json.
+# Hardening. With DATABASE_URL set the app writes nothing to disk; the write path below
+# only matters for a PGlite fallback, which production refuses.
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
