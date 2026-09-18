@@ -5,3 +5,5 @@ dist/
 server/data.json
 
 test-data/
+
+server/.pglite/
