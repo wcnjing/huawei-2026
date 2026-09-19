@@ -434,10 +434,64 @@ test('POST /api/verify/check rejects a malformed email before anything else', as
 });
 
 test('POST /api/verify/check requires a valid name before verification', async () => {
-  for (const name of ['', '   ', '<script>', '12345']) {
+  for (const name of ['<script>', '12345']) {
     const res = await post('/api/verify/check', { phone: '+6591234567', code: '000000', name });
     assert.equal(res.status, 400, `"${name}" should be rejected as a name`);
   }
+});
+
+const AVATAR = { color: '#c77dff', glow: '#00ff88', hat: 'Crown', eyes: 'Visor', outfit: 'Neon' };
+
+// The route tests import index.js in a production-shaped environment (verification
+// disabled), so getting an approved OTP here means toggling ALLOW_DEV_VERIFY for the
+// span of the test, in a try/finally, rather than setting TWILIO_* before import —
+// that would change the module's fail-closed shape and risk the disabled-bypass test
+// above passing for the wrong reason.
+test('verify/check: returning numbers need no name; unknown ones get NO_ACCOUNT', async () => {
+  await freshStore();
+  const previousDev = process.env.ALLOW_DEV_VERIFY;
+  process.env.ALLOW_DEV_VERIFY = 'true';
+  try {
+    const missing = await post('/api/verify/check', { phone: '+6592220010', code: '000000' });
+    assert.equal(missing.status, 404);
+    assert.equal((await missing.json()).code, 'NO_ACCOUNT');
+
+    const created = await post('/api/verify/check', { phone: '+6592220010', code: '000000', name: 'Nova', avatar: AVATAR });
+    assert.equal(created.status, 200);
+    const first = await created.json();
+    assert.deepEqual((await getUser(first.userId)).avatar, AVATAR);
+
+    const again = await post('/api/verify/check', { phone: '+6592220010', code: '000000' });
+    assert.equal(again.status, 200);
+    const second = await again.json();
+    assert.equal(second.userId, first.userId);
+    assert.equal(second.name, 'NOVA');
+  } finally {
+    if (previousDev === undefined) delete process.env.ALLOW_DEV_VERIFY;
+    else process.env.ALLOW_DEV_VERIFY = previousDev;
+    await freshStore();
+  }
+});
+
+test('verify/check and /api/me/avatar reject avatars outside the allowlist', async () => {
+  await freshStore();
+  const previousDev = process.env.ALLOW_DEV_VERIFY;
+  process.env.ALLOW_DEV_VERIFY = 'true';
+  try {
+    const bad = await post('/api/verify/check', { phone: '+6592220011', code: '000000', name: 'Bad', avatar: { hat: 'Tiara' } });
+    assert.equal(bad.status, 400);
+  } finally {
+    if (previousDev === undefined) delete process.env.ALLOW_DEV_VERIFY;
+    else process.env.ALLOW_DEV_VERIFY = previousDev;
+  }
+  const user = await registerVerifiedUser({ phone: '+6592220012', name: 'Av' });
+  const auth = { authorization: `Bearer ${await createSession(user.id)}` };
+  assert.equal((await post('/api/me/avatar', { avatar: AVATAR })).status, 401);
+  assert.equal((await post('/api/me/avatar', { avatar: { ...AVATAR, eyes: 'Laser' } }, auth)).status, 400);
+  const ok = await post('/api/me/avatar', { avatar: AVATAR }, auth);
+  assert.equal(ok.status, 200);
+  assert.deepEqual((await ok.json()).user.avatar, AVATAR);
+  await freshStore();
 });
 
 // ─── Signed-in practice scoring (sessions required) ────────────────────────

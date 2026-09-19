@@ -28,9 +28,11 @@ import {
   publicUser,
   registerVerifiedUser,
   reservePhoneVerificationSend,
+  setUserAvatar,
   setUserName,
   setVerifiedUserEmail,
 } from './store.js';
+import { cleanAvatar } from './avatar.js';
 import {
   VapiDeliveryUnconfirmed,
   fireDrillCall,
@@ -166,6 +168,9 @@ async function requireUserId(req, res) {
   if (!userId) res.status(401).json({ error: 'sign in first' });
   return userId;
 }
+
+// Stub — Task 9 replaces this with the Supabase Realtime doorbell notification.
+async function ringUser() {}
 
 function timingSafeEqualStr(left, right) {
   const a = Buffer.from(String(left));
@@ -407,21 +412,31 @@ api.post('/api/verify/check', async (req, res) => {
   const code = String(req.body?.code || '').trim();
   const name = String(req.body?.name || '').trim();
   const email = req.body?.email == null ? '' : String(req.body.email).trim();
+  const avatarInput = req.body?.avatar ?? null;
+  const avatar = avatarInput == null ? null : cleanAvatar(avatarInput);
 
   if (!E164.test(phone) || !code) return res.status(400).json({ error: 'phone and code required' });
   if (email && !EMAIL_RE.test(email)) {
     return res.status(400).json({ error: 'email is not a valid address' });
   }
-  if (!NAME_RE.test(name)) {
-    return res.status(400).json({
-      error: 'name is required (letters, spaces, apostrophes or hyphens)',
-    });
+  // A name is needed only to create an account; a returning number keeps its own.
+  if (name && !NAME_RE.test(name)) {
+    return res.status(400).json({ error: 'name must use letters, spaces, apostrophes or hyphens' });
   }
+  if (avatarInput != null && !avatar) return res.status(400).json({ error: 'avatar is invalid' });
 
   try {
     const approved = await checkVerification(phone, code);
     if (!approved) return res.status(401).json({ ok: false, error: 'incorrect or expired code' });
-    const user = await registerVerifiedUser({ phone, name, email: email || undefined });
+    let user;
+    try {
+      user = await registerVerifiedUser({ phone, name, email: email || undefined, avatar: avatar ?? undefined });
+    } catch (error) {
+      if (error?.code === 'NO_ACCOUNT') {
+        return res.status(404).json({ code: 'NO_ACCOUNT', error: 'no account for this number yet' });
+      }
+      throw error;
+    }
     const token = await createSession(user.id);
     return res.json({
       ok: true,
@@ -449,6 +464,15 @@ api.post('/api/me/name', async (req, res) => {
   } catch (error) {
     return fail(res, 400, 'could not update name', error);
   }
+});
+
+api.post('/api/me/avatar', async (req, res) => {
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+  if (!cleanAvatar(req.body?.avatar)) return res.status(400).json({ error: 'avatar is invalid' });
+  const user = await setUserAvatar(userId, req.body.avatar);
+  await ringUser(userId);
+  return res.json({ ok: true, user: accountView(user) });
 });
 
 api.post('/api/me/phone/detach', async (req, res) => {
