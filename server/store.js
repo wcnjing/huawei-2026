@@ -8,6 +8,7 @@
 import crypto from 'crypto';
 import { computeResult, KNOWN_OUTCOMES } from './xp.js';
 import { query, transaction } from './db.js';
+import { cleanAvatar } from './avatar.js';
 import {
   INSERT_USER_SQL,
   UPDATE_USER_SQL,
@@ -741,6 +742,18 @@ export async function setUserName(userId, name) {
     user.name = cleanName;
     return saveUser(tx, user);
   }, 'setUserName');
+}
+
+export async function setUserAvatar(userId, avatar) {
+  const clean = cleanAvatar(avatar);
+  if (!clean) throw new Error('avatar is invalid');
+  const { rows } = await query(
+    'update safespace.users set avatar = $2::jsonb where id = $1 returning *',
+    [String(userId), JSON.stringify(clean)],
+    'setUserAvatar',
+  );
+  if (!rows[0]) throw new Error(`unknown user ${userId}`);
+  return userFromRow(rows[0]);
 }
 
 // Backward-compatible storage helper. Setting an address never marks it verified:

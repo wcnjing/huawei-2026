@@ -14,7 +14,7 @@ const {
   getDrillAttempt, markDrillAttemptSent, markDrillAttemptFailed,
   listPendingResults, peekPendingResult, ackPendingResult, applyOutcome,
   applyPracticeOutcomeOnce, DrillAttemptConflict, getDrillAttemptByActionToken,
-  setUserName, beginEmailVerification, cancelEmailVerification,
+  setUserName, setUserAvatar, beginEmailVerification, cancelEmailVerification,
   setVerifiedUserEmail, EmailVerificationConflict, reservePhoneVerificationSend,
   VerificationRateLimitConflict,
 } = await import('./store.js');
@@ -779,4 +779,13 @@ test('cooldown and one-active-attempt checks are atomic and recognizable', async
     (error) => error.code === 'DRILL_ATTEMPT_CONFLICT' && error.retryAfterMs > 0,
   );
   await freshStore();
+});
+
+test('setUserAvatar stores an allowlisted avatar and rejects others', async () => {
+  await freshStore();
+  const u = await registerVerifiedUser({ phone: '+6591110001', name: 'Ava' });
+  const avatar = { color: '#c77dff', glow: '#ffe66d', hat: 'Helmet', eyes: 'Goggles', outfit: 'Stealth' };
+  assert.deepEqual((await setUserAvatar(u.id, avatar)).avatar, avatar);
+  await assert.rejects(() => setUserAvatar(u.id, { ...avatar, hat: 'Tiara' }), /avatar is invalid/);
+  assert.deepEqual((await getUser(u.id)).avatar, avatar);
 });
