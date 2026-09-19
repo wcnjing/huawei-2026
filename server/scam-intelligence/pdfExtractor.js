@@ -1,3 +1,6 @@
+// actual pdf extractor used in pipeline
+// called by ingestBulletin.js to help provide raw text extracted
+
 import { PDFParse } from 'pdf-parse';
 import supabase from '../supabase.js';
 

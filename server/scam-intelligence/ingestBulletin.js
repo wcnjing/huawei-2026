@@ -1,3 +1,7 @@
+// creates bulletin row in Supabase (with raw text field)
+// run:
+// node server/scam-intelligence/ingestBulletin.js <YYYY>/scam_bulletin_<YYYY>_<MM>.pdf
+
 import supabase from '../supabase.js';
 import { extractPdfText } from './pdfExtractor.js';
 
@@ -23,7 +27,7 @@ function getIssueNumber(storagePath) {
 
 function getPublishedDate(rawText) {
     const match = rawText.match(
-        /(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})/i
+        /(\d{1,2})\s+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{4})/i
     );
 
     if (!match) {
@@ -33,17 +37,28 @@ function getPublishedDate(rawText) {
     const [, day, monthName, year] = match;
 
     const months = {
+        jan: '01',
         january: '01',
+        feb: '02',
         february: '02',
+        mar: '03',
         march: '03',
+        apr: '04',
         april: '04',
         may: '05',
+        jun: '06',
         june: '06',
+        jul: '07',
         july: '07',
+        aug: '08',
         august: '08',
+        sep: '09',
         september: '09',
+        oct: '10',
         october: '10',
+        nov: '11',
         november: '11',
+        dec: '12',
         december: '12',
     };
 

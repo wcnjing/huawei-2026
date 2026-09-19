@@ -1,3 +1,7 @@
+// AI populates scams, scam_variants, and bulletin_scams based on the bulletin's raw_text.
+// run:
+// node server/scam-intelligence/aiExtractor.js
+
 import 'dotenv/config';
 import OpenAI from 'openai';
 import supabase from '../supabase.js';
