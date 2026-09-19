@@ -60,7 +60,8 @@ function positiveInteger(value, fallback) {
 
 // --- Transaction helpers ------------------------------------------------------
 
-async function lockUser(tx, userId) {
+// Exported for server/houses.js, which shares these locking rules.
+export async function lockUser(tx, userId) {
   const { rows } = await tx.query(
     'select * from safespace.users where id = $1 for update',
     [String(userId)],
@@ -79,7 +80,7 @@ async function readUser(tx, userId) {
   return userFromRow(rows[0]);
 }
 
-async function saveUser(tx, user) {
+export async function saveUser(tx, user) {
   const { rows } = await tx.query(UPDATE_USER_SQL, [user.id, ...userValues(user)]);
   return userFromRow(rows[0]);
 }
@@ -155,14 +156,20 @@ export async function pingDb() {
 
 // --- Scoring ------------------------------------------------------------------
 
-function scoreUser(user, outcome, practice) {
-  const r = computeResult(outcome, { practice });
-  user.xp += r.xp;
+/** Add XP and apply the level-up rule. Mutates and returns the user. */
+export function addXp(user, xp) {
+  user.xp += xp;
   while (user.xp >= user.xpMax) {
     user.xp -= user.xpMax;
     user.level += 1;
     user.xpMax = Math.round(user.xpMax * 1.2);
   }
+  return user;
+}
+
+function scoreUser(user, outcome, practice) {
+  const r = computeResult(outcome, { practice });
+  addXp(user, r.xp);
   if (r.streak === 'inc') {
     user.streak += 1;
     user.timesSafe += 1;
@@ -817,7 +824,7 @@ function rateLimitSubjectKey(scope, subject) {
     : crypto.createHash('sha256').update(material).digest('hex');
 }
 
-function retryAfterForWindow(hits, nowMs, windowMs) {
+export function retryAfterForWindow(hits, nowMs, windowMs) {
   const oldest = Math.min(...hits);
   return Math.max(1, Math.ceil(windowMs - (nowMs - oldest)));
 }
@@ -826,7 +833,7 @@ function retryAfterForWindow(hits, nowMs, windowMs) {
  * Lock each (scope, subject) and read its still-active hits, oldest first. Locks are
  * taken in sorted order so two requests touching the same keys cannot deadlock.
  */
-async function lockRateLimits(tx, subjects, { nowMs, windowMs }) {
+export async function lockRateLimits(tx, subjects, { nowMs, windowMs }) {
   const buckets = subjects.map(({ scope, subject }) => ({
     scope,
     key: rateLimitSubjectKey(scope, subject),
@@ -849,7 +856,7 @@ async function lockRateLimits(tx, subjects, { nowMs, windowMs }) {
 }
 
 /** Record one send per bucket, and delete hits whose window has passed. */
-async function recordRateLimitHits(tx, buckets, { nowMs, windowMs }) {
+export async function recordRateLimitHits(tx, buckets, { nowMs, windowMs }) {
   const cutoff = new Date(nowMs - windowMs).toISOString();
   // Expired hits are deleted, not kept: the table must not become a record of every
   // number and inbox that was ever verified.
