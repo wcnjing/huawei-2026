@@ -101,6 +101,16 @@ async function logConsent(tx, { userId, type, channel, at }) {
   );
 }
 
+/** Write avatar to database. runner is anything with .query(sql, params). */
+async function writeAvatar(runner, userId, avatar) {
+  const { rows } = await runner.query(
+    'update safespace.users set avatar = $2::jsonb where id = $1 returning *',
+    [String(userId), JSON.stringify(avatar)],
+  );
+  if (!rows[0]) throw new Error(`unknown user ${userId}`);
+  return userFromRow(rows[0]);
+}
+
 // --- Read models ---------------------------------------------------------------
 
 export async function getUser(id) {
@@ -736,11 +746,7 @@ export async function registerVerifiedUser({ phone, name, email, avatar } = {}) 
 
     let saved = isNew ? await insertUser(tx, user) : await saveUser(tx, user);
     if (cleanAvatarValue) {
-      const { rows: updated } = await tx.query(
-        'update safespace.users set avatar = $2::jsonb where id = $1 returning *',
-        [saved.id, JSON.stringify(cleanAvatarValue)],
-      );
-      saved = userFromRow(updated[0]);
+      saved = await writeAvatar(tx, saved.id, cleanAvatarValue);
     }
     await logConsent(tx, { userId: saved.id, type: 'granted', channel: 'otp', at });
     return saved;
@@ -760,13 +766,10 @@ export async function setUserName(userId, name) {
 export async function setUserAvatar(userId, avatar) {
   const clean = cleanAvatar(avatar);
   if (!clean) throw new Error('avatar is invalid');
-  const { rows } = await query(
-    'update safespace.users set avatar = $2::jsonb where id = $1 returning *',
-    [String(userId), JSON.stringify(clean)],
-    'setUserAvatar',
-  );
-  if (!rows[0]) throw new Error(`unknown user ${userId}`);
-  return userFromRow(rows[0]);
+  const runner = {
+    query: (sql, params) => query(sql, params, 'setUserAvatar'),
+  };
+  return writeAvatar(runner, userId, clean);
 }
 
 // Backward-compatible storage helper. Setting an address never marks it verified:
