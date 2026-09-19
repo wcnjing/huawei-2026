@@ -2,6 +2,56 @@
 
 :root {
   --font-size: 14px;
+
+  /* Font families */
+  --font-family-ui: "Share Tech Mono", monospace;
+  --font-family-pixel: "Press Start 2P", monospace;
+  --font-family-display: "VT323", monospace;
+  --font-family-realistic: Arial, Helvetica, sans-serif;
+  --font-family-system-mono: monospace;
+
+  /*
+   * Share Tech Mono
+   * Main UI text, labels, values, buttons and readable explanations.
+   */
+  --font-ui-micro: 10px;
+  --font-ui-caption: 11px;
+  --font-ui-label: 12px;
+  --font-ui-body: 14px;
+  --font-ui-subheading: 16px;
+  --font-ui-value: 18px;
+  --font-ui-heading: 20px;
+  --font-ui-display: 24px;
+
+  /*
+   * Press Start 2P
+   * Short pixel headings only. It appears visually denser and wider.
+   */
+  --font-pixel-caption: 10px;
+  --font-pixel-label: 11px;
+  --font-pixel-heading: 12px;
+  --font-pixel-title: 14px;
+  --font-pixel-display: 20px;
+  --font-pixel-hero: 28px;
+
+  /*
+   * VT323
+   * Retro supporting display text.
+   */
+  --font-display-body: 18px;
+  --font-display-subheading: 20px;
+  --font-display-heading: 22px;
+  --font-display-large: 26px;
+
+  /*
+   * Realistic message interfaces
+   * Used inside simulated SMS, email and notification content.
+   */
+  --font-realistic-caption: 11px;
+  --font-realistic-label: 12px;
+  --font-realistic-body: 13px;
+  --font-realistic-emphasis: 14px;
+
   --background: #0a0e1a;
   --foreground: #e8f4f8;
   --card: #111827;
