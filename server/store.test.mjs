@@ -33,13 +33,33 @@ test('registerVerifiedUser gives an opaque id, never the phone number', async ()
   await freshStore();
 });
 
-test('registerVerifiedUser requires a name', async () => {
+test('registerVerifiedUser needs a name only for a new account', async () => {
   await freshStore();
   await assert.rejects(
     () => registerVerifiedUser({ phone: '+6591234567', name: '   ' }),
-    /name is required/,
+    (error) => error.code === 'NO_ACCOUNT' && /name is required/.test(error.message),
   );
+  const { rows } = await query('select count(*) as n from safespace.users where phone = $1', ['+6591234567']);
+  assert.equal(Number(rows[0].n), 0, 'no account is created');
+
+  const created = await registerVerifiedUser({ phone: '+6591234567', name: 'Judge' });
+  const again = await registerVerifiedUser({ phone: '+6591234567', name: '' });
+  assert.equal(again.id, created.id);
+  assert.equal(again.name, 'JUDGE', 'a returning number keeps its name');
   await freshStore();
+});
+
+test('registerVerifiedUser saves the designed avatar', async () => {
+  await freshStore();
+  const avatar = { color: '#ff2d55', glow: '#4ecdc4', hat: 'Cap', eyes: 'Shades', outfit: 'Neon' };
+  const u = await registerVerifiedUser({ phone: '+6591110002', name: 'Neo', avatar });
+  assert.deepEqual(u.avatar, avatar);
+  const next = { ...avatar, hat: 'Crown' };
+  assert.deepEqual((await registerVerifiedUser({ phone: '+6591110002', avatar: next })).avatar, next);
+  await assert.rejects(
+    () => registerVerifiedUser({ phone: '+6591110003', name: 'Bad', avatar: { hat: 'Tiara' } }),
+    /avatar is invalid/,
+  );
 });
 
 // Guards the PII invariant: /api/family and /api/me are world-readable, so a user

@@ -669,9 +669,10 @@ function phoneLookupHash(phone, { required = false } = {}) {
 
 // Upsert a phone-verified user and log a 'granted' consent event (the audit trail).
 // Called by /api/verify/check after OTP succeeds.
-export async function registerVerifiedUser({ phone, name, email }) {
+export async function registerVerifiedUser({ phone, name, email, avatar } = {}) {
   const cleanName = normaliseUserName(name);
-  if (!cleanName) throw new Error('name is required');
+  const cleanAvatarValue = avatar == null ? null : cleanAvatar(avatar);
+  if (avatar != null && !cleanAvatarValue) throw new Error('avatar is invalid');
   const lookupHash = phoneLookupHash(phone);
   const newId = `usr_${crypto.randomUUID()}`;
   const at = new Date().toISOString();
@@ -693,6 +694,11 @@ export async function registerVerifiedUser({ phone, name, email }) {
     }
     let user = userFromRow(rows[0]);
     const isNew = !user;
+    if (isNew && !cleanName) {
+      const error = new Error('name is required for a new account');
+      error.code = 'NO_ACCOUNT';
+      throw error;
+    }
     if (isNew) {
       user = {
         id: newId,
@@ -707,7 +713,7 @@ export async function registerVerifiedUser({ phone, name, email }) {
     }
     user.phone = phone;
     if (lookupHash) user.phoneLookupHash = lookupHash;
-    user.name = cleanName;
+    if (cleanName) user.name = cleanName;
     // A phone OTP proves control of the phone, not of an email address. Keep an
     // optional address as an unverified candidate until its signed ownership link is
     // opened. Real email drills require `emailVerifiedAt`.
@@ -728,7 +734,14 @@ export async function registerVerifiedUser({ phone, name, email }) {
     }
     user.consentToDrills = true;
 
-    const saved = isNew ? await insertUser(tx, user) : await saveUser(tx, user);
+    let saved = isNew ? await insertUser(tx, user) : await saveUser(tx, user);
+    if (cleanAvatarValue) {
+      const { rows: updated } = await tx.query(
+        'update safespace.users set avatar = $2::jsonb where id = $1 returning *',
+        [saved.id, JSON.stringify(cleanAvatarValue)],
+      );
+      saved = userFromRow(updated[0]);
+    }
     await logConsent(tx, { userId: saved.id, type: 'granted', channel: 'otp', at });
     return saved;
   }, 'registerVerifiedUser');
