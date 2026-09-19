@@ -302,8 +302,9 @@ A permanent URL with no server to keep alive.
 
 ## 1. Create the database
 
-In the team's Supabase organisation create a project in **Singapore** (Vercel functions
-are pinned to `sin1` in `vercel.json`). Then, from the repo root:
+The project `safespace-prod` is in **Tokyo** (`ap-northeast-1`). Vercel functions are pinned
+to the same region (`hnd1` in `vercel.json`) because each request makes several database
+round trips. Keep the two together if either moves. Then, from the repo root:
 
 ```sh
 npx supabase login
