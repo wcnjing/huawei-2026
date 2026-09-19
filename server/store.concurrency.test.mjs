@@ -177,3 +177,22 @@ test('the last member leaving while someone joins never strands the joiner', { s
     assert.equal(rows.length, 0);
   }
 });
+
+test('one person creating a house while joining another ends up in one', { skip }, async () => {
+  await resetDb();
+  // createHouse takes no rate-limit advisory lock, so only the user row lock keeps this
+  // race honest; run several rounds so the window actually gets hit.
+  for (let round = 0; round < 10; round += 1) {
+    const { code } = await raceHouse(1);
+    const p = await racer('Creator');
+    const results = await Promise.allSettled([
+      houses.createHouse(p.id, 'Mine'),
+      houses.joinHouse(p.id, code),
+    ]);
+    assert.equal(fulfilled(results).length, 1, `round ${round}`);
+    assert.equal(rejected(results)[0].reason?.code, 'ALREADY_IN_HOUSE', `round ${round}`);
+    const { rows } = await query('select house_id from safespace.users where id = $1', [p.id]);
+    assert.ok(rows[0].house_id, `round ${round}: p should end up with exactly one house`);
+  }
+  await houseInvariants();
+});
