@@ -129,26 +129,6 @@ export async function listConsentedUsers() {
   return rows.map(userFromRow);
 }
 
-// Leaderboard = users ranked by xp, shaped for the React LeaderboardScreen.
-// Explicit field list — never spreads the raw user, so PII can't leak in.
-export async function getLeaderboard() {
-  const { rows } = await query(
-    'select id, name, xp, level, times_safe from safespace.users order by xp desc, created_at, id',
-    [],
-    'getLeaderboard',
-  );
-  return rows.map((u, i) => ({
-    rank: i + 1, id: u.id, name: u.name, score: u.xp, level: u.level, wins: u.times_safe,
-  }));
-}
-
-// All family members, shaped for the React FamilyHomeScreen (dollhouse rooms).
-// Projected — this endpoint is world-readable, so it must not carry phone numbers.
-export async function getFamily() {
-  const { rows } = await query('select * from safespace.users order by created_at, id', [], 'getFamily');
-  return rows.map((row) => publicUser(userFromRow(row)));
-}
-
 /** The cheapest possible round trip, for the keep-alive cron. */
 export async function pingDb() {
   await query('select 1', [], 'pingDb');

@@ -18,8 +18,6 @@ import {
   createSession,
   detachVerifiedPhone,
   getDrillAttempt,
-  getFamily,
-  getLeaderboard,
   getUser,
   getUserIdByToken,
   listLiveTacticCards,
@@ -74,7 +72,6 @@ const CLIENT_REAL_OUTCOMES = {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, '..', 'dist');
-const DEFAULT_USER = process.env.DRILL_USER || 'you';
 
 const app = express();
 app.disable('x-powered-by');
@@ -163,8 +160,11 @@ async function sessionUserId(req) {
   return userId;
 }
 
-async function actingUserId(req) {
-  return (await sessionUserId(req)) || DEFAULT_USER;
+/** The signed-in user's id, or null after sending 401. Every account route needs one. */
+async function requireUserId(req, res) {
+  const userId = await sessionUserId(req);
+  if (!userId) res.status(401).json({ error: 'sign in first' });
+  return userId;
 }
 
 function timingSafeEqualStr(left, right) {
@@ -297,35 +297,23 @@ api.get('/api/health/db', async (_req, res) => {
 });
 
 api.get('/api/me', async (req, res) => {
-  const user = await getUser(await actingUserId(req));
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+  const user = await getUser(userId);
   if (!user) return res.status(404).json({ error: 'unknown user' });
   return res.json(accountView(user));
 });
 
-// Until explicit family membership exists, registered accounts are private: anonymous
-// visitors see only seed/demo characters and a signed-in user sees themselves as well.
-api.get('/api/family', async (req, res) => {
-  const ownId = await sessionUserId(req);
-  const family = (await getFamily()).filter(
-    (user) => !String(user.id).startsWith('usr_') || user.id === ownId,
-  );
-  res.json(family);
-});
-
-api.get('/api/leaderboard', async (req, res) => {
-  const ownId = await sessionUserId(req);
-  const leaderboard = (await getLeaderboard()).filter(
-    (user) => !String(user.id).startsWith('usr_') || user.id === ownId,
-  );
-  res.json(leaderboard.map((user, index) => ({ ...user, rank: index + 1 })));
-});
-
 api.get('/api/drills/pending-result', async (req, res) => {
-  res.json({ pending: await peekPendingResult(await actingUserId(req)) });
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+  res.json({ pending: await peekPendingResult(userId) });
 });
 
 api.post('/api/drills/pending-result/:resultId/ack', async (req, res) => {
-  const acknowledged = await ackPendingResult(await actingUserId(req), req.params.resultId);
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+  const acknowledged = await ackPendingResult(userId, req.params.resultId);
   if (!acknowledged) return res.status(404).json({ error: 'result not found' });
   return res.json({ ok: true });
 });
@@ -341,10 +329,12 @@ api.post('/api/drills/practice-result', async (req, res) => {
   if (!OUTCOMES.has(outcome)) return res.status(400).json({ error: 'unknown drill outcome' });
   if (!PRACTICE_CHANNELS.has(channel)) return res.status(400).json({ error: 'unknown drill channel' });
   if (!clientAttemptId) return res.status(400).json({ error: 'attemptId is required' });
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
 
   try {
     const result = await applyPracticeOutcomeOnce({
-      userId: await actingUserId(req),
+      userId,
       clientAttemptId,
       outcome,
       channel,
@@ -955,9 +945,11 @@ if (process.env.ENABLE_DEMO_ROUTES === 'true') {
   api.post('/api/drills/simulate', async (req, res) => {
     const outcome = String(req.body?.outcome || 'disengaged').trim();
     if (!OUTCOMES.has(outcome)) return res.status(400).json({ error: 'unknown drill outcome' });
+    const userId = await requireUserId(req, res);
+    if (!userId) return;
     try {
       const result = await applyOutcome({
-        userId: await actingUserId(req),
+        userId,
         outcome,
         channel: 'call',
         practice: false,

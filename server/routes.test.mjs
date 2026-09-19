@@ -128,12 +128,9 @@ test('GET /api/health is public, cheap, and leaks no configuration', async () =>
 });
 
 // ─── PII (review finding 1) ───────────────────────────────────────────────
-test('GET /api/family never exposes phone or email', async () => {
-  const res = await fetch(base + '/api/family');
-  assert.equal(res.status, 200);
-  const body = JSON.stringify(await res.json());
-  assert.ok(!body.includes('"phone"'), 'phone must not be serialised');
-  assert.ok(!body.includes('"email"'), 'email must not be serialised');
+test('the demo-family and public leaderboard routes are gone', async () => {
+  assert.equal((await fetch(base + '/api/family')).status, 404);
+  assert.equal((await fetch(base + '/api/leaderboard')).status, 404);
 });
 
 test('GET /api/shame is not exposed as a public failure ranking', async () => {
@@ -141,13 +138,25 @@ test('GET /api/shame is not exposed as a public failure ranking', async () => {
   assert.equal(res.status, 404);
 });
 
-test('GET /api/me ignores a client-supplied ?user= (no reading other accounts)', async () => {
-  const res = await fetch(base + '/api/me?user=usr_someone_else');
+test('GET /api/me needs a session and ignores ?user=', async () => {
+  assert.equal((await fetch(base + '/api/me?user=you')).status, 401);
+  await freshStore();
+  const user = await registerVerifiedUser({ phone: '+6592220001', name: 'Me' });
+  const token = await createSession(user.id);
+  const res = await fetch(base + '/api/me?user=you', { headers: { authorization: `Bearer ${token}` } });
   assert.equal(res.status, 200);
   const me = await res.json();
-  // Falls back to the demo account rather than honouring the param.
-  assert.equal(me.id, 'you');
+  assert.equal(me.id, user.id);
   assert.equal(me.phone, undefined);
+});
+
+test('practice results and pending results need a session', async () => {
+  assert.equal((await fetch(base + '/api/drills/pending-result')).status, 401);
+  assert.equal((await post('/api/drills/pending-result/x/ack')).status, 401);
+  assert.equal(
+    (await post('/api/drills/practice-result', { outcome: 'hung_up', channel: 'call', attemptId: 'a1' })).status,
+    401,
+  );
 });
 
 // ─── Real calls require a session (review finding 2) ──────────────────────
@@ -284,13 +293,15 @@ test('an authenticated webhook cannot attribute an unknown call to the demo user
 
 test('a no-answer webhook is unscored, durable until ACK, and exactly once', async () => {
   await freshStore();
+  const user = await registerVerifiedUser({ phone: '+6592226666', name: 'No Answer' });
+  const auth = { authorization: `Bearer ${await createSession(user.id)}` };
   const attempt = await createDrillAttempt({
-    userId: 'you',
+    userId: user.id,
     channel: 'call',
     providerId: 'call_no_answer_route',
     status: 'sent',
   });
-  const before = await getUser('you');
+  const before = await getUser(user.id);
   const payload = {
     message: {
       type: 'end-of-call-report',
@@ -316,23 +327,23 @@ test('a no-answer webhook is unscored, durable until ACK, and exactly once', asy
   const replay = await post('/api/webhooks/vapi', payload, headers);
   assert.equal(replay.status, 200);
   assert.equal((await replay.json()).status, 'duplicate');
-  assert.deepEqual(await getUser('you'), before, 'no-answer must not alter XP or streak');
+  assert.deepEqual(await getUser(user.id), before, 'no-answer must not alter XP or streak');
 
-  const firstRead = await fetch(base + '/api/drills/pending-result');
+  const firstRead = await fetch(base + '/api/drills/pending-result', { headers: auth });
   const pending = (await firstRead.json()).pending;
   assert.equal(pending.result, 'UNSCORED');
   assert.equal(pending.unscoredReason, 'no_answer');
   assert.equal(
-    (await (await fetch(base + '/api/drills/pending-result')).json()).pending.id,
+    (await (await fetch(base + '/api/drills/pending-result', { headers: auth })).json()).pending.id,
     pending.id,
     'GET must not consume a result',
   );
   assert.equal(
-    (await post(`/api/drills/pending-result/${encodeURIComponent(pending.id)}/ack`)).status,
+    (await post(`/api/drills/pending-result/${encodeURIComponent(pending.id)}/ack`, undefined, auth)).status,
     200,
   );
   assert.equal(
-    (await (await fetch(base + '/api/drills/pending-result')).json()).pending,
+    (await (await fetch(base + '/api/drills/pending-result', { headers: auth })).json()).pending,
     null,
   );
   await freshStore();
@@ -429,25 +440,27 @@ test('POST /api/verify/check requires a valid name before verification', async (
   }
 });
 
-// ─── Anonymous practice still works (no regression for the demo) ──────────
-test('anonymous practice drills still score against the demo account', async () => {
+// ─── Signed-in practice scoring (sessions required) ────────────────────────
+test('practice drills score against the signed-in account', async () => {
   await freshStore();
+  const user = await registerVerifiedUser({ phone: '+6592220003', name: 'Practice' });
+  const auth = { authorization: `Bearer ${await createSession(user.id)}` };
   const payload = {
     outcome: 'reported',
     channel: 'email',
     attemptId: 'practice-route-stable-attempt-1',
   };
-  const res = await post('/api/drills/practice-result', payload);
+  const res = await post('/api/drills/practice-result', payload, auth);
   assert.equal(res.status, 200);
-  const { status, applied, record, user } = await res.json();
+  const { status, applied, record, user: responseUser } = await res.json();
   assert.equal(status, 'completed');
   assert.equal(applied, true);
-  assert.equal(record.userId, 'you');
+  assert.equal(record.userId, user.id);
   assert.equal(record.result, 'WON');
   assert.equal(record.practice, true);
-  assert.equal(user.phone, undefined, 'even this response must not carry PII');
+  assert.equal(responseUser.phone, undefined, 'even this response must not carry PII');
 
-  const duplicate = await post('/api/drills/practice-result', payload);
+  const duplicate = await post('/api/drills/practice-result', payload, auth);
   assert.equal(duplicate.status, 200);
   const duplicateBody = await duplicate.json();
   assert.equal(duplicateBody.status, 'duplicate');
