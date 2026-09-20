@@ -5039,7 +5039,9 @@ function RegisterScreen({ mode, name, avatar, onDone, onNewPlayer, onBack }: {
   name: string;
   avatar: AvatarConfig;
   onDone: (name: string) => void;
-  onNewPlayer: () => void;
+  // Omitted where signing up as somebody new would be wrong — the drill opt-in re-verify
+  // belongs to a player who already has an account and a session to protect.
+  onNewPlayer?: () => void;
   onBack: () => void;
 }) {
   // Seed from saved contact so returning users don't retype their details.
@@ -5140,11 +5142,11 @@ function RegisterScreen({ mode, name, avatar, onDone, onNewPlayer, onBack }: {
               <div>{label(`CODE SENT TO ${phone}`)}<input style={{ ...inputStyle, letterSpacing: 8, textAlign: "center", fontSize: 22 }} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="000000" inputMode="numeric" /></div>
               {devCode && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ffe66d", textAlign: "center" }}>DEV CODE: {devCode}</div>}
               <PixelBtn onClick={verify} color="#00ff88" size="lg" full disabled={busy || code.length < 6}>{busy ? "CHECKING..." : "[ VERIFY ]"}</PixelBtn>
-              <PixelBtn onClick={() => { setStep("phone"); setMsg(""); }} color="#1a2340" textColor="#6b8ba4" size="sm" full>CHANGE NUMBER</PixelBtn>
+              <PixelBtn onClick={() => { setStep("phone"); setMsg(""); setNoAccount(false); }} color="#1a2340" textColor="#6b8ba4" size="sm" full>CHANGE NUMBER</PixelBtn>
             </div>
           )}
           {msg && <div style={{ marginTop: 12, fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: msg.includes("VERIFIED") ? "#00ff88" : "#ff6b35", textAlign: "center" }}>{msg}</div>}
-          {noAccount && (
+          {noAccount && onNewPlayer && (
             <div style={{ marginTop: 12 }}>
               <PixelBtn onClick={onNewPlayer} color="#00ff88" size="md" full>[ NEW PLAYER ]</PixelBtn>
             </div>
@@ -8085,16 +8087,38 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [houseId]);
 
-  // Signing in is the point the app becomes "yours": adopt the verified name, let the
-  // house hook start fetching, and land on Home (or the house, for an invited player).
+  // Houses need an account. Detaching the phone clears the session without moving the
+  // player, so guard the route itself: every create/join from there would 401 with no
+  // way back. Signed-out players get the returning sign-in instead of a dead end.
+  useEffect(() => {
+    if (signedIn || (screen !== "house" && screen !== "house-settings")) return;
+    setSignInMode("returning");
+    setScreen("sign-in");
+  }, [screen, signedIn]);
+
+  // Signing in is the point the app becomes "yours": adopt the verified name, load the
+  // house, and land on Home (or the house, for an invited player).
   const finishSignIn = async (name: string) => {
     updateProfile({ name });
+    // This may be a different account than the one that was last signed in here. Forget
+    // the previous session's house so the removed-from-a-house watcher doesn't fire on
+    // the switch, and drop any half-finished leave.
+    prevHouseId.current = null;
+    leavingRef.current = false;
     setSessionEpoch((v) => v + 1);
-    await house.refresh();
+    // Fetched rather than house.refresh()'d because the decision below needs the house in
+    // hand: a state update would not be readable from this closure. house.apply keeps the
+    // hook holding the same copy.
+    const state = await apiGet<HouseState>("/api/house");
+    if (state) house.apply(state);
     const invite = peekPendingInvite();
     goHome();
     if (!hasSeenTutorial()) setTourOpen(true);
-    if (invite) setScreen("house");
+    if (!invite) return;
+    // One house per person: someone who already has one can never use this code, so spend
+    // it here. Left alone it would re-route every later sign-in and pre-fill a dead code.
+    if (state?.house) takePendingInvite();
+    else setScreen("house");
   };
 
   const openRegistration = (returnTo: Screen) => {
@@ -8229,13 +8253,14 @@ export default function App() {
                 onDone={(name) => { void finishSignIn(name); }}
               />
             )}
-            {/* The drill opt-in entry points re-verify an already signed-in player. */}
+            {/* The drill opt-in entry points re-verify an already signed-in player, so no
+                new-player escape hatch here: taking it would start a second account and
+                replace the session they already have. */}
             {screen === "register" && (
               <RegisterScreen
                 mode="returning"
                 name={profile.name}
                 avatar={profile.avatar}
-                onNewPlayer={() => { setSignInMode("new"); setScreen("new-character"); }}
                 onDone={finishRegistration}
                 onBack={() => setScreen(registrationReturn)}
               />
@@ -8251,14 +8276,14 @@ export default function App() {
                   onLeave={handleLeaveHouse}
                   onBack={goHome}
                 />
-              ) : (
+              ) : signedIn ? (
                 <HouseChoiceScreen
                   initialCode={peekPendingInvite() ?? ""}
                   onCreate={(n) => houseAction(() => createHouse(n))}
                   onJoin={(c) => houseAction(() => joinHouse(c))}
                   onBack={goHome}
                 />
-              )
+              ) : null
             )}
 
             {screen === "home" && (
