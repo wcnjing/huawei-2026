@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, createContext, useContext } from "react";
 import { unlock, playSfx, setMuted, setMusicEnabled, isMuted } from "./audio";
 import { TOKEN_KEY, apiGet, apiPost, authHeaders, handleApiAuth, sessionToken, setSessionToken } from "./api";
-import { useHouse, type MemberView } from "./house";
+import { useHouse, removeMember, type HouseView, type MemberView } from "./house";
 
 // First-run tutorial. Shown once, then replayable from Home — people forget, and a
 // tutorial you can't get back to is worse than none.
@@ -118,7 +118,9 @@ type Screen =
   | "realistic-phone-intro"
   | "realistic-sms-intro"
   | "telegram-intro"
-  | "realistic-email-intro";
+  | "realistic-email-intro"
+  | "house"
+  | "house-settings";
 
 type Tab = "home" | "leaderboard" | "store" | "profile";
 
@@ -3192,7 +3194,7 @@ function memberShadowColor(accent: string) {
   return accent === "#ffe66d" ? "#6b4f00" : "#0a0e1a";
 }
 
-function DollhouseRoom({ member, onTap, coins, soldItems, purchasedItems }: { member: FamilyMember; onTap: (m: FamilyMember) => void; coins: number; soldItems: string[]; purchasedItems: string[] }) {
+function DollhouseRoom({ member, onTap, coins, soldItems, purchasedItems }: { member: FamilyMember; onTap: (m: FamilyMember) => void; coins: number | null; soldItems: string[]; purchasedItems: string[] }) {
   return (
     <button onClick={() => onTap(member)} style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", padding: "0", cursor: "pointer" }}>
       <div style={{ backgroundColor: member.roomBg, borderBottom: "4px solid #2a3a5c", position: "relative", height: 168, overflow: "hidden" }}>
@@ -3212,12 +3214,14 @@ function DollhouseRoom({ member, onTap, coins, soldItems, purchasedItems }: { me
         <div style={{ position: "absolute", top: 24, left: 12, fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>
           LVL {member.level}
         </div>
-        <div style={{ position: "absolute", top: 38, left: 12, display: "flex", alignItems: "center", gap: 3 }}>
-          <IconCoin size={8} color="#ffe66d" />
-          <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ffe66d" }}>
-            {coins}
-          </span>
-        </div>
+        {coins !== null && (
+          <div style={{ position: "absolute", top: 38, left: 12, display: "flex", alignItems: "center", gap: 3 }}>
+            <IconCoin size={8} color="#ffe66d" />
+            <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ffe66d" }}>
+              {coins}
+            </span>
+          </div>
+        )}
         <div style={{ position: "absolute", left: 8, bottom: 12, display: "flex", alignItems: "flex-end", gap: 3, maxWidth: 126 }}>
           {FURNITURE_STORE
             .filter(item => item.memberId === member.id && !soldItems.includes(item.id))
@@ -3244,7 +3248,7 @@ function DollhouseRoom({ member, onTap, coins, soldItems, purchasedItems }: { me
   );
 }
 
-function HouseRoof() {
+function HouseRoof({ title }: { title: string }) {
   return (
     <div style={{ position: "relative", height: 48, backgroundColor: "#0a0e1a", borderBottom: "4px solid #2a3a5c", overflow: "hidden" }}>
       <svg width="100%" height={48} viewBox="0 0 390 48" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, imageRendering: "pixelated" }}>
@@ -3257,7 +3261,7 @@ function HouseRoof() {
         <rect x={283} y={2} width={4} height={4} fill="#4a5a7c" opacity={0.5} />
       </svg>
       <div style={{ position: "absolute", bottom: 6, left: "50%", transform: "translateX(-50%)", fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#4ecdc4", letterSpacing: 2, whiteSpace: "nowrap" }}>
-        FAMILY HOME
+        {title}
       </div>
     </div>
   );
@@ -3304,8 +3308,8 @@ function FamilySafetyBar({ coins }: { coins: Record<string, number> }) {
 }
 
 function MemberProfileOverlay({
-  member, onClose, onCustomize, coins,
-}: { member: FamilyMember; onClose: () => void; onCustomize: (memberId: string) => void; coins: number }) {
+  member, onClose, onCustomize, coins, canRemove, onRemove,
+}: { member: FamilyMember; onClose: () => void; onCustomize: (memberId: string) => void; coins: number; canRemove: boolean; onRemove: () => void }) {
   const selfId = useSelfId();
   const badges = Array.from({ length: member.badgeTotal }, (_, i) => ({
     unlocked: i < member.badgeCount,
@@ -3337,20 +3341,22 @@ function MemberProfileOverlay({
           </button>
         </div>
 
-        <div style={{ margin: "12px 16px 0", padding: "10px 12px", backgroundColor: coins < 0 ? "rgba(255,45,85,0.06)" : "rgba(255,230,109,0.06)", border: `3px solid ${coins < 0 ? "#ff2d55" : "#ffe66d"}`, display: "flex", alignItems: "center", gap: 10 }}>
-          <IconCoin size={20} color={coins < 0 ? "#ff2d55" : "#ffe66d"} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: coins < 0 ? "#ff2d55" : "#ffe66d" }}>
-              {coins < 0 ? "-" : "+"}{Math.abs(coins)} COINS
+        {member.id === selfId && (
+          <div style={{ margin: "12px 16px 0", padding: "10px 12px", backgroundColor: coins < 0 ? "rgba(255,45,85,0.06)" : "rgba(255,230,109,0.06)", border: `3px solid ${coins < 0 ? "#ff2d55" : "#ffe66d"}`, display: "flex", alignItems: "center", gap: 10 }}>
+            <IconCoin size={20} color={coins < 0 ? "#ff2d55" : "#ffe66d"} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: coins < 0 ? "#ff2d55" : "#ffe66d" }}>
+                {coins < 0 ? "-" : "+"}{Math.abs(coins)} COINS
+              </div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginTop: 3 }}>
+                {coins < 0 ? "IN DEBT — sell furniture to recover" : "Balance this week"}
+              </div>
             </div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginTop: 3 }}>
-              {coins < 0 ? "IN DEBT — sell furniture to recover" : "Balance this week"}
-            </div>
+            {coins < 0 && (
+              <div style={{ backgroundColor: "#ff2d55", padding: "4px 6px", fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#0a0e1a" }}>IOU</div>
+            )}
           </div>
-          {coins < 0 && (
-            <div style={{ backgroundColor: "#ff2d55", padding: "4px 6px", fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#0a0e1a" }}>IOU</div>
-          )}
-        </div>
+        )}
 
         <div style={{ margin: "8px 16px 0", padding: "10px 12px", backgroundColor: member.safeThisWeek ? "rgba(0,255,136,0.06)" : "rgba(255,45,85,0.06)", border: `3px solid ${member.safeThisWeek ? "#00ff88" : "#ff2d55"}`, display: "flex", alignItems: "center", gap: 10 }}>
           <IconShield size={20} color={member.safeThisWeek ? "#00ff88" : "#ff2d55"} />
@@ -3391,14 +3397,21 @@ function MemberProfileOverlay({
             ))}
           </div>
         </div>
-        {member.id === selfId && (
+        {(member.id === selfId || canRemove) && (
           <div style={{ padding: "16px 16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
-            <PixelBtn
-              onClick={() => { onClose(); onCustomize(member.id); }}
-              color="#1a2340" textColor="#6b8ba4" size="md" full
-            >
-              CUSTOMIZE ROOM
-            </PixelBtn>
+            {member.id === selfId && (
+              <PixelBtn
+                onClick={() => { onClose(); onCustomize(member.id); }}
+                color="#1a2340" textColor="#6b8ba4" size="md" full
+              >
+                CUSTOMIZE ROOM
+              </PixelBtn>
+            )}
+            {canRemove && (
+              <PixelBtn onClick={() => { if (window.confirm(`Remove ${member.name} from the house?`)) { onRemove(); onClose(); } }} color="#ff2d55" textColor="#0a0e1a" size="sm" full>
+                REMOVE FROM HOUSE
+              </PixelBtn>
+            )}
           </div>
         )}
       </div>
@@ -3406,7 +3419,37 @@ function MemberProfileOverlay({
   );
 }
 
-function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize, onRegister, onTutorial, coins, soldItems, purchasedItems }: {
+function SoloRoom({ member, coins, purchasedItems, inviteCode, onTap, onPlayWithOthers }: {
+  member: FamilyMember; coins: number; purchasedItems: string[];
+  inviteCode: string | null; onTap: () => void; onPlayWithOthers: () => void;
+}) {
+  return (
+    <div style={{ position: "relative", flex: 1, minHeight: 420, backgroundColor: member.roomBg, overflow: "hidden" }}>
+      <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 15px,rgba(255,255,255,0.015) 15px,rgba(255,255,255,0.015) 16px),repeating-linear-gradient(90deg,transparent,transparent 15px,rgba(255,255,255,0.015) 15px,rgba(255,255,255,0.015) 16px)" }} />
+      <button
+        onClick={onPlayWithOthers}
+        style={{ position: "absolute", top: 12, right: 12, zIndex: 2, backgroundColor: "#0a0e1a", border: "3px solid #4ecdc4", padding: "6px 8px", cursor: "pointer", fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#4ecdc4" }}
+      >
+        {inviteCode ? `+ INVITE · ${inviteCode}` : "+ PLAY WITH OTHERS"}
+      </button>
+      <div style={{ position: "absolute", top: 14, left: 14, fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: member.primaryColor }}>{member.roomName}</div>
+      <div style={{ position: "absolute", top: 30, left: 14, fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4" }}>LVL {member.level} · {member.streak} STREAK</div>
+      <div style={{ position: "absolute", top: 46, left: 14, display: "flex", alignItems: "center", gap: 4 }}>
+        <IconCoin size={10} color="#ffe66d" />
+        <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ffe66d" }}>{coins}</span>
+      </div>
+      <PurchasedRoomFurniture itemIds={purchasedItems} accent={member.primaryColor} />
+      <button onClick={onTap} style={{ position: "absolute", left: "50%", bottom: 40, transform: "translateX(-50%)", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+        <SafetyBadge safe={member.safeThisWeek} size={22} />
+        <MemberChar member={member} size={112} />
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: member.primaryColor }}>{member.name}</div>
+      </button>
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 6, background: `linear-gradient(90deg,${member.primaryColor}22,${member.primaryColor}55,${member.primaryColor}22)` }} />
+    </div>
+  );
+}
+
+function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize, onRegister, onTutorial, coins, soldItems, purchasedItems, house, onPlayWithOthers, onRemoveMember }: {
   onDrillSelect: () => void; onFamilyDrill: () => void;
   onPayday: () => void;
   onCustomize: (memberId: string) => void;
@@ -3415,35 +3458,59 @@ function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize,
   coins: Record<string, number>;
   soldItems: string[];
   purchasedItems: Record<string, string[]>;
+  house: HouseView | null;
+  onPlayWithOthers: () => void;
+  onRemoveMember: (id: string) => void;
 }) {
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
   const members = useMembers();
-  const registered = !!sessionToken();
+  const selfId = useSelfId();
+  const self = members.find((m) => m.id === selfId);
+  const together = members.length >= 2;
+  const canRemove = !!selectedMember && !!house && house.ownerId === selfId && selectedMember.id !== selfId;
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
-      <div style={{ flex: 1, overflowY: "auto", scrollbarWidth: "none" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto", scrollbarWidth: "none" }}>
         <div style={{ height: 6, background: "linear-gradient(90deg,#2a3a5c,#3a4a6c,#2a3a5c)" }} />
-        <div data-tour="safety-bar"><FamilySafetyBar coins={coins} /></div>
-        <HouseRoof />
-        <div data-tour="family-rooms" style={{ position: "relative" }}>
-          <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 8, backgroundColor: "#2a3a5c", backgroundImage: "repeating-linear-gradient(0deg,#1a2a3c,#1a2a3c 4px,#2a3a5c 4px,#2a3a5c 8px)" }} />
-          <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 8, backgroundColor: "#2a3a5c", backgroundImage: "repeating-linear-gradient(0deg,#1a2a3c,#1a2a3c 4px,#2a3a5c 4px,#2a3a5c 8px)" }} />
-          {members.map((member) => (
-            <DollhouseRoom
-              key={member.id}
-              member={member}
-              onTap={setSelectedMember}
-              coins={coins[member.id] ?? 0}
-              soldItems={soldItems}
-              purchasedItems={purchasedItems[member.id] ?? []}
+        {!together && self ? (
+          <div data-tour="family-rooms" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+            <SoloRoom
+              member={self}
+              coins={coins[selfId] ?? 0}
+              purchasedItems={purchasedItems[selfId] ?? []}
+              inviteCode={house?.inviteCode ?? null}
+              onTap={() => setSelectedMember(self)}
+              onPlayWithOthers={onPlayWithOthers}
             />
-          ))}
-        </div>
+          </div>
+        ) : (
+          <>
+            <div data-tour="safety-bar"><FamilySafetyBar coins={coins} /></div>
+            <HouseRoof title={house?.name ?? "YOUR HOUSE"} />
+            <div style={{ padding: "8px 16px 0", backgroundColor: "#0a0e1a", display: "flex", justifyContent: "flex-end" }}>
+              <PixelBtn onClick={onPlayWithOthers} color="#1a2340" textColor="#4ecdc4" size="sm">+ INVITE</PixelBtn>
+            </div>
+            <div data-tour="family-rooms" style={{ position: "relative" }}>
+              <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 8, backgroundColor: "#2a3a5c", backgroundImage: "repeating-linear-gradient(0deg,#1a2a3c,#1a2a3c 4px,#2a3a5c 4px,#2a3a5c 8px)" }} />
+              <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 8, backgroundColor: "#2a3a5c", backgroundImage: "repeating-linear-gradient(0deg,#1a2a3c,#1a2a3c 4px,#2a3a5c 4px,#2a3a5c 8px)" }} />
+              {members.map((member) => (
+                <DollhouseRoom
+                  key={member.id}
+                  member={member}
+                  onTap={setSelectedMember}
+                  coins={member.id === selfId ? coins[selfId] ?? 0 : null}
+                  soldItems={soldItems}
+                  purchasedItems={member.id === selfId ? purchasedItems[selfId] ?? [] : []}
+                />
+              ))}
+            </div>
+          </>
+        )}
         <div style={{ height: 24, backgroundColor: "#1a2340", borderTop: "4px solid #2a3a5c", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#2a3a5c", letterSpacing: 3 }}>████████████████████████████</div>
         </div>
         <div style={{ padding: "16px 16px 8px", backgroundColor: "#0a0e1a" }}>
-          <div data-tour="start-drill"><PixelBtn onClick={onFamilyDrill} color="#00ff88" size="lg" full>[ START FAMILY DRILL ]</PixelBtn></div>
+          <div data-tour="start-drill"><PixelBtn onClick={onFamilyDrill} color="#00ff88" size="lg" full>[ START HOUSE DRILL ]</PixelBtn></div>
         </div>
         <div style={{ padding: "0 16px 20px", backgroundColor: "#0a0e1a" }}>
           {/* Payday pays the signed-in member, so it stays hidden until they load. */}
@@ -3451,16 +3518,14 @@ function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize,
             <PixelBtn onClick={onPayday} color="#ffe66d" textColor="#0a0e1a" size="md" full>PAYDAY SUNDAY</PixelBtn>
             <div style={{ height: 10 }} />
           </>)}
-          <div data-tour="opt-in">{registered ? (
+          <div data-tour="opt-in">
             <PixelBtn onClick={onDrillSelect} color="#00ff88" textColor="#0a0e1a" size="md" full>[ ✓ OPTED IN — RUN A REAL DRILL ]</PixelBtn>
-          ) : (
-            <PixelBtn onClick={onRegister} color="#4ecdc4" textColor="#0a0e1a" size="md" full>[ OPT IN TO REAL CALL DRILLS ]</PixelBtn>
-          )}</div>
+          </div>
           <div style={{ height: 10 }} />
           <PixelBtn onClick={onTutorial} color="#1a2340" textColor="#6b8ba4" size="sm" full>HOW TO PLAY</PixelBtn>
         </div>
         <div style={{ padding: "0 16px 24px", backgroundColor: "#0a0e1a", fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", textAlign: "center" }}>
-          Train together. Protect the whole household.
+          Train together. Protect the whole house.
         </div>
       </div>
       {selectedMember && (
@@ -3469,6 +3534,8 @@ function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize,
           onClose={() => setSelectedMember(null)}
           onCustomize={onCustomize}
           coins={coins[selectedMember.id] ?? 0}
+          canRemove={canRemove}
+          onRemove={() => onRemoveMember(selectedMember.id)}
         />
       )}
     </div>
@@ -7699,6 +7766,11 @@ export default function App() {
     setScreen("customize");
   };
 
+  const handleRemoveMember = async (id: string) => {
+    const r = await removeMember(id);
+    if (r.ok) house.apply(r.data); else window.alert(r.data.error ?? "Could not remove that player.");
+  };
+
   const openRegistration = (returnTo: Screen) => {
     setRegistrationReturn(returnTo);
     setScreen("register");
@@ -7810,6 +7882,9 @@ export default function App() {
                 coins={coins}
                 soldItems={soldItems}
                 purchasedItems={purchasedItems}
+                house={house.state.house}
+                onPlayWithOthers={() => setScreen("house")}
+                onRemoveMember={handleRemoveMember}
               />
             )}
             {screen === "leaderboard" && <LeaderboardScreen activeMemberId={activeMemberId} />}
