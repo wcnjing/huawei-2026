@@ -18,7 +18,7 @@ code; the house then replaces the hardcoded grandma/mum/dad/kid family everywher
 | Membership | One house per person; up to 6 members; people can join at any time. |
 | Owner | The creator. Only the owner regenerates the code, renames the house and removes members. |
 | Updates | A content-free Supabase Realtime "doorbell"; clients then refetch from our API. |
-| UI | First pass, redone later. Approach A: new code in `src/app/house.tsx`, minimal edits to `App.tsx`. |
+| UI | First pass, redone later. Approach A: new code in `src/app/house.ts` (logic only; new screens live in `App.tsx`). |
 
 ## 1. Data
 

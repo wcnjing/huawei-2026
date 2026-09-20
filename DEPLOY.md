@@ -266,8 +266,8 @@ Data lives in Supabase, so redeploys never touch it. Apply new migrations first 
 ## Post-deploy checklist
 
 ```sh
-curl https://YOUR_DOMAIN/api/health                  # 200
-curl https://YOUR_DOMAIN/api/family                  # no "phone"/"email" anywhere
+curl https://YOUR_DOMAIN/api/health                                       # 200
+curl -s -o /dev/null -w '%{http_code}\n' https://YOUR_DOMAIN/api/house    # 401 (session required)
 curl -X POST https://YOUR_DOMAIN/api/drills/fire     # 401 (auth required)
 curl -X POST https://YOUR_DOMAIN/api/drills/simulate # 404 (demo route absent)
 curl -X POST https://YOUR_DOMAIN/api/webhooks/vapi   # 401 (needs the secret)
@@ -276,6 +276,11 @@ curl https://YOUR_DOMAIN/email-verify                # 400 verification page, no
 journalctl -u safespace | grep '\[verify\]'          # expect mode=twilio
 curl -I http://YOUR_DOMAIN                           # 301 -> https
 ```
+
+`/api/family` and `/api/leaderboard` were removed when households shipped; both now
+404, so `curl https://YOUR_DOMAIN/api/family` is no longer a useful PII check — use
+`GET /api/house` above instead, which requires a session like every other account
+route.
 
 If `/api/drills/simulate` returns anything but 404, or the log says `mode=dev`, then a
 dev flag is set in production — fix that before anyone else gets the URL.
