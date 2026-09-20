@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, createContext, useContext } from "react";
 import { unlock, playSfx, setMuted, setMusicEnabled, isMuted } from "./audio";
 import { TOKEN_KEY, apiGet, apiPost, authHeaders, handleApiAuth, sessionToken, setSessionToken } from "./api";
+import { useHouse, type MemberView } from "./house";
 
 // First-run tutorial. Shown once, then replayable from Home — people forget, and a
 // tutorial you can't get back to is worse than none.
@@ -1816,11 +1817,7 @@ type HomeInventory = {
 };
 
 function defaultHomeInventory(): HomeInventory {
-  return {
-    coins: Object.fromEntries(FAMILY_MEMBERS.map(member => [member.id, member.coins])),
-    soldItems: [],
-    purchasedItems: Object.fromEntries(FAMILY_MEMBERS.map(member => [member.id, []])),
-  };
+  return { coins: {}, soldItems: [], purchasedItems: {} };
 }
 
 function loadHomeInventory(): HomeInventory {
@@ -1836,23 +1833,22 @@ function loadHomeInventory(): HomeInventory {
     // backwards-compatible migration that restores the correct ownership semantics.
     const validFurnitureIds = new Set(FURNITURE_STORE.map(item => item.id));
     const savedSoldItems: unknown[] = Array.isArray(saved?.soldItems) ? saved.soldItems : [];
+    const savedCoins: Record<string, unknown> = saved?.coins ?? {};
+    const savedPurchases: Record<string, unknown> = saved?.purchasedItems ?? {};
     return {
-      coins: Object.fromEntries(FAMILY_MEMBERS.map(member => {
-        const value = saved?.coins?.[member.id];
+      coins: Object.fromEntries(Object.entries(savedCoins).map(([memberId, value]) => {
         // Earlier builds could take coins away after a missed red flag and leave a
-        // family member in "debt". Training outcomes no longer create financial
-        // punishment, so migrate those legacy balances back to zero.
-        return [member.id, Math.max(0, Number.isFinite(value) ? value : member.coins)];
+        // member in "debt". Training outcomes no longer create financial punishment,
+        // so migrate those legacy balances back to zero.
+        return [memberId, Math.max(0, typeof value === "number" && Number.isFinite(value) ? value : 0)];
       })),
       soldItems: [...new Set(savedSoldItems.filter(
         (id): id is string => typeof id === "string" && validFurnitureIds.has(id),
       ))],
-      purchasedItems: Object.fromEntries(FAMILY_MEMBERS.map(member => {
-        const savedIds: unknown[] = Array.isArray(saved?.purchasedItems?.[member.id])
-          ? saved.purchasedItems[member.id]
-          : [];
+      purchasedItems: Object.fromEntries(Object.entries(savedPurchases).map(([memberId, value]) => {
+        const savedIds: unknown[] = Array.isArray(value) ? value : [];
         return [
-          member.id,
+          memberId,
           [...new Set(savedIds.filter(
             (id): id is string => typeof id === "string" && validShopIds.has(id),
           ))],
@@ -2983,26 +2979,48 @@ type FamilyMember = {
   primaryColor: string; roomName: string; roomBg: string;
   badgeCount: number; badgeTotal: number;
   coins: number;
+  avatar: AvatarConfig;
 };
 
-const FAMILY_MEMBERS: FamilyMember[] = [
-  { id: "grandma", name: "GRANDMA", role: "ELDER GUARDIAN", level: 12, xp: 3800, xpMax: 4000, streak: 24, timesSafe: 89, timesScammed: 1, safeThisWeek: true, recentDrillResult: "WON", primaryColor: "#c77dff", roomName: "GRANDMA'S ROOM", roomBg: "#100c20", badgeCount: 7, badgeTotal: 9, coins: 1240 },
-  { id: "mum", name: "MUM", role: "SHIELD BEARER", level: 9, xp: 2100, xpMax: 2500, streak: 16, timesSafe: 67, timesScammed: 2, safeThisWeek: true, recentDrillResult: "WON", primaryColor: "#00ff88", roomName: "MUM'S ROOM", roomBg: "#0c1a10", badgeCount: 5, badgeTotal: 9, coins: 850 },
-  { id: "dad", name: "DAD", role: "ROOKIE", level: 4, xp: 890, xpMax: 1200, streak: 0, timesSafe: 23, timesScammed: 7, safeThisWeek: false, recentDrillResult: "LOST", primaryColor: "#4ecdc4", roomName: "DAD'S ROOM", roomBg: "#081420", badgeCount: 2, badgeTotal: 9, coins: 0 },
-  { id: "kid", name: "KID", role: "TRAINEE", level: 3, xp: 450, xpMax: 800, streak: 5, timesSafe: 12, timesScammed: 3, safeThisWeek: true, recentDrillResult: "WON", primaryColor: "#ffe66d", roomName: "KID'S ROOM", roomBg: "#161408", badgeCount: 3, badgeTotal: 9, coins: 300 },
-];
+// Each room is tinted from the member's avatar colour, so a house of six still reads
+// as six distinct rooms without anyone picking wallpaper.
+const ROOM_BACKGROUNDS: Record<string, string> = {
+  "#4ecdc4": "#081420", "#ff6b35": "#1a0e08", "#c77dff": "#100c20",
+  "#ffe66d": "#161408", "#ff2d55": "#1a0810", "#00ff88": "#0c1a10",
+};
+const DEFAULT_AVATAR: AvatarConfig = DEFAULT_PROFILE.avatar;
 
-const MEMBER_MAP = Object.fromEntries(FAMILY_MEMBERS.map(m => [m.id, m]));
-
-// Offline fallback for the Hall of Shame — the actual household, ranked by scam count,
-// used until /api/shame answers. This board is about the family, not fake strangers.
-function familyShameFallback(): ShameRow[] {
-  return [...FAMILY_MEMBERS]
-    .sort((a, b) => b.timesScammed - a.timesScammed)
-    .map((m, i) => ({ rank: i + 1, id: m.id, name: m.name, scammed: m.timesScammed, streak: m.streak, area: m.role }));
+// The server's member shape, adapted to what the existing screens already render.
+function toFamilyMember(m: MemberView): FamilyMember {
+  const avatar = { ...DEFAULT_AVATAR, ...(m.avatar ?? {}) };
+  return {
+    id: m.id, name: m.name, role: m.isOwner ? "HOUSE OWNER" : "HOUSEMATE",
+    level: m.level, xp: m.xp, xpMax: m.xpMax, streak: m.streak,
+    timesSafe: m.timesSafe, timesScammed: m.timesScammed,
+    safeThisWeek: m.safeThisWeek, recentDrillResult: m.recentDrillResult,
+    primaryColor: avatar.color, roomName: `${m.name}'S ROOM`,
+    roomBg: ROOM_BACKGROUNDS[avatar.color] ?? "#081420",
+    badgeCount: m.badgeCount, badgeTotal: m.badgeTotal, coins: 0, avatar,
+  };
 }
 
-// Pixi — the AI coach. Not a real family member; synthetic entry for chat rendering.
+// One copy of the house's members, provided by App() and read by the screens.
+const MembersContext = createContext<FamilyMember[]>([]);
+const SelfIdContext = createContext<string>("");
+const useMembers = () => useContext(MembersContext);
+const useSelfId = () => useContext(SelfIdContext);
+function useMemberMap(): Record<string, FamilyMember> {
+  const members = useMembers();
+  return useMemo(() => Object.fromEntries(members.map((m) => [m.id, m])), [members]);
+}
+
+// Everyone is drawn with their own avatar now — no more four hand-drawn relatives.
+function MemberChar({ member, size = 44 }: { member: Pick<FamilyMember, "avatar">; size?: number }) {
+  const a = member.avatar;
+  return <PixelMascot size={size} animate color={a.color} hat={a.hat} eyes={a.eyes} outfit={a.outfit} />;
+}
+
+// Pixi — the AI coach. Not a house member; synthetic entry for chat rendering.
 const PIXI_MEMBER = {
   id: "pixi",
   name: "PIXI",
@@ -3010,134 +3028,8 @@ const PIXI_MEMBER = {
 };
 
 const INITIAL_CHAT: ChatMsg[] = [
-  { memberId:"pixi", isPixi:true, text:"Hi family! I'm PIXI, your scam-fighter coach. I'll drop by after drills to share tips and celebrate wins.", time:"9:12 AM" },
-  { memberId:"grandma", text:"Did everyone do their drill this week? I spotted three red flags in mine!", time:"9:14 AM" },
-  { memberId:"mum",     text:"Yes! The IRS one was really convincing. I almost fell for the urgency tactic.", time:"9:16 AM" },
-  { memberId:"dad",     text:"I missed the 'officer dispatch' red flag. I want to practise that one again.", time:"9:18 AM" },
-  { memberId:"mum",     text:"Don't be hard on yourself, Dad. That's exactly what they count on!", time:"9:19 AM" },
-  { memberId:"grandma", text:"Remember — hang up first, verify later. That's the rule.", time:"9:21 AM" },
-  { memberId:"kid",     text:"My teacher told us about gift card scams today at school! Just like in the app.", time:"9:24 AM" },
+  { memberId:"pixi", isPixi:true, text:"Hi! I'm PIXI, your scam-fighter coach. I'll drop by after drills to share tips and celebrate wins.", time:"9:12 AM" },
 ];
-
-function useIdleFrame(fps = 2): number {
-  const [frame, setFrame] = useState(0);
-  const reduceMotion = loadAccessibility().reduceMotion
-    || (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
-  useEffect(() => {
-    if (reduceMotion) {
-      setFrame(0);
-      return;
-    }
-    const t = setInterval(() => setFrame((f) => (f + 1) % 4), Math.floor(1000 / fps));
-    return () => clearInterval(t);
-  }, [fps, reduceMotion]);
-  return reduceMotion ? 0 : frame;
-}
-
-function CharGrandma({ size = 48, frame = 0 }: { size?: number; frame?: number }) {
-  const u = size / 12;
-  const yo = (frame === 1 || frame === 3) ? u * 0.5 : 0;
-  const xo = (frame === 1 || frame === 2) ? u * 0.3 : -(u * 0.3);
-  const H = size * 1.5;
-  const r = (x: number, y: number, w: number, h: number, c: string, ox = 0, oy = 0) =>
-    <rect key={`${x}${y}${c}`} x={(x + ox) * u} y={(y + oy) * u} width={w * u} height={h * u} fill={c} />;
-  return (
-    <svg width={size} height={H} viewBox={`0 0 ${size} ${H}`} style={{ imageRendering: "pixelated", overflow: "visible" }}>
-      {r(4, 0, 4, 1, "#e0e0e0", xo, yo)}{r(3, 1, 6, 1, "#e0e0e0", xo, yo)}
-      {r(3, 2, 6, 4, "#f4b880", xo, yo)}{r(2, 3, 8, 2, "#f4b880", xo, yo)}
-      {r(4, 3, 1, 1, "#0a0e1a", xo, yo)}{r(7, 3, 1, 1, "#0a0e1a", xo, yo)}
-      {r(4, 5, 1, 1, "#c8704a", xo, yo)}{r(5, 6, 2, 1, "#c8704a", xo, yo)}{r(7, 5, 1, 1, "#c8704a", xo, yo)}
-      <rect x={(3 + xo) * u} y={(3 + yo) * u} width={2 * u} height={2 * u} fill="none" stroke="#2a3a5c" strokeWidth={u * 0.4} key="gl1" />
-      <rect x={(7 + xo) * u} y={(3 + yo) * u} width={2 * u} height={2 * u} fill="none" stroke="#2a3a5c" strokeWidth={u * 0.4} key="gl2" />
-      {r(3, 7, 6, 1, "#c77dff", xo, yo)}
-      {r(2, 8, 8, 5, "#9b4dca", xo, yo)}{r(3, 8, 6, 5, "#c77dff", xo, yo)}
-      {r(1, 11, 10, 3, "#9b4dca", xo, yo)}{r(2, 11, 8, 3, "#c77dff", xo, yo)}
-      {r(1, 8, 2, 3, "#f4b880", xo, yo)}{r(9, 8, 2, 3, "#f4b880", xo, yo)}
-      {r(10, 9, 1, 8, "#8b5e3c")}{r(9, 16, 3, 1, "#8b5e3c")}
-      {r(4, 14, 2, 3, "#7a3a9a", xo, yo)}{r(7, 14, 2, 3, "#7a3a9a", xo, yo)}
-      {r(3, 16, 3, 1, "#5a2a7a", xo, yo)}{r(6, 16, 3, 1, "#5a2a7a", xo, yo)}
-    </svg>
-  );
-}
-
-function CharMum({ size = 48, frame = 0 }: { size?: number; frame?: number }) {
-  const u = size / 12;
-  const yo = (frame === 1 || frame === 3) ? -u * 0.8 : 0;
-  const H = size * 1.5;
-  const r = (x: number, y: number, w: number, h: number, c: string) =>
-    <rect key={`${x}${y}${c}`} x={x * u} y={(y * u) + yo} width={w * u} height={h * u} fill={c} />;
-  return (
-    <svg width={size} height={H} viewBox={`0 0 ${size} ${H}`} style={{ imageRendering: "pixelated", overflow: "visible" }}>
-      {r(5, 0, 2, 1, "#3a2a1a")}{r(4, 1, 4, 1, "#3a2a1a")}
-      {r(2, 3, 2, 3, "#3a2a1a")}{r(8, 3, 2, 3, "#3a2a1a")}
-      {r(3, 2, 6, 5, "#f4b880")}{r(2, 3, 8, 3, "#f4b880")}
-      {r(4, 4, 1, 1, "#0a0e1a")}{r(7, 4, 1, 1, "#0a0e1a")}
-      {r(4, 6, 4, 1, "#c8704a")}{r(5, 7, 2, 1, "#c8704a")}
-      {r(5, 7, 2, 1, "#f4b880")}
-      {r(2, 8, 8, 4, "#006633")}{r(3, 8, 6, 4, "#00ff88")}
-      {r(1, 8, 2, 4, "#f4b880")}{r(9, 8, 2, 4, "#f4b880")}
-      {r(4, 9, 4, 2, "#00cc66")}
-      {r(3, 12, 6, 3, "#1a3a2a")}
-      {r(3, 15, 2, 2, "#1a3a2a")}{r(7, 15, 2, 2, "#1a3a2a")}
-      {r(2, 16, 3, 1, "#0a1a12")}{r(6, 16, 3, 1, "#0a1a12")}
-    </svg>
-  );
-}
-
-function CharDad({ size = 52, frame = 0 }: { size?: number; frame?: number }) {
-  const u = size / 12;
-  const xo = frame < 2 ? u * 1 : -u * 1;
-  const H = size * 1.55;
-  const r = (x: number, y: number, w: number, h: number, c: string) =>
-    <rect key={`${x}${y}${c}`} x={(x + xo) * u} y={y * u} width={w * u} height={h * u} fill={c} />;
-  return (
-    <svg width={size} height={H} viewBox={`0 0 ${size} ${H}`} style={{ imageRendering: "pixelated", overflow: "visible" }}>
-      {r(3, 0, 6, 2, "#2a1a0a")}{r(2, 1, 8, 2, "#2a1a0a")}
-      {r(2, 2, 8, 6, "#e8a060")}{r(1, 3, 10, 4, "#e8a060")}
-      {r(3, 4, 2, 1, "#0a0e1a")}{r(7, 4, 2, 1, "#0a0e1a")}
-      {r(2, 7, 8, 1, "#b06030")}
-      {r(1, 8, 10, 5, "#1a4040")}{r(2, 8, 8, 5, "#4ecdc4")}
-      {r(4, 8, 4, 1, "#ffffff")}
-      {r(0, 8, 2, 5, "#e8a060")}{r(10, 8, 2, 5, "#e8a060")}
-      {r(2, 13, 8, 1, "#0a0e1a")}
-      {r(2, 14, 8, 3, "#2a3a4a")}
-      {r(2, 16, 3, 1, "#2a3a4a")}{r(7, 16, 3, 1, "#2a3a4a")}
-      {r(1, 17, 4, 1, "#1a2030")}{r(6, 17, 4, 1, "#1a2030")}
-    </svg>
-  );
-}
-
-function CharKid({ size = 40, frame = 0 }: { size?: number; frame?: number }) {
-  const u = size / 10;
-  const yo = (frame === 0 || frame === 2) ? -u * 1.2 : u * 0.4;
-  const H = size * 1.6;
-  const r = (x: number, y: number, w: number, h: number, c: string) =>
-    <rect key={`${x}${y}${c}`} x={x * u} y={(y * u) + yo} width={w * u} height={h * u} fill={c} />;
-  return (
-    <svg width={size} height={H} viewBox={`0 0 ${size} ${H}`} style={{ imageRendering: "pixelated", overflow: "visible" }}>
-      {r(2, 0, 1, 3, "#b8900a")}{r(4, 0, 1, 2, "#b8900a")}{r(6, 0, 1, 3, "#b8900a")}{r(8, 0, 1, 2, "#b8900a")}
-      {r(1, 1, 8, 2, "#ffe66d")}
-      {r(2, 2, 6, 5, "#f4c060")}{r(1, 3, 8, 3, "#f4c060")}
-      {r(3, 4, 1, 2, "#0a0e1a")}{r(6, 4, 1, 2, "#0a0e1a")}
-      {r(3, 4, 1, 1, "#ffffff")}{r(6, 4, 1, 1, "#ffffff")}
-      {r(3, 6, 4, 1, "#c8704a")}{r(3, 7, 1, 1, "#c8704a")}{r(6, 7, 1, 1, "#c8704a")}
-      {r(2, 7, 6, 4, "#aa9900")}{r(1, 8, 8, 3, "#ffe66d")}
-      {r(4, 9, 2, 1, "#aa9900")}{r(3, 10, 4, 1, "#aa9900")}
-      {r(0, 8, 2, 3, "#f4c060")}{r(8, 8, 2, 3, "#f4c060")}
-      {r(2, 11, 6, 2, "#2a4aa4")}
-      {r(2, 13, 2, 3, "#f4c060")}{r(6, 13, 2, 3, "#f4c060")}
-      {r(1, 15, 3, 1, "#ffffff")}{r(5, 15, 3, 1, "#ffffff")}
-      {r(1, 16, 4, 1, "#ff2d55")}{r(5, 16, 4, 1, "#ff2d55")}
-    </svg>
-  );
-}
-
-function FamilyChar({ id, size, frame }: { id: string; size?: number; frame?: number }) {
-  if (id === "grandma") return <CharGrandma size={size} frame={frame} />;
-  if (id === "mum") return <CharMum size={size} frame={frame} />;
-  if (id === "dad") return <CharDad size={size} frame={frame} />;
-  return <CharKid size={size} frame={frame} />;
-}
 
 function SafetyBadge({ safe, size = 20 }: { safe: boolean; size?: number }) {
   const color = safe ? "#00ff88" : "#ff2d55";
@@ -3302,8 +3194,6 @@ function memberShadowColor(accent: string) {
 }
 
 function DollhouseRoom({ member, onTap, coins, soldItems, purchasedItems }: { member: FamilyMember; onTap: (m: FamilyMember) => void; coins: number; soldItems: string[]; purchasedItems: string[] }) {
-  const frame = useIdleFrame(member.id === "kid" ? 3 : 2);
-  const charSize = member.id === "dad" ? 48 : member.id === "kid" ? 36 : 44;
   return (
     <button onClick={() => onTap(member)} style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", padding: "0", cursor: "pointer" }}>
       <div style={{ backgroundColor: member.roomBg, borderBottom: "4px solid #2a3a5c", position: "relative", height: 168, overflow: "hidden" }}>
@@ -3343,7 +3233,7 @@ function DollhouseRoom({ member, onTap, coins, soldItems, purchasedItems }: { me
         <PurchasedRoomFurniture itemIds={purchasedItems} accent={member.primaryColor} />
         <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
           <SafetyBadge safe={member.safeThisWeek} size={18} />
-          <FamilyChar id={member.id} size={charSize} frame={frame} />
+          <MemberChar member={member} size={44} />
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: member.primaryColor }}>{member.name}</div>
         </div>
         <div style={{ position: "absolute", bottom: 12, right: 12, fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#2a3a5c", lineHeight: 1.8 }}>
@@ -3375,21 +3265,23 @@ function HouseRoof() {
 }
 
 function FamilySafetyBar({ coins }: { coins: Record<string, number> }) {
-  const safeCount = FAMILY_MEMBERS.filter((m) => m.safeThisWeek).length;
-  const allSafe = safeCount === FAMILY_MEMBERS.length;
-  const totalCoins = Object.values(coins).reduce((a, b) => a + b, 0);
+  const members = useMembers();
+  const selfId = useSelfId();
+  const safeCount = members.filter((m) => m.safeThisWeek).length;
+  const allSafe = members.length > 0 && safeCount === members.length;
+  const selfCoins = coins[selfId] ?? 0;
   return (
     <div style={{ backgroundColor: "#111827", borderBottom: "4px solid #2a3a5c", padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
       <div style={{ filter: `drop-shadow(0 0 6px ${allSafe ? "#00ff88" : "#ff6b35"})`, flexShrink: 0 }}>
         <IconShield size={32} color={allSafe ? "#00ff88" : "#ff6b35"} />
       </div>
       <div style={{ flex: 1 }}>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: allSafe ? "#00ff88" : "#ff6b35", marginBottom: 4 }}>FAMILY SAFETY</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: allSafe ? "#00ff88" : "#ff6b35", marginBottom: 4 }}>HOUSE SAFETY</div>
         <div style={{ fontFamily: "'Share Tech Mono',monospace", fontSize: 12, color: "#6b8ba4", lineHeight: 1.4 }}>
-          {safeCount}/{FAMILY_MEMBERS.length} members safe this week
+          {safeCount}/{members.length} members safe this week
         </div>
         <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-          {FAMILY_MEMBERS.map((m) => (
+          {members.map((m) => (
             <div key={m.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
               <div style={{ filter: `drop-shadow(0 0 3px ${m.safeThisWeek ? "#00ff88" : "#ff2d55"})` }}>
                 <IconShield size={10} color={m.safeThisWeek ? "#00ff88" : "#ff2d55"} />
@@ -3402,11 +3294,11 @@ function FamilySafetyBar({ coins }: { coins: Record<string, number> }) {
       <div style={{ backgroundColor: "#0a0e1a", border: "3px solid #2a3a5c", padding: "6px 10px", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <IconCoin size={12} color="#ffe66d" />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: totalCoins >= 0 ? "#ffe66d" : "#ff2d55" }}>
-            {totalCoins >= 0 ? "" : "-"}{Math.abs(totalCoins)}
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: selfCoins >= 0 ? "#ffe66d" : "#ff2d55" }}>
+            {selfCoins >= 0 ? "" : "-"}{Math.abs(selfCoins)}
           </div>
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4" }}>FAMILY</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4" }}>YOU</div>
       </div>
     </div>
   );
@@ -3415,8 +3307,7 @@ function FamilySafetyBar({ coins }: { coins: Record<string, number> }) {
 function MemberProfileOverlay({
   member, onClose, onCustomize, coins,
 }: { member: FamilyMember; onClose: () => void; onCustomize: (memberId: string) => void; coins: number }) {
-  const frame = useIdleFrame(member.id === "kid" ? 3 : 2);
-  const charSize = member.id === "dad" ? 64 : member.id === "kid" ? 52 : 56;
+  const selfId = useSelfId();
   const badges = Array.from({ length: member.badgeTotal }, (_, i) => ({
     unlocked: i < member.badgeCount,
     color: ["#00ff88", "#ff6b35", "#4ecdc4", "#ffe66d", "#ff2d55", "#c77dff", "#4ecdc4", "#ff6b35", "#6b8ba4"][i],
@@ -3429,7 +3320,7 @@ function MemberProfileOverlay({
         </div>
         <div style={{ padding: "0 16px 12px", borderBottom: `3px solid ${member.primaryColor}33`, display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ filter: `drop-shadow(0 0 8px ${member.primaryColor})` }}>
-            <FamilyChar id={member.id} size={charSize} frame={frame} />
+            <MemberChar member={member} size={56} />
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: member.primaryColor }}>{member.name}</div>
@@ -3502,12 +3393,14 @@ function MemberProfileOverlay({
           </div>
         </div>
         <div style={{ padding: "16px 16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
-          <PixelBtn
-            onClick={() => { onClose(); onCustomize(member.id); }}
-            color="#1a2340" textColor="#6b8ba4" size="md" full
-          >
-            CUSTOMIZE ROOM
-          </PixelBtn>
+          {member.id === selfId && (
+            <PixelBtn
+              onClick={() => { onClose(); onCustomize(member.id); }}
+              color="#1a2340" textColor="#6b8ba4" size="md" full
+            >
+              CUSTOMIZE ROOM
+            </PixelBtn>
+          )}
         </div>
       </div>
     </div>
@@ -3525,6 +3418,7 @@ function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize,
   purchasedItems: Record<string, string[]>;
 }) {
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
+  const members = useMembers();
   const registered = !!sessionToken();
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
@@ -3535,7 +3429,7 @@ function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize,
         <div data-tour="family-rooms" style={{ position: "relative" }}>
           <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 8, backgroundColor: "#2a3a5c", backgroundImage: "repeating-linear-gradient(0deg,#1a2a3c,#1a2a3c 4px,#2a3a5c 4px,#2a3a5c 8px)" }} />
           <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 8, backgroundColor: "#2a3a5c", backgroundImage: "repeating-linear-gradient(0deg,#1a2a3c,#1a2a3c 4px,#2a3a5c 4px,#2a3a5c 8px)" }} />
-          {FAMILY_MEMBERS.map((member) => (
+          {members.map((member) => (
             <DollhouseRoom
               key={member.id}
               member={member}
@@ -4444,7 +4338,7 @@ function ResultScreen({ win, drillType, smsOutcome, emailOutcome, callOutcome, p
 
   const { header, xp, feedback, flags } = getResultContent(win, drillType, smsOutcome, emailOutcome, callOutcome);
   const drillLabel = drillType === "call" ? "CALL" : drillType === "sms" ? "SMS" : "EMAIL";
-  const member = MEMBER_MAP[activeMemberId];
+  const member = useMemberMap()[activeMemberId];
   const resultName = drillType === "call" && callOutcome ? profileName : member?.name;
   const resultNameColor = drillType === "call" && callOutcome ? "#4ecdc4" : member?.primaryColor;
   // Missing a red flag is already the learning signal. Never take away a user's
@@ -4590,18 +4484,28 @@ function FameBoard() {
 }
 
 function ShameBoard({ activeMemberId }: { activeMemberId: string }) {
-  const [board, setBoard] = useState<ShameRow[]>(familyShameFallback);
+  const memberMap = useMemberMap();
+  const members = useMembers();
+  const [rows, setRows] = useState<ShameRow[] | null>(null);
 
   useEffect(() => {
-    apiGet<ShameRow[]>("/api/shame").then((rows) => {
-      if (rows && rows.length) {
-        setBoard(rows.map((r) => ({ ...r, area: r.area ?? (r.id ? MEMBER_MAP[r.id]?.role : undefined) ?? "FAMILY" })));
-      }
+    apiGet<ShameRow[]>("/api/shame").then((fetched) => {
+      if (fetched && fetched.length) setRows(fetched);
     });
   }, []);
 
-  // "You" is whoever is currently active on this shared device, not a fixed identity —
-  // matches how the rest of the app (shop, drills) tracks the active family member.
+  // Until /api/shame answers, rank the house itself by scam count — this board is
+  // about the people you live with, not fake strangers.
+  const board: ShameRow[] = useMemo(() => {
+    if (rows) {
+      return rows.map((r) => ({ ...r, area: r.area ?? (r.id ? memberMap[r.id]?.role : undefined) ?? "HOUSEMATE" }));
+    }
+    return [...members]
+      .sort((a, b) => b.timesScammed - a.timesScammed)
+      .map((m, i) => ({ rank: i + 1, id: m.id, name: m.name, scammed: m.timesScammed, streak: m.streak, area: m.role }));
+  }, [rows, members, memberMap]);
+
+  // "You" is the signed-in player; a housemate's row is just another row.
   const you = board.find((p) => p.id === activeMemberId);
   const youTag = you == null ? "" : you.scammed <= 2 ? "NOT BAD!" : you.scammed <= 5 ? "KEEP GOING" : "STEP IT UP";
 
@@ -4681,13 +4585,12 @@ function LearningBoard() {
 
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: STORE — Phase 3 real implementation
-// Persistent member-picker header; per-member wallet + purchase state.
+// Your own wallet + purchase state; you can only shop for yourself.
 // ─────────────────────────────────────────────────────────────────────────
 function ShopScreen({
-  activeMemberId, onSelectMember, coins, purchasedItems, onBuy,
+  activeMemberId, coins, purchasedItems, onBuy,
 }: {
   activeMemberId: string;
-  onSelectMember: (memberId: string) => void;
   coins: Record<string, number>;
   purchasedItems: Record<string, string[]>;
   onBuy: (memberId: string, itemId: string, cost: number) => void;
@@ -4695,9 +4598,10 @@ function ShopScreen({
   const [filter, setFilter] = useState<"ALL" | "AFFORDABLE" | "OWNED">("ALL");
   const [justBought, setJustBought] = useState<string | null>(null);
 
-  const member = MEMBER_MAP[activeMemberId] ?? FAMILY_MEMBERS[1];
+  const member = useMemberMap()[activeMemberId];
   const memberCoins = coins[activeMemberId] ?? 0;
   const owned = purchasedItems[activeMemberId] ?? [];
+  if (!member) return null;
 
   const filtered = SHOP_CATALOGUE.filter(item => {
     const isOwned = owned.includes(item.id);
@@ -4716,45 +4620,15 @@ function ShopScreen({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Member picker strip — always visible */}
       <div style={{ padding: "10px 12px", backgroundColor: "#0a0e1a", borderBottom: `4px solid ${member.primaryColor}`, flexShrink: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>SHOPPING FOR</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>YOUR COINS</div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <IconCoin size={12} color={memberCoins < 0 ? "#ff2d55" : "#ffe66d"} />
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: memberCoins < 0 ? "#ff2d55" : "#ffe66d" }}>
               {memberCoins < 0 ? "-" : ""}{Math.abs(memberCoins)}
             </div>
           </div>
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          {FAMILY_MEMBERS.map(m => {
-            const active = m.id === activeMemberId;
-            const mCoins = coins[m.id] ?? 0;
-            return (
-              <button
-                key={m.id}
-                onClick={() => onSelectMember(m.id)}
-                style={{
-                  flex: 1,
-                  padding: "6px 4px",
-                  backgroundColor: active ? m.primaryColor : "#111827",
-                  border: `2px solid ${active ? "#0a0e1a" : m.primaryColor}`,
-                  boxShadow: active ? "2px 2px 0 #0a0e1a" : "none",
-                  cursor: "pointer",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 3,
-                }}
-              >
-                <FamilyChar id={m.id} size={24} frame={0} />
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: active ? "#0a0e1a" : m.primaryColor }}>
-                  {m.name}
-                </div>
-              </button>
-            );
-          })}
         </div>
       </div>
 
@@ -5229,7 +5103,7 @@ function ProfileScreen({
   claimedDailyToday: Record<string, boolean>;
   onClaimDaily: (memberId: string) => void;
 }) {
-  const activeMember = MEMBER_MAP[activeMemberId] ?? FAMILY_MEMBERS[1];
+  const activeMember = useMemberMap()[activeMemberId];
   const memberCoins = coins[activeMemberId] ?? 0;
   const memberAlreadyClaimed = claimedDailyToday[activeMemberId] ?? false;
 
@@ -5247,6 +5121,7 @@ function ProfileScreen({
     const days = Math.floor(hrs / 24);
     return `${days}D AGO`;
   };
+  if (!activeMember) return null;
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
@@ -5496,14 +5371,6 @@ const FAMILY_SCENARIOS: FamilyScenario[] = [
   },
 ];
 
-// Maps FamilyScenario.targetMember (title case) to member id
-const FAMILY_NAME_TO_ID: Record<string, string> = {
-  "Grandma": "grandma",
-  "Mum": "mum",
-  "Dad": "dad",
-  "Kid": "kid",
-};
-
 // ─────────────────────────────────────────────────────────────────────────
 // PIXEL TOGGLE / RADIO
 // ─────────────────────────────────────────────────────────────────────────
@@ -5624,16 +5491,6 @@ function ClueTooltip({ clue, onClose }: { clue: FamilyClue; onClose: () => void 
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// ANIMATED FAMILY CHARACTER
-// ─────────────────────────────────────────────────────────────────────────
-function AnimatedFamilyChar({ name, size = 60 }: { name: string; size?: number }) {
-  const frame = useIdleFrame(2);
-  const idMap: Record<string, string> = { Grandma: "grandma", Mum: "mum", Dad: "dad", Kid: "kid" };
-  const id = idMap[name] ?? "mum";
-  return <FamilyChar id={id} size={size} frame={frame} />;
-}
-
-// ─────────────────────────────────────────────────────────────────────────
 // SMS PHONE MOCK CARD
 // ─────────────────────────────────────────────────────────────────────────
 function SmsMockCard({ scenario, showWarning, onSenderTap }: {
@@ -5687,11 +5544,12 @@ function SmsMockCard({ scenario, showWarning, onSenderTap }: {
 // ─────────────────────────────────────────────────────────────────────────
 function FamilyDrillIntroScreen({ onStart, onBack }: { onStart: () => void; onBack: () => void }) {
   const [showHowTo, setShowHowTo] = useState(false);
+  const members = useMembers();
   return (
     <div className="flex flex-col h-full" style={{ position: "relative" }}>
       <div className="flex items-center justify-between px-4" style={{ backgroundColor: "#0a0e1a", borderBottom: "4px solid #2a3a5c", minHeight: 56, flexShrink: 0 }}>
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#00ff88" }}>FAMILY DRILL</div>
-        <div className="flex items-center gap-2"><IconShield size={14} color="#00ff88" /><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#00ff88" }}>4/4 READY</div></div>
+        <div className="flex items-center gap-2"><IconShield size={14} color="#00ff88" /><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#00ff88" }}>{members.length} READY</div></div>
       </div>
       <div className="flex-1 overflow-y-auto px-4 pb-6" style={{ scrollbarWidth: "none" }}>
         <div style={{ margin: "14px 0", backgroundColor: "#111827", border: "3px solid #00ff88", padding: "10px 14px" }}>
@@ -5704,10 +5562,10 @@ function FamilyDrillIntroScreen({ onStart, onBack }: { onStart: () => void; onBa
           </div>
         </div>
         <div className="flex justify-center gap-2 mb-4">
-          {["Grandma", "Mum", "Dad", "Kid"].map((name) => (
-            <div key={name} className="flex flex-col items-center gap-1">
-              <AnimatedFamilyChar name={name} size={44} />
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 3, color: "#4ecdc4" }}>{name.toUpperCase()}</div>
+          {members.slice(0, 6).map((m) => (
+            <div key={m.id} className="flex flex-col items-center gap-1">
+              <MemberChar member={m} size={44} />
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 3, color: "#4ecdc4" }}>{m.name.toUpperCase()}</div>
             </div>
           ))}
         </div>
@@ -5810,8 +5668,7 @@ function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNe
     setFoundCluesLocal([]);
   }, [scenario.id]);
 
-  const memberColors: Record<string, string> = { Grandma: "#c77dff", Mum: "#ff6b35", Dad: "#4ecdc4", Kid: "#ffe66d" };
-  const color = memberColors[scenario.targetMember] ?? "#6b8ba4";
+  const color = "#4ecdc4";
   const typeLabels: Record<string, string> = { sms: "SMS", email: "EMAIL", notification: "NOTIF" };
 
   const handleAction = (action: string) => {
@@ -5899,10 +5756,10 @@ function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNe
         </div>
       </div>
       <div className="flex items-center gap-3 px-4 py-2" style={{ backgroundColor: "#111827", borderBottom: `4px solid ${color}`, flexShrink: 0 }}>
-        <AnimatedFamilyChar name={scenario.targetMember} size={36} />
+        <PixelMascot size={36} animate />
         <div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>TARGET:</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color }}>{scenario.targetMember.toUpperCase()}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color }}>A HOUSEMATE</div>
         </div>
         <div style={{ marginLeft: "auto", backgroundColor: "rgba(255,107,53,0.1)", border: `2px solid ${color}`, padding: "3px 7px" }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color }}>{typeLabels[scenario.type] ?? "MSG"}</div>
@@ -6021,13 +5878,6 @@ function FamilySummaryScreen({ answers, onPlayAgain, onIndividual, onHome }: {
   const header = correctCount >= 5 ? "FAMILY SAFE!" : correctCount >= 3 ? "GOOD TRAINING!" : "MORE PRACTICE NEEDED!";
   const headerColor = correctCount >= 5 ? "#00ff88" : correctCount >= 3 ? "#ffe66d" : "#ff2d55";
 
-  const memberResults: Record<string, boolean[]> = {};
-  FAMILY_SCENARIOS.forEach((s, i) => {
-    if (!memberResults[s.targetMember]) memberResults[s.targetMember] = [];
-    // Cautious counts as safe here — asking family is not getting scammed.
-    if (i < answers.length) memberResults[s.targetMember].push(answers[i].outcome !== "wrong");
-  });
-
   const badges = [
     { name: "LINK INSPECTOR", desc: "Revealed hidden URLs", earned: answers.some((a) => a.foundClues.length >= 2) },
     { name: "FAMILY SHIELD", desc: "Protected all members", earned: correctCount >= 5 },
@@ -6055,21 +5905,6 @@ function FamilySummaryScreen({ answers, onPlayAgain, onIndividual, onHome }: {
               </div>
             ))}
           </div>
-        </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#4ecdc4", marginBottom: 8 }}>FAMILY RESULTS</div>
-        <div className="flex flex-col gap-2 mb-14">
-          {["Grandma", "Mum", "Dad", "Kid"].map((name) => {
-            const results = memberResults[name] ?? [];
-            const status = results.length === 0 ? "NO DATA" : results.every(Boolean) ? "SAFE" : results.some(Boolean) ? "NEEDS PRACTICE" : "REVIEW TOGETHER";
-            const sc = status === "SAFE" ? "#00ff88" : status === "NO DATA" ? "#6b8ba4" : "#ffe66d";
-            return (
-              <div key={name} className="flex items-center gap-3" style={{ backgroundColor: "#111827", border: "2px solid #2a3a5c", padding: "8px 12px" }}>
-                <AnimatedFamilyChar name={name} size={28} />
-                <div style={{ flex: 1, fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#e8f4f8" }}>{name.toUpperCase()}</div>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: sc }}>{status}</div>
-              </div>
-            );
-          })}
         </div>
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ffe66d", marginBottom: 8 }}>BADGES</div>
         <div className="grid grid-cols-2 gap-2 mb-14">
@@ -6490,7 +6325,7 @@ function CustomizeScreen({ memberId, coins, purchasedItems, soldItems, onBack, o
   onBack: () => void;
   onSell: (memberId: string, itemId: string, value: number) => void;
 }) {
-  const member = FAMILY_MEMBERS.find(m => m.id === memberId) ?? FAMILY_MEMBERS[1];
+  const member = useMemberMap()[memberId];
   const memberItems = FURNITURE_STORE.filter(i => i.memberId === memberId);
   const isInDebt = coins < 0;
 
@@ -6534,6 +6369,8 @@ function CustomizeScreen({ memberId, coins, purchasedItems, soldItems, onBack, o
     if (soldItems.includes(item.id)) return;
     onSell(memberId, item.id, item.sellValue);
   };
+
+  if (!member) return null;
 
   return (
     <div className="flex flex-col h-full">
@@ -6614,6 +6451,7 @@ function FamilyChatScreen({ messages, onSend, onBack }: {
   onBack: () => void;
 }) {
   const [input, setInput] = useState("");
+  const memberMap = useMemberMap();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [messages]);
@@ -6640,7 +6478,7 @@ function FamilyChatScreen({ messages, onSend, onBack }: {
           const isPixi = msg.isPixi === true;
           const isPlayer = msg.isPlayer === true;
           const isRight = isPlayer;
-          const member = (isPlayer || isPixi) ? null : MEMBER_MAP[msg.memberId];
+          const member = (isPlayer || isPixi) ? null : memberMap[msg.memberId];
           const color = isPixi
             ? PIXI_MEMBER.primaryColor
             : isPlayer
@@ -6663,7 +6501,7 @@ function FamilyChatScreen({ messages, onSend, onBack }: {
                   {isPixi ? (
                     <PixiAvatar size={28} />
                   ) : member ? (
-                    <FamilyChar id={member.id} size={28} frame={0} />
+                    <MemberChar member={member} size={28} />
                   ) : null}
                   <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color }}>
                     {isPixi ? "PIXI" : member?.name.slice(0, 3)}
@@ -6742,6 +6580,7 @@ function NotificationsScreen({
   onMarkAllRead: () => void;
   onBack: () => void;
 }) {
+  const memberMap = useMemberMap();
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
@@ -6770,7 +6609,7 @@ function NotificationsScreen({
           <div style={{ display: "flex", flexDirection: "column" }}>
             {notifications.map(n => {
               const { icon, accent } = iconForNotifKind(n.kind);
-              const member = n.memberId !== "family" ? MEMBER_MAP[n.memberId] : null;
+              const member = n.memberId !== "family" ? memberMap[n.memberId] : null;
               const isUnread = !n.read;
               return (
                 <button
@@ -6850,7 +6689,8 @@ function NotificationDetailScreen({
   onAction: (action: "train" | "family-drill") => void;
 }) {
   const { icon, accent } = iconForNotifKind(notification.kind);
-  const member = notification.memberId !== "family" ? MEMBER_MAP[notification.memberId] : null;
+  const memberMap = useMemberMap();
+  const member = notification.memberId !== "family" ? memberMap[notification.memberId] : null;
   const fullTimestamp = new Date(notification.timestamp).toLocaleString(undefined, {
     weekday: "short", hour: "2-digit", minute: "2-digit",
   }).toUpperCase();
@@ -6901,7 +6741,7 @@ function NotificationDetailScreen({
 
         {member && (
           <div style={{ marginTop: 14, backgroundColor: "#0a0e1a", border: `3px solid ${member.primaryColor}`, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12 }}>
-            <FamilyChar id={member.id} size={40} frame={0} />
+            <MemberChar member={member} size={40} />
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>MEMBER</div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: member.primaryColor, marginTop: 3 }}>
@@ -6931,6 +6771,9 @@ function NotificationDetailScreen({
 // ─────────────────────────────────────────────────────────────────────────
 function PaydayScreen({ coins, claimedThisWeek, onCollect, onClose }: { coins: Record<string, number>; claimedThisWeek: boolean; onCollect: () => void; onClose: () => void }) {
   const [collected, setCollected] = useState(claimedThisWeek);
+  const members = useMembers();
+  const selfId = useSelfId();
+  const paidMembers = members.filter((m) => m.id === selfId);
   const weeklyBase = 200;
   const drillBonus = 150;
   const payPeriod = new Date().toLocaleDateString(undefined, {
@@ -6978,18 +6821,17 @@ function PaydayScreen({ coins, claimedThisWeek, onCollect, onClose }: { coins: R
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#4ecdc4" }}>NO COIN LOSS</div>
             </div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", lineHeight: 1.6 }}>
-              Every member gets +{weeklyBase}. Safe members get a +{drillBonus} bonus. A missed red flag never reduces an existing balance.
+              You get +{weeklyBase}. Staying safe all week adds a +{drillBonus} bonus. A missed red flag never reduces an existing balance.
             </div>
           </div>
 
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", letterSpacing: 2, marginBottom: 10 }}>MEMBER BALANCES</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", letterSpacing: 2, marginBottom: 10 }}>YOUR BALANCE</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
-            {FAMILY_MEMBERS.map(m => {
+            {paidMembers.map(m => {
               const balance = coins[m.id] ?? m.coins;
-              const frame = 0;
               return (
                 <div key={m.id} style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "12px 14px", display: "flex", alignItems: "center", gap: 12 }}>
-                  <FamilyChar id={m.id} size={36} frame={frame} />
+                  <MemberChar member={m} size={36} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: m.primaryColor }}>{m.name}</div>
                     <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginTop: 3 }}>
@@ -7253,15 +7095,25 @@ export default function App() {
   useEffect(() => saveRewardClaims(rewardClaims), [rewardClaims]);
   const todayKey = localDateKey();
   const weekKey = localWeekKey();
-  const claimedDailyToday = Object.fromEntries(
-    FAMILY_MEMBERS.map(m => [m.id, rewardClaims.dailyByMember[m.id] === todayKey])
-  ) as Record<string, boolean>;
-  const paydayClaimedThisWeek = rewardClaims.paydayWeek === weekKey;
-  const [customizeMemberId, setCustomizeMemberId] = useState<string>("mum");
-  const [lastViewedMemberId, setLastViewedMemberId] = useState<string>("mum");
 
-  // Phase 2: activeMemberId + ledger
-  const [activeMemberId, setActiveMemberId] = useState<string>("mum");
+  // The house is the only source of members now. Signed-out visitors have no house
+  // and no members, so every member-keyed screen simply has nothing to show.
+  const signedIn = !!sessionToken();
+  const house = useHouse(signedIn);
+  const selfView = house.state.self;
+  const selfId = selfView?.id ?? "me";
+  const members = useMemo(() => {
+    const views = house.state.house?.members ?? (selfView ? [selfView] : []);
+    return views.map(toFamilyMember);
+  }, [house.state, selfView]);
+  const memberMap = useMemo(() => Object.fromEntries(members.map((m) => [m.id, m])), [members]);
+  const activeMemberId = selfId; // one player per phone now
+
+  const claimedDailyToday: Record<string, boolean> = {
+    [selfId]: rewardClaims.dailyByMember[selfId] === todayKey,
+  };
+  const paydayClaimedThisWeek = rewardClaims.paydayWeek === weekKey;
+
   const [coinLedger, setCoinLedger] = useState<CoinTx[]>([]);
 
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>(INITIAL_CHAT);
@@ -7300,7 +7152,7 @@ export default function App() {
   };
 
   const emitNotifDrill = (memberId: string, drill: DrillType, outcome: "win" | "lose", displayName?: string) => {
-    const member = MEMBER_MAP[memberId];
+    const member = memberMap[memberId];
     if (!member) return;
     const rewards: Record<DrillType, number> = { call: 50, sms: 40, email: 60 };
     const delta = outcome === "win" ? rewards[drill] : 0;
@@ -7336,17 +7188,16 @@ export default function App() {
   };
 
   const emitNotifPayday = () => {
-    const safeCount = FAMILY_MEMBERS.filter(m => m.safeThisWeek).length;
     appendNotification({
       kind: "payday",
       memberId: "family",
       title: "Payday collected",
-      body: `${safeCount}/${FAMILY_MEMBERS.length} members earned the safety bonus`,
+      body: selfView?.safeThisWeek ? "You earned the safety bonus" : "Stay safe this week to earn the bonus",
     });
   };
 
   const emitNotifDailyReward = (memberId: string) => {
-    const member = MEMBER_MAP[memberId];
+    const member = memberMap[memberId];
     if (!member) return;
     appendNotification({
       kind: "daily-reward",
@@ -7363,7 +7214,7 @@ export default function App() {
   };
 
   const emitPixiDrillMessage = (memberId: string, drill: DrillType, outcome: "win" | "lose", liveCallOutcome?: CallOutcome | null) => {
-    const member = MEMBER_MAP[memberId];
+    const member = memberMap[memberId];
     if (!member) return;
     const name = drill === "call" && liveCallOutcome ? profile.name : member.name;
     const templates: Record<DrillType, { win: string; lose: string }> = {
@@ -7465,12 +7316,10 @@ export default function App() {
       return next;
     });
     const base = 200, bonus = 150;
-    FAMILY_MEMBERS.forEach(m => {
-      addCoinTx(m.id, base, "payday-base", "PAYDAY BASE ALLOWANCE");
-      if (m.safeThisWeek) {
-        addCoinTx(m.id, bonus, "payday-bonus", "PAYDAY DRILL BONUS");
-      }
-    });
+    addCoinTx(selfId, base, "payday-base", "PAYDAY BASE ALLOWANCE");
+    if (selfView?.safeThisWeek) {
+      addCoinTx(selfId, bonus, "payday-bonus", "PAYDAY DRILL BONUS");
+    }
     emitPixiPaydayMessage();
     emitNotifPayday();
   };
@@ -7750,11 +7599,10 @@ export default function App() {
     setScreen("result-lose");
   };
 
-  // Family round completion: emit per-round coin event for that scenario's target member
+  // Family round completion: the coins go to whoever is playing this run.
   const handleFamilyComplete = (action: string, foundClues: number[], outcome: FamilyOutcome) => {
     const scenario = FAMILY_SCENARIOS[familyRoundIndex];
-    const memberId = FAMILY_NAME_TO_ID[scenario.targetMember] ?? "mum";
-    emitFamilyRoundEvent(memberId, outcome);
+    emitFamilyRoundEvent(selfId, outcome);
     setFamilyAnswers((prev) => [...prev, { scenarioId: scenario.id, action, outcome, foundClues }]);
   };
 
@@ -7828,10 +7676,9 @@ export default function App() {
     emitNotifDailyReward(memberId);
   };
 
+  // Only your own room is customisable — tapping a housemate's room just shows theirs.
   const openCustomize = (memberId: string) => {
-    setCustomizeMemberId(memberId);
-    setLastViewedMemberId(memberId);
-    setActiveMemberId(memberId);
+    if (memberId !== selfId) return;
     setScreen("customize");
   };
 
@@ -7868,6 +7715,10 @@ export default function App() {
   const realDrillBlocked = false;
 
   return (
+    // Deliberately not re-indented: every screen below reads members through context,
+    // and wrapping in place keeps this file's diff reviewable.
+    <MembersContext.Provider value={members}>
+    <SelfIdContext.Provider value={selfId}>
     <div className={[
       accessibility.reduceMotion ? "a11y-reduce-motion" : "",
       accessibility.largerText ? "a11y-large-text" : "",
@@ -7948,7 +7799,6 @@ export default function App() {
             {screen === "store" && (
               <ShopScreen
                 activeMemberId={activeMemberId}
-                onSelectMember={setActiveMemberId}
                 coins={coins}
                 purchasedItems={purchasedItems}
                 onBuy={handleBuyItem}
@@ -7983,7 +7833,7 @@ export default function App() {
                 onRename={updateVerifiedName}
                 onBack={() => setScreen("profile")}
                 onAvatar={() => setScreen("avatar-customisation")}
-                onHouse={() => { setCustomizeMemberId(lastViewedMemberId); setActiveMemberId(lastViewedMemberId); setScreen("customize"); }}
+                onHouse={() => setScreen("customize")}
               />
             )}
             {screen === "avatar-customisation" && (
@@ -7996,9 +7846,9 @@ export default function App() {
 
             {screen === "customize" && (
               <CustomizeScreen
-                memberId={customizeMemberId}
-                coins={coins[customizeMemberId] ?? 0}
-                purchasedItems={purchasedItems[customizeMemberId] ?? []}
+                memberId={selfId}
+                coins={coins[selfId] ?? 0}
+                purchasedItems={purchasedItems[selfId] ?? []}
                 soldItems={soldItems}
                 onBack={goHome}
                 onSell={handleSellItem}
@@ -8040,10 +7890,6 @@ export default function App() {
                   onBack={() => setScreen("notifications")}
                   onAction={(action) => {
                     if (action === "train") {
-                      if (notif.memberId !== "family") {
-                        setActiveMemberId(notif.memberId);
-                        setLastViewedMemberId(notif.memberId);
-                      }
                       setScreen("drill-select");
                     } else if (action === "family-drill") {
                       goFamilyDrill();
@@ -8235,5 +8081,7 @@ export default function App() {
         </div>
       )}
     </div>
+    </SelfIdContext.Provider>
+    </MembersContext.Provider>
   );
 }
