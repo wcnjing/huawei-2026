@@ -266,8 +266,8 @@ Data lives in Supabase, so redeploys never touch it. Apply new migrations first 
 ## Post-deploy checklist
 
 ```sh
-curl https://YOUR_DOMAIN/api/health                  # 200
-curl https://YOUR_DOMAIN/api/family                  # no "phone"/"email" anywhere
+curl https://YOUR_DOMAIN/api/health                                       # 200
+curl -s -o /dev/null -w '%{http_code}\n' https://YOUR_DOMAIN/api/house    # 401 (session required)
 curl -X POST https://YOUR_DOMAIN/api/drills/fire     # 401 (auth required)
 curl -X POST https://YOUR_DOMAIN/api/drills/simulate # 404 (demo route absent)
 curl -X POST https://YOUR_DOMAIN/api/webhooks/vapi   # 401 (needs the secret)
@@ -276,6 +276,11 @@ curl https://YOUR_DOMAIN/email-verify                # 400 verification page, no
 journalctl -u safespace | grep '\[verify\]'          # expect mode=twilio
 curl -I http://YOUR_DOMAIN                           # 301 -> https
 ```
+
+`/api/family` and `/api/leaderboard` were removed when households shipped; both now
+404, so `curl https://YOUR_DOMAIN/api/family` is no longer a useful PII check — use
+`GET /api/house` above instead, which requires a session like every other account
+route.
 
 If `/api/drills/simulate` returns anything but 404, or the log says `mode=dev`, then a
 dev flag is set in production — fix that before anyone else gets the URL.
@@ -374,3 +379,41 @@ Supabase hosts, which the CLI manages.
 Every write is a transaction that locks only what it reads, so any number of server
 instances can run at once. `server/store.concurrency.test.mjs` proves that against a
 real Postgres (`npm run test:pg`, and CI).
+
+---
+
+# Households rollout
+
+Sub-project 2 (see `docs/superpowers/specs/2026-09-19-households-design.md`) adds
+houses, drill runs and the Supabase Realtime doorbell. These steps are run by hand,
+once, against production — they touch the live database and Vercel project settings,
+so no worker task performs them automatically:
+
+1. Build `feat/houses`; confirm CI is green.
+2. `npx supabase db push` — applies `supabase/migrations/20260920000001_houses.sql` to
+   the production project.
+3. In the Supabase dashboard, confirm Realtime broadcast allows public channels (the
+   `doorbell` topic name is itself the secret; the doorbell carries no house or member
+   data).
+4. Add to Vercel **Production** environment variables: `SUPABASE_URL`,
+   `SUPABASE_SECRET_KEY`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`. All four
+   are optional — leaving them unset just means the app falls back to refreshing houses
+   on focus and every five minutes instead of getting a live doorbell ring.
+   Optionally also `TRUST_PROXY_HOPS`, the exact number of proxy hops in front of the
+   app. Without it `req.ip` is the platform's own socket address, shared by every
+   caller, so the per-address cap on wrong invite codes stays off (the 10-per-account
+   cap still applies) — which is deliberate: a shared bucket would let 30 strangers'
+   typos block joining for everybody.
+5. One-off check that the doorbell's broadcast endpoint accepts the secret key, with the
+   key pasted into your own terminal (never committed):
+
+   ```bash
+   curl -s -o /dev/null -w "%{http_code}\n" -X POST \
+     "https://pjogbcoomkbxfeqsxlny.supabase.co/realtime/v1/api/broadcast" \
+     -H "apikey: $SUPABASE_SECRET_KEY" -H "content-type: application/json" \
+     -d '{"messages":[{"topic":"house-check","event":"changed","payload":{},"private":false}]}'
+   ```
+
+   Expect `202`. A `401` means the key also needs an `Authorization: Bearer` header —
+   add it in `server/doorbell.js` and its test, then redeploy.
+6. Merge `feat/houses` to `main`, push, and verify production.

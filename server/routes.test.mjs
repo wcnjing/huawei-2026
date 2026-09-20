@@ -24,6 +24,8 @@ process.env.IDENTITY_LOOKUP_SECRET = 'route-test-identity-lookup-secret-over-32-
 process.env.PUBLIC_URL = 'https://safespace.test';
 process.env.GOOGLE_SCRIPT_URL = RELAY_URL;
 process.env.GOOGLE_SCRIPT_SECRET = 'route-test-relay-secret';
+process.env.SUPABASE_URL = 'https://doorbell.test';
+process.env.SUPABASE_SECRET_KEY = 'route-test-doorbell-key';
 
 await setupTestDb();
 const { app } = await import('./index.js');
@@ -46,6 +48,8 @@ let server;
 let base;
 const nativeFetch = globalThis.fetch;
 const relayRequests = [];
+const doorbellRings = [];
+let doorbellMode = 'ok';
 let vapiMode = null;
 let vapiRequestCount = 0;
 const vapiRequests = [];
@@ -74,6 +78,11 @@ globalThis.fetch = async (input, init) => {
       });
     }
     throw new Error('unexpected Vapi request in route test');
+  }
+  if (String(url).startsWith('https://doorbell.test/')) {
+    if (doorbellMode === 'fail') throw new TypeError('doorbell down');
+    doorbellRings.push(...JSON.parse(String(init?.body || '{}')).messages.map((m) => m.topic));
+    return new Response('{}', { status: 202 });
   }
   return nativeFetch(input, init);
 };
@@ -113,6 +122,150 @@ const post = (p, body, headers = {}) =>
     body: JSON.stringify(body ?? {}),
   });
 
+let signedInSeq = 0;
+async function signedIn(name) {
+  signedInSeq += 1;
+  const user = await registerVerifiedUser({
+    phone: `+6594${String(signedInSeq).padStart(6, '0')}`, name,
+  });
+  return { user, auth: { authorization: `Bearer ${await createSession(user.id)}` } };
+}
+const getJson = async (path, headers) => {
+  const res = await fetch(base + path, { headers });
+  return { status: res.status, body: await res.json() };
+};
+
+test('house routes need a session', async () => {
+  assert.equal((await fetch(base + '/api/house')).status, 401);
+  for (const path of ['/api/house', '/api/house/join', '/api/house/code', '/api/house/name',
+    '/api/house/members/x/remove', '/api/house/leave', '/api/drills/house-run']) {
+    assert.equal((await post(path, {})).status, 401, path);
+  }
+});
+
+test('create, join, rename, remove and leave over HTTP, ringing after each change', async () => {
+  await freshStore();
+  const owner = await signedIn('Owner');
+  const guest = await signedIn('Guest');
+  assert.deepEqual((await getJson('/api/house', owner.auth)).body.house, null);
+
+  doorbellRings.length = 0;
+  const created = await post('/api/house', { name: 'The Tans' }, owner.auth);
+  assert.equal(created.status, 200);
+  const { house } = await created.json();
+  assert.deepEqual(doorbellRings, [house.doorbell]);
+
+  const joined = await post('/api/house/join', { code: house.inviteCode }, guest.auth);
+  assert.equal(joined.status, 200);
+  assert.equal((await joined.json()).house.members.length, 2);
+
+  assert.equal((await post('/api/house/name', { name: 'Mine' }, guest.auth)).status, 403);
+  assert.equal((await post('/api/house/code', {}, guest.auth)).status, 403);
+  assert.equal((await post('/api/house/name', { name: 'Renamed' }, owner.auth)).status, 200);
+
+  const removed = await post(`/api/house/members/${guest.user.id}/remove`, {}, owner.auth);
+  assert.equal(removed.status, 200);
+  assert.equal((await getJson('/api/house', guest.auth)).body.house, null);
+
+  const left = await post('/api/house/leave', {}, owner.auth);
+  assert.deepEqual((await left.json()).house, null);
+});
+
+test('wrong and expired codes get the same answer', async () => {
+  await freshStore();
+  const p = await signedIn('Guesser');
+  const res = await post('/api/house/join', { code: 'ZZZ-ZZZ' }, p.auth);
+  assert.equal(res.status, 400);
+  const body = await res.json();
+  assert.equal(body.code, 'CODE_INVALID');
+  assert.doesNotMatch(body.error, /expire/i);
+});
+
+test('too many wrong join codes rate-limit the account', async () => {
+  await freshStore();
+  const p = await signedIn('Guesser');
+  for (let i = 0; i < 10; i += 1) {
+    const res = await post('/api/house/join', { code: 'ZZZ-ZZZ' }, p.auth);
+    assert.equal(res.status, 400, `attempt ${i}`);
+    assert.equal((await res.json()).code, 'CODE_INVALID', `attempt ${i}`);
+  }
+  const res = await post('/api/house/join', { code: 'ZZZ-ZZZ' }, p.auth);
+  assert.equal(res.status, 429);
+  assert.equal((await res.json()).code, 'JOIN_RATE_LIMITED');
+  const retryAfter = Number(res.headers.get('retry-after'));
+  assert.ok(Number.isInteger(retryAfter) && retryAfter >= 1, retryAfter);
+});
+
+// Production is a serverless function behind the platform's own proxy, and `trust proxy`
+// is off unless TRUST_PROXY_HOPS says how many hops to trust. req.ip is then the shared
+// internal socket address, so a per-address bucket would be one global bucket: 30 typos
+// by anyone would 429 joining for everyone. Without the hop count, no requester bucket.
+test('wrong codes from other accounts never rate-limit a join', async () => {
+  await freshStore();
+  for (let guesser = 0; guesser < 3; guesser += 1) {
+    const { auth } = await signedIn(`Guesser${guesser}`);
+    for (let i = 0; i < 10; i += 1) {
+      assert.equal((await post('/api/house/join', { code: 'ZZZ-ZZZ' }, auth)).status, 400, `${guesser}/${i}`);
+    }
+  }
+  const owner = await signedIn('Owner');
+  const { house } = await (await post('/api/house', { name: 'Open Door' }, owner.auth)).json();
+  const guest = await signedIn('Guest');
+  const joined = await post('/api/house/join', { code: house.inviteCode }, guest.auth);
+  assert.equal(joined.status, 200, 'a first-time joiner must not inherit strangers’ failures');
+  assert.equal((await joined.json()).house.members.length, 2);
+});
+
+test('GET /api/house never exposes phone or email', async () => {
+  await freshStore();
+  const owner = await signedIn('Owner');
+  const { house } = await (await post('/api/house', { name: 'Private' }, owner.auth)).json();
+  const guest = await signedIn('Guest');
+  await post('/api/house/join', { code: house.inviteCode }, guest.auth);
+  const text = JSON.stringify((await getJson('/api/house', owner.auth)).body);
+  for (const leak of ['"phone"', '"email"', 'Hash', '+6594']) assert.ok(!text.includes(leak), leak);
+});
+
+test('a failing doorbell never fails the request', async () => {
+  await freshStore();
+  const p = await signedIn('Owner');
+  doorbellMode = 'fail';
+  try {
+    assert.equal((await post('/api/house', { name: 'Quiet' }, p.auth)).status, 200);
+  } finally {
+    doorbellMode = 'ok';
+  }
+});
+
+test('a non-house route still rings the house on a visible stat change', async () => {
+  await freshStore();
+  const p = await signedIn('Renamer');
+  const { house } = await (await post('/api/house', { name: 'Ringers' }, p.auth)).json();
+  doorbellRings.length = 0;
+  const res = await post('/api/me/name', { name: 'New Name' }, p.auth);
+  assert.equal(res.status, 200);
+  assert.ok(doorbellRings.includes(house.doorbell));
+});
+
+test('house drill runs record once and ring the house', async () => {
+  await freshStore();
+  const p = await signedIn('Runner');
+  const { house } = await (await post('/api/house', { name: 'Runners' }, p.auth)).json();
+  doorbellRings.length = 0;
+  const run = { clientKey: 'k1', correct: 5, cautious: 1, wrong: 0 };
+  const first = await (await post('/api/drills/house-run', run, p.auth)).json();
+  assert.equal(first.status, 'completed');
+  assert.equal(first.run.xpGained, 550);
+  assert.equal((await (await post('/api/drills/house-run', run, p.auth)).json()).status, 'duplicate');
+  assert.ok(doorbellRings.includes(house.doorbell));
+  assert.equal((await post('/api/drills/house-run', { clientKey: 'k2', correct: 0, cautious: 0, wrong: 0 }, p.auth)).status, 400);
+});
+
+test('the CSP allows the Supabase realtime origin', async () => {
+  const csp = (await fetch(base + '/api/health')).headers.get('content-security-policy');
+  assert.match(csp, /connect-src 'self' https:\/\/doorbell\.test wss:\/\/doorbell\.test/);
+});
+
 // systemd restarts the service when this stops answering, so it must respond even when
 // every provider is unconfigured — and must not describe the deployment to the internet.
 test('GET /api/health is public, cheap, and leaks no configuration', async () => {
@@ -128,12 +281,9 @@ test('GET /api/health is public, cheap, and leaks no configuration', async () =>
 });
 
 // ─── PII (review finding 1) ───────────────────────────────────────────────
-test('GET /api/family never exposes phone or email', async () => {
-  const res = await fetch(base + '/api/family');
-  assert.equal(res.status, 200);
-  const body = JSON.stringify(await res.json());
-  assert.ok(!body.includes('"phone"'), 'phone must not be serialised');
-  assert.ok(!body.includes('"email"'), 'email must not be serialised');
+test('the demo-family and public leaderboard routes are gone', async () => {
+  assert.equal((await fetch(base + '/api/family')).status, 404);
+  assert.equal((await fetch(base + '/api/leaderboard')).status, 404);
 });
 
 test('GET /api/shame is not exposed as a public failure ranking', async () => {
@@ -141,13 +291,25 @@ test('GET /api/shame is not exposed as a public failure ranking', async () => {
   assert.equal(res.status, 404);
 });
 
-test('GET /api/me ignores a client-supplied ?user= (no reading other accounts)', async () => {
-  const res = await fetch(base + '/api/me?user=usr_someone_else');
+test('GET /api/me needs a session and ignores ?user=', async () => {
+  assert.equal((await fetch(base + '/api/me?user=you')).status, 401);
+  await freshStore();
+  const user = await registerVerifiedUser({ phone: '+6592220001', name: 'Me' });
+  const token = await createSession(user.id);
+  const res = await fetch(base + '/api/me?user=you', { headers: { authorization: `Bearer ${token}` } });
   assert.equal(res.status, 200);
   const me = await res.json();
-  // Falls back to the demo account rather than honouring the param.
-  assert.equal(me.id, 'you');
+  assert.equal(me.id, user.id);
   assert.equal(me.phone, undefined);
+});
+
+test('practice results and pending results need a session', async () => {
+  assert.equal((await fetch(base + '/api/drills/pending-result')).status, 401);
+  assert.equal((await post('/api/drills/pending-result/x/ack')).status, 401);
+  assert.equal(
+    (await post('/api/drills/practice-result', { outcome: 'hung_up', channel: 'call', attemptId: 'a1' })).status,
+    401,
+  );
 });
 
 // ─── Real calls require a session (review finding 2) ──────────────────────
@@ -222,18 +384,25 @@ test('POST /api/me/phone/detach is refused without a session token', async () =>
   assert.equal((await post('/api/me/phone/detach')).status, 401);
 });
 
-test('POST /api/me/phone/detach removes the phone and revokes the calling session', async () => {
+test('POST /api/me/phone/detach removes the phone, leaves the house and revokes the session', async () => {
   await freshStore();
-  const user = await registerVerifiedUser({ phone: '+6591234567', name: 'Detach' });
-  const token = await createSession(user.id);
-  const headers = { authorization: `Bearer ${token}` };
+  const owner = await signedIn('Detach');
+  const { house } = await (await post('/api/house', { name: 'Leavers' }, owner.auth)).json();
+  const mate = await signedIn('Mate');
+  await post('/api/house/join', { code: house.inviteCode }, mate.auth);
 
-  const detached = await post('/api/me/phone/detach', {}, headers);
+  doorbellRings.length = 0;
+  const detached = await post('/api/me/phone/detach', {}, owner.auth);
   assert.equal(detached.status, 200);
   assert.equal((await detached.json()).ok, true);
-  assert.equal((await getUser(user.id)).phone, undefined);
-  assert.equal((await getUser(user.id)).consentToDrills, false);
-  assert.equal((await post('/api/me/phone/detach', {}, headers)).status, 401);
+  assert.equal((await getUser(owner.user.id)).phone, undefined);
+  assert.equal((await getUser(owner.user.id)).consentToDrills, false);
+  // Housemates must be told, and only once the transaction has committed.
+  assert.deepEqual(doorbellRings, [house.doorbell]);
+  const mateView = await getJson('/api/house', mate.auth);
+  assert.deepEqual(mateView.body.house.members.map((m) => m.id), [mate.user.id]);
+  assert.equal(mateView.body.house.ownerId, mate.user.id);
+  assert.equal((await post('/api/me/phone/detach', {}, owner.auth)).status, 401);
   await freshStore();
 });
 
@@ -284,13 +453,15 @@ test('an authenticated webhook cannot attribute an unknown call to the demo user
 
 test('a no-answer webhook is unscored, durable until ACK, and exactly once', async () => {
   await freshStore();
+  const user = await registerVerifiedUser({ phone: '+6592226666', name: 'No Answer' });
+  const auth = { authorization: `Bearer ${await createSession(user.id)}` };
   const attempt = await createDrillAttempt({
-    userId: 'you',
+    userId: user.id,
     channel: 'call',
     providerId: 'call_no_answer_route',
     status: 'sent',
   });
-  const before = await getUser('you');
+  const before = await getUser(user.id);
   const payload = {
     message: {
       type: 'end-of-call-report',
@@ -316,23 +487,23 @@ test('a no-answer webhook is unscored, durable until ACK, and exactly once', asy
   const replay = await post('/api/webhooks/vapi', payload, headers);
   assert.equal(replay.status, 200);
   assert.equal((await replay.json()).status, 'duplicate');
-  assert.deepEqual(await getUser('you'), before, 'no-answer must not alter XP or streak');
+  assert.deepEqual(await getUser(user.id), before, 'no-answer must not alter XP or streak');
 
-  const firstRead = await fetch(base + '/api/drills/pending-result');
+  const firstRead = await fetch(base + '/api/drills/pending-result', { headers: auth });
   const pending = (await firstRead.json()).pending;
   assert.equal(pending.result, 'UNSCORED');
   assert.equal(pending.unscoredReason, 'no_answer');
   assert.equal(
-    (await (await fetch(base + '/api/drills/pending-result')).json()).pending.id,
+    (await (await fetch(base + '/api/drills/pending-result', { headers: auth })).json()).pending.id,
     pending.id,
     'GET must not consume a result',
   );
   assert.equal(
-    (await post(`/api/drills/pending-result/${encodeURIComponent(pending.id)}/ack`)).status,
+    (await post(`/api/drills/pending-result/${encodeURIComponent(pending.id)}/ack`, undefined, auth)).status,
     200,
   );
   assert.equal(
-    (await (await fetch(base + '/api/drills/pending-result')).json()).pending,
+    (await (await fetch(base + '/api/drills/pending-result', { headers: auth })).json()).pending,
     null,
   );
   await freshStore();
@@ -423,31 +594,87 @@ test('POST /api/verify/check rejects a malformed email before anything else', as
 });
 
 test('POST /api/verify/check requires a valid name before verification', async () => {
-  for (const name of ['', '   ', '<script>', '12345']) {
+  for (const name of ['<script>', '12345']) {
     const res = await post('/api/verify/check', { phone: '+6591234567', code: '000000', name });
     assert.equal(res.status, 400, `"${name}" should be rejected as a name`);
   }
 });
 
-// ─── Anonymous practice still works (no regression for the demo) ──────────
-test('anonymous practice drills still score against the demo account', async () => {
+const AVATAR = { color: '#c77dff', glow: '#00ff88', hat: 'Crown', eyes: 'Visor', outfit: 'Neon' };
+
+// The route tests import index.js in a production-shaped environment (verification
+// disabled), so getting an approved OTP here means toggling ALLOW_DEV_VERIFY for the
+// span of the test, in a try/finally, rather than setting TWILIO_* before import —
+// that would change the module's fail-closed shape and risk the disabled-bypass test
+// above passing for the wrong reason.
+test('verify/check: returning numbers need no name; unknown ones get NO_ACCOUNT', async () => {
   await freshStore();
+  const previousDev = process.env.ALLOW_DEV_VERIFY;
+  process.env.ALLOW_DEV_VERIFY = 'true';
+  try {
+    const missing = await post('/api/verify/check', { phone: '+6592220010', code: '000000' });
+    assert.equal(missing.status, 404);
+    assert.equal((await missing.json()).code, 'NO_ACCOUNT');
+
+    const created = await post('/api/verify/check', { phone: '+6592220010', code: '000000', name: 'Nova', avatar: AVATAR });
+    assert.equal(created.status, 200);
+    const first = await created.json();
+    assert.deepEqual((await getUser(first.userId)).avatar, AVATAR);
+
+    const again = await post('/api/verify/check', { phone: '+6592220010', code: '000000' });
+    assert.equal(again.status, 200);
+    const second = await again.json();
+    assert.equal(second.userId, first.userId);
+    assert.equal(second.name, 'NOVA');
+  } finally {
+    if (previousDev === undefined) delete process.env.ALLOW_DEV_VERIFY;
+    else process.env.ALLOW_DEV_VERIFY = previousDev;
+    await freshStore();
+  }
+});
+
+test('verify/check and /api/me/avatar reject avatars outside the allowlist', async () => {
+  await freshStore();
+  const previousDev = process.env.ALLOW_DEV_VERIFY;
+  process.env.ALLOW_DEV_VERIFY = 'true';
+  try {
+    const bad = await post('/api/verify/check', { phone: '+6592220011', code: '000000', name: 'Bad', avatar: { hat: 'Tiara' } });
+    assert.equal(bad.status, 400);
+  } finally {
+    if (previousDev === undefined) delete process.env.ALLOW_DEV_VERIFY;
+    else process.env.ALLOW_DEV_VERIFY = previousDev;
+  }
+  const user = await registerVerifiedUser({ phone: '+6592220012', name: 'Av' });
+  const auth = { authorization: `Bearer ${await createSession(user.id)}` };
+  assert.equal((await post('/api/me/avatar', { avatar: AVATAR })).status, 401);
+  assert.equal((await post('/api/me/avatar', { avatar: { ...AVATAR, eyes: 'Laser' } }, auth)).status, 400);
+  const ok = await post('/api/me/avatar', { avatar: AVATAR }, auth);
+  assert.equal(ok.status, 200);
+  assert.deepEqual((await ok.json()).user.avatar, AVATAR);
+  await freshStore();
+});
+
+// ─── Signed-in practice scoring (sessions required) ────────────────────────
+test('practice drills score against the signed-in account', async () => {
+  await freshStore();
+  const user = await registerVerifiedUser({ phone: '+6592220003', name: 'Practice' });
+  const auth = { authorization: `Bearer ${await createSession(user.id)}` };
   const payload = {
     outcome: 'reported',
     channel: 'email',
     attemptId: 'practice-route-stable-attempt-1',
   };
-  const res = await post('/api/drills/practice-result', payload);
+  const res = await post('/api/drills/practice-result', payload, auth);
   assert.equal(res.status, 200);
-  const { status, applied, record, user } = await res.json();
+  const { status, applied, record, user: responseUser } = await res.json();
   assert.equal(status, 'completed');
   assert.equal(applied, true);
-  assert.equal(record.userId, 'you');
+  assert.equal(record.userId, user.id);
   assert.equal(record.result, 'WON');
   assert.equal(record.practice, true);
-  assert.equal(user.phone, undefined, 'even this response must not carry PII');
+  assert.equal(responseUser.phone, undefined, 'even this response must not carry PII');
 
-  const duplicate = await post('/api/drills/practice-result', payload);
+  const duplicate = await post('/api/drills/practice-result', payload, auth);
   assert.equal(duplicate.status, 200);
   const duplicateBody = await duplicate.json();
   assert.equal(duplicateBody.status, 'duplicate');

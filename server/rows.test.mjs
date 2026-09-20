@@ -83,3 +83,19 @@ test('a result keeps outcome and screen even when null, and hides queue bookkeep
     attemptId: 'attempt_1', unscoredReason: 'no_answer',
   });
 });
+
+test('userFromRow carries house and avatar only when set', () => {
+  const base = {
+    id: 'usr_1', name: 'A', role: 'ROOKIE', consent_to_drills: true, level: 1, xp: 0,
+    xp_max: 500, streak: 0, times_safe: 0, times_scammed: 0, primary_color: '#4ecdc4',
+    badge_count: 0, badge_total: 9, room_name: 'R', room_bg: '#000', safe_this_week: true,
+    recent_drill_result: null,
+  };
+  const plain = userFromRow({ ...base, house_id: null, avatar: null });
+  assert.equal('houseId' in plain, false);
+  assert.equal('avatar' in plain, false);
+  const avatar = { color: '#ff6b35', glow: '#00ff88', hat: 'Cap', eyes: 'Visor', outfit: 'Neon' };
+  const housed = userFromRow({ ...base, house_id: 'house_1', avatar });
+  assert.equal(housed.houseId, 'house_1');
+  assert.deepEqual(housed.avatar, avatar);
+});

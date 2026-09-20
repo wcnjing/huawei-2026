@@ -18,8 +18,6 @@ import {
   createSession,
   detachVerifiedPhone,
   getDrillAttempt,
-  getFamily,
-  getLeaderboard,
   getUser,
   getUserIdByToken,
   listLiveTacticCards,
@@ -30,9 +28,11 @@ import {
   publicUser,
   registerVerifiedUser,
   reservePhoneVerificationSend,
+  setUserAvatar,
   setUserName,
   setVerifiedUserEmail,
 } from './store.js';
+import { cleanAvatar } from './avatar.js';
 import {
   VapiDeliveryUnconfirmed,
   fireDrillCall,
@@ -61,6 +61,19 @@ import {
 import { KNOWN_OUTCOMES } from './xp.js';
 import { educationalPage } from './pages.js';
 import { renderTactic } from './intel/render.js';
+import {
+  HouseError,
+  createHouse,
+  doorbellForUser,
+  getHouseView,
+  joinHouse,
+  leaveHouse,
+  recordHouseRun,
+  regenerateInviteCode,
+  removeMember,
+  renameHouse,
+} from './houses.js';
+import { ring } from './doorbell.js';
 
 const E164 = /^\+[1-9]\d{6,14}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -74,7 +87,19 @@ const CLIENT_REAL_OUTCOMES = {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, '..', 'dist');
-const DEFAULT_USER = process.env.DRILL_USER || 'you';
+
+// The app's realtime socket goes straight to Supabase, so allow that one origin. Read
+// once at startup — SUPABASE_URL is fixed for the process's lifetime, so there is no
+// reason to re-parse it on every request.
+function supabaseConnectSources() {
+  try {
+    const url = new URL(process.env.SUPABASE_URL || '');
+    return url.protocol === 'https:' ? [url.origin, `wss://${url.host}`] : [];
+  } catch {
+    return [];
+  }
+}
+const CONNECT_SRC = ["connect-src 'self'", ...supabaseConnectSources()].join(' ');
 
 const app = express();
 app.disable('x-powered-by');
@@ -82,14 +107,21 @@ app.disable('x-powered-by');
 // its exact proxy hop count. Blindly trusting X-Forwarded-For would let a caller rotate
 // a spoofed address and bypass the public OTP requester limit.
 const configuredProxyHops = String(process.env.TRUST_PROXY_HOPS || '').trim();
+// Whether req.ip is a caller's own address. Without the declared hop count it is
+// whatever socket the deployment terminates on — on a serverless platform that address
+// is the platform's, shared by everybody, so per-address limits must stay off.
+let clientAddressIsReal = false;
 if (configuredProxyHops) {
   const proxyHops = Number(configuredProxyHops);
   if (Number.isInteger(proxyHops) && proxyHops >= 0 && proxyHops <= 10) {
     app.set('trust proxy', proxyHops);
+    clientAddressIsReal = true;
   } else {
     console.warn('[config] TRUST_PROXY_HOPS ignored; expected an integer from 0 to 10');
   }
 }
+/** The rate-limit bucket for "this caller", or null when no address can be trusted. */
+const requesterKey = (req) => (clientAddressIsReal ? req.ip : null);
 app.use(express.json({ limit: '256kb' }));
 app.use((req, res, next) => {
   res.set({
@@ -100,7 +132,7 @@ app.use((req, res, next) => {
     'Content-Security-Policy': [
       "default-src 'self'",
       "base-uri 'self'",
-      "connect-src 'self'",
+      CONNECT_SRC,
       "font-src 'self' data: https://fonts.gstatic.com",
       "form-action 'self'",
       "frame-ancestors 'none'",
@@ -163,8 +195,56 @@ async function sessionUserId(req) {
   return userId;
 }
 
-async function actingUserId(req) {
-  return (await sessionUserId(req)) || DEFAULT_USER;
+/** The signed-in user's id, or null after sending 401. Every account route needs one. */
+async function requireUserId(req, res) {
+  const userId = await sessionUserId(req);
+  if (!userId) res.status(401).json({ error: 'sign in first' });
+  return userId;
+}
+
+/** Ring the house of a user whose visible stats just changed. Never throws. */
+async function ringUser(userId) {
+  try {
+    const topic = await doorbellForUser(userId);
+    if (topic) await ring([topic]);
+  } catch (error) {
+    console.error('[doorbell] lookup failed:', error?.message || error);
+  }
+}
+
+const HOUSE_ERRORS = {
+  NOT_IN_HOUSE: [404, "you're not in a house"],
+  ALREADY_IN_HOUSE: [409, 'leave your current house first'],
+  CODE_INVALID: [400, "that code isn't valid; ask for a new one"],
+  HOUSE_FULL: [409, 'that house is full (6 players)'],
+  NOT_OWNER: [403, 'only the house owner can do that'],
+  NOT_A_MEMBER: [404, "that player isn't in your house"],
+  CANNOT_REMOVE_SELF: [400, 'use LEAVE HOUSE to leave your own house'],
+  JOIN_RATE_LIMITED: [429, 'too many wrong codes; try again later'],
+  INVALID_HOUSE_NAME: [400, 'house names are 1–30 letters, numbers or spaces'],
+  INVALID_DRILL_RUN: [400, 'that drill run is not valid'],
+};
+
+function houseFail(res, error) {
+  if (!(error instanceof HouseError)) throw error;
+  const [status, message] = HOUSE_ERRORS[error.code] ?? [400, 'house request failed'];
+  if (error.retryAfterMs) res.set('Retry-After', String(Math.max(1, Math.ceil(error.retryAfterMs / 1000))));
+  return res.status(status).json({ error: message, code: error.code });
+}
+
+/** Run a house change for the signed-in user, ring, and answer with the fresh view. */
+function houseRoute(change) {
+  return async (req, res) => {
+    const userId = await requireUserId(req, res);
+    if (!userId) return;
+    try {
+      const result = await change(userId, req);
+      await ring(result?.ring ?? []);
+      return res.json(await getHouseView(userId));
+    } catch (error) {
+      return houseFail(res, error);
+    }
+  };
 }
 
 function timingSafeEqualStr(left, right) {
@@ -297,35 +377,23 @@ api.get('/api/health/db', async (_req, res) => {
 });
 
 api.get('/api/me', async (req, res) => {
-  const user = await getUser(await actingUserId(req));
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+  const user = await getUser(userId);
   if (!user) return res.status(404).json({ error: 'unknown user' });
   return res.json(accountView(user));
 });
 
-// Until explicit family membership exists, registered accounts are private: anonymous
-// visitors see only seed/demo characters and a signed-in user sees themselves as well.
-api.get('/api/family', async (req, res) => {
-  const ownId = await sessionUserId(req);
-  const family = (await getFamily()).filter(
-    (user) => !String(user.id).startsWith('usr_') || user.id === ownId,
-  );
-  res.json(family);
-});
-
-api.get('/api/leaderboard', async (req, res) => {
-  const ownId = await sessionUserId(req);
-  const leaderboard = (await getLeaderboard()).filter(
-    (user) => !String(user.id).startsWith('usr_') || user.id === ownId,
-  );
-  res.json(leaderboard.map((user, index) => ({ ...user, rank: index + 1 })));
-});
-
 api.get('/api/drills/pending-result', async (req, res) => {
-  res.json({ pending: await peekPendingResult(await actingUserId(req)) });
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+  res.json({ pending: await peekPendingResult(userId) });
 });
 
 api.post('/api/drills/pending-result/:resultId/ack', async (req, res) => {
-  const acknowledged = await ackPendingResult(await actingUserId(req), req.params.resultId);
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+  const acknowledged = await ackPendingResult(userId, req.params.resultId);
   if (!acknowledged) return res.status(404).json({ error: 'result not found' });
   return res.json({ ok: true });
 });
@@ -341,14 +409,17 @@ api.post('/api/drills/practice-result', async (req, res) => {
   if (!OUTCOMES.has(outcome)) return res.status(400).json({ error: 'unknown drill outcome' });
   if (!PRACTICE_CHANNELS.has(channel)) return res.status(400).json({ error: 'unknown drill channel' });
   if (!clientAttemptId) return res.status(400).json({ error: 'attemptId is required' });
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
 
   try {
     const result = await applyPracticeOutcomeOnce({
-      userId: await actingUserId(req),
+      userId,
       clientAttemptId,
       outcome,
       channel,
     });
+    if (result.applied) await ringUser(userId);
     return res.json({
       status: result.status,
       applied: result.applied,
@@ -417,21 +488,32 @@ api.post('/api/verify/check', async (req, res) => {
   const code = String(req.body?.code || '').trim();
   const name = String(req.body?.name || '').trim();
   const email = req.body?.email == null ? '' : String(req.body.email).trim();
+  const avatarInput = req.body?.avatar ?? null;
+  const avatar = avatarInput == null ? null : cleanAvatar(avatarInput);
 
   if (!E164.test(phone) || !code) return res.status(400).json({ error: 'phone and code required' });
   if (email && !EMAIL_RE.test(email)) {
     return res.status(400).json({ error: 'email is not a valid address' });
   }
-  if (!NAME_RE.test(name)) {
-    return res.status(400).json({
-      error: 'name is required (letters, spaces, apostrophes or hyphens)',
-    });
+  // A name is needed only to create an account; a returning number keeps its own.
+  if (name && !NAME_RE.test(name)) {
+    return res.status(400).json({ error: 'name must use letters, spaces, apostrophes or hyphens' });
   }
+  if (avatarInput != null && !avatar) return res.status(400).json({ error: 'avatar is invalid' });
 
   try {
     const approved = await checkVerification(phone, code);
     if (!approved) return res.status(401).json({ ok: false, error: 'incorrect or expired code' });
-    const user = await registerVerifiedUser({ phone, name, email: email || undefined });
+    let user;
+    try {
+      user = await registerVerifiedUser({ phone, name, email: email || undefined, avatar: avatar ?? undefined });
+    } catch (error) {
+      if (error?.code === 'NO_ACCOUNT') {
+        return res.status(404).json({ code: 'NO_ACCOUNT', error: 'no account for this number yet' });
+      }
+      throw error;
+    }
+    await ringUser(user.id);
     const token = await createSession(user.id);
     return res.json({
       ok: true,
@@ -455,9 +537,55 @@ api.post('/api/me/name', async (req, res) => {
     });
   }
   try {
-    return res.json({ ok: true, user: accountView(await setUserName(userId, name)) });
+    const user = await setUserName(userId, name);
+    await ringUser(userId);
+    return res.json({ ok: true, user: accountView(user) });
   } catch (error) {
     return fail(res, 400, 'could not update name', error);
+  }
+});
+
+api.post('/api/me/avatar', async (req, res) => {
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+  if (!cleanAvatar(req.body?.avatar)) return res.status(400).json({ error: 'avatar is invalid' });
+  const user = await setUserAvatar(userId, req.body.avatar);
+  await ringUser(userId);
+  return res.json({ ok: true, user: accountView(user) });
+});
+
+// --- Houses -------------------------------------------------------------------
+
+api.get('/api/house', async (req, res) => {
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+  return res.json(await getHouseView(userId));
+});
+
+api.post('/api/house', houseRoute((userId, req) => createHouse(userId, req.body?.name)));
+api.post('/api/house/join', houseRoute((userId, req) =>
+  joinHouse(userId, req.body?.code, { requesterKey: requesterKey(req) })));
+api.post('/api/house/code', houseRoute((userId) => regenerateInviteCode(userId)));
+api.post('/api/house/name', houseRoute((userId, req) => renameHouse(userId, req.body?.name)));
+api.post('/api/house/members/:memberId/remove', houseRoute((userId, req) =>
+  removeMember(userId, req.params.memberId)));
+api.post('/api/house/leave', houseRoute((userId) => leaveHouse(userId)));
+
+api.post('/api/drills/house-run', async (req, res) => {
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+  const body = req.body || {};
+  try {
+    const result = await recordHouseRun(userId, {
+      clientKey: body.clientKey,
+      correct: body.correct,
+      cautious: body.cautious,
+      wrong: body.wrong,
+    });
+    if (result.status === 'completed') await ringUser(userId);
+    return res.json({ status: result.status, run: result.run, user: accountView(result.user) });
+  } catch (error) {
+    return houseFail(res, error);
   }
 });
 
@@ -468,7 +596,10 @@ api.post('/api/me/phone/detach', async (req, res) => {
   if (!user) return res.status(401).json({ error: 'session no longer valid' });
   if (!user.phone) return res.status(400).json({ error: 'no verified phone on file' });
   try {
-    await detachVerifiedPhone(userId);
+    // Detaching also leaves the house, so the housemates who stay need the ring — after
+    // the commit, never inside the transaction.
+    const { ring: topics } = await detachVerifiedPhone(userId);
+    await ring(topics);
     return res.json({ ok: true });
   } catch (error) {
     if (error?.code === 'IDENTITY_RECOVERY_UNAVAILABLE') {
@@ -802,6 +933,7 @@ api.post('/api/drills/:drillId/complete', async (req, res) => {
   }
   const result = await completeDrillAttempt({ attemptId: attempt.id, outcome });
   if (result.status === 'unknown') return res.status(404).json({ error: 'drill not found' });
+  if (result.applied) await ringUser(result.record.userId);
   return res.json({
     ok: true,
     status: result.status,
@@ -850,6 +982,7 @@ async function signedDrillAction(req, res, action, outcome, shouldComplete) {
       status: 404,
     });
   }
+  if (completion.applied) await ringUser(completion.record.userId);
   if (completion.status === 'duplicate' && completion.record?.outcome !== outcome) {
     return sendEducationalPage(res, {
       title: 'Drill already completed',
@@ -912,6 +1045,7 @@ api.post('/api/webhooks/vapi', async (req, res) => {
     if (result.status === 'unknown') {
       return res.json({ ignored: true, reason: 'unknown attempt' });
     }
+    if (result.applied) await ringUser(result.record.userId);
     return res.json({
       ok: true,
       status: result.status,
@@ -955,13 +1089,16 @@ if (process.env.ENABLE_DEMO_ROUTES === 'true') {
   api.post('/api/drills/simulate', async (req, res) => {
     const outcome = String(req.body?.outcome || 'disengaged').trim();
     if (!OUTCOMES.has(outcome)) return res.status(400).json({ error: 'unknown drill outcome' });
+    const userId = await requireUserId(req, res);
+    if (!userId) return;
     try {
       const result = await applyOutcome({
-        userId: await actingUserId(req),
+        userId,
         outcome,
         channel: 'call',
         practice: false,
       });
+      await ringUser(userId);
       return res.json({ ok: true, record: result.record });
     } catch (error) {
       return fail(res, 400, 'could not simulate result', error);

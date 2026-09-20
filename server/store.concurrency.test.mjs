@@ -99,3 +99,100 @@ test('a double-clicked practice result is scored once', { skip }, async () => {
   assert.equal(statuses.filter((status) => status === 'duplicate').length, 9);
   assert.equal((await store.getUser('you')).timesSafe, before.timesSafe + 1);
 });
+
+const houses = await import('./houses.js');
+let racePhone = 0;
+const racer = (name) => {
+  racePhone += 1;
+  return store.registerVerifiedUser({ phone: `+659300${String(racePhone).padStart(4, '0')}`, name });
+};
+async function raceHouse(size) {
+  const owner = await racer('Owner');
+  await houses.createHouse(owner.id, 'Race House');
+  const code = (await houses.getHouseView(owner.id)).house.inviteCode;
+  for (let i = 1; i < size; i += 1) await houses.joinHouse((await racer(`M${i}`)).id, code);
+  return { owner, code };
+}
+async function houseInvariants() {
+  const { rows } = await query(
+    `select h.id, h.owner_id, count(u.id) as n, bool_or(u.id = h.owner_id) as owner_is_member
+       from safespace.houses h left join safespace.users u on u.house_id = h.id
+      group by h.id, h.owner_id`,
+  );
+  for (const row of rows) {
+    assert.ok(Number(row.n) >= 1 && Number(row.n) <= houses.HOUSE_MAX_MEMBERS, `house size ${row.n}`);
+    assert.equal(row.owner_is_member, true, 'the owner must be a member');
+  }
+  return rows;
+}
+
+test('7 people joining a house of 5 at once: exactly one gets in', { skip }, async () => {
+  await resetDb();
+  const { owner, code } = await raceHouse(5);
+  const joiners = await Promise.all(Array.from({ length: 7 }, (_, i) => racer(`J${i}`)));
+  const results = await race(7, (i) => houses.joinHouse(joiners[i].id, code));
+  assert.equal(fulfilled(results).length, 1);
+  assert.ok(rejected(results).every((r) => r.reason?.code === 'HOUSE_FULL'));
+  assert.equal((await houses.getHouseView(owner.id)).house.members.length, 6);
+  await houseInvariants();
+});
+
+test('one person joining two houses at once ends up in one', { skip }, async () => {
+  await resetDb();
+  const a = await raceHouse(1);
+  const b = await raceHouse(1);
+  const p = await racer('Double');
+  const results = await Promise.allSettled([houses.joinHouse(p.id, a.code), houses.joinHouse(p.id, b.code)]);
+  assert.equal(fulfilled(results).length, 1);
+  assert.equal(rejected(results)[0].reason?.code, 'ALREADY_IN_HOUSE');
+  await houseInvariants();
+});
+
+test('the owner leaving while others join leaves a valid owner', { skip }, async () => {
+  await resetDb();
+  const { owner, code } = await raceHouse(2);
+  const joiners = await Promise.all(Array.from({ length: 3 }, (_, i) => racer(`L${i}`)));
+  const results = await Promise.allSettled([
+    houses.leaveHouse(owner.id),
+    ...joiners.map((j) => houses.joinHouse(j.id, code)),
+  ]);
+  assert.equal(results[0].status, 'fulfilled');
+  const rows = await houseInvariants();
+  assert.equal(rows.length, 1);
+  assert.notEqual(rows[0].owner_id, owner.id);
+});
+
+test('the last member leaving while someone joins never strands the joiner', { skip }, async () => {
+  await resetDb();
+  const { owner, code } = await raceHouse(1);
+  const joiner = await racer('Late');
+  const [leave, join] = await Promise.allSettled([houses.leaveHouse(owner.id), houses.joinHouse(joiner.id, code)]);
+  assert.equal(leave.status, 'fulfilled');
+  const rows = await houseInvariants();
+  if (join.status === 'fulfilled') {
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].owner_id, joiner.id);
+  } else {
+    assert.equal(join.reason?.code, 'CODE_INVALID');
+    assert.equal(rows.length, 0);
+  }
+});
+
+test('one person creating a house while joining another ends up in one', { skip }, async () => {
+  await resetDb();
+  // createHouse takes no rate-limit advisory lock, so only the user row lock keeps this
+  // race honest; run several rounds so the window actually gets hit.
+  for (let round = 0; round < 10; round += 1) {
+    const { code } = await raceHouse(1);
+    const p = await racer('Creator');
+    const results = await Promise.allSettled([
+      houses.createHouse(p.id, 'Mine'),
+      houses.joinHouse(p.id, code),
+    ]);
+    assert.equal(fulfilled(results).length, 1, `round ${round}`);
+    assert.equal(rejected(results)[0].reason?.code, 'ALREADY_IN_HOUSE', `round ${round}`);
+    const { rows } = await query('select house_id from safespace.users where id = $1', [p.id]);
+    assert.ok(rows[0].house_id, `round ${round}: p should end up with exactly one house`);
+  }
+  await houseInvariants();
+});

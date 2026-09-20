@@ -8,6 +8,10 @@
 import crypto from 'crypto';
 import { computeResult, KNOWN_OUTCOMES } from './xp.js';
 import { query, transaction } from './db.js';
+import { cleanAvatar } from './avatar.js';
+// houses.js imports this module's locking helpers in turn. Neither module calls the
+// other while it is being evaluated, so the cycle resolves before any call happens.
+import { lockHouseOf, releaseFromHouse } from './houses.js';
 import {
   INSERT_USER_SQL,
   UPDATE_USER_SQL,
@@ -59,7 +63,8 @@ function positiveInteger(value, fallback) {
 
 // --- Transaction helpers ------------------------------------------------------
 
-async function lockUser(tx, userId) {
+// Exported for server/houses.js, which shares these locking rules.
+export async function lockUser(tx, userId) {
   const { rows } = await tx.query(
     'select * from safespace.users where id = $1 for update',
     [String(userId)],
@@ -78,7 +83,7 @@ async function readUser(tx, userId) {
   return userFromRow(rows[0]);
 }
 
-async function saveUser(tx, user) {
+export async function saveUser(tx, user) {
   const { rows } = await tx.query(UPDATE_USER_SQL, [user.id, ...userValues(user)]);
   return userFromRow(rows[0]);
 }
@@ -100,6 +105,16 @@ async function logConsent(tx, { userId, type, channel, at }) {
   );
 }
 
+/** Write avatar to database. runner is anything with .query(sql, params). */
+async function writeAvatar(runner, userId, avatar) {
+  const { rows } = await runner.query(
+    'update safespace.users set avatar = $2::jsonb where id = $1 returning *',
+    [String(userId), JSON.stringify(avatar)],
+  );
+  if (!rows[0]) throw new Error(`unknown user ${userId}`);
+  return userFromRow(rows[0]);
+}
+
 // --- Read models ---------------------------------------------------------------
 
 export async function getUser(id) {
@@ -117,26 +132,6 @@ export async function listConsentedUsers() {
   return rows.map(userFromRow);
 }
 
-// Leaderboard = users ranked by xp, shaped for the React LeaderboardScreen.
-// Explicit field list — never spreads the raw user, so PII can't leak in.
-export async function getLeaderboard() {
-  const { rows } = await query(
-    'select id, name, xp, level, times_safe from safespace.users order by xp desc, created_at, id',
-    [],
-    'getLeaderboard',
-  );
-  return rows.map((u, i) => ({
-    rank: i + 1, id: u.id, name: u.name, score: u.xp, level: u.level, wins: u.times_safe,
-  }));
-}
-
-// All family members, shaped for the React FamilyHomeScreen (dollhouse rooms).
-// Projected — this endpoint is world-readable, so it must not carry phone numbers.
-export async function getFamily() {
-  const { rows } = await query('select * from safespace.users order by created_at, id', [], 'getFamily');
-  return rows.map((row) => publicUser(userFromRow(row)));
-}
-
 /** The cheapest possible round trip, for the keep-alive cron. */
 export async function pingDb() {
   await query('select 1', [], 'pingDb');
@@ -144,14 +139,20 @@ export async function pingDb() {
 
 // --- Scoring ------------------------------------------------------------------
 
-function scoreUser(user, outcome, practice) {
-  const r = computeResult(outcome, { practice });
-  user.xp += r.xp;
+/** Add XP and apply the level-up rule. Mutates and returns the user. */
+export function addXp(user, xp) {
+  user.xp += xp;
   while (user.xp >= user.xpMax) {
     user.xp -= user.xpMax;
     user.level += 1;
     user.xpMax = Math.round(user.xpMax * 1.2);
   }
+  return user;
+}
+
+function scoreUser(user, outcome, practice) {
+  const r = computeResult(outcome, { practice });
+  addXp(user, r.xp);
   if (r.streak === 'inc') {
     user.streak += 1;
     user.timesSafe += 1;
@@ -668,9 +669,10 @@ function phoneLookupHash(phone, { required = false } = {}) {
 
 // Upsert a phone-verified user and log a 'granted' consent event (the audit trail).
 // Called by /api/verify/check after OTP succeeds.
-export async function registerVerifiedUser({ phone, name, email }) {
+export async function registerVerifiedUser({ phone, name, email, avatar } = {}) {
   const cleanName = normaliseUserName(name);
-  if (!cleanName) throw new Error('name is required');
+  const cleanAvatarValue = avatar == null ? null : cleanAvatar(avatar);
+  if (avatar != null && !cleanAvatarValue) throw new Error('avatar is invalid');
   const lookupHash = phoneLookupHash(phone);
   const newId = `usr_${crypto.randomUUID()}`;
   const at = new Date().toISOString();
@@ -692,6 +694,11 @@ export async function registerVerifiedUser({ phone, name, email }) {
     }
     let user = userFromRow(rows[0]);
     const isNew = !user;
+    if (isNew && !cleanName) {
+      const error = new Error('name is required for a new account');
+      error.code = 'NO_ACCOUNT';
+      throw error;
+    }
     if (isNew) {
       user = {
         id: newId,
@@ -706,7 +713,7 @@ export async function registerVerifiedUser({ phone, name, email }) {
     }
     user.phone = phone;
     if (lookupHash) user.phoneLookupHash = lookupHash;
-    user.name = cleanName;
+    if (cleanName) user.name = cleanName;
     // A phone OTP proves control of the phone, not of an email address. Keep an
     // optional address as an unverified candidate until its signed ownership link is
     // opened. Real email drills require `emailVerifiedAt`.
@@ -727,7 +734,10 @@ export async function registerVerifiedUser({ phone, name, email }) {
     }
     user.consentToDrills = true;
 
-    const saved = isNew ? await insertUser(tx, user) : await saveUser(tx, user);
+    let saved = isNew ? await insertUser(tx, user) : await saveUser(tx, user);
+    if (cleanAvatarValue) {
+      saved = await writeAvatar(tx, saved.id, cleanAvatarValue);
+    }
     await logConsent(tx, { userId: saved.id, type: 'granted', channel: 'otp', at });
     return saved;
   }, 'registerVerifiedUser');
@@ -741,6 +751,15 @@ export async function setUserName(userId, name) {
     user.name = cleanName;
     return saveUser(tx, user);
   }, 'setUserName');
+}
+
+export async function setUserAvatar(userId, avatar) {
+  const clean = cleanAvatar(avatar);
+  if (!clean) throw new Error('avatar is invalid');
+  const runner = {
+    query: (sql, params) => query(sql, params, 'setUserAvatar'),
+  };
+  return writeAvatar(runner, userId, clean);
 }
 
 // Backward-compatible storage helper. Setting an address never marks it verified:
@@ -788,7 +807,7 @@ function rateLimitSubjectKey(scope, subject) {
     : crypto.createHash('sha256').update(material).digest('hex');
 }
 
-function retryAfterForWindow(hits, nowMs, windowMs) {
+export function retryAfterForWindow(hits, nowMs, windowMs) {
   const oldest = Math.min(...hits);
   return Math.max(1, Math.ceil(windowMs - (nowMs - oldest)));
 }
@@ -797,7 +816,7 @@ function retryAfterForWindow(hits, nowMs, windowMs) {
  * Lock each (scope, subject) and read its still-active hits, oldest first. Locks are
  * taken in sorted order so two requests touching the same keys cannot deadlock.
  */
-async function lockRateLimits(tx, subjects, { nowMs, windowMs }) {
+export async function lockRateLimits(tx, subjects, { nowMs, windowMs }) {
   const buckets = subjects.map(({ scope, subject }) => ({
     scope,
     key: rateLimitSubjectKey(scope, subject),
@@ -820,7 +839,7 @@ async function lockRateLimits(tx, subjects, { nowMs, windowMs }) {
 }
 
 /** Record one send per bucket, and delete hits whose window has passed. */
-async function recordRateLimitHits(tx, buckets, { nowMs, windowMs }) {
+export async function recordRateLimitHits(tx, buckets, { nowMs, windowMs }) {
   const cutoff = new Date(nowMs - windowMs).toISOString();
   // Expired hits are deleted, not kept: the table must not become a record of every
   // number and inbox that was ever verified.
@@ -1031,11 +1050,16 @@ export async function setVerifiedUserEmail(userId, verificationId) {
 }
 
 // Remove the verified phone and every session whose authority came from that
-// verification. Progress and optional email remain intact so the account can reconnect
-// a number later without losing its training history.
+// verification, and leave the caller's house: asking the app to forget your number must
+// also stop showing your name, level and streak to housemates, and must not leave a
+// house with an owner who is no longer reachable. Progress and optional email remain
+// intact so the account can reconnect a number later without losing its history.
+// Returns { user, ring } — the caller rings after the transaction commits, never inside.
 export async function detachVerifiedPhone(userId) {
   const at = new Date().toISOString();
   return transaction(async (tx) => {
+    // Lock order is house then user (server/houses.js), so the house comes first.
+    const house = await lockHouseOf(tx, userId);
     const user = await requireLockedUser(tx, userId);
     if (!user.phone) {
       const error = new Error('no verified phone on file');
@@ -1050,10 +1074,12 @@ export async function detachVerifiedPhone(userId) {
     user.phoneLookupHash = phoneLookupHash(user.phone, { required: true });
     delete user.phone;
     user.consentToDrills = false;
+    // `house_id` is not in USER_FIELDS, so the saveUser below cannot restore it.
+    const ring = house && user.houseId === house.id ? await releaseFromHouse(tx, house, user) : [];
     const saved = await saveUser(tx, user);
     await tx.query('delete from safespace.sessions where user_id = $1', [user.id]);
     await logConsent(tx, { userId: user.id, type: 'withdrawn', channel: 'account', at });
-    return saved;
+    return { user: saved, ring };
   }, 'detachVerifiedPhone');
 }
 

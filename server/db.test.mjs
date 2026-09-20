@@ -145,3 +145,21 @@ test('db:migrate refuses Supabase hosts, which the Supabase CLI migrates', () =>
   );
   assert.doesNotThrow(() => assertMigratableUrl('postgres://postgres:pw@localhost:5432/postgres'));
 });
+
+test('houses migration: tables exist with row-level security', async () => {
+  const { rows } = await query(
+    `select c.relname, c.relrowsecurity from pg_class c
+       join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'safespace' and c.relname in ('houses', 'drill_runs')
+      order by c.relname`,
+  );
+  assert.deepEqual(rows.map((r) => [r.relname, r.relrowsecurity]), [
+    ['drill_runs', true], ['houses', true],
+  ]);
+  const cols = await query(
+    `select column_name from information_schema.columns
+      where table_schema = 'safespace' and table_name = 'users'
+        and column_name in ('house_id', 'joined_house_at', 'avatar') order by column_name`,
+  );
+  assert.deepEqual(cols.rows.map((r) => r.column_name), ['avatar', 'house_id', 'joined_house_at']);
+});
