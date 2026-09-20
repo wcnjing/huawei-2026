@@ -100,12 +100,18 @@ up owning or belonging to two houses at once.
 
 After a transaction commits, `server/doorbell.js` rings a content-free Supabase
 Realtime broadcast on the house's `doorbell` topic — the message carries no house or
-member data, only "something changed." The ring has a 2-second timeout and never fails
+member data, only "something changed." The ring has a 1-second timeout and never fails
 the request it followed; without `SUPABASE_URL`/`SUPABASE_SECRET_KEY` it's a no-op, and
 either way the client falls back to its own on-focus and 5-minute refresh of
-`GET /api/house`. Removing a member rotates the doorbell to a fresh topic, so the
-removed player's still-open app stops hearing that house while everyone else picks up
-the new topic on their next refresh.
+`GET /api/house`. A member leaving the house, being removed from it, or detaching their
+phone rotates the doorbell to a fresh topic, so that player's still-open app stops
+hearing the house while everyone else picks up the new topic on their next refresh.
+
+Joining is limited to 10 wrong codes per account per hour. A second bucket of 30 per
+requester address per hour applies only where `TRUST_PROXY_HOPS` is set, because only
+then is `req.ip` a caller's own address: behind a serverless platform's proxy it is one
+address shared by everybody, and a shared bucket would let 30 strangers' typos lock
+joining for all of them.
 
 ## Outcome lifecycle
 

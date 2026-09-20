@@ -107,14 +107,21 @@ app.disable('x-powered-by');
 // its exact proxy hop count. Blindly trusting X-Forwarded-For would let a caller rotate
 // a spoofed address and bypass the public OTP requester limit.
 const configuredProxyHops = String(process.env.TRUST_PROXY_HOPS || '').trim();
+// Whether req.ip is a caller's own address. Without the declared hop count it is
+// whatever socket the deployment terminates on — on a serverless platform that address
+// is the platform's, shared by everybody, so per-address limits must stay off.
+let clientAddressIsReal = false;
 if (configuredProxyHops) {
   const proxyHops = Number(configuredProxyHops);
   if (Number.isInteger(proxyHops) && proxyHops >= 0 && proxyHops <= 10) {
     app.set('trust proxy', proxyHops);
+    clientAddressIsReal = true;
   } else {
     console.warn('[config] TRUST_PROXY_HOPS ignored; expected an integer from 0 to 10');
   }
 }
+/** The rate-limit bucket for "this caller", or null when no address can be trusted. */
+const requesterKey = (req) => (clientAddressIsReal ? req.ip : null);
 app.use(express.json({ limit: '256kb' }));
 app.use((req, res, next) => {
   res.set({
@@ -557,7 +564,7 @@ api.get('/api/house', async (req, res) => {
 
 api.post('/api/house', houseRoute((userId, req) => createHouse(userId, req.body?.name)));
 api.post('/api/house/join', houseRoute((userId, req) =>
-  joinHouse(userId, req.body?.code, { requesterKey: req.ip })));
+  joinHouse(userId, req.body?.code, { requesterKey: requesterKey(req) })));
 api.post('/api/house/code', houseRoute((userId) => regenerateInviteCode(userId)));
 api.post('/api/house/name', houseRoute((userId, req) => renameHouse(userId, req.body?.name)));
 api.post('/api/house/members/:memberId/remove', houseRoute((userId, req) =>

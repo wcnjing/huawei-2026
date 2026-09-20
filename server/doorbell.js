@@ -3,8 +3,9 @@
 // It is a Supabase Realtime broadcast with no content. Clients learn what changed only
 // by calling GET /api/house with their own session, so nothing private travels through
 // Supabase. A ring is best-effort: it is bounded by a timeout and never fails a request;
-// apps also refetch on focus and every five minutes.
-const DEFAULT_TIMEOUT_MS = 2000;
+// apps also refetch on focus and every five minutes. The timeout is short because rings
+// are awaited inside requests the player is waiting on (sign-in, finishing a drill).
+const DEFAULT_TIMEOUT_MS = 1000;
 
 export function doorbellConfig(env = process.env) {
   const url = String(env.SUPABASE_URL || '').trim().replace(/\/+$/, '');

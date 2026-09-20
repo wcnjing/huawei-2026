@@ -196,6 +196,26 @@ test('too many wrong join codes rate-limit the account', async () => {
   assert.ok(Number.isInteger(retryAfter) && retryAfter >= 1, retryAfter);
 });
 
+// Production is a serverless function behind the platform's own proxy, and `trust proxy`
+// is off unless TRUST_PROXY_HOPS says how many hops to trust. req.ip is then the shared
+// internal socket address, so a per-address bucket would be one global bucket: 30 typos
+// by anyone would 429 joining for everyone. Without the hop count, no requester bucket.
+test('wrong codes from other accounts never rate-limit a join', async () => {
+  await freshStore();
+  for (let guesser = 0; guesser < 3; guesser += 1) {
+    const { auth } = await signedIn(`Guesser${guesser}`);
+    for (let i = 0; i < 10; i += 1) {
+      assert.equal((await post('/api/house/join', { code: 'ZZZ-ZZZ' }, auth)).status, 400, `${guesser}/${i}`);
+    }
+  }
+  const owner = await signedIn('Owner');
+  const { house } = await (await post('/api/house', { name: 'Open Door' }, owner.auth)).json();
+  const guest = await signedIn('Guest');
+  const joined = await post('/api/house/join', { code: house.inviteCode }, guest.auth);
+  assert.equal(joined.status, 200, 'a first-time joiner must not inherit strangers’ failures');
+  assert.equal((await joined.json()).house.members.length, 2);
+});
+
 test('GET /api/house never exposes phone or email', async () => {
   await freshStore();
   const owner = await signedIn('Owner');

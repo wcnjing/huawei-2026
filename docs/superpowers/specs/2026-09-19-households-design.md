@@ -34,7 +34,7 @@ enabled with no policies, like every other table.
 | `owner_id` | text not null → `users(id)` | |
 | `invite_code` | text unique, nullable | 6 characters from `23456789ABCDEFGHJKMNPQRSTUVWXYZ` (no 0/O/1/I/L); null when no live code |
 | `invite_expires_at` | timestamptz, nullable | 24 hours after generation |
-| `doorbell` | text not null | random 128-bit topic name; rotated when a member is removed |
+| `doorbell` | text not null | random 128-bit topic name; rotated whenever a member stops being one |
 | `created_at` | timestamptz not null default now() | |
 
 **`users`** gains:
@@ -90,12 +90,14 @@ email or recovery lookup.
 | POST | `/api/house/code` | owner | new code, 24h expiry |
 | POST | `/api/house/name` | owner | rename |
 | POST | `/api/house/members/:id/remove` | owner | removes a member (not themself); rotates the doorbell |
-| POST | `/api/house/leave` | member | an owner leaving hands ownership to the earliest joiner; the last member leaving deletes the house |
+| POST | `/api/house/leave` | member | an owner leaving hands ownership to the earliest joiner; the last member leaving deletes the house; rotates the doorbell |
 | POST | `/api/me/avatar` | anyone | set the avatar |
 | POST | `/api/drills/house-run` | anyone | `{clientKey, correct, cautious, wrong}`; replaying a key returns the stored run |
 
-**Join limits:** 10 failed codes per account per hour and 30 per network address per
-hour, stored in `rate_limit_hits`. Successful joins don't count.
+**Join limits:** 10 failed codes per account per hour, stored in `rate_limit_hits`.
+Successful joins don't count. A second bucket of 30 per requester address per hour
+applies only when `TRUST_PROXY_HOPS` is configured: without it `req.ip` is the
+deployment's own socket address, shared by every caller, so the bucket would be global.
 
 **Concurrency:** create, join, leave and remove each run in one transaction. Lock order
 is always house row, then user rows (sorted by id). Join locks the house, counts members
@@ -104,15 +106,16 @@ own `house_id` is re-checked under their row lock, so they can't end up in two h
 
 **Doorbell** (`server/doorbell.js`): after a transaction commits, the server POSTs an
 empty `changed` broadcast to `{SUPABASE_URL}/realtime/v1/api/broadcast` on the house's
-`doorbell` topic, with a 2-second timeout. The secret key travels in the `apikey`
+`doorbell` topic, with a 1-second timeout. The secret key travels in the `apikey`
 header only — new Supabase secret keys are not JWTs, so no `Authorization: Bearer`
 header is sent. Failures are logged and never fail the request. It rings on every house
 change and whenever a member's stats change (drill results, drill runs, name or
 avatar). Without `SUPABASE_URL` or the key it does nothing. The broadcast carries no
-data; clients refetch `GET /api/house`. Removing a member rotates the topic so the
-removed person stops hearing it. The Express Content-Security-Policy adds the Supabase
-origin to `connect-src`, so the browser's own Realtime subscription (using
-`VITE_SUPABASE_PUBLISHABLE_KEY`) is allowed when Express serves the built app.
+data; clients refetch `GET /api/house`. Leaving, being removed and detaching a phone
+each rotate the topic, so the departing person stops hearing it. The Express
+Content-Security-Policy adds the Supabase origin to `connect-src`, so the browser's own
+Realtime subscription (using `VITE_SUPABASE_PUBLISHABLE_KEY`) is allowed when Express
+serves the built app.
 
 **Sign-up changes** to `POST /api/verify/check`:
 - `name` is required only when the number has no account; a returning number keeps its
