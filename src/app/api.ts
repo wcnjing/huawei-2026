@@ -1,10 +1,9 @@
 // Backend API helpers.
-// These keep the richer Figma UI connected to the existing demo backend, while
-// still allowing the prototype to run with mock data when the backend is down.
 // Session token issued by the server after phone verification. The server derives WHO
 // we are from this token — the client never asserts a user id, because a drill places a
 // real phone call and a client-supplied id would let anyone target anyone.
-// Anonymous visitors simply have no token and act as the shared demo account.
+// There is no anonymous fallback: without a token the account routes answer 401, and
+// the app shows the sign-in screen.
 export const TOKEN_KEY = "safespace_session_token";
 export function sessionToken(): string | null {
   try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }

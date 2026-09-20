@@ -1857,6 +1857,51 @@ function saveHomeInventory(inventory: HomeInventory) {
   try { localStorage.setItem(HOME_INVENTORY_KEY, JSON.stringify(inventory)); } catch { /* private mode */ }
 }
 
+// Before houses, coins and furniture were keyed by role id. A player now owns one
+// server id, so an existing player's balance and purchases would otherwise read as a
+// brand-new 0. Fold the old entries into the signed-in id once per device.
+const LEGACY_MEMBER_IDS = ["you", "grandma", "mum", "dad", "kid"];
+const HOME_INVENTORY_MIGRATED_KEY = "safespace_home_inventory_migrated_v1";
+
+function legacyInventoryMigrated(): boolean {
+  // Storage we cannot read is storage we cannot migrate: treat it as already done.
+  try { return localStorage.getItem(HOME_INVENTORY_MIGRATED_KEY) === "1"; } catch { return true; }
+}
+
+function markLegacyInventoryMigrated() {
+  try { localStorage.setItem(HOME_INVENTORY_MIGRATED_KEY, "1"); } catch { /* private mode */ }
+}
+
+/**
+ * Sum the legacy coins and union the legacy purchases into `selfId`, then drop the old
+ * keys. Returns null when there is nothing to fold, or when this id already has an
+ * entry — the account's own balance always wins over stale role-keyed ones. soldItems
+ * is not member-keyed, so it is untouched.
+ */
+function foldLegacyInventory(inventory: HomeInventory, selfId: string): HomeInventory | null {
+  if (LEGACY_MEMBER_IDS.includes(selfId)) return null;
+  if (inventory.coins[selfId] !== undefined || inventory.purchasedItems[selfId] !== undefined) return null;
+  const legacyIds = LEGACY_MEMBER_IDS.filter(
+    (id) => inventory.coins[id] !== undefined || inventory.purchasedItems[id] !== undefined,
+  );
+  if (!legacyIds.length) return null;
+  const coins = { ...inventory.coins };
+  const purchasedItems = { ...inventory.purchasedItems };
+  let total = 0;
+  const items = new Set<string>();
+  for (const id of legacyIds) {
+    total += coins[id] ?? 0;
+    for (const item of purchasedItems[id] ?? []) items.add(item);
+    delete coins[id];
+    delete purchasedItems[id];
+  }
+  return {
+    ...inventory,
+    coins: { ...coins, [selfId]: total },
+    purchasedItems: { ...purchasedItems, [selfId]: [...items] },
+  };
+}
+
 const REWARD_CLAIMS_KEY = "safespace_reward_claims_v1";
 type RewardClaims = {
   dailyByMember: Record<string, string>;
@@ -7400,8 +7445,24 @@ export default function App() {
   const activeMemberId = selfId; // one player per phone now
   // Nothing may be earned or claimed before the server says who we are. A coin written
   // against the "me" placeholder lands under an id no screen reads, and a week marked
-  // claimed that way can never be re-earned.
-  const canEarn = selfView !== null;
+  // claimed that way can never be re-earned. Truthiness, not `!== null`: a house whose
+  // member list has lost us arrives as `self: undefined`, which is the same "we don't
+  // know who we are" state.
+  const canEarn = !!selfView;
+
+  // One-off per device: adopt the coins and furniture this player earned before houses,
+  // when everything was keyed by role id ("you", "mum", …) instead of an account id.
+  // Runs only once the server has said who we are, so nothing lands under a placeholder.
+  const knownSelfId = canEarn ? selfId : null;
+  useEffect(() => {
+    if (!knownSelfId || legacyInventoryMigrated()) return;
+    markLegacyInventoryMigrated();
+    const folded = foldLegacyInventory({ coins, soldItems, purchasedItems }, knownSelfId);
+    if (!folded) return;
+    setCoins(folded.coins);
+    setPurchasedItems(folded.purchasedItems);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [knownSelfId]);
 
   // The account owns the avatar, so a player who signs in on a second device sees the
   // character they made, not this device's leftover defaults. Keyed on the serialised
@@ -8129,6 +8190,13 @@ export default function App() {
     const canonical = name.trim();
     updateProfile({ name: canonical });
     saveContact({ ...loadContact(), name: canonical });
+    // Verifying here signs in as that number's account, which may not be the one the
+    // screens are showing. Resync the house exactly as sign-in does, or the UI would
+    // keep showing the previous account's house and self.
+    prevHouseId.current = null;
+    leavingRef.current = false;
+    setSessionEpoch((v) => v + 1);
+    void house.refresh();
     setScreen(registrationReturn);
   };
 

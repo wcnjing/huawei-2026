@@ -19,7 +19,9 @@ export type HouseView = {
   inviteCode: string | null; inviteExpiresAt: string | null;
   doorbell: string; members: MemberView[];
 };
-export type HouseState = { self: MemberView | null; house: HouseView | null };
+// `self` is undefined, not null, if a server ever answers with a house the caller is
+// not in — so every guard on it must be a truthiness check, never `!== null`.
+export type HouseState = { self: MemberView | null | undefined; house: HouseView | null };
 
 export const createHouse = (name: string) => apiPost<HouseState>("/api/house", { name });
 export const joinHouse = (code: string) => apiPost<HouseState>("/api/house/join", { code });
