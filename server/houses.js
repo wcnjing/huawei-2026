@@ -214,22 +214,44 @@ export async function removeMember(userId, memberId) {
   }, 'removeMember');
 }
 
+/**
+ * Lock the house a user belongs to, before their own row, so callers outside this module
+ * can keep the house-then-user lock order. Returns null when they are in no house.
+ */
+export async function lockHouseOf(tx, userId) {
+  const houseId = await unlockedHouseId(tx, userId);
+  return houseId ? lockHouse(tx, houseId) : null;
+}
+
+/**
+ * Take a member out of their house: hand ownership to the earliest remaining joiner, or
+ * delete the house when they were the last member. Rotates the doorbell, so the
+ * departing player's still-open app stops hearing this house, and returns the OLD topic
+ * to ring after the commit — the members who stay refetch and pick up the new one.
+ *
+ * `house` and `user` must both already be locked, in that order.
+ */
+export async function releaseFromHouse(tx, house, user) {
+  await tx.query(
+    'update safespace.users set house_id = null, joined_house_at = null where id = $1',
+    [user.id],
+  );
+  const remaining = await memberIds(tx, house.id);
+  if (!remaining.length) {
+    await tx.query('delete from safespace.houses where id = $1', [house.id]);
+    return [];
+  }
+  await tx.query(
+    'update safespace.houses set owner_id = $2, doorbell = $3 where id = $1',
+    [house.id, house.owner_id === user.id ? remaining[0] : house.owner_id, newDoorbell()],
+  );
+  return [house.doorbell];
+}
+
 export async function leaveHouse(userId) {
   return transaction(async (tx) => {
     const { house, user } = await lockOwnHouse(tx, userId);
-    await tx.query(
-      'update safespace.users set house_id = null, joined_house_at = null where id = $1',
-      [user.id],
-    );
-    const remaining = await memberIds(tx, house.id);
-    if (!remaining.length) {
-      await tx.query('delete from safespace.houses where id = $1', [house.id]);
-      return { ring: [] };
-    }
-    if (house.owner_id === user.id) {
-      await tx.query('update safespace.houses set owner_id = $2 where id = $1', [house.id, remaining[0]]);
-    }
-    return { ring: [house.doorbell] };
+    return { ring: await releaseFromHouse(tx, house, user) };
   }, 'leaveHouse');
 }
 
@@ -333,17 +355,24 @@ function memberView(user, stats, ownerId) {
   };
 }
 
+async function soloView(self, since) {
+  const stats = await weeklyStats([self.id], since);
+  return { self: memberView(self, stats.get(self.id), null), house: null };
+}
+
+// These four reads are not one transaction, so the house can change under them: it can
+// be deleted, or the caller removed from it, between the user read and the member read.
+// Both cases answer with the solo view. Never return a house without the caller's own
+// member view in it — the client uses `self` to decide whether it knows who it is.
 export async function getHouseView(userId, { now = new Date() } = {}) {
   const since = weekStart(now).toISOString();
   const { rows: selfRows } = await query('select * from safespace.users where id = $1', [String(userId)], 'houseSelf');
   const self = userFromRow(selfRows[0]);
   if (!self) throw new Error(`unknown user ${userId}`);
-  if (!self.houseId) {
-    const stats = await weeklyStats([self.id], since);
-    return { self: memberView(self, stats.get(self.id), null), house: null };
-  }
+  if (!self.houseId) return soloView(self, since);
   const { rows: houseRows } = await query('select * from safespace.houses where id = $1', [self.houseId], 'house');
   const house = houseRows[0];
+  if (!house) return soloView(self, since);
   const { rows: memberRows } = await query(
     'select * from safespace.users where house_id = $1 order by joined_house_at, id',
     [house.id],
@@ -352,9 +381,11 @@ export async function getHouseView(userId, { now = new Date() } = {}) {
   const members = memberRows.map(userFromRow);
   const stats = await weeklyStats(members.map((m) => m.id), since);
   const views = members.map((m) => memberView(m, stats.get(m.id), house.owner_id));
+  const selfInHouse = views.find((m) => m.id === self.id);
+  if (!selfInHouse) return soloView(self, since);
   const codeLive = house.invite_code && new Date(house.invite_expires_at).getTime() > now.getTime();
   return {
-    self: views.find((m) => m.id === self.id),
+    self: selfInHouse,
     house: {
       id: house.id,
       name: house.name,

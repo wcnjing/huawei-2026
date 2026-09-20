@@ -164,6 +164,18 @@ test('removing a member rotates the doorbell and rings the old one', async () =>
   assert.equal(await houses.doorbellForUser(members[1].id), null);
 });
 
+test('leaving rotates the doorbell and rings the old one', async () => {
+  await resetDb();
+  const { owner, members } = await houseWith(3);
+  const before = (await houses.getHouseView(owner.id)).house.doorbell;
+  const result = await houses.leaveHouse(members[1].id);
+  assert.deepEqual(result.ring, [before]);
+  const after = (await houses.getHouseView(owner.id)).house;
+  assert.notEqual(after.doorbell, before, 'a voluntary leaver must stop hearing this house');
+  assert.equal(after.members.length, 2);
+  assert.equal(await houses.doorbellForUser(members[1].id), null);
+});
+
 test('an owner leaving hands the house to the earliest joiner', async () => {
   await resetDb();
   const { owner, members } = await houseWith(3);
@@ -195,6 +207,24 @@ test('personal progress travels with a member who joins mid-way', async () => {
   const me = (await houses.getHouseView(veteran.id)).house.members.find((m) => m.id === veteran.id);
   assert.equal(me.xp, stats.xp);
   assert.equal(me.timesSafe, stats.timesSafe);
+});
+
+test('a house that vanishes mid-read falls back to the solo view', async () => {
+  await resetDb();
+  const { owner } = await houseWith(2);
+  // getHouseView reads the user and the house in separate statements, so the house can
+  // be deleted in between. Reproduce that state: drop the house row while the user row
+  // still points at it, with the foreign key's ON DELETE SET NULL suspended.
+  await query('alter table safespace.houses disable trigger all');
+  try {
+    await query('delete from safespace.houses');
+  } finally {
+    await query('alter table safespace.houses enable trigger all');
+  }
+  const view = await houses.getHouseView(owner.id);
+  assert.equal(view.house, null);
+  assert.equal(view.self.id, owner.id);
+  assert.equal(view.self.isOwner, false);
 });
 
 test('weekly flags: a LOST result makes you unsafe until Monday', async () => {
