@@ -61,6 +61,19 @@ import {
 import { KNOWN_OUTCOMES } from './xp.js';
 import { educationalPage } from './pages.js';
 import { renderTactic } from './intel/render.js';
+import {
+  HouseError,
+  createHouse,
+  doorbellForUser,
+  getHouseView,
+  joinHouse,
+  leaveHouse,
+  recordHouseRun,
+  regenerateInviteCode,
+  removeMember,
+  renameHouse,
+} from './houses.js';
+import { ring } from './doorbell.js';
 
 const E164 = /^\+[1-9]\d{6,14}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -74,6 +87,16 @@ const CLIENT_REAL_OUTCOMES = {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, '..', 'dist');
+
+// The app's realtime socket goes straight to Supabase, so allow that one origin.
+function supabaseConnectSources() {
+  try {
+    const url = new URL(process.env.SUPABASE_URL || '');
+    return url.protocol === 'https:' ? [url.origin, `wss://${url.host}`] : [];
+  } catch {
+    return [];
+  }
+}
 
 const app = express();
 app.disable('x-powered-by');
@@ -99,7 +122,7 @@ app.use((req, res, next) => {
     'Content-Security-Policy': [
       "default-src 'self'",
       "base-uri 'self'",
-      "connect-src 'self'",
+      ["connect-src 'self'", ...supabaseConnectSources()].join(' '),
       "font-src 'self' data: https://fonts.gstatic.com",
       "form-action 'self'",
       "frame-ancestors 'none'",
@@ -169,8 +192,50 @@ async function requireUserId(req, res) {
   return userId;
 }
 
-// Stub — Task 9 replaces this with the Supabase Realtime doorbell notification.
-async function ringUser() {}
+/** Ring the house of a user whose visible stats just changed. Never throws. */
+async function ringUser(userId) {
+  try {
+    const topic = await doorbellForUser(userId);
+    if (topic) await ring([topic]);
+  } catch (error) {
+    console.error('[doorbell] lookup failed:', error?.message || error);
+  }
+}
+
+const HOUSE_ERRORS = {
+  NOT_IN_HOUSE: [404, "you're not in a house"],
+  ALREADY_IN_HOUSE: [409, 'leave your current house first'],
+  CODE_INVALID: [400, "that code isn't valid; ask for a new one"],
+  HOUSE_FULL: [409, 'that house is full (6 players)'],
+  NOT_OWNER: [403, 'only the house owner can do that'],
+  NOT_A_MEMBER: [404, "that player isn't in your house"],
+  CANNOT_REMOVE_SELF: [400, 'use LEAVE HOUSE to leave your own house'],
+  JOIN_RATE_LIMITED: [429, 'too many wrong codes; try again later'],
+  INVALID_HOUSE_NAME: [400, 'house names are 1–30 letters, numbers or spaces'],
+  INVALID_DRILL_RUN: [400, 'that drill run is not valid'],
+};
+
+function houseFail(res, error) {
+  if (!(error instanceof HouseError)) throw error;
+  const [status, message] = HOUSE_ERRORS[error.code] ?? [400, 'house request failed'];
+  if (error.retryAfterMs) res.set('Retry-After', String(Math.max(1, Math.ceil(error.retryAfterMs / 1000))));
+  return res.status(status).json({ error: message, code: error.code });
+}
+
+/** Run a house change for the signed-in user, ring, and answer with the fresh view. */
+function houseRoute(change) {
+  return async (req, res) => {
+    const userId = await requireUserId(req, res);
+    if (!userId) return;
+    try {
+      const result = await change(userId, req);
+      await ring(result?.ring ?? []);
+      return res.json(await getHouseView(userId));
+    } catch (error) {
+      return houseFail(res, error);
+    }
+  };
+}
 
 function timingSafeEqualStr(left, right) {
   const a = Buffer.from(String(left));
@@ -344,6 +409,7 @@ api.post('/api/drills/practice-result', async (req, res) => {
       outcome,
       channel,
     });
+    if (result.applied) await ringUser(userId);
     return res.json({
       status: result.status,
       applied: result.applied,
@@ -437,6 +503,7 @@ api.post('/api/verify/check', async (req, res) => {
       }
       throw error;
     }
+    await ringUser(user.id);
     const token = await createSession(user.id);
     return res.json({
       ok: true,
@@ -460,7 +527,9 @@ api.post('/api/me/name', async (req, res) => {
     });
   }
   try {
-    return res.json({ ok: true, user: accountView(await setUserName(userId, name)) });
+    const user = await setUserName(userId, name);
+    await ringUser(userId);
+    return res.json({ ok: true, user: accountView(user) });
   } catch (error) {
     return fail(res, 400, 'could not update name', error);
   }
@@ -473,6 +542,41 @@ api.post('/api/me/avatar', async (req, res) => {
   const user = await setUserAvatar(userId, req.body.avatar);
   await ringUser(userId);
   return res.json({ ok: true, user: accountView(user) });
+});
+
+// --- Houses -------------------------------------------------------------------
+
+api.get('/api/house', async (req, res) => {
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+  return res.json(await getHouseView(userId));
+});
+
+api.post('/api/house', houseRoute((userId, req) => createHouse(userId, req.body?.name)));
+api.post('/api/house/join', houseRoute((userId, req) =>
+  joinHouse(userId, req.body?.code, { requesterKey: req.ip })));
+api.post('/api/house/code', houseRoute((userId) => regenerateInviteCode(userId)));
+api.post('/api/house/name', houseRoute((userId, req) => renameHouse(userId, req.body?.name)));
+api.post('/api/house/members/:memberId/remove', houseRoute((userId, req) =>
+  removeMember(userId, req.params.memberId)));
+api.post('/api/house/leave', houseRoute((userId) => leaveHouse(userId)));
+
+api.post('/api/drills/house-run', async (req, res) => {
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+  const body = req.body || {};
+  try {
+    const result = await recordHouseRun(userId, {
+      clientKey: body.clientKey,
+      correct: body.correct,
+      cautious: body.cautious,
+      wrong: body.wrong,
+    });
+    if (result.status === 'completed') await ringUser(userId);
+    return res.json({ status: result.status, run: result.run, user: accountView(result.user) });
+  } catch (error) {
+    return houseFail(res, error);
+  }
 });
 
 api.post('/api/me/phone/detach', async (req, res) => {
@@ -816,6 +920,7 @@ api.post('/api/drills/:drillId/complete', async (req, res) => {
   }
   const result = await completeDrillAttempt({ attemptId: attempt.id, outcome });
   if (result.status === 'unknown') return res.status(404).json({ error: 'drill not found' });
+  if (result.applied) await ringUser(result.record.userId);
   return res.json({
     ok: true,
     status: result.status,
@@ -864,6 +969,7 @@ async function signedDrillAction(req, res, action, outcome, shouldComplete) {
       status: 404,
     });
   }
+  if (completion.applied) await ringUser(completion.record.userId);
   if (completion.status === 'duplicate' && completion.record?.outcome !== outcome) {
     return sendEducationalPage(res, {
       title: 'Drill already completed',
@@ -926,6 +1032,7 @@ api.post('/api/webhooks/vapi', async (req, res) => {
     if (result.status === 'unknown') {
       return res.json({ ignored: true, reason: 'unknown attempt' });
     }
+    if (result.applied) await ringUser(result.record.userId);
     return res.json({
       ok: true,
       status: result.status,
@@ -978,6 +1085,7 @@ if (process.env.ENABLE_DEMO_ROUTES === 'true') {
         channel: 'call',
         practice: false,
       });
+      await ringUser(userId);
       return res.json({ ok: true, record: result.record });
     } catch (error) {
       return fail(res, 400, 'could not simulate result', error);

@@ -24,6 +24,8 @@ process.env.IDENTITY_LOOKUP_SECRET = 'route-test-identity-lookup-secret-over-32-
 process.env.PUBLIC_URL = 'https://safespace.test';
 process.env.GOOGLE_SCRIPT_URL = RELAY_URL;
 process.env.GOOGLE_SCRIPT_SECRET = 'route-test-relay-secret';
+process.env.SUPABASE_URL = 'https://doorbell.test';
+process.env.SUPABASE_SECRET_KEY = 'route-test-doorbell-key';
 
 await setupTestDb();
 const { app } = await import('./index.js');
@@ -46,6 +48,8 @@ let server;
 let base;
 const nativeFetch = globalThis.fetch;
 const relayRequests = [];
+const doorbellRings = [];
+let doorbellMode = 'ok';
 let vapiMode = null;
 let vapiRequestCount = 0;
 const vapiRequests = [];
@@ -74,6 +78,11 @@ globalThis.fetch = async (input, init) => {
       });
     }
     throw new Error('unexpected Vapi request in route test');
+  }
+  if (String(url).startsWith('https://doorbell.test/')) {
+    if (doorbellMode === 'fail') throw new TypeError('doorbell down');
+    doorbellRings.push(...JSON.parse(String(init?.body || '{}')).messages.map((m) => m.topic));
+    return new Response('{}', { status: 202 });
   }
   return nativeFetch(input, init);
 };
@@ -112,6 +121,105 @@ const post = (p, body, headers = {}) =>
     headers: { 'content-type': 'application/json', ...headers },
     body: JSON.stringify(body ?? {}),
   });
+
+let signedInSeq = 0;
+async function signedIn(name) {
+  signedInSeq += 1;
+  const user = await registerVerifiedUser({
+    phone: `+6594${String(signedInSeq).padStart(6, '0')}`, name,
+  });
+  return { user, auth: { authorization: `Bearer ${await createSession(user.id)}` } };
+}
+const getJson = async (path, headers) => {
+  const res = await fetch(base + path, { headers });
+  return { status: res.status, body: await res.json() };
+};
+
+test('house routes need a session', async () => {
+  assert.equal((await fetch(base + '/api/house')).status, 401);
+  for (const path of ['/api/house', '/api/house/join', '/api/house/code', '/api/house/name',
+    '/api/house/members/x/remove', '/api/house/leave', '/api/drills/house-run']) {
+    assert.equal((await post(path, {})).status, 401, path);
+  }
+});
+
+test('create, join, rename, remove and leave over HTTP, ringing after each change', async () => {
+  await freshStore();
+  const owner = await signedIn('Owner');
+  const guest = await signedIn('Guest');
+  assert.deepEqual((await getJson('/api/house', owner.auth)).body.house, null);
+
+  doorbellRings.length = 0;
+  const created = await post('/api/house', { name: 'The Tans' }, owner.auth);
+  assert.equal(created.status, 200);
+  const { house } = await created.json();
+  assert.deepEqual(doorbellRings, [house.doorbell]);
+
+  const joined = await post('/api/house/join', { code: house.inviteCode }, guest.auth);
+  assert.equal(joined.status, 200);
+  assert.equal((await joined.json()).house.members.length, 2);
+
+  assert.equal((await post('/api/house/name', { name: 'Mine' }, guest.auth)).status, 403);
+  assert.equal((await post('/api/house/code', {}, guest.auth)).status, 403);
+  assert.equal((await post('/api/house/name', { name: 'Renamed' }, owner.auth)).status, 200);
+
+  const removed = await post(`/api/house/members/${guest.user.id}/remove`, {}, owner.auth);
+  assert.equal(removed.status, 200);
+  assert.equal((await getJson('/api/house', guest.auth)).body.house, null);
+
+  const left = await post('/api/house/leave', {}, owner.auth);
+  assert.deepEqual((await left.json()).house, null);
+});
+
+test('wrong and expired codes get the same answer', async () => {
+  await freshStore();
+  const p = await signedIn('Guesser');
+  const res = await post('/api/house/join', { code: 'ZZZ-ZZZ' }, p.auth);
+  assert.equal(res.status, 400);
+  const body = await res.json();
+  assert.equal(body.code, 'CODE_INVALID');
+  assert.doesNotMatch(body.error, /expire/i);
+});
+
+test('GET /api/house never exposes phone or email', async () => {
+  await freshStore();
+  const owner = await signedIn('Owner');
+  const { house } = await (await post('/api/house', { name: 'Private' }, owner.auth)).json();
+  const guest = await signedIn('Guest');
+  await post('/api/house/join', { code: house.inviteCode }, guest.auth);
+  const text = JSON.stringify((await getJson('/api/house', owner.auth)).body);
+  for (const leak of ['"phone"', '"email"', 'Hash', '+6594']) assert.ok(!text.includes(leak), leak);
+});
+
+test('a failing doorbell never fails the request', async () => {
+  await freshStore();
+  const p = await signedIn('Owner');
+  doorbellMode = 'fail';
+  try {
+    assert.equal((await post('/api/house', { name: 'Quiet' }, p.auth)).status, 200);
+  } finally {
+    doorbellMode = 'ok';
+  }
+});
+
+test('house drill runs record once and ring the house', async () => {
+  await freshStore();
+  const p = await signedIn('Runner');
+  const { house } = await (await post('/api/house', { name: 'Runners' }, p.auth)).json();
+  doorbellRings.length = 0;
+  const run = { clientKey: 'k1', correct: 5, cautious: 1, wrong: 0 };
+  const first = await (await post('/api/drills/house-run', run, p.auth)).json();
+  assert.equal(first.status, 'completed');
+  assert.equal(first.run.xpGained, 550);
+  assert.equal((await (await post('/api/drills/house-run', run, p.auth)).json()).status, 'duplicate');
+  assert.ok(doorbellRings.includes(house.doorbell));
+  assert.equal((await post('/api/drills/house-run', { clientKey: 'k2', correct: 0, cautious: 0, wrong: 0 }, p.auth)).status, 400);
+});
+
+test('the CSP allows the Supabase realtime origin', async () => {
+  const csp = (await fetch(base + '/api/health')).headers.get('content-security-policy');
+  assert.match(csp, /connect-src 'self' https:\/\/doorbell\.test wss:\/\/doorbell\.test/);
+});
 
 // systemd restarts the service when this stops answering, so it must respond even when
 // every provider is unconfigured — and must not describe the deployment to the internet.
