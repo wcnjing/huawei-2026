@@ -12,6 +12,12 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["--env-file-if-exists=.env", "server/index.js"],
       "port": 3000
+    },
+    {
+      "name": "houses-local",
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["DOTENV_CONFIG_PATH=/dev/null", "ALLOW_DEV_VERIFY=true", "PORT=3001", "PGLITE_DIR=server/.pglite-houses", "node", "server/index.js"],
+      "port": 3001
     }
   ]
 }

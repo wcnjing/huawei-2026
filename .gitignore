@@ -7,3 +7,4 @@ server/data.json
 test-data/
 
 server/.pglite/
+server/.pglite-houses/

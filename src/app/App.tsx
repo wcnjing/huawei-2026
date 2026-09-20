@@ -1636,7 +1636,7 @@ function AppHeader({
         </button>
         <button
           onClick={onChat}
-          aria-label="Open family chat"
+          aria-label="Open house chat"
           style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }}
         >
           <IconChat size={18} color="#4ecdc4" />
@@ -2300,7 +2300,7 @@ function DrillSelectScreen({
             CHOOSE YOUR<br /><span style={{ color: "#00ff88" }}>TRAINING</span>
           </div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#8da4b8", lineHeight: 1.5 }}>
-            Build your scam instincts with a quick family challenge or a live-channel drill.
+            Build your scam instincts with a quick house challenge or a live-channel drill.
           </div>
         </div>
 
@@ -2311,13 +2311,13 @@ function DrillSelectScreen({
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#72a58a", letterSpacing: 1, marginBottom: 5 }}>QUICK PLAY · 6 ROUNDS</div>
-              <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 11, color: "#00ff88", lineHeight: 1.4 }}>FAMILY DRILL</div>
+              <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 11, color: "#00ff88", lineHeight: 1.4 }}>HOUSE DRILL</div>
             </div>
           </div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#b4c6d4", margin: "13px 0 14px", lineHeight: 1.5 }}>
             Decide what is safe, uncover clues, and protect every member of the household.
           </div>
-          <PixelBtn onClick={onFamily} color="#00ff88" textColor="#0a0e1a" size="md" full>START FAMILY DRILL</PixelBtn>
+          <PixelBtn onClick={onFamily} color="#00ff88" textColor="#0a0e1a" size="md" full>START HOUSE DRILL</PixelBtn>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
@@ -3458,11 +3458,10 @@ function SoloRoom({ member, coins, purchasedItems, inviteCode, onTap, onPlayWith
   );
 }
 
-function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize, onRegister, onTutorial, coins, soldItems, purchasedItems, house, onPlayWithOthers, onRemoveMember }: {
+function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize, onTutorial, coins, soldItems, purchasedItems, house, onPlayWithOthers, onRemoveMember }: {
   onDrillSelect: () => void; onFamilyDrill: () => void;
   onPayday: () => void;
   onCustomize: (memberId: string) => void;
-  onRegister: () => void;
   onTutorial: () => void;
   coins: Record<string, number>;
   soldItems: string[];
@@ -3882,7 +3881,7 @@ function SMSThreadScreen({ onReport, onAskFamily, onTapLink, onBack }: { activeM
             <PixelBtn onClick={onReport} color="#00ff88" textColor="#0a0e1a" size="sm" full>REPORT + BLOCK</PixelBtn>
           </div>
           <div style={{ flex: 1 }}>
-            <PixelBtn onClick={onAskFamily} color="#ffe66d" textColor="#0a0e1a" size="sm" full>ASK FAMILY</PixelBtn>
+            <PixelBtn onClick={onAskFamily} color="#ffe66d" textColor="#0a0e1a" size="sm" full>ASK SOMEONE YOU TRUST</PixelBtn>
           </div>
         </div>
         <PixelBtn onClick={onTapLink} color="#ff2d55" textColor="#ffffff" size="sm" full>TAP LINK</PixelBtn>
@@ -3962,7 +3961,7 @@ function SMSBrowserScreen({ onClose, onSubmit }: { activeMemberId: string; onClo
 const EMAIL_INBOX_ITEMS = [
   { id: "campus", sender: "Campus Rewards Office", subject: "IMPORTANT: Claim Your $300 Digital Safety Reward", preview: "You have been selected for a limited-time cyber safety reward…", time: "NOW", isScam: true },
   { id: "tips", sender: "Cyber Tips Weekly", subject: "How to spot fake links", preview: "This week's safety tip…", time: "3h" },
-  { id: "family", sender: "Family Group", subject: "Weekend lunch", preview: "Mum: Are we free this Sunday?", time: "5h" },
+  { id: "family", sender: "House Group", subject: "Weekend lunch", preview: "Mum: Are we free this Sunday?", time: "5h" },
   { id: "school", sender: "School Portal", subject: "Assignment reminder", preview: "Your submission is due soon.", time: "1d" },
   { id: "game", sender: "Game Updates", subject: "New badge unlocked", preview: "You are close to your next rank.", time: "2d" },
 ];
@@ -4138,7 +4137,7 @@ function EmailDetailScreen({ onReport, onAskFamily, onClaimReward, onOpenAttachm
             <PixelBtn onClick={onReport} color="#00ff88" textColor="#0a0e1a" size="sm" full>REPORT PHISHING</PixelBtn>
           </div>
           <div style={{ flex: 1 }}>
-            <PixelBtn onClick={onAskFamily} color="#ffe66d" textColor="#0a0e1a" size="sm" full>ASK FAMILY</PixelBtn>
+            <PixelBtn onClick={onAskFamily} color="#ffe66d" textColor="#0a0e1a" size="sm" full>ASK SOMEONE YOU TRUST</PixelBtn>
           </div>
         </div>
         <PixelBtn onClick={onClaimReward} color="#ff2d55" textColor="#ffffff" size="sm" full>CLAIM REWARD</PixelBtn>
@@ -4401,7 +4400,7 @@ function getResultContent(
     const feedback =
       emailOutcome === "asked-family" ? "You paused and verified before trusting the email." :
       emailOutcome === "cancelled-download" ? "You stopped the download before opening the file." :
-      "You inspected the email before clicking. Reporting phishing protects both you and your family.";
+      "You inspected the email before clicking. Reporting phishing protects both you and your house.";
     return { header: "PHISHING REPORTED!", xp: 50, feedback, flags: EMAIL_FLAGS };
   }
   if (emailOutcome === "opened-attachment") {
@@ -4861,12 +4860,12 @@ const TOUR_STEPS: TourStep[] = [
     target: null,
     accent: "#00ff88",
     title: "HI, I'M PIP!",
-    body: "Scammers practise on our families every day. Let me show you around so your family can practise back.",
+    body: "Scammers practise on our households every day. Let me show you around so your house can practise back.",
   },
   {
     target: "safety-bar",
     accent: "#ff6b35",
-    title: "FAMILY SAFETY",
+    title: "HOUSE SAFETY",
     body: "Your household's week at a glance. A shield means they stayed safe; a red heart means a scam got through.",
   },
   {
@@ -4879,13 +4878,13 @@ const TOUR_STEPS: TourStep[] = [
     target: "start-drill",
     accent: "#00ff88",
     title: "TRAIN TOGETHER",
-    body: "The family drill runs the whole household through six scam scenarios in one sitting — one round per person.",
+    body: "The house drill runs the whole household through six scam scenarios in one sitting — one round per person.",
   },
   {
     target: "nav-drill",
     accent: "#00ff88",
     title: "PICK A DRILL",
-    body: "This button is the heart of it. Choose a call, SMS or email drill, spot the red flags, then report, ask family, or hang up.",
+    body: "This button is the heart of it. Choose a call, SMS or email drill, spot the red flags, then report, ask someone you trust, or hang up.",
   },
   {
     target: "bottom-nav",
@@ -5295,7 +5294,7 @@ function ProfileScreen({
               { label: "CALL DRILL WIN", reward: "+50", icon: <IconPhone size={14} color="#ff6b35" /> },
               { label: "SMS DRILL WIN", reward: "+40", icon: <IconChatBubble size={14} color="#4ecdc4" /> },
               { label: "EMAIL DRILL WIN", reward: "+60", icon: <IconEnvelope size={14} color="#c77dff" /> },
-              { label: "FAMILY ROUND", reward: "+30", icon: <IconShield size={14} color="#00ff88" /> },
+              { label: "HOUSE ROUND", reward: "+30", icon: <IconShield size={14} color="#00ff88" /> },
               { label: "SELL FURNITURE", reward: "VARIES", icon: <IconSell size={14} color="#ff6b35" /> },
               { label: "PAYDAY (SAFE)", reward: "+350", icon: <IconBell size={14} color="#ffe66d" /> },
             ].map(row => (
@@ -5358,7 +5357,7 @@ const FAMILY_SCENARIOS: FamilyScenario[] = [
     sender: "SG-SAFEALERT", senderDomain: "SG-SAFEALERT (spoofed sender ID)", senderWarning: "Spoofed sender name. Official banks never lock accounts via SMS links.",
     timestamp: "2:14 PM",
     message: "Your bank account has been locked due to suspicious activity. Verify your identity within 15 minutes to avoid suspension: http://secure-bank-verify.example",
-    correctAction: "REPORT AS SCAM", actions: ["REPORT AS SCAM", "CLICK LINK", "REPLY WITH NRIC", "ASK FAMILY FIRST"],
+    correctAction: "REPORT AS SCAM", actions: ["REPORT AS SCAM", "CLICK LINK", "REPLY WITH NRIC", "ASK SOMEONE YOU TRUST FIRST"],
     clues: [
       { label: "Urgency", text: "within 15 minutes", explanation: "Scammers pressure you to act fast so you have no time to think." },
       { label: "Suspicious URL", text: "secure-bank-verify.example", explanation: "Not an official bank domain. Real banks use their own verified domains." },
@@ -5372,7 +5371,7 @@ const FAMILY_SCENARIOS: FamilyScenario[] = [
     sender: "School Admin", senderEmail: "admin@schoolportal.edu.example", senderDomain: "schoolportal.edu.example", senderWarning: "",
     subject: "Reminder: Parent Briefing This Friday", timestamp: "9:30 AM",
     message: "Dear parents, this is a reminder that the parent briefing will be held this Friday at 7PM in the school hall. No action is required. Please log in through the official school portal if you need more details.",
-    correctAction: "MARK AS SAFE", actions: ["MARK AS SAFE", "REPORT AS SCAM", "DELETE IMMEDIATELY", "ASK FAMILY FIRST"],
+    correctAction: "MARK AS SAFE", actions: ["MARK AS SAFE", "REPORT AS SCAM", "DELETE IMMEDIATELY", "ASK SOMEONE YOU TRUST FIRST"],
     clues: [
       { label: "No Urgency", text: "No urgent threat or deadline", explanation: "Legitimate messages rarely pressure you into immediate action." },
       { label: "No Payment", text: "No payment request", explanation: "This email does not ask for money or credentials." },
@@ -5386,7 +5385,7 @@ const FAMILY_SCENARIOS: FamilyScenario[] = [
     sender: "ParcelExpress", senderDomain: "ParcelExpress (spoofed SMS sender)", senderWarning: "Real couriers contact you through their official app, not payment links.",
     timestamp: "11:47 AM",
     message: "Delivery failed. Your parcel will be returned unless you pay a $2.10 redelivery fee today. Update here: http://parcel-express-redeliver.example",
-    correctAction: "REPORT AS SCAM", actions: ["REPORT AS SCAM", "PAY FEE", "ENTER CARD DETAILS", "ASK FAMILY FIRST"],
+    correctAction: "REPORT AS SCAM", actions: ["REPORT AS SCAM", "PAY FEE", "ENTER CARD DETAILS", "ASK SOMEONE YOU TRUST FIRST"],
     clues: [
       { label: "Small Fee Trick", text: "$2.10 redelivery fee", explanation: "A tiny fee lowers your guard. The real goal is your full card details." },
       { label: "Suspicious URL", text: "parcel-express-redeliver.example", explanation: "Real couriers use official branded domains, not random ones." },
@@ -5400,7 +5399,7 @@ const FAMILY_SCENARIOS: FamilyScenario[] = [
     sender: "GameMaster Rewards", senderEmail: "rewards@gamemaster-freecoins.example", senderDomain: "gamemaster-freecoins.example", senderWarning: "Not an official game domain. Free coin offers are commonly used to steal login credentials.",
     subject: "You won 10,000 free coins!", timestamp: "4:02 PM",
     message: "Congratulations! Your account has been selected for 10,000 free coins. Log in now with your username and password to claim before midnight.",
-    correctAction: "ASK FAMILY FIRST", actions: ["ASK FAMILY FIRST", "REPORT AS SCAM", "CLAIM REWARD", "ENTER LOGIN DETAILS"],
+    correctAction: "ASK SOMEONE YOU TRUST FIRST", actions: ["ASK SOMEONE YOU TRUST FIRST", "REPORT AS SCAM", "CLAIM REWARD", "ENTER LOGIN DETAILS"],
     clues: [
       { label: "Too-Good-To-Be-True", text: "10,000 free coins", explanation: "Huge free rewards are used to excite you and lower your guard." },
       { label: "Login Request", text: "Log in now with your username and password", explanation: "Legitimate games never ask for credentials via email or notification." },
@@ -5620,13 +5619,13 @@ function FamilyDrillIntroScreen({ onStart, onBack }: { onStart: () => void; onBa
   return (
     <div className="flex flex-col h-full" style={{ position: "relative" }}>
       <div className="flex items-center justify-between px-4" style={{ backgroundColor: "#0a0e1a", borderBottom: "4px solid #2a3a5c", minHeight: 56, flexShrink: 0 }}>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#00ff88" }}>FAMILY DRILL</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#00ff88" }}>HOUSE DRILL</div>
         <div className="flex items-center gap-2"><IconShield size={14} color="#00ff88" /><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#00ff88" }}>{members.length} READY</div></div>
       </div>
       <div className="flex-1 overflow-y-auto px-4 pb-6" style={{ scrollbarWidth: "none" }}>
         <div style={{ margin: "14px 0", backgroundColor: "#111827", border: "3px solid #00ff88", padding: "10px 14px" }}>
           <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2"><IconShield size={14} color="#00ff88" /><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#00ff88" }}>FAMILY TRUST</div></div>
+            <div className="flex items-center gap-2"><IconShield size={14} color="#00ff88" /><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#00ff88" }}>HOUSE TRUST</div></div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ffe66d" }}>100%</div>
           </div>
           <div style={{ height: 8, backgroundColor: "#0a0e1a", border: "2px solid #2a3a5c" }}>
@@ -5646,7 +5645,7 @@ function FamilyDrillIntroScreen({ onStart, onBack }: { onStart: () => void; onBa
         </div>
         <div style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "12px 14px", marginBottom: 16 }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#4ecdc4", marginBottom: 8 }}>HOW IT WORKS</div>
-          {["Each family member faces a suspicious message.", "Inspect links and senders before deciding.", "Some messages are safe — read carefully!", "Wrong choices teach you what to watch for."].map((line, i) => (
+          {["Each house member faces a suspicious message.", "Inspect links and senders before deciding.", "Some messages are safe — read carefully!", "Wrong choices teach you what to watch for."].map((line, i) => (
             <div key={i} className="flex items-start gap-2 mb-2">
               <div style={{ width: 6, height: 6, backgroundColor: "#00ff88", flexShrink: 0, marginTop: 4 }} />
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.5 }}>{line}</div>
@@ -5658,7 +5657,7 @@ function FamilyDrillIntroScreen({ onStart, onBack }: { onStart: () => void; onBa
           </div>
         </div>
         <div className="flex flex-col gap-3">
-          <PixelBtn onClick={onStart} color="#00ff88" textColor="#0a0e1a" size="lg" full>[ START FAMILY DRILL ]</PixelBtn>
+          <PixelBtn onClick={onStart} color="#00ff88" textColor="#0a0e1a" size="lg" full>[ START HOUSE DRILL ]</PixelBtn>
           <PixelBtn onClick={() => setShowHowTo(true)} color="#ffe66d" textColor="#0a0e1a" size="sm" full>[ HOW TO PLAY ]</PixelBtn>
           <PixelBtn onClick={onBack} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>[ BACK HOME ]</PixelBtn>
         </div>
@@ -5671,7 +5670,7 @@ function FamilyDrillIntroScreen({ onStart, onBack }: { onStart: () => void; onBa
               <button onClick={() => setShowHowTo(false)} style={{ background: "none", border: "none", cursor: "pointer" }}><IconX size={14} color="#6b8ba4" /></button>
             </div>
             <div className="px-4 py-3 flex flex-col gap-3">
-              {[["TAP SENDER", "Inspect sender identity and domain."], ["LONG-PRESS LINKS", "Reveal the actual URL before opening."], ["TAP CLUE TAGS", "Uncover red flags in the message."], ["READ CAREFULLY", "Not every message is a scam."], ["CHOOSE SAFELY", "Pick the best action for the family."]].map(([title, desc]) => (
+              {[["TAP SENDER", "Inspect sender identity and domain."], ["LONG-PRESS LINKS", "Reveal the actual URL before opening."], ["TAP CLUE TAGS", "Uncover red flags in the message."], ["READ CAREFULLY", "Not every message is a scam."], ["CHOOSE SAFELY", "Pick the best action for the house."]].map(([title, desc]) => (
                 <div key={title} className="flex items-start gap-3">
                   <IconBulb size={12} color="#ffe66d" />
                   <div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ffe66d", marginBottom: 2 }}>{title}</div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4", lineHeight: 1.4 }}>{desc}</div></div>
@@ -5700,7 +5699,7 @@ type FamilyOutcome = "correct" | "cautious" | "wrong";
 function familyOutcome(scenario: FamilyScenario, action: string | null): FamilyOutcome {
   if (action === null) return "wrong";
   if (action === scenario.correctAction || (scenario.id === 4 && action === "REPORT AS SCAM")) return "correct";
-  if (action === "ASK FAMILY FIRST") return "cautious";
+  if (action === "ASK SOMEONE YOU TRUST FIRST") return "cautious";
   return "wrong";
 }
 
@@ -5911,7 +5910,7 @@ function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNe
               </div>
             </button>
           </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4", marginBottom: 6, textAlign: "center" }}>WHAT SHOULD THE FAMILY DO?</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4", marginBottom: 6, textAlign: "center" }}>WHAT SHOULD THE HOUSE DO?</div>
           <div className="grid grid-cols-2 gap-2">
             {displayActions.map((action) => (
               <button key={action} onClick={() => handleAction(action)} style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "8px 6px", cursor: "pointer", fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#e8f4f8", textAlign: "center", lineHeight: 1.5 }}>
@@ -5953,7 +5952,7 @@ function FamilySummaryScreen({ answers, serverXp, onPlayAgain, onIndividual, onH
 
   const badges = [
     { name: "LINK INSPECTOR", desc: "Revealed hidden URLs", earned: answers.some((a) => a.foundClues.length >= 2) },
-    { name: "FAMILY SHIELD", desc: "Protected all members", earned: correctCount >= 5 },
+    { name: "HOUSE SHIELD", desc: "Protected all members", earned: correctCount >= 5 },
     { name: "PHISH FINDER", desc: "Found 8+ clues", earned: foundCluesCount >= 8 },
     { name: "NO PANIC BONUS", desc: "Stayed calm under pressure", earned: correctCount >= 4 },
   ];
@@ -5969,7 +5968,7 @@ function FamilySummaryScreen({ answers, serverXp, onPlayAgain, onIndividual, onH
             {[
               { label: "CORRECT", value: `${correctCount}/6`, color: "#00ff88" },
               { label: "CLUES FOUND", value: `${foundCluesCount}/${totalClues}`, color: "#4ecdc4" },
-              { label: "FAMILY XP", value: xpDisplay, color: "#ffe66d" },
+              { label: "HOUSE XP", value: xpDisplay, color: "#ffe66d" },
               { label: "COINS EARNED", value: `${totalCoins >= 0 ? "+" : ""}${totalCoins}`, color: totalCoins >= 0 ? "#ffe66d" : "#ff2d55" },
             ].map((s) => (
               <div key={s.label} style={{ backgroundColor: "#0a0e1a", border: "2px solid #2a3a5c", padding: "8px 10px" }}>
@@ -5991,7 +5990,7 @@ function FamilySummaryScreen({ answers, serverXp, onPlayAgain, onIndividual, onH
         </div>
         <div style={{ backgroundColor: "#0d1526", border: "3px solid #4ecdc4", padding: "12px 14px", marginBottom: 14 }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#4ecdc4", marginBottom: 8 }}>TOP LESSONS</div>
-          {["Always inspect the sender.", "Hover or long-press links before opening.", "Be careful with urgent messages.", "Never share passwords, OTPs, or card details.", "Ask family before acting on suspicious messages."].map((l, i) => (
+          {["Always inspect the sender.", "Hover or long-press links before opening.", "Be careful with urgent messages.", "Never share passwords, OTPs, or card details.", "Ask someone you trust before acting on suspicious messages."].map((l, i) => (
             <div key={i} className="flex items-start gap-2 mb-2">
               <div style={{ width: 5, height: 5, backgroundColor: "#4ecdc4", flexShrink: 0, marginTop: 5 }} />
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#e8f4f8", lineHeight: 1.5 }}>{l}</div>
@@ -5999,7 +5998,7 @@ function FamilySummaryScreen({ answers, serverXp, onPlayAgain, onIndividual, onH
           ))}
         </div>
         <div className="flex flex-col gap-3 pb-4">
-          <PixelBtn onClick={onPlayAgain} color="#00ff88" textColor="#0a0e1a" size="lg" full>[ PLAY FAMILY DRILL AGAIN ]</PixelBtn>
+          <PixelBtn onClick={onPlayAgain} color="#00ff88" textColor="#0a0e1a" size="lg" full>[ PLAY HOUSE DRILL AGAIN ]</PixelBtn>
           <PixelBtn onClick={onIndividual} color="#4ecdc4" textColor="#0a0e1a" size="sm" full>[ TRY INDIVIDUAL DRILL ]</PixelBtn>
           <PixelBtn onClick={onHome} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>[ BACK HOME ]</PixelBtn>
         </div>
@@ -6116,7 +6115,7 @@ function AccountSettingsScreen({ profile, onBack }: { profile: PlayerProfile; on
     // The email address is private (never sent to the client), so it isn't shown here —
     // set it in the email drill. We only surface whether the phone is verified.
     { label: "PHONE", value: registered ? "VERIFIED" : "NOT REGISTERED", color: registered ? "#00ff88" : "#6b8ba4" },
-    { label: "LINKED FAMILY PROFILES", value: "4 MEMBERS", color: "#00ff88" },
+    { label: "LINKED HOUSE PROFILES", value: "4 MEMBERS", color: "#00ff88" },
   ];
 
   const detachPhone = async () => {
@@ -6333,7 +6332,7 @@ function ProfileEditScreen({ profile, onRename, onBack, onAvatar, onHouse }: {
         </button>
         <div style={{ backgroundColor: "#111827", border: "3px solid #ffe66d", padding: "12px 14px", marginBottom: 12 }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ffe66d", marginBottom: 10 }}>PROFILE TITLE</div>
-          <PixelRadio options={["WATCHER", "SCAM BLOCKER", "LINK INSPECTOR", "FAMILY GUARDIAN"]} value={profileTitle} onChange={setProfileTitle} />
+          <PixelRadio options={["WATCHER", "SCAM BLOCKER", "LINK INSPECTOR", "HOUSE GUARDIAN"]} value={profileTitle} onChange={setProfileTitle} />
         </div>
         <PixelBtn onClick={onBack} color="#00ff88" textColor="#0a0e1a" size="sm" full>[ SAVE PROFILE ]</PixelBtn>
       </div>
@@ -6736,7 +6735,7 @@ function FamilyChatScreen({ messages, onSend, onBack }: {
           <IconX size={16} color="#6b8ba4" />
         </button>
         <IconChat size={16} color="#4ecdc4" />
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#4ecdc4" }}>FAMILY CHAT</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#4ecdc4" }}>HOUSE CHAT</div>
         <div style={{ marginLeft: "auto", width: 8, height: 8, backgroundColor: "#00ff88", animation: "pulse-dot 1.5s ease-in-out infinite" }} />
       </div>
 
@@ -6971,7 +6970,7 @@ function NotificationDetailScreen({
   const actionLabel = isDrillOutcome
     ? "TRAIN AGAIN"
     : isFamilyDrill
-      ? "PLAY FAMILY DRILL AGAIN"
+      ? "PLAY HOUSE DRILL AGAIN"
       : null;
   const actionHandler = isDrillOutcome
     ? () => onAction("train")
@@ -7125,7 +7124,7 @@ function PaydayScreen({ coins, claimedThisWeek, canCollect, onCollect, onClose }
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ffe66d" }}>PAYDAY TIP</div>
             </div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#00ff88", lineHeight: 1.5 }}>
-              Complete drills every week to earn your full salary bonus. Missed red flags reduce the bonus, but every review helps the whole family improve.
+              Complete drills every week to earn your full salary bonus. Missed red flags reduce the bonus, but every review helps the whole house improve.
             </div>
           </div>
 
@@ -7491,7 +7490,7 @@ export default function App() {
     appendNotification({
       kind: "family-drill-complete",
       memberId: "family",
-      title: "Family drill complete",
+      title: "House drill complete",
       body: `${correctCount}/${totalRounds} correct — ${
         correctCount === totalRounds
           ? "perfect run!"
@@ -7542,7 +7541,7 @@ export default function App() {
         lose: `${name} clicked a suspicious link. Next time, long-press links to see the real URL before tapping.`,
       },
       email: {
-        win: `${name} reported that phishing email. That's how the family stays safe.`,
+        win: `${name} reported that phishing email. That's how the house stays safe.`,
         lose: `${name} submitted details to a fake reward page. Always check the sender domain first. It happens — the important thing is spotting it next time.`,
       },
     };
@@ -7567,13 +7566,13 @@ export default function App() {
   const emitPixiFamilyDrillSummary = (correctCount: number, totalRounds: number) => {
     let text: string;
     if (correctCount === totalRounds) {
-      text = `Perfect family drill — ${correctCount}/${totalRounds} correct! The whole household is scam-savvy today.`;
+      text = `Perfect house drill — ${correctCount}/${totalRounds} correct! The whole household is scam-savvy today.`;
     } else if (correctCount >= totalRounds - 1) {
       text = `Great job team — ${correctCount}/${totalRounds} correct. One slip, but you mostly held the line.`;
     } else if (correctCount >= Math.ceil(totalRounds / 2)) {
-      text = `Family drill done: ${correctCount}/${totalRounds} correct. Some good instincts, some near-misses. Worth a debrief!`;
+      text = `House drill done: ${correctCount}/${totalRounds} correct. Some good instincts, some near-misses. Worth a debrief!`;
     } else {
-      text = `Family drill done: ${correctCount}/${totalRounds} correct. There are a few useful lessons to review — let's practise more this week.`;
+      text = `House drill done: ${correctCount}/${totalRounds} correct. There are a few useful lessons to review — let's practise more this week.`;
     }
     appendChatMessage({
       memberId: "pixi",
@@ -7617,7 +7616,7 @@ export default function App() {
     const delta = FAMILY_COINS[outcome];
     if (delta === 0) return; // cautious: no reward, but no penalty either
     const correct = outcome === "correct";
-    const label = correct ? "FAMILY DRILL CORRECT" : "FAMILY DRILL WRONG";
+    const label = correct ? "HOUSE DRILL CORRECT" : "HOUSE DRILL WRONG";
     const reason: CoinTxReason = correct ? "family-drill-correct" : "family-drill-wrong";
     addCoinTx(memberId, delta, reason, label);
   };
@@ -8292,7 +8291,6 @@ export default function App() {
                 onFamilyDrill={goFamilyDrill}
                 onPayday={() => setScreen("payday")}
                 onCustomize={openCustomize}
-                onRegister={() => openRegistration("home")}
                 onTutorial={() => setTourOpen(true)}
                 coins={coins}
                 soldItems={soldItems}
