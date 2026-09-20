@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, createContext, useContext } from "react";
 import { unlock, playSfx, setMuted, setMusicEnabled, isMuted } from "./audio";
 import { TOKEN_KEY, apiGet, apiPost, authHeaders, handleApiAuth, sessionToken, setSessionToken } from "./api";
-import { useHouse, removeMember, type HouseView, type MemberView } from "./house";
+import { useHouse, removeMember, postHouseRun, type HouseView, type MemberView } from "./house";
 
 // First-run tutorial. Shown once, then replayable from Home — people forget, and a
 // tutorial you can't get back to is worse than none.
@@ -277,9 +277,6 @@ type DrillResultRecord = {
   unscoredReason?: string;
 };
 type NeutralResultNotice = { id: string; message: string };
-
-type LeaderboardRow = { rank: number; name: string; score: number; wins?: number; area?: string };
-type ShameRow = { rank: number; id?: string; name: string; scammed: number; streak?: number; area?: string };
 
 type FurnitureItem = { id: string; name: string; sellValue: number; memberId: string };
 type ChatMsg = {
@@ -1745,20 +1742,6 @@ const EMAIL_FLAGS: DrillFlag[] = [
 const FLAG_MAP: Record<string, DrillFlag> = Object.fromEntries(
   [...RED_FLAGS, ...SMS_FLAGS, ...EMAIL_FLAGS].map((f) => [f.id, f])
 );
-
-// ─────────────────────────────────────────────────────────────────────────
-// LEADERBOARD DATA
-// ─────────────────────────────────────────────────────────────────────────
-const HALL_OF_FAME = [
-  { rank: 1, name: "PIXEL_HERO", score: 9842, wins: 98, area: "Downtown" },
-  { rank: 2, name: "SCAM_BSTR", score: 8710, wins: 87, area: "Midtown" },
-  { rank: 3, name: "SAFE_KING", score: 7355, wins: 73, area: "Uptown" },
-  { rank: 4, name: "SHIELD_UP", score: 6201, wins: 62, area: "Eastside" },
-  { rank: 5, name: "NO_SCAM_4U", score: 5988, wins: 59, area: "Westside" },
-  { rank: 6, name: "DEFENDER1", score: 4422, wins: 44, area: "Southside" },
-  { rank: 7, name: "IRONWALL", score: 3981, wins: 39, area: "Northside" },
-  { rank: 8, name: "GUARDIAN7", score: 3100, wins: 31, area: "Downtown" },
-];
 
 // ─────────────────────────────────────────────────────────────────────────
 // FURNITURE STORE
@@ -4493,7 +4476,7 @@ function ResultScreen({ win, drillType, smsOutcome, emailOutcome, callOutcome, p
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: LEADERBOARD
 // ─────────────────────────────────────────────────────────────────────────
-function LeaderboardScreen({ activeMemberId }: { activeMemberId: string }) {
+function LeaderboardScreen({ onPlayWithOthers }: { onPlayWithOthers: () => void }) {
   const [tab, setTab] = useState<"fame" | "shame">("fame");
   return (
     <div className="flex flex-col h-full">
@@ -4508,21 +4491,25 @@ function LeaderboardScreen({ activeMemberId }: { activeMemberId: string }) {
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: tab === "shame" ? "#ff2d55" : "#2a3a5c" }}>HALL OF SHAME</div>
         </button>
       </div>
-      {tab === "fame" ? <FameBoard /> : <ShameBoard activeMemberId={activeMemberId} />}
+      {tab === "fame" ? <FameBoard onPlayWithOthers={onPlayWithOthers} /> : <ShameBoard onPlayWithOthers={onPlayWithOthers} />}
     </div>
   );
 }
 
-function FameBoard() {
-  const [board, setBoard] = useState<LeaderboardRow[]>(HALL_OF_FAME);
+// A panel steering solo players toward a house — both boards end with it once there's
+// no one else to compare against.
+function PlayWithOthersPanel({ onPlayWithOthers }: { onPlayWithOthers: () => void }) {
+  return (
+    <div className="px-3 py-4 flex flex-col items-center gap-3" style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c" }}>
+      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4" }}>PLAY WITH OTHERS TO COMPARE</div>
+      <PixelBtn onClick={onPlayWithOthers} color="#4ecdc4" textColor="#0a0e1a" size="sm">+ CREATE OR JOIN A HOUSE</PixelBtn>
+    </div>
+  );
+}
 
-  useEffect(() => {
-    apiGet<LeaderboardRow[]>("/api/leaderboard").then((rows) => {
-      if (rows && rows.length) {
-        setBoard(rows.map((r) => ({ ...r, wins: r.wins ?? 0, area: r.area ?? "FAMILY" })));
-      }
-    });
-  }, []);
+function FameBoard({ onPlayWithOthers }: { onPlayWithOthers: () => void }) {
+  const members = useMembers();
+  const board = [...members].sort((a, b) => b.level - a.level || b.xp - a.xp).map((m, i) => ({ rank: i + 1, member: m }));
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
@@ -4530,96 +4517,67 @@ function FameBoard() {
         <PixelMascot size={28} />
         <div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#00ff88", marginBottom: 4 }}>TRAINING PROGRESS</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#8da4b8", lineHeight: 1.5 }}>Ranks celebrate safe practice. Registered accounts see only their own entry and the demo family.</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#8da4b8", lineHeight: 1.5 }}>Ranks celebrate safe practice in your house.</div>
         </div>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2" style={{ scrollbarWidth: "none" }}>
-        {board.map((p) => (
-          <div key={p.rank} className="flex items-center gap-3 px-3 py-3" style={{ backgroundColor: "#111827", border: `3px solid ${p.rank <= 3 ? ["#ffe66d", "#c0c0c0", "#cd7f32"][p.rank - 1] : "#2a3a5c"}`, boxShadow: p.rank <= 3 ? `3px 3px 0px ${["#ffe66d", "#c0c0c0", "#cd7f32"][p.rank - 1]}` : "none" }}>
+        {board.map(({ rank, member: m }) => (
+          <div key={m.id} className="flex items-center gap-3 px-3 py-3" style={{ backgroundColor: "#111827", border: `3px solid ${rank <= 3 ? ["#ffe66d", "#c0c0c0", "#cd7f32"][rank - 1] : "#2a3a5c"}`, boxShadow: rank <= 3 ? `3px 3px 0px ${["#ffe66d", "#c0c0c0", "#cd7f32"][rank - 1]}` : "none" }}>
             <div className="flex items-center justify-center" style={{ width: 28 }}>
-              {p.rank <= 3 ? <IconMedal rank={p.rank} size={20} /> : <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#6b8ba4" }}>#{p.rank}</div>}
+              {rank <= 3 ? <IconMedal rank={rank} size={20} /> : <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#6b8ba4" }}>#{rank}</div>}
             </div>
-            <PixelAvatar rank={p.rank} size={28} />
+            <MemberChar member={m} size={28} />
             <div className="flex-1">
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#e8f4f8" }}>{p.name}</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginTop: 2 }}>{p.wins} WINS · {p.area}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#e8f4f8" }}>{m.name}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginTop: 2 }}>{m.timesSafe} WINS · LVL {m.level}</div>
             </div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#4ecdc4" }}>{p.score.toLocaleString()}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#4ecdc4" }}>{m.xp} XP</div>
           </div>
         ))}
+        {members.length < 2 && <PlayWithOthersPanel onPlayWithOthers={onPlayWithOthers} />}
       </div>
     </div>
   );
 }
 
-function ShameBoard({ activeMemberId }: { activeMemberId: string }) {
-  const memberMap = useMemberMap();
+function ShameBoard({ onPlayWithOthers }: { onPlayWithOthers: () => void }) {
   const members = useMembers();
-  const [rows, setRows] = useState<ShameRow[] | null>(null);
-
-  useEffect(() => {
-    apiGet<ShameRow[]>("/api/shame").then((fetched) => {
-      if (fetched && fetched.length) setRows(fetched);
-    });
-  }, []);
-
-  // Until /api/shame answers, rank the house itself by scam count — this board is
-  // about the people you live with, not fake strangers.
-  const board: ShameRow[] = useMemo(() => {
-    if (rows) {
-      return rows.map((r) => ({ ...r, area: r.area ?? (r.id ? memberMap[r.id]?.role : undefined) ?? "HOUSEMATE" }));
-    }
-    return [...members]
-      .sort((a, b) => b.timesScammed - a.timesScammed)
-      .map((m, i) => ({ rank: i + 1, id: m.id, name: m.name, scammed: m.timesScammed, streak: m.streak, area: m.role }));
-  }, [rows, members, memberMap]);
-
-  // "You" is the signed-in player; a housemate's row is just another row.
-  const you = board.find((p) => p.id === activeMemberId);
-  const youTag = you == null ? "" : you.scammed <= 2 ? "NOT BAD!" : you.scammed <= 5 ? "KEEP GOING" : "STEP IT UP";
+  const selfId = useSelfId();
+  const board = [...members].filter((m) => !m.safeThisWeek).sort((a, b) => b.timesScammed - a.timesScammed);
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       <div className="mx-4 mt-3 px-3 py-2 flex items-center gap-2" style={{ backgroundColor: "rgba(255,45,85,0.08)", border: "3px solid #ff2d55" }}>
         <IconWarning size={12} color="#ff2d55" />
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff2d55" }}>MOST SCAMMED IN THE FAMILY</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff2d55" }}>SCAMMED THIS WEEK</div>
       </div>
-      {you && (
-        <div className="mx-4 mt-2 px-3 py-3 flex items-center gap-3" style={{ backgroundColor: "rgba(255,107,53,0.08)", border: "3px solid #ff6b35" }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ff6b35" }}>#{you.rank}</div>
-          <PixelMascot size={28} />
-          <div className="flex-1">
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ff6b35" }}>YOU</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>{you.scammed} TIME{you.scammed === 1 ? "" : "S"} SCAMMED</div>
-          </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#00ff88" }}>{youTag}</div>
-        </div>
-      )}
       <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2" style={{ scrollbarWidth: "none" }}>
-        {board.map((p, i) => {
-          const isYou = p.id === activeMemberId;
+        {board.length === 0 && (
+          <div className="py-8 text-center" style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#00ff88" }}>
+            NOBODY SCAMMED THIS WEEK. KEEP IT THAT WAY.
+          </div>
+        )}
+        {board.map((m, i) => {
+          const isYou = m.id === selfId;
           const shameColors = ["#ff2d55", "#ff2d55", "#ff2d55", "#ff6b35", "#ff6b35", "#ff6b35", "#ffe66d", "#ffe66d"];
           const rowColor = shameColors[i] ?? "#2a3a5c";
           return (
-            <div key={p.rank} className="flex items-center gap-3 px-3 py-3" style={{ backgroundColor: isYou ? "rgba(255,107,53,0.08)" : "#111827", border: `3px solid ${isYou ? "#ff6b35" : rowColor}`, boxShadow: i < 3 ? `3px 3px 0px ${rowColor}` : "none" }}>
+            <div key={m.id} className="flex items-center gap-3 px-3 py-3" style={{ backgroundColor: isYou ? "rgba(255,107,53,0.08)" : "#111827", border: `3px solid ${isYou ? "#ff6b35" : rowColor}`, boxShadow: i < 3 ? `3px 3px 0px ${rowColor}` : "none" }}>
               <div className="flex items-center justify-center" style={{ width: 28 }}>
-                {i < 3 ? <IconSkull size={18} color={rowColor} /> : <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>#{p.rank}</div>}
+                {i < 3 ? <IconSkull size={18} color={rowColor} /> : <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>#{i + 1}</div>}
               </div>
-              <PixelAvatar rank={p.rank + 4} size={28} />
+              <MemberChar member={m} size={28} />
               <div className="flex-1">
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: isYou ? "#ff6b35" : "#e8f4f8" }}>{isYou ? "YOU" : p.name}</div>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginTop: 2 }}>{p.area}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: isYou ? "#ff6b35" : "#e8f4f8" }}>{isYou ? "YOU" : m.name}</div>
               </div>
               <div className="flex flex-col items-end gap-1">
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: rowColor }}>{p.scammed}x</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: rowColor }}>{m.timesScammed}x</div>
                 <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>SCAMMED</div>
               </div>
             </div>
           );
         })}
-        <div className="py-3 text-center" style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#2a3a5c" }}>
-          — KEEP TRAINING TO STAY OFF THIS LIST —
-        </div>
+        {members.length < 2 && <PlayWithOthersPanel onPlayWithOthers={onPlayWithOthers} />}
       </div>
     </div>
   );
@@ -5934,18 +5892,19 @@ function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNe
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: FAMILY SUMMARY
 // ─────────────────────────────────────────────────────────────────────────
-function FamilySummaryScreen({ answers, onPlayAgain, onIndividual, onHome }: {
+function FamilySummaryScreen({ answers, serverXp, onPlayAgain, onIndividual, onHome }: {
   answers: { scenarioId: number; action: string; outcome: FamilyOutcome; foundClues: number[] }[];
+  serverXp: number | null | "pending";
   onPlayAgain: () => void; onIndividual: () => void; onHome: () => void;
 }) {
   const correctCount = answers.filter((a) => a.outcome === "correct").length;
   const totalClues = FAMILY_SCENARIOS.reduce((sum, s) => sum + s.clues.length, 0);
   const foundCluesCount = answers.reduce((sum, a) => sum + a.foundClues.length, 0);
-  const totalXP = answers.reduce((sum, a) => sum + FAMILY_XP[a.outcome], 0);
   const totalCoins = answers.reduce((sum, a) => sum + FAMILY_COINS[a.outcome], 0);
 
-  const header = correctCount >= 5 ? "FAMILY SAFE!" : correctCount >= 3 ? "GOOD TRAINING!" : "MORE PRACTICE NEEDED!";
+  const header = correctCount >= 5 ? "HOUSE SAFE!" : correctCount >= 3 ? "GOOD TRAINING!" : "MORE PRACTICE NEEDED!";
   const headerColor = correctCount >= 5 ? "#00ff88" : correctCount >= 3 ? "#ffe66d" : "#ff2d55";
+  const xpDisplay = serverXp === "pending" ? "SAVING…" : serverXp === null ? "NOT SAVED — CHECK YOUR CONNECTION" : serverXp > 0 ? `+${serverXp} XP` : "XP ALREADY EARNED THIS WEEK";
 
   const badges = [
     { name: "LINK INSPECTOR", desc: "Revealed hidden URLs", earned: answers.some((a) => a.foundClues.length >= 2) },
@@ -5965,7 +5924,7 @@ function FamilySummaryScreen({ answers, onPlayAgain, onIndividual, onHome }: {
             {[
               { label: "CORRECT", value: `${correctCount}/6`, color: "#00ff88" },
               { label: "CLUES FOUND", value: `${foundCluesCount}/${totalClues}`, color: "#4ecdc4" },
-              { label: "FAMILY XP", value: `+${totalXP}`, color: "#ffe66d" },
+              { label: "FAMILY XP", value: xpDisplay, color: "#ffe66d" },
               { label: "COINS EARNED", value: `${totalCoins >= 0 ? "+" : ""}${totalCoins}`, color: totalCoins >= 0 ? "#ffe66d" : "#ff2d55" },
             ].map((s) => (
               <div key={s.label} style={{ backgroundColor: "#0a0e1a", border: "2px solid #2a3a5c", padding: "8px 10px" }}>
@@ -7087,6 +7046,11 @@ export default function App() {
 
   const [familyRoundIndex, setFamilyRoundIndex] = useState(0);
   const [familyAnswers, setFamilyAnswers] = useState<{ scenarioId: number; action: string; outcome: FamilyOutcome; foundClues: number[] }[]>([]);
+  const [houseRunXp, setHouseRunXp] = useState<number | null | "pending">(null);
+  // The latest answers, readable synchronously when the drill ends (state lags a render).
+  const familyAnswersRef = useRef<typeof familyAnswers>([]);
+  // One post per run, even if the end handler fires twice.
+  const houseRunKeyRef = useRef<string | null>(null);
 
   // Player name + avatar, persisted locally. Seeded once from storage.
   const [profile, setProfileState] = useState<PlayerProfile>(loadProfile);
@@ -7434,7 +7398,14 @@ export default function App() {
     setResultXp(null);
     setScreen("drill-select");
   };
-  const goFamilyDrill = () => { setFamilyRoundIndex(0); setFamilyAnswers([]); setScreen("family-drill-intro"); };
+  const goFamilyDrill = () => {
+    setFamilyRoundIndex(0);
+    setFamilyAnswers([]);
+    familyAnswersRef.current = [];
+    houseRunKeyRef.current = null;
+    setHouseRunXp(null);
+    setScreen("family-drill-intro");
+  };
 
   const handleTab = (tab: Tab) => { setActiveTab(tab); setScreen(tab as Screen); };
   const handleNav = (s: string) => setScreen(s as Screen);
@@ -7684,14 +7655,37 @@ export default function App() {
   const handleFamilyComplete = (action: string, foundClues: number[], outcome: FamilyOutcome) => {
     const scenario = FAMILY_SCENARIOS[familyRoundIndex];
     emitFamilyRoundEvent(selfId, outcome);
-    setFamilyAnswers((prev) => [...prev, { scenarioId: scenario.id, action, outcome, foundClues }]);
+    const next = [...familyAnswersRef.current, { scenarioId: scenario.id, action, outcome, foundClues }];
+    familyAnswersRef.current = next;
+    setFamilyAnswers(next);
+  };
+
+  // Posts the finished house drill's tally once. familyAnswersRef holds the last
+  // answer synchronously (familyAnswers itself lags a render behind), and
+  // houseRunKeyRef stops a second post if the end handler ever fires twice.
+  const finishHouseDrill = () => {
+    const answers = familyAnswersRef.current;
+    const count = (o: FamilyOutcome) => answers.filter((a) => a.outcome === o).length;
+    const run = { correct: count("correct"), cautious: count("cautious"), wrong: count("wrong") };
+    if (run.correct + run.cautious + run.wrong === 0 || houseRunKeyRef.current) {
+      if (!houseRunKeyRef.current) setHouseRunXp(null);
+      return;
+    }
+    const clientKey = createAttemptId("house-run");
+    houseRunKeyRef.current = clientKey;
+    setHouseRunXp("pending");
+    void postHouseRun({ clientKey, ...run }).then((r) => {
+      setHouseRunXp(r.ok ? r.data.run.xpGained : null);
+      if (r.ok) void house.refresh();
+    });
   };
 
   const handleFamilyNext = () => {
     if (familyRoundIndex + 1 >= FAMILY_SCENARIOS.length) {
       const correctCount = familyAnswers.filter(a => a.outcome === "correct").length;
       emitPixiFamilyDrillSummary(correctCount, FAMILY_SCENARIOS.length);
-      emitNotifFamilyDrill(correctCount, FAMILY_SCENARIOS.length);      
+      emitNotifFamilyDrill(correctCount, FAMILY_SCENARIOS.length);
+      finishHouseDrill();
       setScreen("family-summary");
     } else {
       setFamilyRoundIndex((i) => i + 1);
@@ -7887,7 +7881,7 @@ export default function App() {
                 onRemoveMember={handleRemoveMember}
               />
             )}
-            {screen === "leaderboard" && <LeaderboardScreen activeMemberId={activeMemberId} />}
+            {screen === "leaderboard" && <LeaderboardScreen onPlayWithOthers={() => setScreen("house")} />}
             {screen === "store" && (
               <ShopScreen
                 activeMemberId={activeMemberId}
@@ -8037,6 +8031,7 @@ export default function App() {
                   const correctCount = familyAnswers.filter(a => a.outcome === "correct").length;
                   emitPixiFamilyDrillSummary(correctCount, FAMILY_SCENARIOS.length);
                   emitNotifFamilyDrill(correctCount, FAMILY_SCENARIOS.length);
+                  finishHouseDrill();
                   setScreen("family-summary");
                 }}
                 />
@@ -8044,6 +8039,7 @@ export default function App() {
             {screen === "family-summary" && (
               <FamilySummaryScreen
                 answers={familyAnswers}
+                serverXp={houseRunXp}
                 onPlayAgain={goFamilyDrill}
                 onIndividual={goDrillSelect}
                 onHome={goHome}
