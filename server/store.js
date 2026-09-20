@@ -1074,7 +1074,7 @@ export async function detachVerifiedPhone(userId) {
     user.phoneLookupHash = phoneLookupHash(user.phone, { required: true });
     delete user.phone;
     user.consentToDrills = false;
-    // `house_id` is not in USER_FIELDS, so the saveUser below cannot put them back.
+    // `house_id` is not in USER_FIELDS, so the saveUser below cannot restore it.
     const ring = house && user.houseId === house.id ? await releaseFromHouse(tx, house, user) : [];
     const saved = await saveUser(tx, user);
     await tx.query('delete from safespace.sessions where user_id = $1', [user.id]);

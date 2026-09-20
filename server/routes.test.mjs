@@ -384,18 +384,25 @@ test('POST /api/me/phone/detach is refused without a session token', async () =>
   assert.equal((await post('/api/me/phone/detach')).status, 401);
 });
 
-test('POST /api/me/phone/detach removes the phone and revokes the calling session', async () => {
+test('POST /api/me/phone/detach removes the phone, leaves the house and revokes the session', async () => {
   await freshStore();
-  const user = await registerVerifiedUser({ phone: '+6591234567', name: 'Detach' });
-  const token = await createSession(user.id);
-  const headers = { authorization: `Bearer ${token}` };
+  const owner = await signedIn('Detach');
+  const { house } = await (await post('/api/house', { name: 'Leavers' }, owner.auth)).json();
+  const mate = await signedIn('Mate');
+  await post('/api/house/join', { code: house.inviteCode }, mate.auth);
 
-  const detached = await post('/api/me/phone/detach', {}, headers);
+  doorbellRings.length = 0;
+  const detached = await post('/api/me/phone/detach', {}, owner.auth);
   assert.equal(detached.status, 200);
   assert.equal((await detached.json()).ok, true);
-  assert.equal((await getUser(user.id)).phone, undefined);
-  assert.equal((await getUser(user.id)).consentToDrills, false);
-  assert.equal((await post('/api/me/phone/detach', {}, headers)).status, 401);
+  assert.equal((await getUser(owner.user.id)).phone, undefined);
+  assert.equal((await getUser(owner.user.id)).consentToDrills, false);
+  // Housemates must be told, and only once the transaction has committed.
+  assert.deepEqual(doorbellRings, [house.doorbell]);
+  const mateView = await getJson('/api/house', mate.auth);
+  assert.deepEqual(mateView.body.house.members.map((m) => m.id), [mate.user.id]);
+  assert.equal(mateView.body.house.ownerId, mate.user.id);
+  assert.equal((await post('/api/me/phone/detach', {}, owner.auth)).status, 401);
   await freshStore();
 });
 
