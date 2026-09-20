@@ -79,7 +79,7 @@ export function useHouse(enabled: boolean) {
   const inFlight = useRef<Promise<void> | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!sessionToken()) return;
+    if (!sessionToken()) { setLoading(false); return; }
     if (inFlight.current) return inFlight.current;
     inFlight.current = (async () => {
       const next = await apiGet<HouseState>("/api/house");
@@ -89,8 +89,13 @@ export function useHouse(enabled: boolean) {
     return inFlight.current;
   }, []);
 
+  // Runs once per false→true transition of `enabled` (a stable `refresh` identity keeps this
+  // effect from re-firing on every focus/interval refresh). Sign-in flips `enabled` on a
+  // mounted App.tsx without remounting this hook, so `loading`'s initial value alone can't
+  // reflect that — set it explicitly here before the fetch lands.
   useEffect(() => {
     if (!enabled) return;
+    setLoading(true);
     void refresh();
     const onFocus = () => { if (document.visibilityState === "visible") void refresh(); };
     document.addEventListener("visibilitychange", onFocus);
