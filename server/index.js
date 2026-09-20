@@ -589,7 +589,10 @@ api.post('/api/me/phone/detach', async (req, res) => {
   if (!user) return res.status(401).json({ error: 'session no longer valid' });
   if (!user.phone) return res.status(400).json({ error: 'no verified phone on file' });
   try {
-    await detachVerifiedPhone(userId);
+    // Detaching also leaves the house, so the housemates who stay need the ring — after
+    // the commit, never inside the transaction.
+    const { ring: topics } = await detachVerifiedPhone(userId);
+    await ring(topics);
     return res.json({ ok: true });
   } catch (error) {
     if (error?.code === 'IDENTITY_RECOVERY_UNAVAILABLE') {

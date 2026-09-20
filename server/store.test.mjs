@@ -19,6 +19,7 @@ const {
   VerificationRateLimitConflict,
 } = await import('./store.js');
 const { query } = await import('./db.js');
+const houses = await import('./houses.js');
 
 const freshStore = resetDb;
 
@@ -60,6 +61,58 @@ test('registerVerifiedUser saves the designed avatar', async () => {
     () => registerVerifiedUser({ phone: '+6591110003', name: 'Bad', avatar: { hat: 'Tiara' } }),
     /avatar is invalid/,
   );
+});
+
+// house_id and avatar are deliberately absent from USER_FIELDS, so the UPDATE a
+// returning sign-in runs cannot touch them. Nothing else enforces that: adding either
+// column to USER_FIELDS would evict every returning player from their house and reset
+// their character, silently. This test is what fails if someone does.
+test('a returning sign-in keeps the house and the avatar', async () => {
+  await freshStore();
+  const avatar = { color: '#c77dff', glow: '#00ff88', hat: 'Crown', eyes: 'Visor', outfit: 'Stealth' };
+  const user = await registerVerifiedUser({ phone: '+6591234567', name: 'Judge' });
+  const { houseId } = await houses.createHouse(user.id, 'The Tans');
+  await setUserAvatar(user.id, avatar);
+
+  const again = await registerVerifiedUser({ phone: '+6591234567', name: '' });
+  assert.equal(again.id, user.id);
+  assert.equal(again.houseId, houseId, 'a returning player must stay in their house');
+  assert.deepEqual(again.avatar, avatar, 'a returning player keeps their character');
+  const stored = await getUser(user.id);
+  assert.equal(stored.houseId, houseId);
+  assert.deepEqual(stored.avatar, avatar);
+  await freshStore();
+});
+
+// Asking the app to forget your number must also stop showing your name, level and
+// streak to housemates — and must not leave a house stuck with an absent owner.
+test('detachVerifiedPhone also takes the player out of their house', async () => {
+  await freshStore();
+  const anHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  const owner = await registerVerifiedUser({ phone: '+6591234501', name: 'Owner' });
+  const mate = await registerVerifiedUser({ phone: '+6591234502', name: 'Mate' });
+  await houses.createHouse(owner.id, 'The Tans', { now: anHourAgo });
+  const { house } = await houses.getHouseView(owner.id);
+  await houses.joinHouse(mate.id, house.inviteCode);
+
+  const detached = await detachVerifiedPhone(owner.id);
+  assert.equal(detached.user.phone, undefined);
+  assert.equal(detached.user.houseId, undefined, 'the detached player is out of the house');
+  assert.deepEqual(detached.ring, [house.doorbell], 'the old topic is returned for a ring after commit');
+
+  const mateView = await houses.getHouseView(mate.id);
+  assert.equal(mateView.house.ownerId, mate.id, 'ownership passes to the earliest remaining joiner');
+  assert.deepEqual(mateView.house.members.map((m) => m.id), [mate.id]);
+  assert.notEqual(mateView.house.doorbell, house.doorbell, 'the doorbell rotates, as on any leave');
+  assert.equal((await houses.getHouseView(owner.id)).house, null);
+
+  // The last member detaching deletes the house, exactly as leaving does.
+  const solo = await registerVerifiedUser({ phone: '+6591234503', name: 'Solo' });
+  await houses.createHouse(solo.id, 'Alone');
+  assert.deepEqual((await detachVerifiedPhone(solo.id)).ring, []);
+  const { rows } = await query('select count(*) as n from safespace.houses where name = $1', ['ALONE']);
+  assert.equal(Number(rows[0].n), 0);
+  await freshStore();
 });
 
 // Guards the PII invariant: /api/family and /api/me are world-readable, so a user
@@ -149,7 +202,7 @@ test('detachVerifiedPhone removes the number, withdraws consent and revokes all 
   const firstToken = await createSession(u.id);
   const secondToken = await createSession(u.id);
 
-  const detached = await detachVerifiedPhone(u.id);
+  const { user: detached } = await detachVerifiedPhone(u.id);
   assert.equal(detached.phone, undefined);
   assert.equal(detached.consentToDrills, false);
   assert.equal(detached.email, 'judge@example.com', 'other account data must be retained');

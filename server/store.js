@@ -9,6 +9,9 @@ import crypto from 'crypto';
 import { computeResult, KNOWN_OUTCOMES } from './xp.js';
 import { query, transaction } from './db.js';
 import { cleanAvatar } from './avatar.js';
+// houses.js imports this module's locking helpers in turn. Neither module calls the
+// other while it is being evaluated, so the cycle resolves before any call happens.
+import { lockHouseOf, releaseFromHouse } from './houses.js';
 import {
   INSERT_USER_SQL,
   UPDATE_USER_SQL,
@@ -1047,11 +1050,16 @@ export async function setVerifiedUserEmail(userId, verificationId) {
 }
 
 // Remove the verified phone and every session whose authority came from that
-// verification. Progress and optional email remain intact so the account can reconnect
-// a number later without losing its training history.
+// verification, and leave the caller's house: asking the app to forget your number must
+// also stop showing your name, level and streak to housemates, and must not leave a
+// house with an owner who is no longer reachable. Progress and optional email remain
+// intact so the account can reconnect a number later without losing its history.
+// Returns { user, ring } — the caller rings after the transaction commits, never inside.
 export async function detachVerifiedPhone(userId) {
   const at = new Date().toISOString();
   return transaction(async (tx) => {
+    // Lock order is house then user (server/houses.js), so the house comes first.
+    const house = await lockHouseOf(tx, userId);
     const user = await requireLockedUser(tx, userId);
     if (!user.phone) {
       const error = new Error('no verified phone on file');
@@ -1066,10 +1074,12 @@ export async function detachVerifiedPhone(userId) {
     user.phoneLookupHash = phoneLookupHash(user.phone, { required: true });
     delete user.phone;
     user.consentToDrills = false;
+    // `house_id` is not in USER_FIELDS, so the saveUser below cannot put them back.
+    const ring = house && user.houseId === house.id ? await releaseFromHouse(tx, house, user) : [];
     const saved = await saveUser(tx, user);
     await tx.query('delete from safespace.sessions where user_id = $1', [user.id]);
     await logConsent(tx, { userId: user.id, type: 'withdrawn', channel: 'account', at });
-    return saved;
+    return { user: saved, ring };
   }, 'detachVerifiedPhone');
 }
 
