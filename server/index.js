@@ -88,7 +88,9 @@ const CLIENT_REAL_OUTCOMES = {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, '..', 'dist');
 
-// The app's realtime socket goes straight to Supabase, so allow that one origin.
+// The app's realtime socket goes straight to Supabase, so allow that one origin. Read
+// once at startup — SUPABASE_URL is fixed for the process's lifetime, so there is no
+// reason to re-parse it on every request.
 function supabaseConnectSources() {
   try {
     const url = new URL(process.env.SUPABASE_URL || '');
@@ -97,6 +99,7 @@ function supabaseConnectSources() {
     return [];
   }
 }
+const CONNECT_SRC = ["connect-src 'self'", ...supabaseConnectSources()].join(' ');
 
 const app = express();
 app.disable('x-powered-by');
@@ -122,7 +125,7 @@ app.use((req, res, next) => {
     'Content-Security-Policy': [
       "default-src 'self'",
       "base-uri 'self'",
-      ["connect-src 'self'", ...supabaseConnectSources()].join(' '),
+      CONNECT_SRC,
       "font-src 'self' data: https://fonts.gstatic.com",
       "form-action 'self'",
       "frame-ancestors 'none'",

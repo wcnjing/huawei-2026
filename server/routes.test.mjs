@@ -181,6 +181,21 @@ test('wrong and expired codes get the same answer', async () => {
   assert.doesNotMatch(body.error, /expire/i);
 });
 
+test('too many wrong join codes rate-limit the account', async () => {
+  await freshStore();
+  const p = await signedIn('Guesser');
+  for (let i = 0; i < 10; i += 1) {
+    const res = await post('/api/house/join', { code: 'ZZZ-ZZZ' }, p.auth);
+    assert.equal(res.status, 400, `attempt ${i}`);
+    assert.equal((await res.json()).code, 'CODE_INVALID', `attempt ${i}`);
+  }
+  const res = await post('/api/house/join', { code: 'ZZZ-ZZZ' }, p.auth);
+  assert.equal(res.status, 429);
+  assert.equal((await res.json()).code, 'JOIN_RATE_LIMITED');
+  const retryAfter = Number(res.headers.get('retry-after'));
+  assert.ok(Number.isInteger(retryAfter) && retryAfter >= 1, retryAfter);
+});
+
 test('GET /api/house never exposes phone or email', async () => {
   await freshStore();
   const owner = await signedIn('Owner');
@@ -200,6 +215,16 @@ test('a failing doorbell never fails the request', async () => {
   } finally {
     doorbellMode = 'ok';
   }
+});
+
+test('a non-house route still rings the house on a visible stat change', async () => {
+  await freshStore();
+  const p = await signedIn('Renamer');
+  const { house } = await (await post('/api/house', { name: 'Ringers' }, p.auth)).json();
+  doorbellRings.length = 0;
+  const res = await post('/api/me/name', { name: 'New Name' }, p.auth);
+  assert.equal(res.status, 200);
+  assert.ok(doorbellRings.includes(house.doorbell));
 });
 
 test('house drill runs record once and ring the house', async () => {
