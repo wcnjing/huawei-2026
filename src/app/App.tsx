@@ -3259,7 +3259,7 @@ function DollhouseRoom({ member, onTap, coins, soldItems, purchasedItems }: { me
 
 function HouseRoof({ title }: { title: string }) {
   return (
-    <div style={{ position: "relative", height: 48, backgroundColor: "#0a0e1a", borderBottom: "4px solid #2a3a5c", overflow: "hidden" }}>
+    <div style={{ position: "relative", height: 48, flexShrink: 0, backgroundColor: "#0a0e1a", borderBottom: "4px solid #2a3a5c", overflow: "hidden" }}>
       <svg width="100%" height={48} viewBox="0 0 390 48" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, imageRendering: "pixelated" }}>
         {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((i) => (
           <rect key={i} x={i * 16} y={48 - ((12 - i) * 4)} width={(390 - i * 32)} height={(12 - i) * 4} fill="#1a2a3a" opacity={0.9} />
