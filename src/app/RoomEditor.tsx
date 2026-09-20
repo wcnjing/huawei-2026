@@ -60,9 +60,9 @@ export function RoomEditor({ items, layout, roomName, accent, background, onSave
 
   return <div style={{ position: 'fixed', inset: 0, zIndex: 11000, background: 'rgba(3,8,18,.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }}>
     <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby="room-editor-title" tabIndex={-1}
-      style={{ width: '100%', maxWidth: 560, maxHeight: 'calc(100dvh - 24px)', display: 'flex', flexDirection: 'column', border: `3px solid ${accent}`, boxShadow: `5px 5px 0 #050b16`, background: '#0a0e1a', color: '#e8f4f8', fontFamily: "'Share Tech Mono', monospace", fontSize: 16, outline: 'none' }}>
+      style={{ width: '100%', maxWidth: 560, maxHeight: 'calc(100dvh - 24px)', display: 'flex', flexDirection: 'column', border: `3px solid ${accent}`, boxShadow: `5px 5px 0 #050b16`, background: '#0a0e1a', color: '#e8f4f8', fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", outline: 'none' }}>
       <div style={{ padding: '16px 18px', borderBottom: '2px solid #263752' }}>
-        <h2 id="room-editor-title" style={{ fontSize: 22, color: accent, margin: '0 0 4px' }}>Arrange room</h2>
+        <h2 id="room-editor-title" style={{ fontSize: "var(--text-display)", color: accent, margin: '0 0 4px' }}>Arrange room</h2>
         <div style={{ color: '#a8bbcf' }}>{roomName}</div>
       </div>
       <div style={{ overflowY: 'auto', padding: 16, minHeight: 0 }}>

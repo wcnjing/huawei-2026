@@ -1,0 +1,59 @@
+/* Shared sizes keep normal and accessibility text in the same hierarchy. */
+.safespace-app {
+  --text-scale: 1;
+  --text-caption: calc(.875rem * var(--text-scale));
+  --text-label: calc(.875rem * var(--text-scale));
+  --text-body: calc(1rem * var(--text-scale));
+  --text-heading: calc(1.125rem * var(--text-scale));
+  --text-title: calc(1.25rem * var(--text-scale));
+  --text-display: calc(1.375rem * var(--text-scale));
+  --text-hero: calc(1.75rem * var(--text-scale));
+  font-family: 'Share Tech Mono', monospace;
+  font-size: var(--text-body);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.safespace-app.a11y-large-text { --text-scale: 1.2; }
+
+.safespace-app input,
+.safespace-app textarea,
+.safespace-app select { font-size: var(--text-body); }
+
+.pixel-button {
+  min-height: 44px;
+  max-width: 100%;
+  line-height: 1.5;
+  white-space: normal;
+}
+
+.app-header { flex-wrap: wrap; gap: 8px; }
+.app-header-title { flex: 1 1 max-content; min-width: min-content; line-height: 1.6; overflow-wrap: normal; }
+.app-header-actions { flex-shrink: 0; margin-left: auto; }
+.subpage-header { flex-wrap: wrap; }
+.subpage-header > button { min-height: 44px; flex-shrink: 0; }
+.subpage-title { flex: 1 1 220px; min-width: 0; line-height: 1.6; }
+.profile-summary { display: grid; grid-template-columns: 72px minmax(0, 1fr); align-items: center; gap: 12px; }
+.accessibility-option { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+.accessibility-option-description { grid-column: 1 / -1; }
+
+.room-heading { position: relative; z-index: 1; padding: 12px 14px; }
+.room-heading-name { font-size: var(--text-heading); line-height: 1.4; }
+.room-heading-details { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; }
+.room-heading-details > span { display: inline-flex; align-items: center; gap: 5px; }
+.room-invite { position: relative; z-index: 2; align-self: flex-end; margin: 0 12px 8px; min-height: 44px; max-width: calc(100% - 24px); }
+.room-player { width: calc(100% - 32px); min-width: 0; }
+.room-player-name { font-size: var(--text-title); line-height: 1.4; text-align: center; max-width: 100%; }
+.room-tap-label { text-align: right; font-size: var(--text-caption); }
+.house-safety-members { flex-wrap: wrap; }
+.house-roof-title { max-width: calc(100% - 32px); text-align: center; }
+
+.bottom-nav { min-height: 80px; }
+.bottom-nav > button { min-width: 0; padding: 8px 2px; }
+.bottom-nav-label { font-size: var(--text-caption); line-height: 1.25; overflow-wrap: normal; }
+.bottom-nav-drill { min-height: 64px; }
+
+/* Larger text needs room to reflow, especially in a narrow phone frame. */
+.safespace-app .flex-1 { min-width: 0; min-height: 0; }
+.safespace-app button { overflow-wrap: anywhere; }
+.safespace-app svg { flex-shrink: 0; }
