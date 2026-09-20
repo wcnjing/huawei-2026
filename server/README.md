@@ -29,13 +29,17 @@ the race tests PGlite cannot run; CI runs both.
 | File | Coverage |
 |---|---|
 | `xp.test.mjs` | Shared outcome → XP/streak policy, including neutral distress exits |
+| `avatar.test.mjs` | Avatar allowlist: exact allowed keys kept, anything outside it rejected |
+| `week.test.mjs` | Monday 00:00 Asia/Singapore week boundary |
 | `verify.test.mjs` | Twilio Verify modes, explicit dev bypass and rate limiting |
 | `drill-links.test.mjs` | HMAC signatures, expiry, action binding and email ownership links |
 | `sms.test.mjs` | Fictional scenarios, reserved domains, Twilio schedule-before-bait ordering and cancellation |
 | `email.test.mjs` | First-party links, durable follow-up ordering, relay escaping and rejection of arbitrary HTML |
 | `vapi.test.mjs` | Structured call analysis, role-aware fallback, operational/unscored endings and attempt metadata |
 | `store.test.mjs` | PII projection, sessions, attempts, exactly-once completion and pending ACK |
-| `store.concurrency.test.mjs` | Races on real Postgres: lost updates, cooldowns, OTP caps, duplicate webhooks, duplicate registration |
+| `houses.test.mjs` | House rules, weekly flags, drill runs, PII |
+| `doorbell.test.mjs` | Supabase Realtime broadcast: apikey-only auth, dedup and payload shape, no-op when unconfigured, failures/timeouts swallowed |
+| `store.concurrency.test.mjs` | Races on real Postgres: lost updates, cooldowns, OTP caps, duplicate webhooks, duplicate registration, house joins and leaves |
 | `db.test.mjs` | Schema placement and row-level security, migrations, database selection, retries, error redaction |
 | `rows.test.mjs` | Row ↔ object mapping that keeps the API's JSON unchanged |
 | `routes.test.mjs` | HTTP authentication, ownership, replay, input validation and production-shaped fail-closed behavior |
@@ -49,15 +53,22 @@ identity.
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/health` | Minimal liveness response |
-| GET | `/api/me` | Current public account view and ownership flags |
-| GET | `/api/family` | PII-stripped demo family plus the signed-in account |
-| GET | `/api/leaderboard` | PII-stripped ranking |
+| GET | `/api/me` | Current account (session required) |
 | GET | `/api/drills/pending-result` | Non-destructively peek at the next result |
 | POST | `/api/drills/pending-result/:resultId/ack` | Remove the result only after the UI displayed it |
 | POST | `/api/drills/practice-result` | Idempotent half-XP practice result; requires a client `attemptId` |
 | POST | `/api/verify/start` | Send phone ownership OTP |
-| POST | `/api/verify/check` | Verify OTP, mandatory name, create expiring session |
+| POST | `/api/verify/check` | Verify OTP; name required only for a new account; optional avatar; `NO_ACCOUNT` for unknown numbers |
 | POST | `/api/me/name` | Update the name used by future drills |
+| POST | `/api/me/avatar` | Set the mascot avatar (allowlisted color/glow/hat/eyes/outfit) |
+| GET | `/api/house` | `{ self, house }`: `self` is the caller's own member view (weekly flags even when solo); `house` is `null` when solo |
+| POST | `/api/house` | Create a house with `{name}`; the creator becomes owner with a fresh 24h code |
+| POST | `/api/house/join` | Join with `{code}`; the same message for a wrong or an expired code; refuses at 6 members |
+| POST | `/api/house/code` | Owner only: regenerate the invite code with a new 24h expiry |
+| POST | `/api/house/name` | Owner only: rename the house |
+| POST | `/api/house/members/:memberId/remove` | Owner only: remove a member (not themself); rotates the doorbell |
+| POST | `/api/house/leave` | Leave; an owner leaving hands ownership to the earliest joiner, the last member leaving deletes the house |
+| POST | `/api/drills/house-run` | Record a house drill run `{clientKey, correct, cautious, wrong}`; only the first run of the week earns XP; replaying a key returns the stored run |
 | POST | `/api/me/phone/detach` | Remove raw phone, preserve keyed recovery lookup, withdraw consent and revoke sessions |
 | POST | `/api/me/email/verification/start` | Send an inbox ownership link |
 | POST | `/api/me/email` | Compatibility alias for starting ownership verification |
@@ -74,6 +85,27 @@ identity.
 | POST | `/drill-report?token=…` | Explicitly confirm report outcome |
 | POST | `/api/webhooks/vapi` | Authenticated Vapi end report → exactly-once outcome |
 | POST | `/api/drills/simulate` | Offline result helper; absent unless explicitly enabled |
+
+## Houses and the doorbell
+
+A player belongs to at most one house (`server/houses.js`), of up to 6 members,
+created or joined at any time; solo play is the full game. Invite codes are 6
+characters from `23456789ABCDEFGHJKMNPQRSTUVWXYZ` (no 0/O/1/I/L), shown as `K7P-3QX`,
+and expire 24 hours after they're generated — regenerating a code replaces the old one
+outright, and a wrong or expired code gets the same error either way. Every mutation
+(create, join, leave, remove, rename, regenerate) runs in one transaction, and the lock
+order is always the house row, then user rows: a join can never push a house past 6
+members, and re-checking a user's `house_id` under their own row lock means nobody ends
+up owning or belonging to two houses at once.
+
+After a transaction commits, `server/doorbell.js` rings a content-free Supabase
+Realtime broadcast on the house's `doorbell` topic — the message carries no house or
+member data, only "something changed." The ring has a 2-second timeout and never fails
+the request it followed; without `SUPABASE_URL`/`SUPABASE_SECRET_KEY` it's a no-op, and
+either way the client falls back to its own on-focus and 5-minute refresh of
+`GET /api/house`. Removing a member rotates the doorbell to a fresh topic, so the
+removed player's still-open app stops hearing that house while everyone else picks up
+the new topic on their next refresh.
 
 ## Outcome lifecycle
 

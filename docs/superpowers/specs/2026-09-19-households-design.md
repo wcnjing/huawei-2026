@@ -84,7 +84,7 @@ email or recovery lookup.
 
 | Method | Path | Who | Does |
 |---|---|---|---|
-| GET | `/api/house` | anyone | `{ house: null }` when solo, else the house: name, owner, members (id, name, avatar, stats, weekly flags, this week's drill score), code and expiry, doorbell |
+| GET | `/api/house` | anyone | `{ self, house }`: `self` is the caller's own member view, so solo players get weekly flags too; `house` is `null` when solo, else the house: name, owner, members (id, name, avatar, stats, weekly flags, this week's drill score), code and expiry, doorbell |
 | POST | `/api/house` | not in a house | create with `{name}`; the creator is owner and gets a fresh code |
 | POST | `/api/house/join` | not in a house | `{code}`; the same "code not valid" message for wrong and expired codes; "house is full" at 6 |
 | POST | `/api/house/code` | owner | new code, 24h expiry |
@@ -104,12 +104,15 @@ own `house_id` is re-checked under their row lock, so they can't end up in two h
 
 **Doorbell** (`server/doorbell.js`): after a transaction commits, the server POSTs an
 empty `changed` broadcast to `{SUPABASE_URL}/realtime/v1/api/broadcast` on the house's
-`doorbell` topic, using `SUPABASE_SECRET_KEY`, with a 2-second timeout. Failures are
-logged and never fail the request. It rings on every house change and whenever a
-member's stats change (drill results, drill runs, name or avatar). Without
-`SUPABASE_URL` or the key it does nothing. The broadcast carries no data; clients refetch
-`GET /api/house`. Removing a member rotates the topic so the removed person stops
-hearing it.
+`doorbell` topic, with a 2-second timeout. The secret key travels in the `apikey`
+header only — new Supabase secret keys are not JWTs, so no `Authorization: Bearer`
+header is sent. Failures are logged and never fail the request. It rings on every house
+change and whenever a member's stats change (drill results, drill runs, name or
+avatar). Without `SUPABASE_URL` or the key it does nothing. The broadcast carries no
+data; clients refetch `GET /api/house`. Removing a member rotates the topic so the
+removed person stops hearing it. The Express Content-Security-Policy adds the Supabase
+origin to `connect-src`, so the browser's own Realtime subscription (using
+`VITE_SUPABASE_PUBLISHABLE_KEY`) is allowed when Express serves the built app.
 
 **Sign-up changes** to `POST /api/verify/check`:
 - `name` is required only when the number has no account; a returning number keeps its
@@ -149,14 +152,19 @@ on the phone.
 
 ## 4. Screens
 
-**New `src/app/house.tsx`:**
-- API client for the routes above.
-- `useHouse()` → `{ me, house, members, loading, refresh }`. Fetches on start, on a
-  doorbell ring, when the app regains focus and every 5 minutes. Subscribes with
-  `@supabase/supabase-js` using `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`;
-  without them it falls back to focus and 5-minute refreshes.
-- Screens: new/returning choice, create house, join house, house settings (code with
-  share and copy, rename, member list with remove, leave).
+**New `src/app/house.ts`** holds logic only — no screens, to avoid an import cycle with
+`App.tsx`:
+- Types and the API client for the routes above.
+- `useHouse(enabled)` → `{ state: { self, house }, loading, refresh, apply }`. Fetches
+  on start, on a doorbell ring, when the app regains focus and every 5 minutes.
+  Subscribes with `@supabase/supabase-js` using `VITE_SUPABASE_URL` and
+  `VITE_SUPABASE_PUBLISHABLE_KEY`; without them it falls back to focus and 5-minute
+  refreshes.
+
+Session helpers (`sessionToken`, `authHeaders`, `apiGet`, `apiPost`) live in
+`src/app/api.ts` instead. New screens — new/returning choice, create house, join house,
+house settings (code with share and copy, rename, member list with remove, leave) — go
+in `App.tsx`, next to the UI primitives (`PixelBtn`, `PixelMascot`, …) they use.
 
 **Existing screens:**
 
@@ -184,9 +192,14 @@ pass-and-play member switching, the fake messages in `INITIAL_CHAT`.
 - *Routes*: 401 without a session; 403 for non-owners on owner routes; identical
   wrong/expired code messages; join rate limits; no phone or email in `GET /api/house`;
   `NO_ACCOUNT`; removed routes return 404.
-- *Races* (real Postgres): 7 people joining a house of 5 at once, so exactly one gets
-  in; one person joining two houses at once; owner leaving during a join; removal during
-  a drill run. Each race test is proven by temporarily removing its lock.
+- *Races* (real Postgres, `server/store.concurrency.test.mjs`): 7 people joining a
+  house of 5 at once, so exactly one gets in; one person joining two houses at once; the
+  owner leaving while others join; the last member leaving while someone joins, which
+  exercises the house-deletion path (member removal and drill runs touch disjoint rows,
+  so a race between them was dropped in favor of this one); one person creating a house
+  while joining another, since `createHouse` takes no rate-limit lock and only the
+  user-row lock keeps it honest. Each race test is proven by temporarily removing its
+  lock.
 - *Doorbell*: rings only after commit; a failing or slow ring doesn't fail the request;
   no-op when unconfigured.
 

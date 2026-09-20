@@ -374,3 +374,24 @@ Supabase hosts, which the CLI manages.
 Every write is a transaction that locks only what it reads, so any number of server
 instances can run at once. `server/store.concurrency.test.mjs` proves that against a
 real Postgres (`npm run test:pg`, and CI).
+
+---
+
+# Households rollout
+
+Sub-project 2 (see `docs/superpowers/specs/2026-09-19-households-design.md`) adds
+houses, drill runs and the Supabase Realtime doorbell. These steps are run by hand,
+once, against production — they touch the live database and Vercel project settings,
+so no worker task performs them automatically:
+
+1. Build `feat/houses`; confirm CI is green.
+2. `npx supabase db push` — applies `supabase/migrations/20260920000001_houses.sql` to
+   the production project.
+3. In the Supabase dashboard, confirm Realtime broadcast allows public channels (the
+   `doorbell` topic name is itself the secret; the doorbell carries no house or member
+   data).
+4. Add to Vercel **Production** environment variables: `SUPABASE_URL`,
+   `SUPABASE_SECRET_KEY`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`. All four
+   are optional — leaving them unset just means the app falls back to refreshing houses
+   on focus and every five minutes instead of getting a live doorbell ring.
+5. Merge `feat/houses` to `main`, push, and verify production.
