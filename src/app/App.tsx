@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useMemo, createContext, useContext } from "react";
+import { RoomEditor, RoomFurnitureLayer } from "./RoomEditor";
+import { reconcileLayout, type RoomLayout, type RoomLayouts } from "./room-layout";
 import { unlock, playSfx, setMuted, setMusicEnabled, isMuted } from "./audio";
 import { TOKEN_KEY, apiGet, apiPost, authHeaders, handleApiAuth, sessionToken, setSessionToken, type ApiResult } from "./api";
 import {
@@ -1807,10 +1809,11 @@ type HomeInventory = {
   coins: Record<string, number>;
   soldItems: string[];
   purchasedItems: Record<string, string[]>;
+  roomLayouts: RoomLayouts;
 };
 
 function defaultHomeInventory(): HomeInventory {
-  return { coins: {}, soldItems: [], purchasedItems: {} };
+  return { coins: {}, soldItems: [], purchasedItems: {}, roomLayouts: {} };
 }
 
 function loadHomeInventory(): HomeInventory {
@@ -1828,6 +1831,7 @@ function loadHomeInventory(): HomeInventory {
     const savedSoldItems: unknown[] = Array.isArray(saved?.soldItems) ? saved.soldItems : [];
     const savedCoins: Record<string, unknown> = saved?.coins ?? {};
     const savedPurchases: Record<string, unknown> = saved?.purchasedItems ?? {};
+    const savedLayouts = saved?.roomLayouts ?? {};
     return {
       coins: Object.fromEntries(Object.entries(savedCoins).map(([memberId, value]) => {
         // Earlier builds could take coins away after a missed red flag and leave a
@@ -1838,6 +1842,9 @@ function loadHomeInventory(): HomeInventory {
       soldItems: [...new Set(savedSoldItems.filter(
         (id): id is string => typeof id === "string" && validFurnitureIds.has(id),
       ))],
+      roomLayouts: Object.fromEntries(Object.entries(savedPurchases).map(([memberId, value]) => [
+        memberId, reconcileLayout(Array.isArray(value) ? value.filter((id): id is string => typeof id === "string" && validShopIds.has(id)) : [], savedLayouts[memberId]),
+      ])),
       purchasedItems: Object.fromEntries(Object.entries(savedPurchases).map(([memberId, value]) => {
         const savedIds: unknown[] = Array.isArray(value) ? value : [];
         return [
@@ -1854,7 +1861,7 @@ function loadHomeInventory(): HomeInventory {
 }
 
 function saveHomeInventory(inventory: HomeInventory) {
-  try { localStorage.setItem(HOME_INVENTORY_KEY, JSON.stringify(inventory)); } catch { /* private mode */ }
+  try { localStorage.setItem(HOME_INVENTORY_KEY, JSON.stringify(inventory)); return true; } catch { return false; }
 }
 
 // Before houses, coins and furniture were keyed by role id. A player now owns one
@@ -3192,63 +3199,25 @@ function FurnitureKid() {
   );
 }
 
-function PurchasedRoomFurniture({ itemIds, accent }: { itemIds: string[]; accent: string }) {
-  const items = itemIds
-    .map(id => SHOP_CATALOGUE.find(item => item.id === id))
-    .filter((item): item is ShopItem => !!item);
-  if (items.length === 0) return null;
+function purchasedFurniture(itemIds: string[]) {
+  return itemIds.map(id => SHOP_CATALOGUE.find(item => item.id === id))
+    .filter((item): item is ShopItem => !!item)
+    .map(item => ({ id: item.id, name: item.name, art: <ShopFurnitureArt art={item.art} size={64} /> }));
+}
 
-  const visible = items.slice(0, 8);
-  const hiddenCount = items.length - visible.length;
-  const itemSize = items.length <= 2 ? 40 : items.length <= 4 ? 32 : 24;
-  const columns = Math.min(items.length, 4);
-  const gap = 4;
-  return (
-    <div
-      data-room-purchased-items={items.length}
-      aria-label={`${items.length} purchased furniture item${items.length === 1 ? "" : "s"} in room`}
-      style={{
-        position: "absolute",
-        right: 38,
-        bottom: 12,
-        width: columns * itemSize + Math.max(0, columns - 1) * gap,
-        display: "grid",
-        gridTemplateColumns: `repeat(${columns}, ${itemSize}px)`,
-        alignItems: "end",
-        justifyContent: "end",
-        gap,
-      }}
-    >
-      {visible.map(item => (
-        <div
-          key={item.id}
-          title={item.name}
-          style={{
-            width: itemSize,
-            height: itemSize,
-            display: "flex",
-            alignItems: "flex-end",
-            justifyContent: "center",
-            filter: `drop-shadow(1px 1px 0 ${memberShadowColor(accent)})`,
-          }}
-        >
-          <ShopFurnitureArt art={item.art} size={itemSize - 2} />
-        </div>
-      ))}
-      {hiddenCount > 0 && (
-        <div style={{ position: "absolute", right: 0, bottom: -16, backgroundColor: "#0a0e1a", border: `2px solid ${accent}`, padding: "1px 4px", fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: accent }}>
-          +{hiddenCount}
-        </div>
-      )}
-    </div>
-  );
+function PurchasedRoomFurniture({ itemIds, accent, layout }: { itemIds: string[]; accent: string; layout?: RoomLayout }) {
+  if (!itemIds.length) return null;
+  return <div data-room-purchased-items={itemIds.length} aria-label={`${itemIds.length} purchased furniture items in room`}
+    style={{ position: "absolute", inset: "55px 10px 12px", pointerEvents: "none", filter: `drop-shadow(1px 1px 0 ${memberShadowColor(accent)})` }}>
+    <RoomFurnitureLayer items={purchasedFurniture(itemIds)} layout={layout} />
+  </div>;
 }
 
 function memberShadowColor(accent: string) {
   return accent === "#ffe66d" ? "#6b4f00" : "#0a0e1a";
 }
 
-function DollhouseRoom({ member, onTap, coins, soldItems, purchasedItems }: { member: FamilyMember; onTap: (m: FamilyMember) => void; coins: number | null; soldItems: string[]; purchasedItems: string[] }) {
+function DollhouseRoom({ member, onTap, coins, soldItems, purchasedItems, layout }: { member: FamilyMember; onTap: (m: FamilyMember) => void; coins: number | null; soldItems: string[]; purchasedItems: string[]; layout?: RoomLayout }) {
   return (
     <button onClick={() => onTap(member)} style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", padding: "0", cursor: "pointer" }}>
       <div style={{ backgroundColor: member.roomBg, borderBottom: "4px solid #2a3a5c", position: "relative", height: 168, overflow: "hidden" }}>
@@ -3287,7 +3256,7 @@ function DollhouseRoom({ member, onTap, coins, soldItems, purchasedItems }: { me
         </div>
         {/* purchasedItems is the ownership source of truth; selling a shop item removes
             it there, while buying it again adds it back and should render it again. */}
-        <PurchasedRoomFurniture itemIds={purchasedItems} accent={member.primaryColor} />
+        <PurchasedRoomFurniture itemIds={purchasedItems} accent={member.primaryColor} layout={layout} />
         <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
           <SafetyBadge safe={member.safeThisWeek} size={18} />
           <MemberChar member={member} size={44} />
@@ -3473,8 +3442,8 @@ function MemberProfileOverlay({
   );
 }
 
-function SoloRoom({ member, coins, purchasedItems, inviteCode, onTap, onPlayWithOthers }: {
-  member: FamilyMember; coins: number; purchasedItems: string[];
+function SoloRoom({ member, coins, purchasedItems, layout, inviteCode, onTap, onPlayWithOthers }: {
+  member: FamilyMember; coins: number; purchasedItems: string[]; layout?: RoomLayout;
   inviteCode: string | null; onTap: () => void; onPlayWithOthers: () => void;
 }) {
   return (
@@ -3492,7 +3461,7 @@ function SoloRoom({ member, coins, purchasedItems, inviteCode, onTap, onPlayWith
         <IconCoin size={10} color="#ffe66d" />
         <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ffe66d" }}>{coins}</span>
       </div>
-      <PurchasedRoomFurniture itemIds={purchasedItems} accent={member.primaryColor} />
+      <PurchasedRoomFurniture itemIds={purchasedItems} accent={member.primaryColor} layout={layout} />
       <button onClick={onTap} style={{ position: "absolute", left: "50%", bottom: 40, transform: "translateX(-50%)", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
         <SafetyBadge safe={member.safeThisWeek} size={22} />
         <MemberChar member={member} size={112} />
@@ -3503,10 +3472,12 @@ function SoloRoom({ member, coins, purchasedItems, inviteCode, onTap, onPlayWith
   );
 }
 
-function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize, onTutorial, coins, soldItems, purchasedItems, house, onPlayWithOthers, onRemoveMember }: {
+function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize, onArrange, onTutorial, coins, soldItems, purchasedItems, roomLayouts, house, onPlayWithOthers, onRemoveMember }: {
   onDrillSelect: () => void; onFamilyDrill: () => void;
   onPayday: () => void;
   onCustomize: (memberId: string) => void;
+  onArrange: () => void;
+  roomLayouts: RoomLayouts;
   onTutorial: () => void;
   coins: Record<string, number>;
   soldItems: string[];
@@ -3531,6 +3502,7 @@ function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize,
               member={self}
               coins={coins[selfId] ?? 0}
               purchasedItems={purchasedItems[selfId] ?? []}
+              layout={roomLayouts[selfId]}
               inviteCode={house?.inviteCode ?? null}
               onTap={() => setSelectedMember(self)}
               onPlayWithOthers={onPlayWithOthers}
@@ -3554,6 +3526,7 @@ function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize,
                   coins={member.id === selfId ? coins[selfId] ?? 0 : null}
                   soldItems={soldItems}
                   purchasedItems={member.id === selfId ? purchasedItems[selfId] ?? [] : []}
+                  layout={member.id === selfId ? roomLayouts[selfId] : undefined}
                 />
               ))}
             </div>
@@ -3562,6 +3535,11 @@ function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize,
         <div style={{ height: 24, backgroundColor: "#1a2340", borderTop: "4px solid #2a3a5c", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#2a3a5c", letterSpacing: 3 }}>████████████████████████████</div>
         </div>
+        {self && (purchasedItems[selfId]?.length ?? 0) > 0 && (
+          <div style={{ padding: "12px 16px", backgroundColor: "#0a0e1a" }}>
+            <PixelBtn onClick={onArrange} color="#1a2340" textColor="#4ecdc4" size="md" full>ARRANGE ROOM</PixelBtn>
+          </div>
+        )}
         <div style={{ padding: "16px 16px 8px", backgroundColor: "#0a0e1a" }}>
           <div data-tour="start-drill"><PixelBtn onClick={onFamilyDrill} color="#00ff88" size="lg" full>[ START HOUSE DRILL ]</PixelBtn></div>
         </div>
@@ -4685,12 +4663,14 @@ function LearningBoard() {
 // Your own wallet + purchase state; you can only shop for yourself.
 // ─────────────────────────────────────────────────────────────────────────
 function ShopScreen({
-  activeMemberId, coins, purchasedItems, onBuy,
+  activeMemberId, coins, purchasedItems, layout, onBuy, onArrange,
 }: {
   activeMemberId: string;
   coins: Record<string, number>;
   purchasedItems: Record<string, string[]>;
   onBuy: (memberId: string, itemId: string, cost: number) => void;
+  layout?: RoomLayout;
+  onArrange: () => void;
 }) {
   const [filter, setFilter] = useState<"ALL" | "AFFORDABLE" | "OWNED">("ALL");
   const [justBought, setJustBought] = useState<string | null>(null);
@@ -4754,13 +4734,8 @@ function ShopScreen({
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 76, background: `repeating-linear-gradient(90deg, ${member.roomBg} 0px, ${member.roomBg} 18px, ${member.primaryColor}0a 18px, ${member.primaryColor}0a 36px)` }} />
             {/* Floor */}
             <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 24, background: `repeating-linear-gradient(90deg, #1a2a3a 0px, #1a2a3a 20px, ${member.roomBg} 20px, ${member.roomBg} 40px)`, borderTop: `2px solid ${member.primaryColor}55` }} />
-            {/* Placed shop items (first 5) */}
-            <div style={{ position: "absolute", bottom: 22, left: 6, display: "flex", alignItems: "flex-end", gap: 6 }}>
-              {owned.slice(0, 5).map(id => {
-                const item = SHOP_CATALOGUE.find(i => i.id === id);
-                if (!item) return null;
-                return <div key={id}><ShopFurnitureArt art={item.art} size={40} /></div>;
-              })}
+            <div style={{ position: "absolute", inset: "24px 8px 8px", pointerEvents: "none" }}>
+              <RoomFurnitureLayer items={purchasedFurniture(owned)} layout={layout} />
             </div>
             {owned.length === 0 && (
               <div style={{ position: "absolute", bottom: 34, left: 0, right: 0, textAlign: "center", fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4" }}>
@@ -4775,6 +4750,9 @@ function ShopScreen({
             </div>
           </div>
 
+          {owned.length > 0 && <div style={{ marginBottom: 14 }}>
+            <PixelBtn onClick={onArrange} color="#4ecdc4" textColor="#0a0e1a" size="md" full>ARRANGE ROOM</PixelBtn>
+          </div>}
           {/* Filter tabs */}
           <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
             {(["ALL", "AFFORDABLE", "OWNED"] as const).map(f => {
@@ -6628,13 +6606,14 @@ function HouseSettingsScreen({ house, selfId, onRegenerate, onRename, onRemove, 
   );
 }
 
-function CustomizeScreen({ memberId, coins, purchasedItems, soldItems, onBack, onSell }: {
+function CustomizeScreen({ memberId, coins, purchasedItems, soldItems, onBack, onSell, onArrange }: {
   memberId: string;
   coins: number;
   purchasedItems: string[];
   soldItems: string[];
   onBack: () => void;
   onSell: (memberId: string, itemId: string, value: number) => void;
+  onArrange: () => void;
 }) {
   const member = useMemberMap()[memberId];
   const memberItems = FURNITURE_STORE.filter(i => i.memberId === memberId);
@@ -6703,6 +6682,9 @@ function CustomizeScreen({ memberId, coins, purchasedItems, soldItems, onBack, o
             </div>
           )}
 
+          {purchasedItems.length > 0 && <div style={{ marginBottom: 18 }}>
+            <PixelBtn onClick={onArrange} color="#4ecdc4" textColor="#0a0e1a" size="md" full>ARRANGE ROOM</PixelBtn>
+          </div>}
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#6b8ba4", letterSpacing: 2, marginBottom: 10 }}>FURNITURE</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
             {unifiedItems.map(item => {
@@ -7423,9 +7405,11 @@ export default function App() {
   const [purchasedItems, setPurchasedItems] = useState<Record<string, string[]>>(
     initialHomeInventory.purchasedItems
   );
+  const [roomLayouts, setRoomLayouts] = useState<RoomLayouts>(initialHomeInventory.roomLayouts);
+  const [arrangingRoom, setArrangingRoom] = useState(false);
   useEffect(() => {
-    saveHomeInventory({ coins, soldItems, purchasedItems });
-  }, [coins, soldItems, purchasedItems]);
+    saveHomeInventory({ coins, soldItems, purchasedItems, roomLayouts });
+  }, [coins, soldItems, purchasedItems, roomLayouts]);
   const [rewardClaims, setRewardClaims] = useState<RewardClaims>(loadRewardClaims);
   useEffect(() => saveRewardClaims(rewardClaims), [rewardClaims]);
   const todayKey = localDateKey();
@@ -7457,7 +7441,7 @@ export default function App() {
   useEffect(() => {
     if (!knownSelfId || legacyInventoryMigrated()) return;
     markLegacyInventoryMigrated();
-    const folded = foldLegacyInventory({ coins, soldItems, purchasedItems }, knownSelfId);
+    const folded = foldLegacyInventory({ coins, soldItems, purchasedItems, roomLayouts }, knownSelfId);
     if (!folded) return;
     setCoins(folded.coins);
     setPurchasedItems(folded.purchasedItems);
@@ -8049,6 +8033,9 @@ export default function App() {
           ...prev,
           [memberId]: (prev[memberId] ?? []).filter(id => id !== itemId),
         }));
+        setRoomLayouts(prev => ({ ...prev, [memberId]: reconcileLayout(
+          (purchasedItems[memberId] ?? []).filter(id => id !== itemId), prev[memberId],
+        ) }));
         addCoinTx(memberId, value, "sell-furniture", `SOLD ${shopItem.name}`);
       }
     }
@@ -8066,6 +8053,9 @@ export default function App() {
       ...prev,
       [memberId]: [...(prev[memberId] ?? []), itemId],
     }));
+    setRoomLayouts(prev => ({ ...prev, [memberId]: reconcileLayout(
+      [...(purchasedItems[memberId] ?? []), itemId], prev[memberId],
+    ) }));
     addCoinTx(memberId, -cost, "buy-furniture", `BOUGHT ${item.name}`);
   };
 
@@ -8359,6 +8349,8 @@ export default function App() {
                 onFamilyDrill={goFamilyDrill}
                 onPayday={() => setScreen("payday")}
                 onCustomize={openCustomize}
+                onArrange={() => setArrangingRoom(true)}
+                roomLayouts={roomLayouts}
                 onTutorial={() => setTourOpen(true)}
                 coins={coins}
                 soldItems={soldItems}
@@ -8375,6 +8367,8 @@ export default function App() {
                 coins={coins}
                 purchasedItems={purchasedItems}
                 onBuy={handleBuyItem}
+                layout={roomLayouts[selfId]}
+                onArrange={() => setArrangingRoom(true)}
               />
             )}
             {screen === "profile" && (
@@ -8425,6 +8419,7 @@ export default function App() {
                 soldItems={soldItems}
                 onBack={goHome}
                 onSell={handleSellItem}
+                onArrange={() => setArrangingRoom(true)}
               />
             )}
             {screen === "family-chat" && (
@@ -8623,6 +8618,24 @@ export default function App() {
           )}
         </div>
       </PhoneFrame>
+      {arrangingRoom && selfView && memberMap[selfId] && (
+        <RoomEditor
+          key={selfId}
+          items={purchasedFurniture(purchasedItems[selfId] ?? [])}
+          layout={roomLayouts[selfId]}
+          roomName={memberMap[selfId].roomName}
+          accent={memberMap[selfId].primaryColor}
+          background={memberMap[selfId].roomBg}
+          onCancel={() => setArrangingRoom(false)}
+          onSave={layout => {
+            const next = { ...roomLayouts, [selfId]: reconcileLayout(purchasedItems[selfId] ?? [], layout) };
+            if (!saveHomeInventory({ coins, soldItems, purchasedItems, roomLayouts: next })) return false;
+            setRoomLayouts(next);
+            setArrangingRoom(false);
+            return true;
+          }}
+        />
+      )}
       {tourOpen && screen === "home" && (
         <TourOverlay onDone={() => { markTutorialSeen(); setTourOpen(false); }} />
       )}

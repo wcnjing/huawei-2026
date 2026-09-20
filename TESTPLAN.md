@@ -142,6 +142,13 @@ response keeps the follow-up scheduled and must not be presented as safely retry
 - Family and leaderboard show the signed-in account plus permitted demo members; no
   phone number, phone lookup HMAC, email, pending email or session token appears.
 - Buy furniture, return home, force-quit and reopen: the purchased item still renders.
+- Open Arrange Room from Home, Store and Customize Room after buying furniture.
+- Move furniture with mouse/touch dragging, select then tap, and keyboard arrows;
+  placement snaps to the grid and keeps the whole item inside the room.
+- Cancel or Escape discards edits. Save updates Home and Store previews and survives
+  reload on the same device without changing the coin balance.
+- Selling removes the item's saved position; rebuying preserves other items' positions.
+- If local storage cannot save, the editor stays open and reports the failure.
 - Selling and buying cannot duplicate items or make coins negative.
 - Daily/payday rewards cannot be reclaimed by reload or rapid double-tap.
 - XP, level, streak, room state and name survive force-quit/reopen.
