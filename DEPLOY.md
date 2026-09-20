@@ -399,4 +399,21 @@ so no worker task performs them automatically:
    `SUPABASE_SECRET_KEY`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`. All four
    are optional — leaving them unset just means the app falls back to refreshing houses
    on focus and every five minutes instead of getting a live doorbell ring.
-5. Merge `feat/houses` to `main`, push, and verify production.
+   Optionally also `TRUST_PROXY_HOPS`, the exact number of proxy hops in front of the
+   app. Without it `req.ip` is the platform's own socket address, shared by every
+   caller, so the per-address cap on wrong invite codes stays off (the 10-per-account
+   cap still applies) — which is deliberate: a shared bucket would let 30 strangers'
+   typos block joining for everybody.
+5. One-off check that the doorbell's broadcast endpoint accepts the secret key, with the
+   key pasted into your own terminal (never committed):
+
+   ```bash
+   curl -s -o /dev/null -w "%{http_code}\n" -X POST \
+     "https://pjogbcoomkbxfeqsxlny.supabase.co/realtime/v1/api/broadcast" \
+     -H "apikey: $SUPABASE_SECRET_KEY" -H "content-type: application/json" \
+     -d '{"messages":[{"topic":"house-check","event":"changed","payload":{},"private":false}]}'
+   ```
+
+   Expect `202`. A `401` means the key also needs an `Authorization: Bearer` header —
+   add it in `server/doorbell.js` and its test, then redeploy.
+6. Merge `feat/houses` to `main`, push, and verify production.
