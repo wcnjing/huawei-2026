@@ -2978,7 +2978,6 @@ type FamilyMember = {
   safeThisWeek: boolean; recentDrillResult: "WON" | "LOST" | null;
   primaryColor: string; roomName: string; roomBg: string;
   badgeCount: number; badgeTotal: number;
-  coins: number;
   avatar: AvatarConfig;
 };
 
@@ -3000,7 +2999,7 @@ function toFamilyMember(m: MemberView): FamilyMember {
     safeThisWeek: m.safeThisWeek, recentDrillResult: m.recentDrillResult,
     primaryColor: avatar.color, roomName: `${m.name}'S ROOM`,
     roomBg: ROOM_BACKGROUNDS[avatar.color] ?? "#081420",
-    badgeCount: m.badgeCount, badgeTotal: m.badgeTotal, coins: 0, avatar,
+    badgeCount: m.badgeCount, badgeTotal: m.badgeTotal, avatar,
   };
 }
 
@@ -3392,16 +3391,16 @@ function MemberProfileOverlay({
             ))}
           </div>
         </div>
-        <div style={{ padding: "16px 16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
-          {member.id === selfId && (
+        {member.id === selfId && (
+          <div style={{ padding: "16px 16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
             <PixelBtn
               onClick={() => { onClose(); onCustomize(member.id); }}
               color="#1a2340" textColor="#6b8ba4" size="md" full
             >
               CUSTOMIZE ROOM
             </PixelBtn>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -3434,7 +3433,7 @@ function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize,
               key={member.id}
               member={member}
               onTap={setSelectedMember}
-              coins={coins[member.id] ?? member.coins}
+              coins={coins[member.id] ?? 0}
               soldItems={soldItems}
               purchasedItems={purchasedItems[member.id] ?? []}
             />
@@ -3447,8 +3446,11 @@ function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize,
           <div data-tour="start-drill"><PixelBtn onClick={onFamilyDrill} color="#00ff88" size="lg" full>[ START FAMILY DRILL ]</PixelBtn></div>
         </div>
         <div style={{ padding: "0 16px 20px", backgroundColor: "#0a0e1a" }}>
-          <PixelBtn onClick={onPayday} color="#ffe66d" textColor="#0a0e1a" size="md" full>PAYDAY SUNDAY</PixelBtn>
-          <div style={{ height: 10 }} />
+          {/* Payday pays the signed-in member, so it stays hidden until they load. */}
+          {members.length > 0 && (<>
+            <PixelBtn onClick={onPayday} color="#ffe66d" textColor="#0a0e1a" size="md" full>PAYDAY SUNDAY</PixelBtn>
+            <div style={{ height: 10 }} />
+          </>)}
           <div data-tour="opt-in">{registered ? (
             <PixelBtn onClick={onDrillSelect} color="#00ff88" textColor="#0a0e1a" size="md" full>[ ✓ OPTED IN — RUN A REAL DRILL ]</PixelBtn>
           ) : (
@@ -3466,7 +3468,7 @@ function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize,
           member={selectedMember}
           onClose={() => setSelectedMember(null)}
           onCustomize={onCustomize}
-          coins={coins[selectedMember.id] ?? selectedMember.coins}
+          coins={coins[selectedMember.id] ?? 0}
         />
       )}
     </div>
@@ -6769,7 +6771,7 @@ function NotificationDetailScreen({
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: PAYDAY SUNDAY — now actually distributes coins via ledger
 // ─────────────────────────────────────────────────────────────────────────
-function PaydayScreen({ coins, claimedThisWeek, onCollect, onClose }: { coins: Record<string, number>; claimedThisWeek: boolean; onCollect: () => void; onClose: () => void }) {
+function PaydayScreen({ coins, claimedThisWeek, canCollect, onCollect, onClose }: { coins: Record<string, number>; claimedThisWeek: boolean; canCollect: boolean; onCollect: () => void; onClose: () => void }) {
   const [collected, setCollected] = useState(claimedThisWeek);
   const members = useMembers();
   const selfId = useSelfId();
@@ -6783,7 +6785,7 @@ function PaydayScreen({ coins, claimedThisWeek, onCollect, onClose }: { coins: R
   }).toUpperCase();
 
   const handleCollect = () => {
-    if (collected) return;
+    if (collected || !canCollect) return;
     setCollected(true);
     onCollect();
     setTimeout(() => onClose(), 1200);
@@ -6828,7 +6830,7 @@ function PaydayScreen({ coins, claimedThisWeek, onCollect, onClose }: { coins: R
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", letterSpacing: 2, marginBottom: 10 }}>YOUR BALANCE</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
             {paidMembers.map(m => {
-              const balance = coins[m.id] ?? m.coins;
+              const balance = coins[m.id] ?? 0;
               return (
                 <div key={m.id} style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "12px 14px", display: "flex", alignItems: "center", gap: 12 }}>
                   <MemberChar member={m} size={36} />
@@ -6864,8 +6866,12 @@ function PaydayScreen({ coins, claimedThisWeek, onCollect, onClose }: { coins: R
               <IconCheck size={16} color="#0a0e1a" />
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#0a0e1a" }}>{claimedThisWeek ? "COLLECTED THIS WEEK" : "COLLECTED!"}</div>
             </div>
-          ) : (
+          ) : canCollect ? (
             <PixelBtn onClick={handleCollect} color="#ffe66d" textColor="#0a0e1a" size="lg" full>[ COLLECT PAYDAY ]</PixelBtn>
+          ) : (
+            <div style={{ backgroundColor: "#111827", border: "4px solid #2a3a5c", padding: "16px", textAlign: "center", fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#6b8ba4" }}>
+              LOADING YOUR HOUSE…
+            </div>
           )}
         </div>
       </div>
@@ -7103,11 +7109,15 @@ export default function App() {
   const selfView = house.state.self;
   const selfId = selfView?.id ?? "me";
   const members = useMemo(() => {
-    const views = house.state.house?.members ?? (selfView ? [selfView] : []);
+    const views = house.state.house?.members ?? (house.state.self ? [house.state.self] : []);
     return views.map(toFamilyMember);
-  }, [house.state, selfView]);
+  }, [house.state]);
   const memberMap = useMemo(() => Object.fromEntries(members.map((m) => [m.id, m])), [members]);
   const activeMemberId = selfId; // one player per phone now
+  // Nothing may be earned or claimed before the server says who we are. A coin written
+  // against the "me" placeholder lands under an id no screen reads, and a week marked
+  // claimed that way can never be re-earned.
+  const canEarn = selfView !== null;
 
   const claimedDailyToday: Record<string, boolean> = {
     [selfId]: rewardClaims.dailyByMember[selfId] === todayKey,
@@ -7123,6 +7133,7 @@ export default function App() {
 
   // Central helper: mutate coins + append to ledger (cap-enforced)
   const addCoinTx = (memberId: string, delta: number, reason: CoinTxReason, label: string) => {
+    if (!canEarn) return;
     const tx: CoinTx = { id: makeTxId(), memberId, delta, reason, label, timestamp: Date.now() };
     setCoins(prev => ({ ...prev, [memberId]: (prev[memberId] ?? 0) + delta }));
     setCoinLedger(prev => [tx, ...prev].slice(0, LEDGER_CAP));
@@ -7281,6 +7292,7 @@ export default function App() {
 
   // Drill-outcome event helper (used by call/sms/email flows)
   const emitDrillEvent = (memberId: string, drill: DrillType, outcome: "win" | "lose", liveCallOutcome?: CallOutcome | null) => {
+    if (!canEarn) return;
     const rewards: Record<DrillType, number> = { call: 50, sms: 40, email: 60 };
     const penalties: Record<DrillType, number> = { call: -25, sms: -20, email: -30 };
     const delta = outcome === "win" ? rewards[drill] : penalties[drill];
@@ -7297,6 +7309,7 @@ export default function App() {
 
   // Family-round event helper
   const emitFamilyRoundEvent = (memberId: string, outcome: FamilyOutcome) => {
+    if (!canEarn) return;
     const delta = FAMILY_COINS[outcome];
     if (delta === 0) return; // cautious: no reward, but no penalty either
     const correct = outcome === "correct";
@@ -7307,6 +7320,7 @@ export default function App() {
 
   // Payday distribution: per-member, per-line-item entries in ledger
   const collectPayday = () => {
+    if (!canEarn) return;
     const claimKey = `payday:${localWeekKey()}`;
     if (rewardClaims.paydayWeek === localWeekKey() || rewardClaimInFlightRef.current.has(claimKey)) return;
     rewardClaimInFlightRef.current.add(claimKey);
@@ -7619,6 +7633,7 @@ export default function App() {
 
   // Furniture sell — now routes through ledger
   const handleSellItem = (memberId: string, itemId: string, value: number) => {
+    if (!canEarn) return; // never take furniture away when the coins can't be paid
     const saleKey = `${memberId}:${itemId}`;
     if (sellInFlightRef.current.has(saleKey)) return;
     const starter = FURNITURE_STORE.find(i => i.id === itemId);
@@ -7646,6 +7661,7 @@ export default function App() {
   };
 
   const handleBuyItem = (memberId: string, itemId: string, cost: number) => {
+    if (!canEarn) return; // never hand out an item when the cost can't be deducted
     const item = SHOP_CATALOGUE.find(i => i.id === itemId);
     if (!item) return;
     const currentCoins = coins[memberId] ?? 0;
@@ -7660,6 +7676,7 @@ export default function App() {
   };
 
   const handleClaimDaily = (memberId: string) => {
+    if (!canEarn) return;
     const claimDate = localDateKey();
     const claimKey = `daily:${memberId}:${claimDate}`;
     if (rewardClaims.dailyByMember[memberId] === claimDate || rewardClaimInFlightRef.current.has(claimKey)) return;
@@ -7932,7 +7949,7 @@ export default function App() {
                 scheduleNextLabel={drillWin.nextLabel}
               />
             )}
-            {screen === "payday" && <PaydayScreen coins={coins} claimedThisWeek={paydayClaimedThisWeek} onCollect={collectPayday} onClose={goHome} />}
+            {screen === "payday" && <PaydayScreen coins={coins} claimedThisWeek={paydayClaimedThisWeek} canCollect={canEarn} onCollect={collectPayday} onClose={goHome} />}
             {screen === "family-drill-intro" && <FamilyDrillIntroScreen onStart={() => setScreen("family-round")} onBack={goHome} />}
             {screen === "family-round" && (
               <FamilyRoundScreen
