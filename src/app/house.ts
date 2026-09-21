@@ -3,7 +3,7 @@
 // Supabase Realtime broadcast), when the app regains focus, and every five minutes.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { apiGet, apiPost, sessionToken } from "./api";
+import { apiPost, handleApiAuth, sessionToken } from "./api";
 
 export type Avatar = { color: string; glow: string; hat: string; eyes: string; outfit: string };
 export type WeekRun = { correct: number; cautious: number; wrong: number };
@@ -75,21 +75,61 @@ function realtimeClient(): SupabaseClient | null {
 
 const BACKUP_REFRESH_MS = 5 * 60 * 1000;
 
-export function useHouse(enabled: boolean) {
-  const [state, setState] = useState<HouseState>({ self: null, house: null });
+const EMPTY_HOUSE_STATE: HouseState = { self: null, house: null };
+
+export function useHouse(enabled: boolean, sessionIdentity = "") {
+  const [ownedState, setOwnedState] = useState<{ identity: string; state: HouseState }>(() => ({
+    identity: sessionIdentity,
+    state: EMPTY_HOUSE_STATE,
+  }));
   const [loading, setLoading] = useState(enabled);
-  const inFlight = useRef<Promise<void> | null>(null);
+  const epoch = useRef(0);
+  const inFlight = useRef<{ identity: string; promise: Promise<void>; controller: AbortController } | null>(null);
+  const state = ownedState.identity === sessionIdentity ? ownedState.state : EMPTY_HOUSE_STATE;
 
   const refresh = useCallback(async () => {
-    if (!sessionToken()) { setLoading(false); return; }
-    if (inFlight.current) return inFlight.current;
-    inFlight.current = (async () => {
-      const next = await apiGet<HouseState>("/api/house");
-      if (next) setState(next);
-      setLoading(false);
-    })().finally(() => { inFlight.current = null; });
-    return inFlight.current;
-  }, []);
+    const token = sessionToken();
+    if (!enabled || !token) { setLoading(false); return; }
+    if (inFlight.current?.identity === sessionIdentity) return inFlight.current.promise;
+    const requestEpoch = epoch.current;
+    const controller = new AbortController();
+    const current = {
+      identity: sessionIdentity,
+      controller,
+      promise: (async () => {
+        try {
+          const response = await fetch("/api/house", {
+            headers: { authorization: `Bearer ${token}` },
+            cache: "no-store",
+            signal: controller.signal,
+          });
+          handleApiAuth(response);
+          if (!response.ok) return;
+          const next = await response.json() as HouseState;
+          if (epoch.current === requestEpoch && sessionToken() === token) {
+            setOwnedState({ identity: sessionIdentity, state: next });
+          }
+        } catch (error) {
+          if (!(error instanceof Error && error.name === "AbortError")) return;
+        } finally {
+          if (epoch.current === requestEpoch) setLoading(false);
+        }
+      })(),
+    };
+    inFlight.current = current;
+    void current.promise.finally(() => {
+      if (inFlight.current === current) inFlight.current = null;
+    });
+    return current.promise;
+  }, [enabled, sessionIdentity]);
+
+  useEffect(() => {
+    epoch.current += 1;
+    inFlight.current?.controller.abort();
+    inFlight.current = null;
+    setOwnedState({ identity: sessionIdentity, state: EMPTY_HOUSE_STATE });
+    setLoading(enabled);
+  }, [enabled, sessionIdentity]);
 
   // Runs once per false→true transition of `enabled` (a stable `refresh` identity keeps this
   // effect from re-firing on every focus/interval refresh). Sign-in flips `enabled` on a
@@ -111,15 +151,29 @@ export function useHouse(enabled: boolean) {
   }, [enabled, refresh]);
 
   const doorbell = state.house?.doorbell ?? null;
+  const [changeRevision, setChangeRevision] = useState(0);
   useEffect(() => {
     const client = realtimeClient();
     if (!enabled || !doorbell || !client) return;
+    let current = true;
+    const notify = () => {
+      if (!current) return;
+      setChangeRevision(value => value + 1);
+      void refresh();
+    };
     const channel = client
       .channel(doorbell)
-      .on("broadcast", { event: "changed" }, () => void refresh())
-      .subscribe();
-    return () => { void client.removeChannel(channel); };
+      .on("broadcast", { event: "changed" }, notify)
+      .subscribe(status => { if (status === "SUBSCRIBED") notify(); });
+    return () => {
+      current = false;
+      void client.removeChannel(channel);
+    };
   }, [enabled, doorbell, refresh]);
 
-  return { state, loading, refresh, apply: setState };
+  const apply = useCallback((next: HouseState) => {
+    setOwnedState({ identity: sessionIdentity, state: next });
+  }, [sessionIdentity]);
+
+  return { state, loading, changeRevision, refresh, apply };
 }

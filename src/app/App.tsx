@@ -1,5 +1,5 @@
 import { SHOP_CATALOGUE, SHOP_CATEGORIES, DECOR_TYPES, filterShopItems, type ShopItem, type ShopCategory, type DecorType } from "./shop-catalogue";
-import { useState, useEffect, useRef, useMemo, createContext, useContext } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, createContext, useContext } from "react";
 import { RoomEditor, RoomFurnitureLayer } from "./RoomEditor";
 import { RoomBackdrop } from "./RoomBackdrop";
 import { RoomStyleEditor } from "./RoomStyleEditor";
@@ -12,6 +12,8 @@ import {
   saveAvatar, postHouseRun, formatCodeInput, captureInviteFromUrl, peekPendingInvite, takePendingInvite,
   type HouseState, type HouseView, type MemberView,
 } from "./house";
+import { useHouseChat } from "./chat";
+import { HouseChatScreen } from "./HouseChatScreen";
 
 // First-run tutorial. Shown once, then replayable from Home — people forget, and a
 // tutorial you can't get back to is worse than none.
@@ -292,18 +294,6 @@ type DrillResultRecord = {
 type NeutralResultNotice = { id: string; message: string };
 
 type FurnitureItem = { id: string; name: string; sellValue: number; memberId: string };
-type ChatMsg = {
-  memberId: string;
-  text: string;
-  time: string;
-  isPlayer?: boolean;
-  isPixi?: boolean;
-  incidentRef?: {
-    memberId: string;
-    kind: "drill-win" | "drill-lose" | "family-round" | "payday";
-  };
-};
-
 // ── Phase 2: Coin ledger types ─────────────────────────────────────────────
 type CoinTxReason =
   | "drill-win-call" | "drill-win-sms" | "drill-win-email"
@@ -2918,17 +2908,6 @@ function MemberChar({ member, size = 44 }: { member: Pick<FamilyMember, "avatar"
   const a = member.avatar;
   return <PixelMascot size={size} animate color={a.color} hat={a.hat} eyes={a.eyes} outfit={a.outfit} />;
 }
-
-// Pixi — the AI coach. Not a house member; synthetic entry for chat rendering.
-const PIXI_MEMBER = {
-  id: "pixi",
-  name: "PIXI",
-  primaryColor: "#00d4ff",
-};
-
-const INITIAL_CHAT: ChatMsg[] = [
-  { memberId:"pixi", isPixi:true, text:"Hi! I'm PIXI, your scam-fighter coach. I'll drop by after drills to share tips and celebrate wins.", time:"9:12 AM" },
-];
 
 function SafetyBadge({ safe, size = 20 }: { safe: boolean; size?: number }) {
   const color = safe ? "#00ff88" : "#ff2d55";
@@ -6571,103 +6550,6 @@ function CustomizeScreen({ memberId, coins, purchasedItems, soldItems, layout, o
   );
 }
 
-function FamilyChatScreen({ messages, onSend, onBack }: {
-  messages: ChatMsg[];
-  onSend: (text: string) => void;
-  onBack: () => void;
-}) {
-  const [input, setInput] = useState("");
-  const memberMap = useMemberMap();
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [messages]);
-
-  const send = () => {
-    if (!input.trim()) return;
-    onSend(input.trim());
-    setInput("");
-  };
-
-  return (
-    <div className="flex flex-col h-full">
-      <div style={{ padding: "0 16px", minHeight: 52, backgroundColor: "#0a0e1a", borderBottom: "4px solid #4ecdc4", display: "flex", alignItems: "center", gap: 12 }}>
-        <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-          <IconX size={16} color="#6b8ba4" />
-        </button>
-        <IconChat size={16} color="#4ecdc4" />
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#4ecdc4" }}>HOUSE CHAT</div>
-        <div style={{ marginLeft: "auto", width: 8, height: 8, backgroundColor: "#00ff88", animation: "pulse-dot 1.5s ease-in-out infinite" }} />
-      </div>
-
-      <div ref={scrollRef} className="flex-1 overflow-y-auto" style={{ padding: "12px 12px 4px", scrollbarWidth: "none", display: "flex", flexDirection: "column", gap: 10 }}>
-        {messages.map((msg, i) => {
-          const isPixi = msg.isPixi === true;
-          const isPlayer = msg.isPlayer === true;
-          const isRight = isPlayer;
-          const member = (isPlayer || isPixi) ? null : memberMap[msg.memberId];
-          const color = isPixi
-            ? PIXI_MEMBER.primaryColor
-            : isPlayer
-              ? "#00ff88"
-              : (member?.primaryColor ?? "#6b8ba4");
-          const bubbleBg = isPixi
-            ? "#0d1a24"
-            : isPlayer
-              ? "#1a3a2a"
-              : "#111827";
-          const textColor = isPixi
-            ? "#00d4ff"
-            : color;
-
-          return (
-            <div key={i} style={{ display: "flex", flexDirection: isRight ? "row-reverse" : "row", alignItems: "flex-end", gap: 8 }}>
-              {/* Left column: avatar + label */}
-              {!isRight && (
-                <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                  {isPixi ? (
-                    <PixiAvatar size={28} />
-                  ) : member ? (
-                    <MemberChar member={member} size={28} />
-                  ) : null}
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color }}>
-                    {isPixi ? "PIXI" : member?.name.slice(0, 3)}
-                  </div>
-                </div>
-              )}
-              {isRight && (
-                <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                  <PixelMascot size={28} />
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#00ff88" }}>YOU</div>
-                </div>
-              )}
-              {/* Right column: bubble + timestamp */}
-              <div style={{ maxWidth: "68%", display: "flex", flexDirection: "column", alignItems: isRight ? "flex-end" : "flex-start", gap: 3 }}>
-                <div style={{ backgroundColor: bubbleBg, border: `2px solid ${color}`, padding: "8px 10px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: textColor, lineHeight: 1.6 }}>
-                  {msg.text}
-                </div>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#2a3a5c" }}>{msg.time}</div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div style={{ padding: "10px 12px", borderTop: "4px solid #2a3a5c", backgroundColor: "#0a0e1a", display: "flex", gap: 8 }}>
-        <input
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && send()}
-          placeholder="TYPE YOUR MESSAGE..."
-          style={{ flex: 1, backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "10px 12px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", outline: "none" }}
-        />
-        <button onClick={send} style={{ backgroundColor: "#4ecdc4", border: "3px solid #0a0e1a", boxShadow: "3px 3px 0 #0a0e1a", cursor: "pointer", padding: "0 14px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#0a0e1a" }}>▶</div>
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: NOTIFICATIONS (list view)
 // ─────────────────────────────────────────────────────────────────────────
@@ -7110,7 +6992,7 @@ function claimRealEventId(id: string): boolean {
 // ROOT
 // ─────────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [, setSessionEpoch] = useState(0);
+  const [sessionEpoch, setSessionEpoch] = useState(0);
   const [screen, setScreen] = useState<Screen>("title");
   const [activeTab, setActiveTab] = useState<Tab>("home");
   const [drillType, setDrillType] = useState<DrillType>("call");
@@ -7251,10 +7133,22 @@ export default function App() {
 
   // The house is the only source of members now. Signed-out visitors have no house
   // and no members, so every member-keyed screen simply has nothing to show.
-  const signedIn = !!sessionToken();
-  const house = useHouse(signedIn);
+  const currentSession = sessionToken();
+  const signedIn = !!currentSession;
+  const house = useHouse(signedIn, currentSession ?? "signed-out");
   const selfView = house.state.self;
   const selfId = selfView?.id ?? "me";
+  const refreshHouseAfterChatDenied = useCallback(() => {
+    void house.refresh();
+  }, [house.refresh]);
+  const chat = useHouseChat({
+    houseId: house.state.house?.id ?? null,
+    selfId: selfView?.id ?? null,
+    sessionKey: currentSession,
+    active: screen === "family-chat",
+    changeRevision: house.changeRevision,
+    onAccessDenied: refreshHouseAfterChatDenied,
+  });
   const members = useMemo(() => {
     const views = house.state.house?.members ?? (house.state.self ? [house.state.self] : []);
     return views.map(view => toFamilyMember(view, roomStyles[view.id] ?? DEFAULT_ROOM_STYLE));
@@ -7308,8 +7202,6 @@ export default function App() {
 
   const [coinLedger, setCoinLedger] = useState<CoinTx[]>([]);
 
-  const [chatMessages, setChatMessages] = useState<ChatMsg[]>(INITIAL_CHAT);
-
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [activeNotificationId, setActiveNotificationId] = useState<string | null>(null);
 
@@ -7319,11 +7211,6 @@ export default function App() {
     const tx: CoinTx = { id: makeTxId(), memberId, delta, reason, label, timestamp: Date.now() };
     setCoins(prev => ({ ...prev, [memberId]: (prev[memberId] ?? 0) + delta }));
     setCoinLedger(prev => [tx, ...prev].slice(0, LEDGER_CAP));
-  };
-
-  const CHAT_CAP = 100;
-  const appendChatMessage = (msg: ChatMsg) => {
-    setChatMessages(prev => [...prev, msg].slice(-CHAT_CAP));
   };
 
   const appendNotification = (n: Omit<Notification, "id" | "timestamp" | "read">) => {
@@ -7399,79 +7286,6 @@ export default function App() {
       body: `+${DAILY_REWARD_AMOUNT} coins added to balance`,
     });
   };
-  
-  // Pixi message templates — keyed by event type + member name.
-  const nowTimeString = () => {
-    const d = new Date();
-    return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
-  };
-
-  const emitPixiDrillMessage = (memberId: string, drill: DrillType, outcome: "win" | "lose", liveCallOutcome?: CallOutcome | null) => {
-    const member = memberMap[memberId];
-    if (!member) return;
-    const name = drill === "call" && liveCallOutcome ? profile.name : member.name;
-    const templates: Record<DrillType, { win: string; lose: string }> = {
-      call: {
-        win: `Nice hang-up, ${name}! Gift-card demands are always a scam. Great instinct.`,
-        lose: `${name}, that IRS call was a scam. Real agencies contact you by post first — never phone threats. Try again soon.`,
-      },
-      sms: {
-        win: `${name} spotted a fake parcel notice — well done! Real couriers don't ask for card details by SMS.`,
-        lose: `${name} clicked a suspicious link. Next time, long-press links to see the real URL before tapping.`,
-      },
-      email: {
-        win: `${name} reported that phishing email. That's how the house stays safe.`,
-        lose: `${name} submitted details to a fake reward page. Always check the sender domain first. It happens — the important thing is spotting it next time.`,
-      },
-    };
-    const liveCallTemplates: Partial<Record<CallOutcome, string>> = {
-      hung_up: `Nice work, ${name}! You refused the caller and ended the pressure safely.`,
-      disengaged: `Excellent verification, ${name}. Ending the call and using an official channel is the safest move.`,
-      caught_flag: `${name} spotted the red flags. Next time, end the call as soon as the story stops adding up.`,
-      complied: `${name}, the caller got agreement to an unsafe step. Pause, hang up and verify independently next time.`,
-      shared_data: `${name}, sensitive information was shared in the drill. Real callers should never receive an OTP, PIN, password or transfer.`,
-    };
-    appendChatMessage({
-      memberId: "pixi",
-      isPixi: true,
-      text: drill === "call" && liveCallOutcome && liveCallTemplates[liveCallOutcome]
-        ? liveCallTemplates[liveCallOutcome]!
-        : templates[drill][outcome],
-      time: nowTimeString(),
-      incidentRef: { memberId, kind: outcome === "win" ? "drill-win" : "drill-lose" },
-    });
-  };
-
-  const emitPixiFamilyDrillSummary = (correctCount: number, totalRounds: number) => {
-    let text: string;
-    if (correctCount === totalRounds) {
-      text = `Perfect house drill — ${correctCount}/${totalRounds} correct! The whole household is scam-savvy today.`;
-    } else if (correctCount >= totalRounds - 1) {
-      text = `Great job team — ${correctCount}/${totalRounds} correct. One slip, but you mostly held the line.`;
-    } else if (correctCount >= Math.ceil(totalRounds / 2)) {
-      text = `House drill done: ${correctCount}/${totalRounds} correct. Some good instincts, some near-misses. Worth a debrief!`;
-    } else {
-      text = `House drill done: ${correctCount}/${totalRounds} correct. There are a few useful lessons to review — let's practise more this week.`;
-    }
-    appendChatMessage({
-      memberId: "pixi",
-      isPixi: true,
-      text,
-      time: nowTimeString(),
-      incidentRef: { memberId: "family", kind: "family-round" },
-    });
-  };
-
-  const emitPixiPaydayMessage = () => {
-    appendChatMessage({
-      memberId: "pixi",
-      isPixi: true,
-      text: "Payday collected! Members who stayed safe got the full bonus. Keep training so no one falls behind.",
-      time: nowTimeString(),
-      incidentRef: { memberId: "family", kind: "payday" },
-    });
-  };
-
   // Drill-outcome event helper (used by call/sms/email flows)
   const emitDrillEvent = (memberId: string, drill: DrillType, outcome: "win" | "lose", liveCallOutcome?: CallOutcome | null) => {
     if (!canEarn) return;
@@ -7485,7 +7299,6 @@ export default function App() {
       ? (drill === "call" ? "drill-win-call" : drill === "sms" ? "drill-win-sms" : "drill-win-email")
       : (drill === "call" ? "drill-lose-call" : drill === "sms" ? "drill-lose-sms" : "drill-lose-email");
     addCoinTx(memberId, delta, reason, label);
-    emitPixiDrillMessage(memberId, drill, outcome, liveCallOutcome);
     emitNotifDrill(memberId, drill, outcome, drill === "call" && liveCallOutcome ? profile.name : undefined);
   };
 
@@ -7516,7 +7329,6 @@ export default function App() {
     if (selfView?.safeThisWeek) {
       addCoinTx(selfId, bonus, "payday-bonus", "PAYDAY DRILL BONUS");
     }
-    emitPixiPaydayMessage();
     emitNotifPayday();
   };
 
@@ -7834,7 +7646,6 @@ export default function App() {
   const handleFamilyNext = () => {
     if (familyRoundIndex + 1 >= FAMILY_SCENARIOS.length) {
       const correctCount = familyAnswers.filter(a => a.outcome === "correct").length;
-      emitPixiFamilyDrillSummary(correctCount, FAMILY_SCENARIOS.length);
       emitNotifFamilyDrill(correctCount, FAMILY_SCENARIOS.length);
       finishHouseDrill();
       setScreen("family-summary");
@@ -8256,15 +8067,25 @@ export default function App() {
               />
             )}
             {screen === "family-chat" && (
-              <FamilyChatScreen
-                messages={chatMessages}
-                onSend={(text) => appendChatMessage({
-                  memberId: "player",
-                  text,
-                  time: nowTimeString(),
-                  isPlayer: true,
-                })}
+              <HouseChatScreen
+                key={`${sessionEpoch}:${selfId}:${house.state.house?.id ?? ""}`}
+                chat={chat}
+                selfId={selfId}
+                selfName={profile.name}
+                houseName={house.state.house?.name ?? ""}
+                hasHouse={!!house.state.house}
+                identityKey={`${selfId}:${house.state.house?.id ?? ""}`}
                 onBack={goHome}
+                onJoinHouse={() => setScreen("house")}
+                renderAvatar={avatar => (
+                  <PixelMascot
+                    size={28}
+                    color={avatar.color}
+                    hat={avatar.hat}
+                    eyes={avatar.eyes}
+                    outfit={avatar.outfit}
+                  />
+                )}
               />
             )}
             {screen === "notifications" && (
@@ -8344,7 +8165,6 @@ export default function App() {
                 onNext={handleFamilyNext}
                 onEnd={() => {
                   const correctCount = familyAnswers.filter(a => a.outcome === "correct").length;
-                  emitPixiFamilyDrillSummary(correctCount, FAMILY_SCENARIOS.length);
                   emitNotifFamilyDrill(correctCount, FAMILY_SCENARIOS.length);
                   finishHouseDrill();
                   setScreen("family-summary");
