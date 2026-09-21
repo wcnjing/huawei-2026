@@ -14,7 +14,7 @@ const {
   getDrillAttempt, markDrillAttemptSent, markDrillAttemptFailed,
   listPendingResults, peekPendingResult, ackPendingResult, applyOutcome,
   applyPracticeOutcomeOnce, DrillAttemptConflict, getDrillAttemptByActionToken,
-  setUserName, setUserAvatar, beginEmailVerification, cancelEmailVerification,
+  setUserName, setUserAvatar, setUserHomeInventory, beginEmailVerification, cancelEmailVerification,
   setVerifiedUserEmail, EmailVerificationConflict, reservePhoneVerificationSend,
   VerificationRateLimitConflict,
 } = await import('./store.js');
@@ -861,4 +861,48 @@ test('setUserAvatar stores an allowlisted avatar and rejects others', async () =
   assert.deepEqual((await setUserAvatar(u.id, avatar)).avatar, avatar);
   await assert.rejects(() => setUserAvatar(u.id, { ...avatar, hat: 'Tiara' }), /avatar is invalid/);
   assert.deepEqual((await getUser(u.id)).avatar, avatar);
+});
+
+test('setUserHomeInventory stores coins, furniture and layout, and rejects malformed input', async () => {
+  await freshStore();
+  const u = await registerVerifiedUser({ phone: '+6591110002', name: 'Homer' });
+  const inventory = {
+    coins: { [u.id]: 240 },
+    soldItems: ['grandma-chair'],
+    purchasedItems: { [u.id]: ['shop-rug'] },
+    roomLayouts: { [u.id]: { 'shop-rug': { x: 30, y: 100 } } },
+  };
+  assert.deepEqual((await setUserHomeInventory(u.id, inventory)).homeInventory, inventory);
+  await assert.rejects(
+    () => setUserHomeInventory(u.id, { ...inventory, coins: { [u.id]: -1 } }),
+    /home inventory is invalid/,
+  );
+  assert.deepEqual((await getUser(u.id)).homeInventory, inventory);
+});
+
+test('setUserHomeInventory is last-write-wins: an overlapping save from a second device replaces the whole record', async () => {
+  // Documents the accepted trade-off in store.js: like setUserAvatar, this is an
+  // unconditional overwrite with no lock, because the client always sends its whole
+  // record. Two sequential saves is the sequential shape that trade-off actually takes
+  // in practice — the later write simply wins outright, including for fields the
+  // earlier write touched that the later one didn't know about.
+  await freshStore();
+  const u = await registerVerifiedUser({ phone: '+6591110003', name: 'Overlap' });
+  const fromDeviceA = {
+    coins: { [u.id]: 100 },
+    soldItems: [],
+    purchasedItems: { [u.id]: ['shop-rug'] },
+    roomLayouts: { [u.id]: { 'shop-rug': { x: 0, y: 0 } } },
+  };
+  const fromDeviceB = {
+    // Device B never saw device A's purchase — its own snapshot predates it.
+    coins: { [u.id]: 50 },
+    soldItems: [],
+    purchasedItems: { [u.id]: [] },
+    roomLayouts: { [u.id]: {} },
+  };
+  await setUserHomeInventory(u.id, fromDeviceA);
+  const final = await setUserHomeInventory(u.id, fromDeviceB);
+  assert.deepEqual(final.homeInventory, fromDeviceB);
+  assert.deepEqual((await getUser(u.id)).homeInventory, fromDeviceB);
 });

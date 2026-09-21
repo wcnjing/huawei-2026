@@ -1880,10 +1880,14 @@ function saveRewardClaims(claims: RewardClaims) {
 // ─────────────────────────────────────────────────────────────────────────
 // SHOP FURNITURE ART — inline pixel-art renders for each ShopItem.art key
 // ─────────────────────────────────────────────────────────────────────────
+// `size` only sets the fallback intrinsic box before the image loads; once it has a
+// place to sit (a RoomFurnitureLayer item box, or a fixed-size wrapper like the shop
+// list row) it fills that box via width/height:100%+objectFit — it does not stay
+// capped at `size`, which used to leave placed furniture much smaller than its room.
 function ShopFurnitureArt({ art, size = 56 }: { art: ShopItem["art"]; size?: number }) {
   return <img src={`${import.meta.env.BASE_URL}furniture/${art}.svg`} alt="" aria-hidden="true"
     draggable={false} width={size} height={size * 48 / 56}
-    style={{ display: 'block', imageRendering: 'pixelated', objectFit: 'contain', maxWidth: '100%', maxHeight: '100%', flexShrink: 1 }} />;
+    style={{ display: 'block', imageRendering: 'pixelated', objectFit: 'contain', width: '100%', height: '100%', flexShrink: 1 }} />;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -7054,14 +7058,34 @@ export default function App() {
 
   // A verified account owns the canonical drill name. Keep the cosmetic profile and
   // registration prefill in sync with it, but retain local-only naming in demo/offline use.
+  // The same fetch also pulls this account's saved coins + furniture (see below), so a
+  // player signing in on a second device sees the room they built, not an empty one —
+  // one round trip does both instead of firing /api/me twice on every load.
   useEffect(() => {
-    if (!sessionToken()) return;
+    if (!sessionToken()) { setServerInventoryChecked(true); return; }
+    // apiGet never throws — a network error, a 5xx or a non-OK response all resolve to
+    // `null`, not a rejection. Only mark the check done when a response actually
+    // arrived: flagging it done on a failed fetch would let the save effect below fire
+    // immediately with this device's local (possibly empty/default) snapshot and
+    // overwrite the account's real saved room. Leaving the gate closed on failure just
+    // means this session doesn't sync — nothing is lost, since local storage still
+    // holds it — and the next successful load reconciles normally.
     apiGet<any>("/api/me").then((data) => {
+      if (!data) return;
       const serverName = data?.name ?? data?.user?.name ?? data?.profile?.name;
-      if (typeof serverName !== "string" || !serverName.trim()) return;
-      const clean = serverName.trim();
-      updateProfile({ name: clean });
-      saveContact({ ...loadContact(), name: clean });
+      if (typeof serverName === "string" && serverName.trim()) {
+        const clean = serverName.trim();
+        updateProfile({ name: clean });
+        saveContact({ ...loadContact(), name: clean });
+      }
+      const serverInventory = data?.homeInventory ?? data?.user?.homeInventory;
+      if (serverInventory && typeof serverInventory === "object") {
+        setCoins(serverInventory.coins ?? {});
+        setSoldItems(serverInventory.soldItems ?? []);
+        setPurchasedItems(serverInventory.purchasedItems ?? {});
+        setRoomLayouts(serverInventory.roomLayouts ?? {});
+      }
+      setServerInventoryChecked(true);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -7123,9 +7147,23 @@ export default function App() {
   const [roomLayouts, setRoomLayouts] = useState<RoomLayouts>(initialHomeInventory.roomLayouts);
   const [arrangingRoom, setArrangingRoom] = useState(false);
   const [roomStyles, setRoomStyles] = useState(loadRoomStyles);
+  // Set once the /api/me fetch above has resolved (or been skipped while signed out), so
+  // the very first save-effect run — firing with whatever this device had locally, before
+  // the server has had a chance to say what it already knows — never overwrites a
+  // signed-in account's saved room with this device's stale or default snapshot.
+  const [serverInventoryChecked, setServerInventoryChecked] = useState(false);
   useEffect(() => {
     saveHomeInventory({ coins, soldItems, purchasedItems, roomLayouts });
-  }, [coins, soldItems, purchasedItems, roomLayouts]);
+    if (!sessionToken() || !serverInventoryChecked) return;
+    // localStorage above is the durable local copy either way, so a failed sync here
+    // never loses this device's data — but silently swallowing it would make a real,
+    // recurring sync problem invisible. Log it so it shows up in the console/telemetry
+    // rather than only manifesting later as "my room didn't follow me to my new phone".
+    void apiPost("/api/me/home-inventory", { homeInventory: { coins, soldItems, purchasedItems, roomLayouts } })
+      .then((result) => {
+        if (!result.ok) console.warn("[home-inventory] sync to account failed:", result.status, result.data?.error);
+      });
+  }, [coins, soldItems, purchasedItems, roomLayouts, serverInventoryChecked]);
   const [rewardClaims, setRewardClaims] = useState<RewardClaims>(loadRewardClaims);
   useEffect(() => saveRewardClaims(rewardClaims), [rewardClaims]);
   const todayKey = localDateKey();

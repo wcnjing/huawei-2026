@@ -73,6 +73,7 @@ export function userFromRow(row) {
   setIfPresent(user, 'emailVerificationTokenHash', row.email_verification_token_hash);
   setIfPresent(user, 'houseId', row.house_id);
   setIfPresent(user, 'avatar', row.avatar);
+  setIfPresent(user, 'homeInventory', row.home_inventory);
   return user;
 }
 

@@ -654,6 +654,29 @@ test('verify/check and /api/me/avatar reject avatars outside the allowlist', asy
   await freshStore();
 });
 
+test('/api/me/home-inventory requires a session and saves coins, furniture and layout', async () => {
+  await freshStore();
+  const user = await registerVerifiedUser({ phone: '+6592220013', name: 'Hi' });
+  const auth = { authorization: `Bearer ${await createSession(user.id)}` };
+  const homeInventory = {
+    coins: { [user.id]: 300 },
+    soldItems: ['grandma-chair'],
+    purchasedItems: { [user.id]: ['shop-rug'] },
+    roomLayouts: { [user.id]: { 'shop-rug': { x: 30, y: 100 } } },
+  };
+  assert.equal((await post('/api/me/home-inventory', { homeInventory })).status, 401);
+  assert.equal(
+    (await post('/api/me/home-inventory', { homeInventory: { ...homeInventory, coins: { x: -1 } } }, auth)).status,
+    400,
+  );
+  const ok = await post('/api/me/home-inventory', { homeInventory }, auth);
+  assert.equal(ok.status, 200);
+  assert.deepEqual((await ok.json()).user.homeInventory, homeInventory);
+  const me = await fetch(base + '/api/me', { headers: auth });
+  assert.deepEqual((await me.json()).homeInventory, homeInventory);
+  await freshStore();
+});
+
 // ─── Signed-in practice scoring (sessions required) ────────────────────────
 test('practice drills score against the signed-in account', async () => {
   await freshStore();

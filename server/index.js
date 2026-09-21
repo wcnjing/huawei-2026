@@ -29,10 +29,12 @@ import {
   registerVerifiedUser,
   reservePhoneVerificationSend,
   setUserAvatar,
+  setUserHomeInventory,
   setUserName,
   setVerifiedUserEmail,
 } from './store.js';
 import { cleanAvatar } from './avatar.js';
+import { cleanHomeInventory } from './home-inventory.js';
 import {
   VapiDeliveryUnconfirmed,
   fireDrillCall,
@@ -572,6 +574,18 @@ api.post('/api/me/avatar', async (req, res) => {
   if (!cleanAvatar(req.body?.avatar)) return res.status(400).json({ error: 'avatar is invalid' });
   const user = await setUserAvatar(userId, req.body.avatar);
   await ringUser(userId);
+  return res.json({ ok: true, user: accountView(user) });
+});
+
+// Coins and furniture are cosmetic and private to the player — nobody else's house view
+// includes them, so unlike name/avatar this never rings the house doorbell.
+api.post('/api/me/home-inventory', async (req, res) => {
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+  if (!cleanHomeInventory(req.body?.homeInventory)) {
+    return res.status(400).json({ error: 'home inventory is invalid' });
+  }
+  const user = await setUserHomeInventory(userId, req.body.homeInventory);
   return res.json({ ok: true, user: accountView(user) });
 });
 
