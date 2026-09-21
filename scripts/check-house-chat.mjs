@@ -277,12 +277,49 @@ try {
   await cara.page.getByRole('button', { name: 'Open house chat' }).click();
   const caraHistory = cara.page.getByRole('region', { name: 'Message history' });
   await cara.page.getByRole('button', { name: 'Load older messages', exact: true }).waitFor();
-  const beforeOlder = await caraHistory.evaluate(element => ({ top: element.scrollTop, height: element.scrollHeight }));
-  await cara.page.getByRole('button', { name: 'Load older messages', exact: true }).click();
+  const stableAnchor = await caraHistory.evaluate(element => {
+    const historyBounds = element.getBoundingClientRect();
+    const entries = [...element.querySelectorAll('.house-chat__entry')];
+    const entry = entries.find(candidate => {
+      const bounds = candidate.getBoundingClientRect();
+      return bounds.bottom > historyBounds.top + 4 && bounds.top < historyBounds.bottom - 4;
+    }) ?? entries[0];
+    const text = entry?.querySelector('.house-chat__text')?.textContent;
+    return text && entry ? { text, top: entry.getBoundingClientRect().top } : null;
+  });
+  assert.ok(stableAnchor);
+  let releaseOlder;
+  let markOlderRequested;
+  const olderGate = new Promise(resolve => { releaseOlder = resolve; });
+  const olderRequested = new Promise(resolve => { markOlderRequested = resolve; });
+  await cara.page.route('**/chat/messages?before=*', async route => {
+    markOlderRequested();
+    await olderGate;
+    await route.continue();
+  }, { times: 1 });
+  const loadOlderClick = cara.page.getByRole('button', { name: 'Load older messages', exact: true }).click();
+  await olderRequested;
+  const concurrentArrival = `Concurrent anchor arrival ${Date.now()}`;
+  await database.query(
+    `insert into safespace.chat_messages
+       (house_id, sender_id, sender_name, sender_avatar, client_key, body, created_at)
+     values ($1, $2, $3, $4, $5, $6, $7)`,
+    [originalHouseId, bobPlayer.user.id, 'Bob', avatar, crypto.randomUUID(), concurrentArrival, new Date().toISOString()],
+  );
+  await cara.page.evaluate(() => globalThis.__HOUSE_CHAT_REALTIME__.changed());
+  await cara.page.getByText(concurrentArrival, { exact: true }).waitFor({ timeout: 10_000 });
+  releaseOlder();
+  await loadOlderClick;
   await cara.page.getByText('Catch-up message 021', { exact: true }).waitFor({ timeout: 10_000 });
-  const afterOlder = await caraHistory.evaluate(element => ({ top: element.scrollTop, height: element.scrollHeight }));
-  assert.ok(afterOlder.height > beforeOlder.height);
-  assert.ok(afterOlder.top >= beforeOlder.top + afterOlder.height - beforeOlder.height - 2);
+  const anchoredTop = await caraHistory.evaluate((element, text) => {
+    const entry = [...element.querySelectorAll('.house-chat__entry')]
+      .find(candidate => candidate.querySelector('.house-chat__text')?.textContent === text);
+    return entry?.getBoundingClientRect().top ?? null;
+  }, stableAnchor.text);
+  assert.notEqual(anchoredTop, null);
+  assert.ok(Math.abs(anchoredTop - stableAnchor.top) <= 2,
+    `stable message moved ${Math.abs(anchoredTop - stableAnchor.top)}px during concurrent append and prepend`);
+  await cara.page.unroute('**/chat/messages?before=*');
 
   const aliceHistory = alice.page.getByRole('region', { name: 'Message history' });
   let failPendingPost = true;

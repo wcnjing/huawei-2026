@@ -265,3 +265,90 @@ test('StrictMode effect replay retains a live hook-local controller', async () =
   await nextTask();
   assert.equal(calls[0].init.signal.aborted, true);
 });
+
+function chatPage(ids, hasMore = false) {
+  return {
+    houseId: 'house-a',
+    hasMore,
+    messages: ids.map(id => ({
+      id,
+      houseId: 'house-a',
+      senderId: 'user-a',
+      senderName: 'Alice',
+      senderAvatar: null,
+      clientKey: `key-${id}`,
+      text: `message ${id}`,
+      createdAt: '2026-09-21T00:00:00.000Z',
+    })),
+  };
+}
+
+function jsonResponse(value) {
+  return new Response(JSON.stringify(value), {
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
+test('a realtime revision does not abort an older-page read', async t => {
+  const useHouseChat = await loadHook();
+  const calls = installFetch();
+  const instance = new HookInstance();
+  t.after(async () => {
+    instance.unmount();
+    await nextTask();
+  });
+
+  let result = instance.render(useHouseChat, options({ active: true }));
+  instance.commit();
+  calls[0].resolve(jsonResponse(chatPage(['51', '52'], true)));
+  await nextTask();
+
+  result = instance.render(useHouseChat, options({ active: true }));
+  instance.commit();
+  const older = result.loadOlder();
+  const olderCall = calls.find(call => new URL(call.url, 'https://fixture.invalid').searchParams.has('before'));
+  assert.ok(olderCall);
+
+  instance.render(useHouseChat, options({ active: true, changeRevision: 1 }));
+  instance.commit();
+  assert.equal(olderCall.init.signal.aborted, false);
+
+  olderCall.resolve(jsonResponse(chatPage(['1'], false)));
+  for (const call of calls.filter(call => call !== olderCall && !call.init.signal.aborted).slice(1)) {
+    call.resolve(jsonResponse(chatPage([])));
+  }
+  await older;
+});
+
+test('a realtime revision coalesces without aborting forward catch-up', async t => {
+  const useHouseChat = await loadHook();
+  const calls = installFetch();
+  const instance = new HookInstance();
+  t.after(async () => {
+    instance.unmount();
+    await nextTask();
+  });
+
+  let result = instance.render(useHouseChat, options({ active: true }));
+  instance.commit();
+  calls[0].resolve(jsonResponse(chatPage(['1'])));
+  await nextTask();
+
+  result = instance.render(useHouseChat, options({ active: true }));
+  instance.commit();
+  const forward = result.refresh();
+  const forwardCall = calls.at(-1);
+  assert.equal(new URL(forwardCall.url, 'https://fixture.invalid').searchParams.get('after'), '1');
+
+  instance.render(useHouseChat, options({ active: true, changeRevision: 1 }));
+  instance.commit();
+  assert.equal(forwardCall.init.signal.aborted, false);
+
+  forwardCall.resolve(jsonResponse(chatPage(['2'])));
+  await nextTask();
+  const coalescedCall = calls.at(-1);
+  assert.notEqual(coalescedCall, forwardCall);
+  assert.equal(new URL(coalescedCall.url, 'https://fixture.invalid').searchParams.get('after'), '2');
+  coalescedCall.resolve(jsonResponse(chatPage([])));
+  await forward;
+});

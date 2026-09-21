@@ -193,6 +193,8 @@ export function useHouseChat(options: {
     ? `${options.sessionKey.length}:${options.sessionKey}|${options.selfId.length}:${options.selfId}|${options.houseId}`
     : null;
   const committed = useRef<OwnedController | null>(null);
+  const revisionOwner = useRef<ChatController | null>(null);
+  const handledRevision = useRef(options.changeRevision);
   const selected = useMemo(() => {
     if (!identity || !options.houseId || !options.selfId || !options.sessionKey) return null;
     const houseId = options.houseId;
@@ -268,6 +270,19 @@ export function useHouseChat(options: {
       stopTimer();
       controller.pause();
     };
+  }, [controller, options.active]);
+
+  useEffect(() => {
+    if (revisionOwner.current !== controller) {
+      revisionOwner.current = controller;
+      handledRevision.current = options.changeRevision;
+      return;
+    }
+    if (handledRevision.current === options.changeRevision) return;
+    handledRevision.current = options.changeRevision;
+    if (controller && options.active && document.visibilityState === "visible") {
+      void controller.refresh();
+    }
   }, [controller, options.active, options.changeRevision]);
 
   if (!controller) return EMPTY_RESULT;

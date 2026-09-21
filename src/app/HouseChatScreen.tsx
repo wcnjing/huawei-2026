@@ -49,7 +49,7 @@ export function HouseChatScreen({
   const historyRef = useRef<HTMLDivElement>(null);
   const nearBottomRef = useRef(true);
   const forceBottomRef = useRef(false);
-  const anchorRef = useRef<{ height: number; top: number; firstKey: string | null } | null>(null);
+  const anchorRef = useRef<{ key: string; top: number; firstKey: string | null } | null>(null);
   const lastMessageIdRef = useRef<string | null | undefined>(undefined);
   const validDraft = normalizeDraft(draft);
   const count = Array.from(draft.replace(/\r\n/g, "\n").trim()).length;
@@ -96,16 +96,22 @@ export function HouseChatScreen({
   useLayoutEffect(() => {
     const history = historyRef.current;
     if (!history) return;
-    if (anchorRef.current && (rows[0]?.key ?? null) !== anchorRef.current.firstKey) {
-      const anchor = anchorRef.current;
-      anchorRef.current = null;
-      history.scrollTop = anchor.top + history.scrollHeight - anchor.height;
-      return;
-    }
     const lastMessageId = chat.messages.at(-1)?.id ?? null;
     const previousMessageId = lastMessageIdRef.current;
     lastMessageIdRef.current = lastMessageId;
     const messageArrived = lastMessageId !== null && lastMessageId !== previousMessageId;
+    const anchor = anchorRef.current;
+    if (anchor) {
+      if ((rows[0]?.key ?? null) !== anchor.firstKey) {
+        anchorRef.current = null;
+        const element = [...history.querySelectorAll<HTMLElement>("[data-chat-row-key]")]
+          .find(candidate => candidate.dataset.chatRowKey === anchor.key);
+        if (element) history.scrollTop += element.getBoundingClientRect().top - anchor.top;
+      } else if (messageArrived) {
+        setNewMessages(true);
+      }
+      return;
+    }
     if (!messageArrived && !forceBottomRef.current) return;
     const hadMessages = previousMessageId !== undefined && previousMessageId !== null;
     if (!hadMessages || forceBottomRef.current || nearBottomRef.current) {
@@ -130,11 +136,16 @@ export function HouseChatScreen({
   const loadOlder = async () => {
     const history = historyRef.current;
     if (history) {
-      anchorRef.current = {
-        height: history.scrollHeight,
-        top: history.scrollTop,
+      const historyBounds = history.getBoundingClientRect();
+      const elements = [...history.querySelectorAll<HTMLElement>("[data-chat-row-key]")];
+      const element = elements.find(candidate => candidate.getBoundingClientRect().bottom > historyBounds.top)
+        ?? elements[0];
+      const key = element?.dataset.chatRowKey;
+      anchorRef.current = element && key ? {
+        key,
+        top: element.getBoundingClientRect().top,
         firstKey: rows[0]?.key ?? null,
-      };
+      } : null;
     }
     await chat.loadOlder();
   };
@@ -198,7 +209,7 @@ export function HouseChatScreen({
           const failed = row.kind === "pending" && row.status === "failed";
           const wait = failed ? remainingSeconds(row.retryAt, now) : 0;
           return (
-            <div key={row.key} className="house-chat__entry">
+            <div key={row.key} className="house-chat__entry" data-chat-row-key={row.key}>
               {showDay && <div className="house-chat__day">{dayFormatter.format(new Date(row.createdAt))}</div>}
               <article className={`house-chat__message${own ? " house-chat__message--own" : ""}`}>
                 <div className="house-chat__avatar" aria-hidden="true">

@@ -84,6 +84,8 @@ export function useHouse(enabled: boolean, sessionIdentity = "") {
   }));
   const [loading, setLoading] = useState(enabled);
   const epoch = useRef(0);
+  const currentIdentity = useRef(sessionIdentity);
+  currentIdentity.current = sessionIdentity;
   const inFlight = useRef<{ identity: string; promise: Promise<void>; controller: AbortController } | null>(null);
   const state = ownedState.identity === sessionIdentity ? ownedState.state : EMPTY_HOUSE_STATE;
 
@@ -103,7 +105,7 @@ export function useHouse(enabled: boolean, sessionIdentity = "") {
             cache: "no-store",
             signal: controller.signal,
           });
-          handleApiAuth(response);
+          if (sessionToken() === token) handleApiAuth(response);
           if (!response.ok) return;
           const next = await response.json() as HouseState;
           if (epoch.current === requestEpoch && sessionToken() === token) {
@@ -171,8 +173,10 @@ export function useHouse(enabled: boolean, sessionIdentity = "") {
     };
   }, [enabled, doorbell, refresh]);
 
-  const apply = useCallback((next: HouseState) => {
-    setOwnedState({ identity: sessionIdentity, state: next });
+  const apply = useCallback((next: HouseState, targetIdentity = sessionIdentity) => {
+    if (currentIdentity.current !== targetIdentity) return false;
+    setOwnedState({ identity: targetIdentity, state: next });
+    return true;
   }, [sessionIdentity]);
 
   return { state, loading, changeRevision, refresh, apply };

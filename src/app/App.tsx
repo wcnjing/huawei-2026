@@ -7804,8 +7804,9 @@ export default function App() {
     // Fetched rather than house.refresh()'d because the decision below needs the house in
     // hand: a state update would not be readable from this closure. house.apply keeps the
     // hook holding the same copy.
+    const signedInIdentity = sessionToken() ?? "signed-out";
     const state = await apiGet<HouseState>("/api/house");
-    if (state) house.apply(state);
+    if (state) house.apply(state, signedInIdentity);
     const invite = peekPendingInvite();
     goHome();
     if (!hasSeenTutorial()) setTourOpen(true);
