@@ -4,7 +4,7 @@ import { RoomEditor, RoomFurnitureLayer } from "./RoomEditor";
 import { RoomBackdrop } from "./RoomBackdrop";
 import { RoomStyleEditor } from "./RoomStyleEditor";
 import { DEFAULT_ROOM_STYLE, loadRoomStyles, saveRoomStyles, normalizeRoomStyle, roomColors, type RoomStyle } from "./room-style";
-import { reconcileLayout, type RoomLayout, type RoomLayouts } from "./room-layout";
+import { reconcileLayout, furnitureAnchor, type RoomLayout, type RoomLayouts } from "./room-layout";
 import { unlock, playSfx, setMuted, setMusicEnabled, isMuted } from "./audio";
 import { TOKEN_KEY, apiGet, apiPost, authHeaders, handleApiAuth, sessionToken, setSessionToken, type ApiResult } from "./api";
 import {
@@ -1884,10 +1884,18 @@ function saveRewardClaims(claims: RewardClaims) {
 // place to sit (a RoomFurnitureLayer item box, or a fixed-size wrapper like the shop
 // list row) it fills that box via width/height:100%+objectFit — it does not stay
 // capped at `size`, which used to leave placed furniture much smaller than its room.
-function ShopFurnitureArt({ art, size = 56 }: { art: ShopItem["art"]; size?: number }) {
+function ShopFurnitureArt({ art, size = 56, anchor = 'bottom' }: { art: ShopItem["art"]; size?: number; anchor?: 'top' | 'bottom' }) {
   return <img src={`${import.meta.env.BASE_URL}furniture/${art}.svg`} alt="" aria-hidden="true"
     draggable={false} width={size} height={size * 48 / 56}
-    style={{ display: 'block', imageRendering: 'pixelated', objectFit: 'contain', width: '100%', height: '100%', flexShrink: 1 }} />;
+    style={{
+      display: 'block', imageRendering: 'pixelated', width: '100%', height: '100%', flexShrink: 1,
+      // "contain" only fills the box's limiting dimension, so a wide/short asset (e.g. a
+      // hanging light) leaves the other dimension's slack centred by default — visible
+      // as a gap above AND below it. objectPosition instead pushes that whole gap to one
+      // side: below for something that should touch the room's ceiling, above for
+      // something that should touch its floor.
+      objectFit: 'contain', objectPosition: anchor === 'top' ? 'center top' : 'center bottom',
+    }} />;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -3022,7 +3030,10 @@ function FurnitureKid() {
 function purchasedFurniture(itemIds: string[]) {
   return itemIds.map(id => SHOP_CATALOGUE.find(item => item.id === id))
     .filter((item): item is ShopItem => !!item)
-    .map(item => ({ id: item.id, name: item.name, art: <ShopFurnitureArt art={item.art} size={64} /> }));
+    .map(item => ({
+      id: item.id, name: item.name,
+      art: <ShopFurnitureArt art={item.art} size={64} anchor={furnitureAnchor(item.id)} />,
+    }));
 }
 
 function PurchasedRoomFurniture({ itemIds, accent, layout }: { itemIds: string[]; accent: string; layout?: RoomLayout }) {
@@ -4650,7 +4661,7 @@ function ShopScreen({
                     </div>
                   )}
                   <div style={{ height: 84, width: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <ShopFurnitureArt art={item.art} size={98} />
+                    <ShopFurnitureArt art={item.art} size={98} anchor={furnitureAnchor(item.id)} />
                   </div>
                   <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#e8f4f8", textAlign: "center", lineHeight: 1.4 }}>
                     {item.name}
@@ -6483,7 +6494,7 @@ function CustomizeScreen({ memberId, coins, purchasedItems, soldItems, layout, o
         id: item.id,
         name: item.name,
         sellValue: Math.floor(item.cost * 0.75),
-        art: <ShopFurnitureArt art={item.art} size={30} />,
+        art: <ShopFurnitureArt art={item.art} size={30} anchor={furnitureAnchor(item.id)} />,
       })),
   ];
 
