@@ -38,6 +38,9 @@ the race tests PGlite cannot run; CI runs both.
 | `vapi.test.mjs` | Structured call analysis, role-aware fallback, operational/unscored endings and attempt metadata |
 | `store.test.mjs` | PII projection, sessions, attempts, exactly-once completion and pending ACK |
 | `houses.test.mjs` | House rules, weekly flags, drill runs, PII |
+| `chat.test.mjs` | Membership-locked persistence, validation, paging, retry idempotency, quotas and removal races |
+| `chat-routes.test.mjs` | Authenticated chat HTTP contracts, no-store headers, status mapping and content-free notifications |
+| `chat-client.test.mjs` / `chat-hook.test.mjs` | Browser delivery state, paging, retries, cancellation and identity isolation |
 | `doorbell.test.mjs` | Supabase Realtime broadcast: apikey-only auth, dedup and payload shape, no-op when unconfigured, failures/timeouts swallowed |
 | `store.concurrency.test.mjs` | Races on real Postgres: lost updates, cooldowns, OTP caps, duplicate webhooks, duplicate registration, house joins and leaves |
 | `db.test.mjs` | Schema placement and row-level security, migrations, database selection, retries, error redaction |
@@ -68,6 +71,8 @@ identity.
 | POST | `/api/house/name` | Owner only: rename the house |
 | POST | `/api/house/members/:memberId/remove` | Owner only: remove a member (not themself); rotates the doorbell |
 | POST | `/api/house/leave` | Leave; an owner leaving hands ownership to the earliest joiner, the last member leaving deletes the house |
+| GET | `/api/houses/:houseId/chat/messages` | Current members only: latest, older or newer message page |
+| POST | `/api/houses/:houseId/chat/messages` | Current members only: idempotently send one text message |
 | POST | `/api/drills/house-run` | Record a house drill run `{clientKey, correct, cautious, wrong}`; only the first run of the week earns XP; replaying a key returns the stored run |
 | POST | `/api/me/phone/detach` | Remove raw phone, preserve keyed recovery lookup, withdraw consent and revoke sessions |
 | POST | `/api/me/email/verification/start` | Send an inbox ownership link |
@@ -85,6 +90,60 @@ identity.
 | POST | `/drill-report?token=…` | Explicitly confirm report outcome |
 | POST | `/api/webhooks/vapi` | Authenticated Vapi end report → exactly-once outcome |
 | POST | `/api/drills/simulate` | Offline result helper; absent unless explicitly enabled |
+
+## House chat API
+
+Both chat routes require the normal bearer session and current membership in the
+exact `:houseId`. A missing house and a signed-in non-member intentionally receive the
+same `403 CHAT_ACCESS_DENIED` response. Membership is checked under the same database
+locks used by leave and removal; the client clears current history, composer and
+pending sends after a `401` or `403`. Every API response is `Cache-Control: no-store`.
+
+`GET /api/houses/:houseId/chat/messages` has a fixed page size of 50:
+
+- With no cursor, it returns the latest 50 messages in chronological order.
+- `before=<id>` returns the nearest 50 older messages in chronological order.
+- `after=<id>` returns the earliest 50 newer messages in chronological order.
+- `before` and `after` are mutually exclusive positive decimal bigint IDs. `hasMore`
+  describes more rows in the requested direction.
+
+The response is `{ houseId, messages, hasMore }`. Each message exposes only
+`{ id, houseId, senderId, senderName, senderAvatar, text, createdAt, clientKey }`;
+bigint IDs remain JSON strings. Current members can read messages from before they
+joined. A sender leaving does not erase prior messages, but deleting an empty house
+cascades its history.
+
+`POST /api/houses/:houseId/chat/messages` accepts exactly `{ text, clientKey }`, where
+`clientKey` is a UUID. The server derives sender identity, name, avatar and house from
+the authenticated account. It normalizes CRLF, trims surrounding whitespace, permits
+internal line breaks and tabs, rejects other controls, and accepts 1-1,000 Unicode
+code points. Message text is plain text, not HTML or Markdown.
+
+A new message returns `201 { message }`. Repeating the same `clientKey` and normalized
+text returns the original row with `200`, even after the account reaches its quota;
+reusing a key with different text returns `409`. New messages are limited to 20 per
+account per rolling minute. A `429` response includes `Retry-After` in whole seconds,
+and Retry must reuse the original key so a lost response cannot create a second row.
+
+Chat status behavior is:
+
+| Status | Meaning |
+|---:|---|
+| `200` | Exact idempotent retry, or successful history read |
+| `201` | New message committed |
+| `400` | Invalid body, text, client key or cursor |
+| `401` | Missing or expired bearer session |
+| `403` | Missing house or caller is not a current member |
+| `409` | Client key reused with different normalized text |
+| `429` | Rolling send quota reached; honor `Retry-After` |
+| `500` | Generic unexpected storage failure |
+
+After commit, the existing Supabase Realtime doorbell sends only an empty `{}`
+notification; it never broadcasts message or sender content. Notification failure does
+not roll back a send. With realtime unconfigured, visible chat polls every five
+seconds. Draft and failed-send bodies live only in the current browser session's
+memory, never localStorage or a service-worker cache. The chat contains no automated
+PIXI messages.
 
 ## Houses and the doorbell
 

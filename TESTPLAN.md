@@ -164,7 +164,36 @@ response keeps the follow-up scheduled and must not be presented as safely retry
 - Test back/swipe-back, background/resume, airplane mode and rapid reload.
 - Test an SE-sized phone, a large phone and a notched device in portrait.
 
-## I. Security smoke checks
+## I. House chat
+
+Use isolated test accounts and non-sensitive text. Do not test against a production
+database or include real credentials in a message.
+
+```text
+Manual acceptance: Create a house with Alice and Bob in separate browsers.
+Alice sends a message; Bob receives it, replies, and reloads without losing it.
+Join Charlie and confirm Alice's earlier message is visible.
+Remove Bob while his chat is open; he loses the composer and history on the next
+membership check. His old request URLs return 403. Alice still sees prior messages.
+Disconnect Alice's network during Send, reconnect, and Retry: exactly one row.
+Disable realtime configuration locally: messages still arrive by visible polling.
+```
+
+Also verify the chat initially shows the latest 50 rows, **Load older messages**
+prepends history without moving the visible row, and a backlog over 100 messages is
+fully drained without gaps or duplicates. A 21st new message within a rolling minute
+must show the rate-limit wait from `Retry-After`; retrying an already committed send
+with its original key must still return exactly one row.
+
+Confirm Enter sends, Shift+Enter adds a line break, IME composition does not send, and
+the 1,000-code-point boundary handles non-BMP Unicode correctly. HTML- or URL-looking
+text must remain inert plain text. Hidden or closed chat must not poll; reopening must
+catch up. No send may change XP, coins, drill results or notifications, and no PIXI
+message may appear in house history. Drafts and failed sends may survive closing and
+reopening chat in the same signed-in app session, but must not survive an identity
+change and must not appear in localStorage or a service-worker cache.
+
+## J. Security smoke checks
 
 - Unauthenticated real drill/account mutations return 401.
 - A body-supplied phone, email or user id cannot redirect a drill.
@@ -176,6 +205,10 @@ response keeps the follow-up scheduled and must not be presented as safely retry
   not the SPA fallback.
 - `/api/drills/simulate` is 404 in production.
 - Health/family/leaderboard responses expose no provider configuration or PII.
+- Chat GET and POST without a session return 401; a current session outside the exact
+  house returns 403, and neither response leaves old chat content visible.
+- A body-supplied sender id/name/avatar is rejected. Chat responses expose only the
+  documented message fields, and Supabase broadcasts contain no message or sender data.
 - After a controlled call, SafeSpace's own file/Redis record contains outcome and
   attempt metadata but no transcript or audio. Separately inspect provider settings:
   the code requests recording/logging off, but provider processing/retention must not

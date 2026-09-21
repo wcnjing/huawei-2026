@@ -2,7 +2,7 @@
 
 Date: 21 September 2026
 
-Status: Approved by the user; implementation has not started.
+Status: Implemented.
 
 ## Approved scope
 
@@ -246,5 +246,6 @@ Supabase migrations and production deployment are not performed during design wo
 Use the existing Supabase configuration; no new service or credentials are needed.
 Where realtime is unconfigured, chat remains functional through visible polling.
 
-Implementation begins only after the user reviews this written spec. The next
-step is an implementation plan using the writing-plans skill.
+Implementation was completed on `codex/house-chat` after user approval. The migration
+must be applied before application deployment; no deployment was performed as part of
+implementation.

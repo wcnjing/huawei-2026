@@ -61,6 +61,32 @@ Further reading: [backend/API guide](server/README.md),
 [deployment guide](DEPLOY.md), [manual test plan](TESTPLAN.md), and
 [pitch deck specification](PITCH_SLIDES.md).
 
+## House chat
+
+Each house has one private, text-only conversation backed by Postgres. Current
+members can read the house's full history, including messages sent before they
+joined. Leaving or being removed immediately revokes server access; an open client
+clears its view on its next membership event or authorization check. Messages from
+members who later leave remain in the house history, while deleting the empty house
+deletes its messages.
+
+The chat opens on the latest 50 messages and can load older pages. Sends are limited
+to 1,000 Unicode code points and 20 new messages per account per rolling minute.
+Failed sends remain in memory for Retry with the same idempotency key, so a response
+lost after commit does not create a duplicate. Drafts and pending messages are
+session-only browser memory: they are not written to localStorage or a service-worker
+cache and disappear when the authenticated chat state is unmounted or replaced.
+House chat contains member messages only; drills, rewards and other events do not add
+PIXI messages.
+
+Production rollout is migration-first: apply
+`supabase/migrations/20260921000001_house_chat.sql` through the existing database
+deployment process before deploying the application. The feature reuses the existing
+Postgres and Supabase Realtime configuration and needs no new service or credentials.
+Without realtime configuration, visible chat still refreshes by polling every five
+seconds. Messages from the retired in-memory chat were never persisted, so they
+cannot be recovered or migrated into the new history.
+
 ## Room customization
 
 Open **Customize room** from Home to name your room and choose a theme, wall color,
