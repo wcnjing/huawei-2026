@@ -1,6 +1,7 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import pg from 'pg';
 import { setupTestDb, resetDb, teardownTestDb } from './testdb.mjs';
 
 process.env.IDENTITY_LOOKUP_SECRET = 'chat-test-identity-secret-at-least-32-characters';
@@ -124,9 +125,17 @@ test('exact retries do not consume quota and the rolling window reports its exac
       clientKey: randomUUID(),
     }, { now: started });
   }
-  const { rows: hits } = await query(
+  let { rows: hits } = await query(
     "select count(*) as n from safespace.rate_limit_hits where scope = 'house_chat_send'",
   );
+  assert.equal(Number(hits[0].n), 20);
+
+  const exhaustedRetry = await chat.sendMessage(owner.id, houseId, firstInput, { now: started });
+  assert.equal(exhaustedRetry.created, false);
+  assert.deepEqual(exhaustedRetry.message, first.message);
+  ({ rows: hits } = await query(
+    "select count(*) as n from safespace.rate_limit_hits where scope = 'house_chat_send'",
+  ));
   assert.equal(Number(hits[0].n), 20);
 
   await assert.rejects(
@@ -255,51 +264,83 @@ test('the last member leaving cascades the house messages', async () => {
 
 const pgOnly = process.env.TEST_DATABASE_URL ? undefined : 'requires real PostgreSQL connections';
 
+async function waitForHouseLockWaiters(monitor, expected) {
+  const deadline = Date.now() + 5_000;
+  while (Date.now() < deadline) {
+    const { rows } = await monitor.query(
+      `select count(*)::integer as n
+         from pg_stat_activity
+        where datname = current_database()
+          and wait_event_type = 'Lock'
+          and query like 'select * from safespace.houses where id = $1 for update%'`,
+    );
+    if (rows[0].n === expected) return;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  throw new Error(`expected ${expected} blocked house-lock waiters`);
+}
+
 test('send and removal serialize at the house lock in either arrival order', { skip: pgOnly }, async () => {
-  for (const sendFirst of [true, false]) {
-    const { owner, other, houseId, code } = await fixture();
-    await houses.joinHouse(other.id, code);
+  const monitor = new pg.Client({ connectionString: process.env.DATABASE_URL });
+  await monitor.connect();
+  try {
+    for (const sendFirst of [true, false]) {
+      const { owner, other, houseId, code } = await fixture();
+      await houses.joinHouse(other.id, code);
 
-    let markLocked;
-    let releaseLock;
-    const locked = new Promise((resolve) => { markLocked = resolve; });
-    const release = new Promise((resolve) => { releaseLock = resolve; });
-    const holder = transaction(async (tx) => {
-      await tx.query('select id from safespace.houses where id = $1 for update', [houseId]);
-      markLocked();
-      await release;
-    }, 'holdChatHouseLock');
-    await locked;
+      let markLocked;
+      let releaseLock;
+      const locked = new Promise((resolve) => { markLocked = resolve; });
+      const release = new Promise((resolve) => { releaseLock = resolve; });
+      const holder = transaction(async (tx) => {
+        await tx.query('select id from safespace.houses where id = $1 for update', [houseId]);
+        markLocked();
+        await release;
+      }, 'holdChatHouseLock');
+      await locked;
 
-    const completion = [];
-    const send = chat.sendMessage(other.id, houseId, {
-      text: `Racing ${sendFirst}`,
-      clientKey: randomUUID(),
-    }).then(
-      (value) => { completion.push('send'); return value; },
-      (error) => { completion.push('send'); throw error; },
-    );
-    const remove = houses.removeMember(owner.id, other.id).then(
-      (value) => { completion.push('remove'); return value; },
-      (error) => { completion.push('remove'); throw error; },
-    );
-    const pending = sendFirst ? [send, remove] : [remove, send];
-    releaseLock();
-    await holder;
-    const results = await Promise.allSettled(pending);
-    const [sendResult, removeResult] = sendFirst ? results : [results[1], results[0]];
-    assert.equal(removeResult.status, 'fulfilled');
+      const completion = [];
+      const startSend = () => chat.sendMessage(other.id, houseId, {
+        text: `Racing ${sendFirst}`,
+        clientKey: randomUUID(),
+      }).then(
+        (value) => { completion.push('send'); return value; },
+        (error) => { completion.push('send'); throw error; },
+      );
+      const startRemove = () => houses.removeMember(owner.id, other.id).then(
+        (value) => { completion.push('remove'); return value; },
+        (error) => { completion.push('remove'); throw error; },
+      );
+      const firstName = sendFirst ? 'send' : 'remove';
+      const secondName = sendFirst ? 'remove' : 'send';
+      const first = sendFirst ? startSend() : startRemove();
+      await waitForHouseLockWaiters(monitor, 1);
+      const second = sendFirst ? startRemove() : startSend();
+      await waitForHouseLockWaiters(monitor, 2);
 
-    const { rows } = await query(
-      'select count(*) as n from safespace.chat_messages where house_id = $1 and sender_id = $2',
-      [houseId, other.id],
-    );
-    if (sendResult.status === 'fulfilled') {
-      assert.ok(completion.indexOf('send') < completion.indexOf('remove'));
-      assert.equal(Number(rows[0].n), 1);
-    } else {
-      assert.equal(sendResult.reason?.code, 'CHAT_ACCESS_DENIED');
-      assert.equal(Number(rows[0].n), 0);
+      releaseLock();
+      await holder;
+      const [firstResult, secondResult] = await Promise.allSettled([first, second]);
+      const outcomes = new Map([[firstName, firstResult], [secondName, secondResult]]);
+      const sendResult = outcomes.get('send');
+      const removeResult = outcomes.get('remove');
+      assert.equal(removeResult.status, 'fulfilled');
+      assert.deepEqual(completion, [firstName, secondName]);
+
+      const { rows } = await query(
+        'select count(*) as n from safespace.chat_messages where house_id = $1 and sender_id = $2',
+        [houseId, other.id],
+      );
+      if (sendFirst) {
+        assert.equal(sendResult.status, 'fulfilled');
+        assert.equal(Number(rows[0].n), 1);
+      } else {
+        assert.equal(sendResult.status, 'rejected');
+        assert.equal(sendResult.reason?.code, 'CHAT_ACCESS_DENIED');
+        assert.equal(Number(rows[0].n), 0);
+      }
     }
+  } finally {
+    await monitor.end();
   }
 });
