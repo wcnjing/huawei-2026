@@ -17,7 +17,7 @@ export function createClient() {
 `;
 
 const bundled = await build({
-  entryPoints: ['src/app/house.ts'],
+  entryPoints: ['src/app/services/house.ts'],
   bundle: true,
   write: false,
   platform: 'browser',

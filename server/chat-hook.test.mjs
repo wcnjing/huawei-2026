@@ -12,7 +12,7 @@ export const useSyncExternalStore = (subscribe, getSnapshot) =>
 `;
 
 const bundled = await build({
-  entryPoints: ['src/app/chat.ts'],
+  entryPoints: ['src/app/hooks/useHouseChat.ts'],
   bundle: true,
   write: false,
   platform: 'browser',

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { transformSync } from 'esbuild';
 
 // Exercise the same placement logic shipped to the browser, without a DOM or providers.
-const source = readFileSync(new URL('../src/app/room-layout.ts', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../src/app/types/roomLayout.ts', import.meta.url), 'utf8');
 const { code } = transformSync(source, { loader: 'ts', format: 'esm' });
 const { furnitureLayer, snapPosition, reconcileLayout } = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
 

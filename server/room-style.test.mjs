@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { transformSync } from 'esbuild';
 
-const { code } = transformSync(readFileSync(new URL('../src/app/room-style.ts', import.meta.url), 'utf8'), { loader: 'ts', format: 'cjs' });
+const { code } = transformSync(readFileSync(new URL('../src/app/types/roomStyle.ts', import.meta.url), 'utf8'), { loader: 'ts', format: 'cjs' });
 function withStorage(storage) {
   const module = { exports: {} };
   // Inject browser storage lexically; never initialize Node's own localStorage.

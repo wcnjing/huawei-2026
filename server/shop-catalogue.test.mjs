@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { transformSync } from 'esbuild';
-const { code } = transformSync(readFileSync(new URL('../src/app/shop-catalogue.ts', import.meta.url), 'utf8'), { loader: 'ts', format: 'esm' });
+const { code } = transformSync(readFileSync(new URL('../src/app/data/shopCatalogue.ts', import.meta.url), 'utf8'), { loader: 'ts', format: 'esm' });
 const { SHOP_CATALOGUE, SHOP_CATEGORIES, filterShopItems } = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
 
 test('approved catalogue preserves existing purchases and prices and serves all approved art', () => {

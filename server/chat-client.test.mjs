@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { buildSync } from 'esbuild';
 
 const bundled = buildSync({
-  entryPoints: ['src/app/chat-state.ts', 'src/app/chat-controller.ts'],
+  entryPoints: ['src/app/state/chatState.ts', 'src/app/services/chatController.ts'],
   bundle: true,
   write: false,
   platform: 'node',
@@ -17,8 +17,8 @@ async function importBundle(name) {
   return import(`data:text/javascript;base64,${Buffer.from(output.contents).toString('base64')}`);
 }
 
-const { mergeMessages, normalizeDraft } = await importBundle('chat-state');
-const { createChatController } = await importBundle('chat-controller');
+const { mergeMessages, normalizeDraft } = await importBundle('chatState');
+const { createChatController } = await importBundle('chatController');
 
 const avatar = {
   color: '#4ecdc4', glow: '#00ff88', hat: 'None', eyes: 'Default', outfit: 'Standard',
