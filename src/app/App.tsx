@@ -3087,7 +3087,10 @@ function DollhouseRoom({ member, onTap, coins, soldItems, purchasedItems, layout
         {/* purchasedItems is the ownership source of truth; selling a shop item removes
             it there, while buying it again adds it back and should render it again. */}
         <PurchasedRoomFurniture itemIds={purchasedItems} accent={member.primaryColor} layout={layout} />
-        <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+        {/* zIndex above furniture's highest (2, see furnitureLayer): the player always
+            stands in front of their furniture, not behind it, however the unarranged
+            default layout happens to have placed something near room-centre. */}
+        <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", zIndex: 3, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
           <SafetyBadge safe={member.safeThisWeek} size={18} />
           <MemberChar member={member} size={44} />
         </div>
@@ -3287,7 +3290,9 @@ function SoloRoom({ member, coins, purchasedItems, layout, inviteCode, onTap, on
         {inviteCode ? `+ INVITE · ${inviteCode}` : "+ PLAY WITH OTHERS"}
       </button>
       <PurchasedRoomFurniture itemIds={purchasedItems} accent={member.primaryColor} layout={layout} />
-      <button className="room-player" onClick={onTap} style={{ position: "relative", alignSelf: "center", marginTop: "auto", marginBottom: 40, background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+      {/* zIndex above furniture's highest (2, see furnitureLayer) for the same reason as
+          DollhouseRoom: the player stands in front of their furniture, not behind it. */}
+      <button className="room-player" onClick={onTap} style={{ position: "relative", zIndex: 3, alignSelf: "center", marginTop: "auto", marginBottom: 40, background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
         <SafetyBadge safe={member.safeThisWeek} size={22} />
         <MemberChar member={member} size={112} />
         <div className="room-player-name" style={{ color: member.primaryColor }}>{member.name}</div>
