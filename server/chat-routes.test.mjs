@@ -79,6 +79,15 @@ function assertNoStore(response) {
   assert.equal(response.headers.get('cache-control'), 'no-store');
 }
 
+const MESSAGE_KEYS = [
+  'clientKey', 'createdAt', 'houseId', 'id', 'senderAvatar', 'senderId', 'senderName', 'text',
+];
+
+function assertMessageEnvelope(body) {
+  assert.deepEqual(Object.keys(body), ['message']);
+  assert.deepEqual(Object.keys(body.message).sort(), MESSAGE_KEYS);
+}
+
 function collectKeys(value, keys = new Set()) {
   if (!value || typeof value !== 'object') return keys;
   for (const [key, child] of Object.entries(value)) {
@@ -91,16 +100,32 @@ function collectKeys(value, keys = new Set()) {
 test('chat routes authenticate, authorize, and make sends idempotent', async () => {
   const { base, ownerToken, outsiderToken, houseId } = await fixture();
   const path = `${base}/api/houses/${houseId}/chat/messages`;
-  assert.equal((await fetch(path)).status, 401);
-  assert.equal((await fetch(path, { headers: { authorization: `Bearer ${outsiderToken}` } })).status, 403);
+  const unauthenticated = await fetch(path);
+  assert.equal(unauthenticated.status, 401);
+  assertNoStore(unauthenticated);
+  const forbidden = await fetch(path, {
+    headers: { authorization: `Bearer ${outsiderToken}` },
+  });
+  assert.equal(forbidden.status, 403);
+  assertNoStore(forbidden);
   const headers = { authorization: `Bearer ${ownerToken}`, 'content-type': 'application/json' };
   const input = { text: '<script>hello</script>', clientKey: crypto.randomUUID() };
   const first = await fetch(path, { method: 'POST', headers, body: JSON.stringify(input) });
   assert.equal(first.status, 201);
+  assertNoStore(first);
   const again = await fetch(path, { method: 'POST', headers, body: JSON.stringify(input) });
   assert.equal(again.status, 200);
-  assert.deepEqual(await first.json(), await again.json());
-  assert.equal((await fetch(path, { method: 'POST', headers, body: JSON.stringify({ ...input, senderId: 'victim' }) })).status, 400);
+  assertNoStore(again);
+  const firstBody = await first.json();
+  const againBody = await again.json();
+  assertMessageEnvelope(firstBody);
+  assertMessageEnvelope(againBody);
+  assert.deepEqual(firstBody, againBody);
+  const extraField = await fetch(path, {
+    method: 'POST', headers, body: JSON.stringify({ ...input, senderId: 'victim' }),
+  });
+  assert.equal(extraField.status, 400);
+  assertNoStore(extraField);
 });
 
 test('chat routes reject malformed bodies and cursors with no-store responses', async () => {
@@ -169,11 +194,16 @@ test('chat responses expose only documented fields and broadcasts carry no conte
   const sent = await fetch(path, { method: 'POST', headers, body: JSON.stringify(input) });
   assert.equal(sent.status, 201);
   assertNoStore(sent);
+  const sentBody = await sent.json();
+  assertMessageEnvelope(sentBody);
   assert.deepEqual(broadcasts.at(-1).messages[0].payload, {});
 
   const retry = await fetch(path, { method: 'POST', headers, body: JSON.stringify(input) });
   assert.equal(retry.status, 200);
   assertNoStore(retry);
+  const retryBody = await retry.json();
+  assertMessageEnvelope(retryBody);
+  assert.deepEqual(retryBody, sentBody);
 
   const changed = await fetch(path, {
     method: 'POST', headers, body: JSON.stringify({ ...input, text: 'Changed body' }),
@@ -188,9 +218,7 @@ test('chat responses expose only documented fields and broadcasts carry no conte
   assert.deepEqual(Object.keys(body).sort(), ['hasMore', 'houseId', 'messages']);
   assert.equal(body.houseId, houseId);
   assert.equal(body.messages.length, 1);
-  assert.deepEqual(Object.keys(body.messages[0]).sort(), [
-    'clientKey', 'createdAt', 'houseId', 'id', 'senderAvatar', 'senderId', 'senderName', 'text',
-  ]);
+  assert.deepEqual(Object.keys(body.messages[0]).sort(), MESSAGE_KEYS);
   assert.equal(body.messages[0].text, input.text);
   const responseKeys = collectKeys(body);
   assert.equal(responseKeys.has('phone'), false);
@@ -236,5 +264,6 @@ test('a rejected broadcast does not fail or lose a committed send', async () => 
 
   const history = await fetch(path, { headers });
   assert.equal(history.status, 200);
+  assertNoStore(history);
   assert.deepEqual((await history.json()).messages.map((message) => message.text), ['Committed first']);
 });
