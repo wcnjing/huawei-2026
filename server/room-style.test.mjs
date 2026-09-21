@@ -10,7 +10,7 @@ function withStorage(storage) {
   new Function('module', 'exports', 'localStorage', code)(module, module.exports, storage);
   return module.exports;
 }
-const { DEFAULT_ROOM_STYLE, ROOM_STYLE_KEY, normalizeRoomStyle, roomColors } = withStorage();
+const { DEFAULT_ROOM_STYLE, ROOM_STYLE_KEY, WALL_PATTERNS, FLOORS, normalizeRoomStyle, roomColors } = withStorage();
 
 test('legacy and corrupt styles fall back to the avatar-matched room without accepting arbitrary CSS', () => {
   assert.deepEqual(normalizeRoomStyle(null), DEFAULT_ROOM_STYLE);
@@ -18,6 +18,20 @@ test('legacy and corrupt styles fall back to the avatar-matched room without acc
   assert.deepEqual(roomColors(DEFAULT_ROOM_STYLE, '#081420', '#4ecdc4'), { wall: '#081420', floor: '#081420', light: '#4ecdc4' });
   assert.equal(normalizeRoomStyle({ name: ' \n My room \t' }).name, 'My room');
   assert.equal(normalizeRoomStyle({ name: 'x'.repeat(100) }).name.length, 32);
+});
+
+test('every wallpaper and floor option round-trips through normalizeRoomStyle', () => {
+  for (const { id } of WALL_PATTERNS) {
+    assert.equal(normalizeRoomStyle({ pattern: id }).pattern, id);
+  }
+  for (const { id } of FLOORS) {
+    assert.equal(normalizeRoomStyle({ floor: id }).floor, id);
+  }
+  // The new options specifically, so this test still fails if any of them are removed.
+  assert.deepEqual(WALL_PATTERNS.map(o => o.id).filter(id => ['brick', 'hex', 'circuit'].includes(id)),
+    ['brick', 'hex', 'circuit']);
+  assert.deepEqual(FLOORS.map(o => o.id).filter(id => ['concrete', 'neon', 'metal'].includes(id)),
+    ['concrete', 'neon', 'metal']);
 });
 
 test('saving a room persists per-player choices without touching the furniture inventory', () => {
