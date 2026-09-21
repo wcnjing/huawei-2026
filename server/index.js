@@ -73,6 +73,7 @@ import {
   removeMember,
   renameHouse,
 } from './houses.js';
+import { ChatError, listMessages, sendMessage } from './chat.js';
 import { ring } from './doorbell.js';
 
 const E164 = /^\+[1-9]\d{6,14}$/;
@@ -225,11 +226,31 @@ const HOUSE_ERRORS = {
   INVALID_DRILL_RUN: [400, 'that drill run is not valid'],
 };
 
+const chatStatuses = {
+  CHAT_ACCESS_DENIED: 403, INVALID_MESSAGE: 400, INVALID_CLIENT_KEY: 400,
+  INVALID_CURSOR: 400, MESSAGE_KEY_REUSED: 409, CHAT_RATE_LIMITED: 429,
+};
+
 function houseFail(res, error) {
   if (!(error instanceof HouseError)) throw error;
   const [status, message] = HOUSE_ERRORS[error.code] ?? [400, 'house request failed'];
   if (error.retryAfterMs) res.set('Retry-After', String(Math.max(1, Math.ceil(error.retryAfterMs / 1000))));
   return res.status(status).json({ error: message, code: error.code });
+}
+
+function chatFail(res, error) {
+  const status = error instanceof ChatError ? chatStatuses[error.code] : null;
+  if (!status) return fail(res, 500, 'Could not load/send messages.', error);
+  if (status === 429) {
+    res.set('Retry-After', String(Math.ceil(error.retryAfterMs / 1000)));
+  }
+  return res.status(status).json({ error: 'Chat request failed.', code: error.code });
+}
+
+function validChatBody(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return false;
+  const keys = Object.keys(body);
+  return keys.length === 2 && keys.includes('text') && keys.includes('clientKey');
 }
 
 /** Run a house change for the signed-in user, ring, and answer with the fresh view. */
@@ -570,6 +591,33 @@ api.post('/api/house/name', houseRoute((userId, req) => renameHouse(userId, req.
 api.post('/api/house/members/:memberId/remove', houseRoute((userId, req) =>
   removeMember(userId, req.params.memberId)));
 api.post('/api/house/leave', houseRoute((userId) => leaveHouse(userId)));
+
+api.get('/api/houses/:houseId/chat/messages', async (req, res) => {
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+  try {
+    const result = await listMessages(userId, req.params.houseId, {
+      before: req.query.before,
+      after: req.query.after,
+    });
+    return res.json(result);
+  } catch (error) {
+    return chatFail(res, error);
+  }
+});
+
+api.post('/api/houses/:houseId/chat/messages', async (req, res) => {
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+  try {
+    if (!validChatBody(req.body)) throw new ChatError('INVALID_MESSAGE');
+    const result = await sendMessage(userId, req.params.houseId, req.body);
+    await ring([result.topic]);
+    return res.status(result.created ? 201 : 200).json({ message: result.message });
+  } catch (error) {
+    return chatFail(res, error);
+  }
+});
 
 api.post('/api/drills/house-run', async (req, res) => {
   const userId = await requireUserId(req, res);
