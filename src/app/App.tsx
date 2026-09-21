@@ -1,5 +1,9 @@
+import { SHOP_CATALOGUE, SHOP_CATEGORIES, DECOR_TYPES, filterShopItems, type ShopItem, type ShopCategory, type DecorType } from "./shop-catalogue";
 import { useState, useEffect, useRef, useMemo, createContext, useContext } from "react";
 import { RoomEditor, RoomFurnitureLayer } from "./RoomEditor";
+import { RoomBackdrop } from "./RoomBackdrop";
+import { RoomStyleEditor } from "./RoomStyleEditor";
+import { DEFAULT_ROOM_STYLE, loadRoomStyles, saveRoomStyles, normalizeRoomStyle, roomColors, type RoomStyle } from "./room-style";
 import { reconcileLayout, type RoomLayout, type RoomLayouts } from "./room-layout";
 import { unlock, playSfx, setMuted, setMusicEnabled, isMuted } from "./audio";
 import { TOKEN_KEY, apiGet, apiPost, authHeaders, handleApiAuth, sessionToken, setSessionToken, type ApiResult } from "./api";
@@ -1110,57 +1114,6 @@ function FurnitureIcon({ itemId, size = 36 }: { itemId: string; size?: number })
   }
 }
 
-// ── Wallpaper preview swatches ───────────────────────────────────────────
-function WallpaperSwatch({ id }: { id: string }) {
-  if (id === "wp1") return (
-    <svg width="100%" height="100%" viewBox="0 0 14 14" preserveAspectRatio="xMidYMid slice" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect width={14} height={14} fill="#0a0e1a"/>
-      <rect x={0} y={4} width={14} height={1} fill="#2a3a5c" opacity={0.7}/>
-      <rect x={0} y={8} width={14} height={1} fill="#2a3a5c" opacity={0.7}/>
-      <rect x={0} y={12} width={14} height={1} fill="#2a3a5c" opacity={0.7}/>
-      <rect x={4} y={0} width={1} height={14} fill="#2a3a5c" opacity={0.7}/>
-      <rect x={8} y={0} width={1} height={14} fill="#2a3a5c" opacity={0.7}/>
-      <rect x={12} y={0} width={1} height={14} fill="#2a3a5c" opacity={0.7}/>
-      <rect x={4} y={4} width={1} height={1} fill="#4ecdc4" opacity={0.55}/>
-      <rect x={8} y={4} width={1} height={1} fill="#4ecdc4" opacity={0.55}/>
-      <rect x={12} y={4} width={1} height={1} fill="#4ecdc4" opacity={0.55}/>
-      <rect x={4} y={8} width={1} height={1} fill="#4ecdc4" opacity={0.55}/>
-      <rect x={8} y={8} width={1} height={1} fill="#4ecdc4" opacity={0.55}/>
-      <rect x={12} y={8} width={1} height={1} fill="#4ecdc4" opacity={0.55}/>
-      <rect x={4} y={12} width={1} height={1} fill="#4ecdc4" opacity={0.55}/>
-      <rect x={8} y={12} width={1} height={1} fill="#4ecdc4" opacity={0.55}/>
-    </svg>
-  );
-  if (id === "wp2") return (
-    <svg width="100%" height="100%" viewBox="0 0 14 14" preserveAspectRatio="xMidYMid slice" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect width={14} height={14} fill="#1a2340"/>
-      <rect x={0} y={0} width={14} height={3} fill="#0a0e1a"/>
-      <rect x={0} y={5} width={14} height={3} fill="#0a0e1a"/>
-      <rect x={0} y={10} width={14} height={3} fill="#0a0e1a"/>
-      <rect x={0} y={3} width={14} height={1} fill="#4ecdc4" opacity={0.22}/>
-      <rect x={0} y={8} width={14} height={1} fill="#4ecdc4" opacity={0.22}/>
-      <rect x={0} y={13} width={14} height={1} fill="#4ecdc4" opacity={0.22}/>
-    </svg>
-  );
-  return (
-    <svg width="100%" height="100%" viewBox="0 0 14 14" preserveAspectRatio="xMidYMid slice" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect width={14} height={14} fill="#100c20"/>
-      <rect x={2} y={1} width={1} height={3} fill="#ffffff" opacity={0.85}/>
-      <rect x={1} y={2} width={3} height={1} fill="#ffffff" opacity={0.85}/>
-      <rect x={7} y={4} width={1} height={1} fill="#ffffff" opacity={0.9}/>
-      <rect x={11} y={1} width={1} height={3} fill="#c77dff" opacity={0.75}/>
-      <rect x={10} y={2} width={3} height={1} fill="#c77dff" opacity={0.75}/>
-      <rect x={4} y={7} width={1} height={1} fill="#ffffff" opacity={0.6}/>
-      <rect x={9} y={6} width={1} height={1} fill="#ffe66d" opacity={0.75}/>
-      <rect x={12} y={9} width={1} height={1} fill="#ffffff" opacity={0.5}/>
-      <rect x={1} y={11} width={1} height={1} fill="#c77dff" opacity={0.65}/>
-      <rect x={6} y={11} width={1} height={3} fill="#ffffff" opacity={0.5}/>
-      <rect x={5} y={12} width={3} height={1} fill="#ffffff" opacity={0.5}/>
-      <rect x={10} y={12} width={1} height={1} fill="#ffe66d" opacity={0.6}/>
-    </svg>
-  );
-}
-
 // ── Pixel Mascot ──────────────────────────────────────────────────────────
 // Outfit → body/limb/accent colours. `Standard` reproduces the original mascot so
 // every existing call site (headers, home, etc.) is untouched when no outfit is passed.
@@ -1784,26 +1737,6 @@ const FURNITURE_STORE: FurnitureItem[] = [
 // pre-owned sellable items). Members buy from here; items land in
 // purchasedItems[memberId] and become placeable via CustomizeScreen.
 // ─────────────────────────────────────────────────────────────────────────
-type ShopItem = {
-  id: string;
-  name: string;
-  cost: number;
-  color: string;
-  // Which shop-item pixel-art to render; distinct namespace from FurnitureIcon.
-  art: "sofa" | "lamp" | "plant" | "tv" | "rug" | "bookshelf" | "bed" | "window";
-};
-
-const SHOP_CATALOGUE: ShopItem[] = [
-  { id: "shop-sofa",      name: "PIXEL SOFA",   cost: 50,  color: "#4ecdc4", art: "sofa" },
-  { id: "shop-lamp",      name: "PIXEL LAMP",   cost: 25,  color: "#ffe66d", art: "lamp" },
-  { id: "shop-plant",     name: "PIXEL PLANT",  cost: 30,  color: "#00ff88", art: "plant" },
-  { id: "shop-tv",        name: "PIXEL TV",     cost: 80,  color: "#ff6b35", art: "tv" },
-  { id: "shop-rug",       name: "PIXEL RUG",    cost: 60,  color: "#ff6b35", art: "rug" },
-  { id: "shop-bookshelf", name: "BOOKSHELF",    cost: 90,  color: "#ff6b35", art: "bookshelf" },
-  { id: "shop-bed",       name: "PIXEL BED",    cost: 120, color: "#4ecdc4", art: "bed" },
-  { id: "shop-window",    name: "PIXEL WINDOW", cost: 200, color: "#4ecdc4", art: "window" },
-];
-
 // Coins and furniture are one piece of game state: persisting only ownership would
 // restore bought items after a reload while also refunding their cost. Keep them in one
 // versioned record so the store and Home always reconstruct the same room.
@@ -1957,110 +1890,10 @@ function saveRewardClaims(claims: RewardClaims) {
 // ─────────────────────────────────────────────────────────────────────────
 // SHOP FURNITURE ART — inline pixel-art renders for each ShopItem.art key
 // ─────────────────────────────────────────────────────────────────────────
-function ShopFurnitureArt({ art, size = 48 }: { art: ShopItem["art"]; size?: number }) {
-  const s = size;
-  switch (art) {
-    case "sofa": return (
-      <svg width={s} height={s * 0.75} viewBox="0 0 12 9" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={1} y={4} width={10} height={4} fill="#4ecdc4" />
-        <rect x={0} y={3} width={2} height={6} fill="#4ecdc4" />
-        <rect x={10} y={3} width={2} height={6} fill="#4ecdc4" />
-        <rect x={1} y={2} width={10} height={3} fill="#4ecdc4" opacity={0.85} />
-        <rect x={2} y={7} width={2} height={2} fill="#0a0e1a" />
-        <rect x={8} y={7} width={2} height={2} fill="#0a0e1a" />
-        <rect x={2} y={3} width={8} height={1} fill="#3aa8a0" />
-      </svg>
-    );
-    case "lamp": return (
-      <svg width={s * 0.66} height={s} viewBox="0 0 8 12" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={1} y={0} width={6} height={4} fill="#ffe66d" />
-        <rect x={0} y={1} width={8} height={2} fill="#ffe66d" />
-        <rect x={2} y={4} width={4} height={1} fill="#ffe66d" opacity={0.7} />
-        <rect x={2} y={2} width={4} height={2} fill="#fff3a0" opacity={0.7} />
-        <rect x={3} y={5} width={2} height={5} fill="#8b5e3c" />
-        <rect x={1} y={10} width={6} height={1} fill="#8b5e3c" />
-        <rect x={0} y={11} width={8} height={1} fill="#6b4020" />
-      </svg>
-    );
-    case "plant": return (
-      <svg width={s} height={s} viewBox="0 0 12 12" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={4} y={0} width={4} height={3} fill="#00ff88" />
-        <rect x={2} y={2} width={8} height={4} fill="#00ff88" />
-        <rect x={3} y={1} width={6} height={4} fill="#00cc66" />
-        <rect x={5} y={5} width={2} height={2} fill="#006633" />
-        <rect x={3} y={7} width={6} height={1} fill="#cd7f32" />
-        <rect x={2} y={8} width={8} height={4} fill="#8b5e3c" />
-        <rect x={3} y={8} width={6} height={3} fill="#a06840" />
-        <rect x={3} y={11} width={6} height={1} fill="#5a3010" />
-      </svg>
-    );
-    case "tv": return (
-      <svg width={s} height={s * 0.75} viewBox="0 0 12 9" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={0} y={0} width={12} height={7} fill="#ff6b35" />
-        <rect x={1} y={1} width={10} height={5} fill="#0a0e1a" />
-        <rect x={2} y={2} width={4} height={2} fill="#4ecdc4" opacity={0.4} />
-        <rect x={7} y={2} width={2} height={1} fill="#ffe66d" opacity={0.5} />
-        <rect x={10} y={1} width={1} height={1} fill="#00ff88" />
-        <rect x={5} y={7} width={2} height={1} fill="#ff6b35" />
-        <rect x={3} y={8} width={6} height={1} fill="#ff6b35" />
-      </svg>
-    );
-    case "rug": return (
-      <svg width={s} height={s * 0.6} viewBox="0 0 12 7" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={1} y={0} width={10} height={7} fill="#ff6b35" />
-        <rect x={0} y={1} width={12} height={5} fill="#ff6b35" />
-        <rect x={2} y={2} width={8} height={3} fill="#ff8855" />
-        <rect x={4} y={3} width={4} height={1} fill="#ffe66d" opacity={0.6} />
-        <rect x={5} y={2} width={2} height={3} fill="#ffe66d" opacity={0.5} />
-        <rect x={0} y={0} width={1} height={1} fill="#ffe66d" />
-        <rect x={11} y={0} width={1} height={1} fill="#ffe66d" />
-        <rect x={0} y={6} width={1} height={1} fill="#ffe66d" />
-        <rect x={11} y={6} width={1} height={1} fill="#ffe66d" />
-      </svg>
-    );
-    case "bookshelf": return (
-      <svg width={s * 0.85} height={s} viewBox="0 0 10 12" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={0} y={0} width={10} height={12} fill="#ff6b35" />
-        <rect x={1} y={1} width={8} height={10} fill="#0a0e1a" />
-        <rect x={0} y={4} width={10} height={1} fill="#ff6b35" />
-        <rect x={0} y={7} width={10} height={1} fill="#ff6b35" />
-        <rect x={1} y={1} width={2} height={3} fill="#4ecdc4" />
-        <rect x={3} y={1} width={1} height={3} fill="#ffe66d" />
-        <rect x={5} y={1} width={2} height={3} fill="#00ff88" />
-        <rect x={7} y={1} width={2} height={3} fill="#c77dff" />
-        <rect x={1} y={5} width={3} height={2} fill="#ffe66d" />
-        <rect x={4} y={5} width={2} height={2} fill="#4ecdc4" />
-        <rect x={6} y={5} width={3} height={2} fill="#ff2d55" opacity={0.7} />
-        <rect x={1} y={8} width={2} height={3} fill="#00ff88" />
-        <rect x={3} y={8} width={4} height={3} fill="#4ecdc4" opacity={0.6} />
-        <rect x={7} y={8} width={2} height={3} fill="#ffe66d" />
-      </svg>
-    );
-    case "bed": return (
-      <svg width={s} height={s * 0.7} viewBox="0 0 12 8" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={0} y={2} width={12} height={5} fill="#4ecdc4" />
-        <rect x={0} y={1} width={2} height={6} fill="#3aa8a0" />
-        <rect x={10} y={1} width={2} height={6} fill="#3aa8a0" />
-        <rect x={2} y={3} width={4} height={2} fill="#ffffff" opacity={0.7} />
-        <rect x={6} y={3} width={4} height={3} fill="#4ecdc4" opacity={0.7} />
-        <rect x={1} y={7} width={2} height={1} fill="#0a0e1a" />
-        <rect x={9} y={7} width={2} height={1} fill="#0a0e1a" />
-      </svg>
-    );
-    case "window": return (
-      <svg width={s * 0.85} height={s} viewBox="0 0 10 12" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={0} y={0} width={10} height={12} fill="#4ecdc4" />
-        <rect x={1} y={1} width={8} height={10} fill="#0a0e1a" />
-        <rect x={1} y={1} width={4} height={4} fill="#4ecdc4" opacity={0.35} />
-        <rect x={5} y={1} width={4} height={4} fill="#4ecdc4" opacity={0.35} />
-        <rect x={1} y={6} width={4} height={5} fill="#4ecdc4" opacity={0.35} />
-        <rect x={5} y={6} width={4} height={5} fill="#4ecdc4" opacity={0.35} />
-        <rect x={4} y={1} width={2} height={10} fill="#4ecdc4" />
-        <rect x={1} y={5} width={8} height={1} fill="#4ecdc4" />
-        <rect x={3} y={2} width={1} height={2} fill="#ffe66d" opacity={0.5} />
-      </svg>
-    );
-  }
+function ShopFurnitureArt({ art, size = 56 }: { art: ShopItem["art"]; size?: number }) {
+  return <img src={`${import.meta.env.BASE_URL}furniture/${art}.svg`} alt="" aria-hidden="true"
+    draggable={false} width={size} height={size * 48 / 56}
+    style={{ display: 'block', imageRendering: 'pixelated', objectFit: 'contain', maxWidth: '100%', maxHeight: '100%', flexShrink: 1 }} />;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -3043,6 +2876,7 @@ type FamilyMember = {
   streak: number; timesSafe: number; timesScammed: number;
   safeThisWeek: boolean; recentDrillResult: "WON" | "LOST" | null;
   primaryColor: string; roomName: string; roomBg: string;
+  roomStyle: RoomStyle;
   badgeCount: number; badgeTotal: number;
   avatar: AvatarConfig;
 };
@@ -3056,14 +2890,14 @@ const ROOM_BACKGROUNDS: Record<string, string> = {
 const DEFAULT_AVATAR: AvatarConfig = DEFAULT_PROFILE.avatar;
 
 // The server's member shape, adapted to what the existing screens already render.
-function toFamilyMember(m: MemberView): FamilyMember {
+function toFamilyMember(m: MemberView, roomStyle = DEFAULT_ROOM_STYLE): FamilyMember {
   const avatar = { ...DEFAULT_AVATAR, ...(m.avatar ?? {}) };
   return {
     id: m.id, name: m.name, role: m.isOwner ? "HOUSE OWNER" : "HOUSEMATE",
     level: m.level, xp: m.xp, xpMax: m.xpMax, streak: m.streak,
     timesSafe: m.timesSafe, timesScammed: m.timesScammed,
     safeThisWeek: m.safeThisWeek, recentDrillResult: m.recentDrillResult,
-    primaryColor: avatar.color, roomName: `${m.name}'S ROOM`,
+    primaryColor: avatar.color, roomName: roomStyle.name || `${m.name}'S ROOM`, roomStyle,
     roomBg: ROOM_BACKGROUNDS[avatar.color] ?? "#081420",
     badgeCount: m.badgeCount, badgeTotal: m.badgeTotal, avatar,
   };
@@ -3221,8 +3055,9 @@ function memberShadowColor(accent: string) {
 }
 
 function RoomHeading({ member, coins }: { member: FamilyMember; coins: number | null }) {
+  const colors = roomColors(member.roomStyle, member.roomBg, member.primaryColor);
   return <div className="room-heading">
-    <div className="room-heading-name" style={{ color: member.primaryColor }}>{member.roomName}</div>
+    <div className="room-heading-name" style={{ color: colors.light }}>{member.roomName}</div>
     <div className="room-heading-details" style={{ fontSize: "var(--text-label)", color: "#a8bbcf" }}>
       <span>LVL {member.level} · {member.streak} STREAK</span>
       {coins !== null && <span style={{ color: "#ffe66d" }}><IconCoin size={14} color="#ffe66d" />{coins}</span>}
@@ -3231,11 +3066,12 @@ function RoomHeading({ member, coins }: { member: FamilyMember; coins: number | 
 }
 
 function DollhouseRoom({ member, onTap, coins, soldItems, purchasedItems, layout }: { member: FamilyMember; onTap: (m: FamilyMember) => void; coins: number | null; soldItems: string[]; purchasedItems: string[]; layout?: RoomLayout }) {
+  const colors = roomColors(member.roomStyle, member.roomBg, member.primaryColor);
   return (
     <button onClick={() => onTap(member)} style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", padding: "0", cursor: "pointer" }}>
-      <div style={{ backgroundColor: member.roomBg }}><RoomHeading member={member} coins={coins} /></div>
+      <div style={{ backgroundColor: colors.wall }}><RoomHeading member={member} coins={coins} /></div>
       <div style={{ backgroundColor: member.roomBg, position: "relative", height: 168, overflow: "hidden" }}>
-        <div style={{ position: "absolute", inset: 0, backgroundImage: `repeating-linear-gradient(0deg,transparent,transparent 15px,rgba(255,255,255,0.015) 15px,rgba(255,255,255,0.015) 16px),repeating-linear-gradient(90deg,transparent,transparent 15px,rgba(255,255,255,0.015) 15px,rgba(255,255,255,0.015) 16px)` }} />
+        <RoomBackdrop style={member.roomStyle} background={member.roomBg} accent={member.primaryColor} />
         <div style={{ position: "absolute", top: 10, right: 16 }}>
           <svg width={28} height={32} viewBox="0 0 7 8" style={{ imageRendering: "pixelated" }}>
             <rect x={0} y={0} width={7} height={8} fill="#2a3a5c" />
@@ -3263,7 +3099,7 @@ function DollhouseRoom({ member, onTap, coins, soldItems, purchasedItems, layout
         </div>
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 4, background: `linear-gradient(90deg,${member.primaryColor}22,${member.primaryColor}55,${member.primaryColor}22)`, borderTop: `2px solid ${member.primaryColor}44` }} />
       </div>
-      <div style={{ padding: "8px 14px 12px", backgroundColor: member.roomBg, borderBottom: "4px solid #2a3a5c" }}>
+      <div style={{ padding: "8px 14px 12px", backgroundColor: colors.wall, borderBottom: "4px solid #2a3a5c" }}>
         <div className="room-player-name" style={{ color: member.primaryColor }}>{member.name}</div>
         <div className="room-tap-label" style={{ color: "#a8bbcf", marginTop: 4 }}>Tap to view</div>
       </div>
@@ -3448,7 +3284,7 @@ function SoloRoom({ member, coins, purchasedItems, layout, inviteCode, onTap, on
 }) {
   return (
     <div style={{ position: "relative", flex: 1, minHeight: 420, display: "flex", flexDirection: "column", backgroundColor: member.roomBg }}>
-      <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 15px,rgba(255,255,255,0.015) 15px,rgba(255,255,255,0.015) 16px),repeating-linear-gradient(90deg,transparent,transparent 15px,rgba(255,255,255,0.015) 15px,rgba(255,255,255,0.015) 16px)" }} />
+      <RoomBackdrop style={member.roomStyle} background={member.roomBg} accent={member.primaryColor} />
       <RoomHeading member={member} coins={coins} />
       <button className="room-invite"
         onClick={onPlayWithOthers}
@@ -3530,6 +3366,9 @@ function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize,
         <div style={{ height: 24, backgroundColor: "#1a2340", borderTop: "4px solid #2a3a5c", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#2a3a5c", letterSpacing: 3 }}>████████████████████████████</div>
         </div>
+        {self && <div style={{ padding: "12px 16px 0", backgroundColor: "#0a0e1a" }}>
+          <PixelBtn onClick={() => onCustomize(selfId)} color="#1a2340" textColor="#c77dff" size="md" full>CUSTOMIZE ROOM</PixelBtn>
+        </div>}
         {self && (purchasedItems[selfId]?.length ?? 0) > 0 && (
           <div style={{ padding: "12px 16px", backgroundColor: "#0a0e1a" }}>
             <PixelBtn onClick={onArrange} color="#1a2340" textColor="#4ecdc4" size="md" full>ARRANGE ROOM</PixelBtn>
@@ -4668,6 +4507,8 @@ function ShopScreen({
   onArrange: () => void;
 }) {
   const [filter, setFilter] = useState<"ALL" | "AFFORDABLE" | "OWNED">("ALL");
+  const [category, setCategory] = useState<ShopCategory | 'all'>('all');
+  const [decorType, setDecorType] = useState<DecorType | 'all'>('all');
   const [justBought, setJustBought] = useState<string | null>(null);
 
   const member = useMemberMap()[activeMemberId];
@@ -4675,12 +4516,7 @@ function ShopScreen({
   const owned = purchasedItems[activeMemberId] ?? [];
   if (!member) return null;
 
-  const filtered = SHOP_CATALOGUE.filter(item => {
-    const isOwned = owned.includes(item.id);
-    if (filter === "OWNED") return isOwned;
-    if (filter === "AFFORDABLE") return !isOwned && memberCoins >= item.cost;
-    return true;
-  });
+  const filtered = filterShopItems(category, decorType, filter, owned, memberCoins);
 
   const handleBuy = (item: ShopItem) => {
     if (owned.includes(item.id)) return;
@@ -4725,10 +4561,7 @@ function ShopScreen({
               marginBottom: 14,
             }}
           >
-            {/* Wall stripes */}
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 76, background: `repeating-linear-gradient(90deg, ${member.roomBg} 0px, ${member.roomBg} 18px, ${member.primaryColor}0a 18px, ${member.primaryColor}0a 36px)` }} />
-            {/* Floor */}
-            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 24, background: `repeating-linear-gradient(90deg, #1a2a3a 0px, #1a2a3a 20px, ${member.roomBg} 20px, ${member.roomBg} 40px)`, borderTop: `2px solid ${member.primaryColor}55` }} />
+            <RoomBackdrop style={member.roomStyle} background={member.roomBg} accent={member.primaryColor} />
             <div style={{ position: "absolute", inset: "24px 8px 8px", pointerEvents: "none" }}>
               <RoomFurnitureLayer items={purchasedFurniture(owned)} layout={layout} />
             </div>
@@ -4748,23 +4581,40 @@ function ShopScreen({
           {owned.length > 0 && <div style={{ marginBottom: 14 }}>
             <PixelBtn onClick={onArrange} color="#4ecdc4" textColor="#0a0e1a" size="md" full>ARRANGE ROOM</PixelBtn>
           </div>}
-          {/* Filter tabs */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+          <label htmlFor="shop-category" style={{ display: 'block', color: '#c77dff', fontSize: 'var(--text-label)', marginBottom: 8 }}>SHOP BY TYPE</label>
+          <select id="shop-category" value={category} onChange={event => { setCategory(event.target.value as ShopCategory | 'all'); setDecorType('all'); }}
+            style={{ width: '100%', minHeight: 48, background: '#111827', color: '#e8f4f8', border: '2px solid #506180', padding: '10px', fontFamily: 'inherit', fontSize: 'var(--text-body)', marginBottom: 14 }}>
+            <option value="all">All furniture ({SHOP_CATALOGUE.length})</option>
+            {SHOP_CATEGORIES.map(option => <option key={option.id} value={option.id}>{option.name} ({SHOP_CATALOGUE.filter(item => item.category === option.id).length})</option>)}
+          </select>
+          {category === 'decor' && <fieldset style={{ border: 0, padding: 0, margin: '0 0 16px', minWidth: 0 }}>
+            <legend style={{ color: '#a8bbcf', fontSize: 'var(--text-label)', marginBottom: 8 }}>Decor type</legend>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {[{ id: 'all', name: 'All decor' }, ...DECOR_TYPES].map(option => <button type="button" key={option.id}
+                aria-pressed={decorType === option.id} onClick={() => setDecorType(option.id as DecorType | 'all')}
+                style={{ minHeight: 44, padding: '8px 10px', font: 'inherit', fontSize: 'var(--text-label)', cursor: 'pointer', border: `2px solid ${decorType === option.id ? '#c77dff' : '#506180'}`, background: decorType === option.id ? '#39214e' : '#111827', color: '#e8f4f8' }}>
+                {option.name}
+              </button>)}
+            </div>
+          </fieldset>}
+          {/* Availability combines with the selected furniture category. */}
+          <div role="group" aria-label="Availability" style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
             {(["ALL", "AFFORDABLE", "OWNED"] as const).map(f => {
               const active = filter === f;
               return (
                 <button
                   key={f}
+                  aria-pressed={active}
                   onClick={() => setFilter(f)}
                   style={{
-                    padding: "6px 10px",
+                    padding: "6px 10px", minHeight: 44,
                     backgroundColor: active ? "#ffe66d" : "#111827",
                     border: `2px solid ${active ? "#ffe66d" : "#2a3a5c"}`,
                     boxShadow: active ? "2px 2px 0 #0a0e1a" : "none",
                     cursor: "pointer",
                     fontFamily: "'Share Tech Mono', monospace",
                     fontSize: "var(--text-caption)",
-                    color: active ? "#0a0e1a" : "#6b8ba4",
+                    color: active ? "#0a0e1a" : "#a8bbcf",
                   }}
                 >
                   {f}
@@ -4773,11 +4623,21 @@ function ShopScreen({
             })}
           </div>
 
+          <div role="status" style={{ color: '#a8bbcf', fontSize: 'var(--text-label)', marginBottom: 12 }}>
+            {filtered.length} {filtered.length === 1 ? 'item' : 'items'} · {category === 'all' ? 'All furniture' : SHOP_CATEGORIES.find(option => option.id === category)?.name}
+            {category === 'decor' && decorType !== 'all' && ` · ${DECOR_TYPES.find(option => option.id === decorType)?.name}`}
+          </div>
+
           {/* Catalogue grid */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10, paddingBottom: 16 }}>
             {filtered.length === 0 && (
               <div style={{ gridColumn: "1 / -1", padding: "24px 0", textAlign: "center", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8" }}>
-                No items in this filter.
+                <p>{category !== 'all' && !SHOP_CATALOGUE.some(item => item.category === category)
+                  ? 'No furniture in this category yet.'
+                  : filter === 'OWNED' ? 'You don’t own any furniture in this category yet.'
+                  : filter === 'AFFORDABLE' ? 'No unowned items in this category fit your balance.' : 'No matching furniture.'}</p>
+                <button onClick={() => { setCategory('all'); setDecorType('all'); setFilter('ALL'); }}
+                  style={{ marginTop: 12, minHeight: 44, padding: '8px 12px', border: '2px solid #4ecdc4', background: '#111827', color: '#4ecdc4', font: 'inherit', cursor: 'pointer' }}>Browse all furniture</button>
               </div>
             )}
             {filtered.map(item => {
@@ -4806,8 +4666,8 @@ function ShopScreen({
                       <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#0a0e1a" }}>OWNED</div>
                     </div>
                   )}
-                  <div style={{ height: 52, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <ShopFurnitureArt art={item.art} size={48} />
+                  <div style={{ height: 84, width: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <ShopFurnitureArt art={item.art} size={98} />
                   </div>
                   <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#e8f4f8", textAlign: "center", lineHeight: 1.4 }}>
                     {item.name}
@@ -6343,7 +6203,7 @@ function ProfileEditScreen({ profile, onRename, onBack, onAvatar, onHouse }: {
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#c77dff" }}>›</div>
         </button>
         <button onClick={onHouse} style={{ width: "100%", backgroundColor: "#111827", border: "3px solid #00ff88", padding: "12px 14px", cursor: "pointer", textAlign: "left", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#00ff88", marginBottom: 4 }}>CUSTOMISE HOUSE</div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#9bb0c8" }}>Sell furniture and buy wallpapers</div></div>
+          <div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#00ff88", marginBottom: 4 }}>CUSTOMISE HOUSE</div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#9bb0c8" }}>Style your room and arrange furniture</div></div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#00ff88" }}>›</div>
         </button>
         <div style={{ backgroundColor: "#111827", border: "3px solid #ffe66d", padding: "12px 14px", marginBottom: 12 }}>
@@ -6599,11 +6459,13 @@ function HouseSettingsScreen({ house, selfId, onRegenerate, onRename, onRemove, 
   );
 }
 
-function CustomizeScreen({ memberId, coins, purchasedItems, soldItems, onBack, onSell, onArrange }: {
+function CustomizeScreen({ memberId, coins, purchasedItems, soldItems, layout, onStyleSave, onBack, onSell, onArrange }: {
   memberId: string;
   coins: number;
   purchasedItems: string[];
   soldItems: string[];
+  layout?: RoomLayout;
+  onStyleSave: (style: RoomStyle) => boolean;
   onBack: () => void;
   onSell: (memberId: string, itemId: string, value: number) => void;
   onArrange: () => void;
@@ -6611,12 +6473,6 @@ function CustomizeScreen({ memberId, coins, purchasedItems, soldItems, onBack, o
   const member = useMemberMap()[memberId];
   const memberItems = FURNITURE_STORE.filter(i => i.memberId === memberId);
   const isInDebt = coins < 0;
-
-  const WALLPAPERS = [
-    { id:"wp1", name:"DARK GRID",   color:"#0a0e1a", price: 50  },
-    { id:"wp2", name:"NAVY STRIPE", color:"#1a2340", price: 80  },
-    { id:"wp3", name:"PIXEL STARS", color:"#100c20", price: 120 },
-  ];
 
   // Unified item shape for the merged furniture list.
   // Pre-owned items (FURNITURE_STORE) sell at their full sellValue.
@@ -6658,7 +6514,7 @@ function CustomizeScreen({ memberId, coins, purchasedItems, soldItems, onBack, o
   return (
     <div className="flex flex-col h-full">
       <div style={{ padding: "0 16px", minHeight: 52, backgroundColor: "#0a0e1a", borderBottom: `4px solid ${member.primaryColor}`, display: "flex", alignItems: "center", gap: 12 }}>
-        <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><IconX size={16} color="#6b8ba4" /></button>
+        <button onClick={onBack} aria-label="Back to home" style={{ background: "none", border: "none", cursor: "pointer", padding: 4, minHeight: 44 }}><IconX size={16} color="#6b8ba4" /></button>
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: member.primaryColor }}>CUSTOMIZE ROOM</div>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
           <IconCoin size={12} color={coins < 0 ? "#ff2d55" : "#ffe66d"} />
@@ -6678,6 +6534,10 @@ function CustomizeScreen({ memberId, coins, purchasedItems, soldItems, onBack, o
           {purchasedItems.length > 0 && <div style={{ marginBottom: 18 }}>
             <PixelBtn onClick={onArrange} color="#4ecdc4" textColor="#0a0e1a" size="md" full>ARRANGE ROOM</PixelBtn>
           </div>}
+          <RoomStyleEditor key={memberId} value={member.roomStyle} background={member.roomBg}
+            accent={member.primaryColor} defaultName={`${member.name}'S ROOM`}
+            items={purchasedFurniture(purchasedItems)} layout={layout}
+            avatar={<MemberChar member={member} size={48} />} onSave={onStyleSave} />
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8", letterSpacing: 2, marginBottom: 10 }}>FURNITURE</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
             {unifiedItems.map(item => {
@@ -6702,26 +6562,6 @@ function CustomizeScreen({ memberId, coins, purchasedItems, soldItems, onBack, o
                 </div>
               );
             })}
-          </div>
-
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8", letterSpacing: 2, marginBottom: 10 }}>WALLPAPER SHOP</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
-            {WALLPAPERS.map(wp => (
-              <button key={wp.id} style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}>
-                <div style={{ border: "3px solid #2a3a5c", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                  <div style={{ width: "100%", height: 64, overflow: "hidden" }}>
-                    <WallpaperSwatch id={wp.id} />
-                  </div>
-                  <div style={{ backgroundColor: "#111827", padding: "6px 4px 5px", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#e8f4f8", textAlign: "center" }}>{wp.name}</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                      <IconCoin size={7} color="#ffe66d" />
-                      <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ffe66d" }}>{wp.price}</span>
-                    </div>
-                  </div>
-                </div>
-              </button>
-            ))}
           </div>
 
           <PixelBtn onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="md" full>BACK TO HOME</PixelBtn>
@@ -7400,6 +7240,7 @@ export default function App() {
   );
   const [roomLayouts, setRoomLayouts] = useState<RoomLayouts>(initialHomeInventory.roomLayouts);
   const [arrangingRoom, setArrangingRoom] = useState(false);
+  const [roomStyles, setRoomStyles] = useState(loadRoomStyles);
   useEffect(() => {
     saveHomeInventory({ coins, soldItems, purchasedItems, roomLayouts });
   }, [coins, soldItems, purchasedItems, roomLayouts]);
@@ -7416,8 +7257,8 @@ export default function App() {
   const selfId = selfView?.id ?? "me";
   const members = useMemo(() => {
     const views = house.state.house?.members ?? (house.state.self ? [house.state.self] : []);
-    return views.map(toFamilyMember);
-  }, [house.state]);
+    return views.map(view => toFamilyMember(view, roomStyles[view.id] ?? DEFAULT_ROOM_STYLE));
+  }, [house.state, roomStyles]);
   const memberMap = useMemo(() => Object.fromEntries(members.map((m) => [m.id, m])), [members]);
   const activeMemberId = selfId; // one player per phone now
   // Nothing may be earned or claimed before the server says who we are. A coin written
@@ -8401,6 +8242,14 @@ export default function App() {
                 coins={coins[selfId] ?? 0}
                 purchasedItems={purchasedItems[selfId] ?? []}
                 soldItems={soldItems}
+                layout={roomLayouts[selfId]}
+                onStyleSave={style => {
+                  if (!selfView) return false;
+                  const next = { ...roomStyles, [selfId]: normalizeRoomStyle(style) };
+                  if (!saveRoomStyles(next)) return false;
+                  setRoomStyles(next);
+                  return true;
+                }}
                 onBack={goHome}
                 onSell={handleSellItem}
                 onArrange={() => setArrangingRoom(true)}
@@ -8610,6 +8459,7 @@ export default function App() {
           roomName={memberMap[selfId].roomName}
           accent={memberMap[selfId].primaryColor}
           background={memberMap[selfId].roomBg}
+          roomStyle={memberMap[selfId].roomStyle}
           onCancel={() => setArrangingRoom(false)}
           onSave={layout => {
             const next = { ...roomLayouts, [selfId]: reconcileLayout(purchasedItems[selfId] ?? [], layout) };

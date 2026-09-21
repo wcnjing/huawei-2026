@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react';
-import { reconcileLayout, snapPosition, type RoomLayout, type RoomPosition } from './room-layout';
+import { furnitureLayer, reconcileLayout, snapPosition, type RoomLayout, type RoomPosition } from './room-layout';
+import { RoomBackdrop } from './RoomBackdrop';
+import type { RoomStyle } from './room-style';
 
 export type RoomFurniture = { id: string; name: string; art: ReactNode };
 const itemStyle = (p: RoomPosition): CSSProperties => ({
@@ -12,12 +14,13 @@ export function RoomFurnitureLayer({ items, layout }: { items: RoomFurniture[]; 
   return <>
     <style>{`.room-furniture-art > svg { max-width: 100%; max-height: 100%; flex-shrink: 1; }`}</style>
     {items.map(item => <div key={item.id} title={item.name} data-placed-item={item.id}
-      className="room-furniture-art" style={{ ...itemStyle(positions[item.id]), pointerEvents: 'none' }}>{item.art}</div>)}
+      className="room-furniture-art" style={{ ...itemStyle(positions[item.id]), zIndex: furnitureLayer(item.id), pointerEvents: 'none' }}>{item.art}</div>)}
   </>;
 }
 
-export function RoomEditor({ items, layout, roomName, accent, background, onSave, onCancel }: {
+export function RoomEditor({ items, layout, roomName, accent, background, roomStyle, onSave, onCancel }: {
   items: RoomFurniture[]; layout?: RoomLayout; roomName: string; accent: string; background: string;
+  roomStyle?: RoomStyle;
   onSave: (layout: RoomLayout) => boolean; onCancel: () => void;
 }) {
   const [draft, setDraft] = useState(() => reconcileLayout(items.map(i => i.id), layout));
@@ -76,6 +79,8 @@ export function RoomEditor({ items, layout, roomName, accent, background, onSave
               (event.clientY - rect.top - rect.height * .15) / (rect.height * .70) * 100);
           }}
           style={{ position: 'relative', aspectRatio: '1.6', backgroundColor: background, backgroundImage: `linear-gradient(#ffffff12 1px, transparent 1px), linear-gradient(90deg,#ffffff12 1px, transparent 1px)`, backgroundSize: '8.5% 7%', boxShadow: `inset 0 0 0 2px ${accent}66`, touchAction: 'none' }}>
+          <RoomBackdrop style={roomStyle} background={background} accent={accent} />
+          <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'linear-gradient(#ffffff12 1px, transparent 1px), linear-gradient(90deg,#ffffff12 1px, transparent 1px)', backgroundSize: '8.5% 7%' }} />
           {items.map(item => <button key={item.id} type="button" aria-label={`Move ${item.name}`} aria-pressed={selected === item.id}
             className="room-editor-item room-furniture-art" data-editor-item={item.id}
             onClick={event => { event.stopPropagation(); setSelected(item.id); }}
@@ -105,7 +110,7 @@ export function RoomEditor({ items, layout, roomName, accent, background, onSave
               const active = drag.current;
               if (active?.pointer === event.pointerId) { move(active.id, active.origin.x, active.origin.y); drag.current = null; }
             }}
-            style={{ ...itemStyle(draft[item.id]), padding: 3, border: `2px solid ${selected === item.id ? accent : 'transparent'}`, background: selected === item.id ? `${accent}18` : 'transparent', cursor: 'grab', touchAction: 'none', zIndex: selected === item.id ? 2 : 1, userSelect: 'none' }}>{item.art}</button>)}
+            style={{ ...itemStyle(draft[item.id]), padding: 3, border: `2px solid ${selected === item.id ? accent : 'transparent'}`, background: selected === item.id ? `${accent}18` : 'transparent', cursor: 'grab', touchAction: 'none', zIndex: selected === item.id ? 3 : furnitureLayer(item.id), userSelect: 'none' }}>{item.art}</button>)}
         </div>
         <p style={{ margin: '12px 0 8px', color: accent }} aria-live="polite">{selectedItem ? `Selected: ${selectedItem.name}` : 'Buy furniture in the store to arrange your room.'}</p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }} aria-label="Your furniture">

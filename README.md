@@ -61,6 +61,27 @@ Further reading: [backend/API guide](server/README.md),
 [deployment guide](DEPLOY.md), [manual test plan](TESTPLAN.md), and
 [pitch deck specification](PITCH_SLIDES.md).
 
+## Room customization
+
+Open **Customize room** from Home to name your room and choose a theme, wall color,
+wallpaper pattern, floor and neon lighting. These styles are free. The preview
+updates as you choose; **Save style** applies the changes, and **Cancel changes**
+restores the last saved style. Furniture still uses the existing **Arrange room**
+controls. Styling does not change ownership, positions or coins.
+
+Room styles, like furniture layouts, are saved per player in this browser on this
+device. They survive reloads but do not sync to other devices or housemates yet.
+The same saved style appears on Home, the store preview and the furniture editor.
+
+The shop's **Shop by type** selector groups 24 approved furniture pieces into
+Basic furniture, Lighting, Decor, Storage, Tech & entertainment, and Sports &
+hobbies. Decor has subfilters for Carpets, Plants, and Windows & doors.
+**Affordable** and **Owned** combine with both filters. Existing purchases keep
+all eight original IDs and prices; the catalogue adds 16 new pieces. All approved
+pixel sprites are served from `public/furniture/` and use the same art in the shop,
+rooms, previews and furniture editor. Newly placed hanging pieces start near the
+wall, and carpets render beneath other furniture. Saved positions are preserved.
+
 ## Configuration
 
 Copy [.env.example](.env.example) and use a different random value for each secret.
