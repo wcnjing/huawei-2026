@@ -2,7 +2,7 @@
 
 Date: 21 September 2026
 
-Status: Design recorded for user review; implementation has not started.
+Status: Approved by the user; implementation has not started.
 
 ## Approved scope
 
