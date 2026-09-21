@@ -3036,10 +3036,18 @@ function purchasedFurniture(itemIds: string[]) {
     }));
 }
 
-function PurchasedRoomFurniture({ itemIds, accent, layout }: { itemIds: string[]; accent: string; layout?: RoomLayout }) {
+// topInset clears whatever sits above the placement area in THIS room context before
+// the furniture layer starts — it varies by caller because that varies: DollhouseRoom's
+// heading is a separate box entirely above this one (just a small decorative icon to
+// clear here), while SoloRoom's heading and invite button are normal-flow content
+// inside this same positioned container. A hanging item's box top sits at 0% travel
+// (see the y:0 fallback in room-layout.ts), i.e. exactly at this inset — a topInset
+// that's too generous leaves a visible gap between the item and the room's true
+// ceiling; too small and it clips under whatever the caller has up there instead.
+function PurchasedRoomFurniture({ itemIds, accent, layout, topInset }: { itemIds: string[]; accent: string; layout?: RoomLayout; topInset: number }) {
   if (!itemIds.length) return null;
   return <div data-room-purchased-items={itemIds.length} aria-label={`${itemIds.length} purchased furniture items in room`}
-    style={{ position: "absolute", inset: "55px 10px 12px", pointerEvents: "none", filter: `drop-shadow(1px 1px 0 ${memberShadowColor(accent)})` }}>
+    style={{ position: "absolute", inset: `${topInset}px 10px 12px`, pointerEvents: "none", filter: `drop-shadow(1px 1px 0 ${memberShadowColor(accent)})` }}>
     <RoomFurnitureLayer items={purchasedFurniture(itemIds)} layout={layout} />
   </div>;
 }
@@ -3085,8 +3093,10 @@ function DollhouseRoom({ member, onTap, coins, soldItems, purchasedItems, layout
             ))}
         </div>
         {/* purchasedItems is the ownership source of truth; selling a shop item removes
-            it there, while buying it again adds it back and should render it again. */}
-        <PurchasedRoomFurniture itemIds={purchasedItems} accent={member.primaryColor} layout={layout} />
+            it there, while buying it again adds it back and should render it again. This
+            room's own box (not RoomHeading, a separate box above it) is the ceiling, so
+            only the small window icon above needs clearing. */}
+        <PurchasedRoomFurniture itemIds={purchasedItems} accent={member.primaryColor} layout={layout} topInset={16} />
         {/* zIndex above furniture's highest (2, see furnitureLayer): the player always
             stands in front of their furniture, not behind it, however the unarranged
             default layout happens to have placed something near room-centre. */}
@@ -3289,14 +3299,21 @@ function SoloRoom({ member, coins, purchasedItems, layout, inviteCode, onTap, on
       >
         {inviteCode ? `+ INVITE · ${inviteCode}` : "+ PLAY WITH OTHERS"}
       </button>
-      <PurchasedRoomFurniture itemIds={purchasedItems} accent={member.primaryColor} layout={layout} />
-      {/* zIndex above furniture's highest (2, see furnitureLayer) for the same reason as
-          DollhouseRoom: the player stands in front of their furniture, not behind it. */}
-      <button className="room-player" onClick={onTap} style={{ position: "relative", zIndex: 3, alignSelf: "center", marginTop: "auto", marginBottom: 40, background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-        <SafetyBadge safe={member.safeThisWeek} size={22} />
-        <MemberChar member={member} size={112} />
-        <div className="room-player-name" style={{ color: member.primaryColor }}>{member.name}</div>
-      </button>
+      {/* A separate positioned zone below the heading and invite button (both normal
+          flow, variable height) rather than sizing PurchasedRoomFurniture's inset to
+          guess that height: a hanging item's box top is this zone's own top edge, so
+          guessing too generously reopens the "floating, disconnected from the ceiling"
+          gap this is fixing, and guessing too tightly clips under the button instead. */}
+      <div style={{ position: "relative", flex: 1, display: "flex", flexDirection: "column" }}>
+        <PurchasedRoomFurniture itemIds={purchasedItems} accent={member.primaryColor} layout={layout} topInset={16} />
+        {/* zIndex above furniture's highest (2, see furnitureLayer) for the same reason
+            as DollhouseRoom: the player stands in front of their furniture, not behind it. */}
+        <button className="room-player" onClick={onTap} style={{ position: "relative", zIndex: 3, alignSelf: "center", marginTop: "auto", marginBottom: 40, background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+          <SafetyBadge safe={member.safeThisWeek} size={22} />
+          <MemberChar member={member} size={112} />
+          <div className="room-player-name" style={{ color: member.primaryColor }}>{member.name}</div>
+        </button>
+      </div>
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 6, background: `linear-gradient(90deg,${member.primaryColor}22,${member.primaryColor}55,${member.primaryColor}22)` }} />
     </div>
   );
