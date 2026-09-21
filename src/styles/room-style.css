@@ -17,7 +17,9 @@
 .room-style-preview { position: sticky; top: 0; z-index: 3; height: min(200px, 30dvh); min-height: 132px; border: 3px solid; margin-bottom: 18px; isolation: isolate; }
 .room-style-preview-name { position: relative; z-index: 1; margin: 12px; font-size: var(--text-heading); max-width: calc(100% - 24px); }
 .room-style-preview-furniture { position: absolute; inset: 55px 10px 12px; }
-.room-style-preview-avatar { position: absolute; bottom: 18px; left: calc(50% - 24px); pointer-events: none; }
+/* Above furniture's highest z-index (2, see furnitureLayer() in room-layout.ts): the
+   avatar preview stands in front of furniture, not behind it. */
+.room-style-preview-avatar { position: absolute; bottom: 18px; left: calc(50% - 24px); z-index: 3; pointer-events: none; }
 .room-style-preview-tag { position: absolute; right: 6px; bottom: 4px; font-size: var(--text-caption); color: #a8bbcf; background: #0a0e1a; padding: 2px 4px; }
 .room-name-label { display: block; margin-bottom: 8px; }
 .room-style-editor > input { background: #111827; border: 2px solid #344762; color: #e8f4f8; width: 100%; min-height: 44px; padding: 10px; font: inherit; }

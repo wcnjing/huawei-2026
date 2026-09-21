@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { RoomLayout } from "../../types/roomLayout";
+import { furnitureAnchor, type RoomLayout } from "../../types/roomLayout";
 import { SHOP_CATALOGUE, SHOP_CATEGORIES, DECOR_TYPES, filterShopItems, type ShopItem, type ShopCategory, type DecorType } from "../../data/shopCatalogue";
 import { ShopFurnitureArt, purchasedFurniture } from "../../components/furniture";
 import { IconCoin, IconHouse } from "../../components/icons";
@@ -178,7 +178,7 @@ export function ShopScreen({
                     </div>
                   )}
                   <div style={{ height: 84, width: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <ShopFurnitureArt art={item.art} size={98} />
+                    <ShopFurnitureArt art={item.art} size={98} anchor={furnitureAnchor(item.id)} />
                   </div>
                   <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#e8f4f8", textAlign: "center", lineHeight: 1.4 }}>
                     {item.name}

@@ -9,6 +9,7 @@ import crypto from 'crypto';
 import { computeResult, KNOWN_OUTCOMES } from './xp.js';
 import { query, transaction } from './db.js';
 import { cleanAvatar } from './avatar.js';
+import { cleanHomeInventory } from './home-inventory.js';
 // houses.js imports this module's locking helpers in turn. Neither module calls the
 // other while it is being evaluated, so the cycle resolves before any call happens.
 import { lockHouseOf, releaseFromHouse } from './houses.js';
@@ -110,6 +111,16 @@ async function writeAvatar(runner, userId, avatar) {
   const { rows } = await runner.query(
     'update safespace.users set avatar = $2::jsonb where id = $1 returning *',
     [String(userId), JSON.stringify(avatar)],
+  );
+  if (!rows[0]) throw new Error(`unknown user ${userId}`);
+  return userFromRow(rows[0]);
+}
+
+/** Write coins + furniture to database. runner is anything with .query(sql, params). */
+async function writeHomeInventory(runner, userId, inventory) {
+  const { rows } = await runner.query(
+    'update safespace.users set home_inventory = $2::jsonb where id = $1 returning *',
+    [String(userId), JSON.stringify(inventory)],
   );
   if (!rows[0]) throw new Error(`unknown user ${userId}`);
   return userFromRow(rows[0]);
@@ -760,6 +771,23 @@ export async function setUserAvatar(userId, avatar) {
     query: (sql, params) => query(sql, params, 'setUserAvatar'),
   };
   return writeAvatar(runner, userId, clean);
+}
+
+// Same unconditional-overwrite shape as setUserAvatar, deliberately: the client always
+// sends its whole coins+furniture+layout record, so the last write wins with no lock.
+// For avatar that's a fine trade — a lost edit is just cosmetic. Two devices for the
+// same account saving different purchases close together could, in principle, lose one
+// side's coin spend or item; accepted for now because this feature is used from one
+// device at a time in practice, and nothing is destroyed if it does happen (each
+// device's own local copy survives independently, so the next save from either one
+// reconciles the account rather than losing data permanently).
+export async function setUserHomeInventory(userId, homeInventory) {
+  const clean = cleanHomeInventory(homeInventory);
+  if (!clean) throw new Error('home inventory is invalid');
+  const runner = {
+    query: (sql, params) => query(sql, params, 'setUserHomeInventory'),
+  };
+  return writeHomeInventory(runner, userId, clean);
 }
 
 // Backward-compatible storage helper. Setting an address never marks it verified:

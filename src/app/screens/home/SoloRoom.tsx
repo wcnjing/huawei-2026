@@ -20,12 +20,14 @@ export function SoloRoom({ member, coins, purchasedItems, layout, inviteCode, on
       >
         {inviteCode ? `+ INVITE · ${inviteCode}` : "+ PLAY WITH OTHERS"}
       </button>
-      <PurchasedRoomFurniture itemIds={purchasedItems} accent={member.primaryColor} layout={layout} />
-      <button className="room-player" onClick={onTap} style={{ position: "relative", alignSelf: "center", marginTop: "auto", marginBottom: 40, background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-        <SafetyBadge safe={member.safeThisWeek} size={22} />
-        <MemberChar member={member} size={112} />
-        <div className="room-player-name" style={{ color: member.primaryColor }}>{member.name}</div>
-      </button>
+      <div style={{ position: "relative", flex: 1, display: "flex", flexDirection: "column" }}>
+        <PurchasedRoomFurniture itemIds={purchasedItems} accent={member.primaryColor} layout={layout} topInset={16} />
+        <button className="room-player" onClick={onTap} style={{ position: "relative", zIndex: 3, alignSelf: "center", marginTop: "auto", marginBottom: 40, background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+          <SafetyBadge safe={member.safeThisWeek} size={22} />
+          <MemberChar member={member} size={112} />
+          <div className="room-player-name" style={{ color: member.primaryColor }}>{member.name}</div>
+        </button>
+      </div>
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 6, background: `linear-gradient(90deg,${member.primaryColor}22,${member.primaryColor}55,${member.primaryColor}22)` }} />
     </div>
   );

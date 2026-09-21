@@ -13,7 +13,7 @@ export function DollhouseRoom({ member, onTap, coins, soldItems, purchasedItems,
   return (
     <button onClick={() => onTap(member)} style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", padding: "0", cursor: "pointer" }}>
       <div style={{ backgroundColor: colors.wall }}><RoomHeading member={member} coins={coins} /></div>
-      <div style={{ backgroundColor: member.roomBg, position: "relative", height: 168, overflow: "hidden" }}>
+      <div style={{ backgroundColor: member.roomBg, position: "relative", height: 232, overflow: "hidden" }}>
         <RoomBackdrop style={member.roomStyle} background={member.roomBg} accent={member.primaryColor} />
         <div style={{ position: "absolute", top: 10, right: 16 }}>
           <svg width={28} height={32} viewBox="0 0 7 8" style={{ imageRendering: "pixelated" }}>
@@ -24,19 +24,19 @@ export function DollhouseRoom({ member, onTap, coins, soldItems, purchasedItems,
             <rect x={4} y={5} width={2} height={2} fill="#1a2a4a" />
           </svg>
         </div>
-        <div style={{ position: "absolute", left: 8, bottom: 12, display: "flex", alignItems: "flex-end", gap: 3, maxWidth: 126 }}>
+        <div style={{ position: "absolute", left: 8, bottom: 12, display: "flex", alignItems: "flex-end", gap: 3, maxWidth: 172 }}>
           {FURNITURE_STORE
             .filter(item => item.memberId === member.id && !soldItems.includes(item.id))
             .map(item => (
-              <div key={item.id} title={item.name} style={{ width: 27, height: 30, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-                <FurnitureIcon itemId={item.id} size={26} />
+              <div key={item.id} title={item.name} style={{ width: 38, height: 42, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+                <FurnitureIcon itemId={item.id} size={36} />
               </div>
             ))}
         </div>
         {/* purchasedItems is the ownership source of truth; selling a shop item removes
             it there, while buying it again adds it back and should render it again. */}
-        <PurchasedRoomFurniture itemIds={purchasedItems} accent={member.primaryColor} layout={layout} />
-        <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+        <PurchasedRoomFurniture itemIds={purchasedItems} accent={member.primaryColor} layout={layout} topInset={16} />
+        <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", zIndex: 3, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
           <SafetyBadge safe={member.safeThisWeek} size={18} />
           <MemberChar member={member} size={44} />
         </div>

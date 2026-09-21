@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { RoomLayout } from "../../types/roomLayout";
+import { furnitureAnchor, type RoomLayout } from "../../types/roomLayout";
 import type { RoomStyle } from "../../types/roomStyle";
 import { FURNITURE_STORE } from "../../data/furniture";
 import { SHOP_CATALOGUE, type ShopItem } from "../../data/shopCatalogue";
@@ -51,7 +51,7 @@ export function CustomizeScreen({ memberId, coins, purchasedItems, soldItems, la
         id: item.id,
         name: item.name,
         sellValue: Math.floor(item.cost * 0.75),
-        art: <ShopFurnitureArt art={item.art} size={30} />,
+        art: <ShopFurnitureArt art={item.art} size={30} anchor={furnitureAnchor(item.id)} />,
       })),
   ];
 

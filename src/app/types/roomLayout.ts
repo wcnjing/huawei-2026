@@ -9,6 +9,16 @@ export function furnitureLayer(id: string): number {
   return CARPETS.has(id) ? 0 : HANGING_ITEMS.has(id) ? 1 : 2;
 }
 
+// Where an item's art should sit within its (aspect-ratio-preserving) placement box.
+// A hanging item's box top sits at the room's ceiling (see the y:0 fallback below), so
+// its art must touch the TOP of that box — any leftover space from fitting a wide art
+// asset into a tall box belongs below it, like a chain dangling into the room, not
+// above it as a gap between the art and the ceiling it's meant to be mounted on.
+// Everything else stands on the floor, so it anchors to the bottom of its box instead.
+export function furnitureAnchor(id: string): 'top' | 'bottom' {
+  return HANGING_ITEMS.has(id) ? 'top' : 'bottom';
+}
+
 // Coordinates describe the available travel of the whole item, not its centre.
 // Thus 100 still keeps its right/bottom edge inside rooms of any size.
 export function snapPosition(x: number, y: number): RoomPosition {

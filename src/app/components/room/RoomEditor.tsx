@@ -4,15 +4,27 @@ import { RoomBackdrop } from './RoomBackdrop';
 import type { RoomStyle } from '../../types/roomStyle';
 
 export type RoomFurniture = { id: string; name: string; art: ReactNode };
+// Item size and travel below must keep width+travel = height+travel = 100: coordinates
+// describe the travel of the item's own top-left corner (see room-layout.ts), so at
+// x/y=100 the item's right/bottom edge should land exactly on the room's edge, never
+// past it. Every place below that maps a pointer position or a 10-unit snap step to a
+// percentage of the board derives from these same two numbers, so resizing the item
+// can't silently desync the drag, tap-to-place and grid math again.
+const ITEM_WIDTH_PCT = 22;
+const ITEM_HEIGHT_PCT = 38;
+const ITEM_TRAVEL_X = 1 - ITEM_WIDTH_PCT / 100;
+const ITEM_TRAVEL_Y = 1 - ITEM_HEIGHT_PCT / 100;
 const itemStyle = (p: RoomPosition): CSSProperties => ({
-  position: 'absolute', left: `${p.x * .85}%`, top: `${p.y * .70}%`,
-  width: '15%', height: '30%', display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+  position: 'absolute', left: `${p.x * ITEM_TRAVEL_X}%`, top: `${p.y * ITEM_TRAVEL_Y}%`,
+  width: `${ITEM_WIDTH_PCT}%`, height: `${ITEM_HEIGHT_PCT}%`, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
 });
 
 export function RoomFurnitureLayer({ items, layout }: { items: RoomFurniture[]; layout?: RoomLayout }) {
   const positions = reconcileLayout(items.map(i => i.id), layout);
   return <>
-    <style>{`.room-furniture-art > svg { max-width: 100%; max-height: 100%; flex-shrink: 1; }`}</style>
+    {/* width/height (not max-width/max-height) so pixel art scales UP to fill its
+        larger placement box too, not just down from its own intrinsic SVG size. */}
+    <style>{`.room-furniture-art > svg { width: 100%; height: 100%; flex-shrink: 1; }`}</style>
     {items.map(item => <div key={item.id} title={item.name} data-placed-item={item.id}
       className="room-furniture-art" style={{ ...itemStyle(positions[item.id]), zIndex: furnitureLayer(item.id), pointerEvents: 'none' }}>{item.art}</div>)}
   </>;
@@ -70,17 +82,19 @@ export function RoomEditor({ items, layout, roomName, accent, background, roomSt
       </div>
       <div style={{ overflowY: 'auto', padding: 16, minHeight: 0 }}>
         <p style={{ margin: '0 0 14px', lineHeight: 1.5 }}>Drag furniture, or select an item and tap where you want it.</p>
-        <style>{`.room-furniture-art > svg { max-width:100%; max-height:100%; flex-shrink:1; } .room-editor-item:focus-visible { outline:3px solid #fff; outline-offset:2px; }`}</style>
+        <style>{`.room-furniture-art > svg { width:100%; height:100%; flex-shrink:1; } .room-editor-item:focus-visible { outline:3px solid #fff; outline-offset:2px; }`}</style>
         <div ref={board} data-room-editor-board aria-label="Room placement area"
           onClick={event => {
             if (!selected || !board.current) return;
             const rect = board.current.getBoundingClientRect();
-            move(selected, (event.clientX - rect.left - rect.width * .075) / (rect.width * .85) * 100,
-              (event.clientY - rect.top - rect.height * .15) / (rect.height * .70) * 100);
+            // Centre the tap on the item: subtract half its box before converting to
+            // the same 0-100 travel range `move`/`snapPosition` expect.
+            move(selected, (event.clientX - rect.left - rect.width * (ITEM_WIDTH_PCT / 200)) / (rect.width * ITEM_TRAVEL_X) * 100,
+              (event.clientY - rect.top - rect.height * (ITEM_HEIGHT_PCT / 200)) / (rect.height * ITEM_TRAVEL_Y) * 100);
           }}
-          style={{ position: 'relative', aspectRatio: '1.6', backgroundColor: background, backgroundImage: `linear-gradient(#ffffff12 1px, transparent 1px), linear-gradient(90deg,#ffffff12 1px, transparent 1px)`, backgroundSize: '8.5% 7%', boxShadow: `inset 0 0 0 2px ${accent}66`, touchAction: 'none' }}>
+          style={{ position: 'relative', aspectRatio: '1.6', backgroundColor: background, backgroundImage: `linear-gradient(#ffffff12 1px, transparent 1px), linear-gradient(90deg,#ffffff12 1px, transparent 1px)`, backgroundSize: `${ITEM_TRAVEL_X * 10}% ${ITEM_TRAVEL_Y * 10}%`, boxShadow: `inset 0 0 0 2px ${accent}66`, touchAction: 'none' }}>
           <RoomBackdrop style={roomStyle} background={background} accent={accent} />
-          <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'linear-gradient(#ffffff12 1px, transparent 1px), linear-gradient(90deg,#ffffff12 1px, transparent 1px)', backgroundSize: '8.5% 7%' }} />
+          <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'linear-gradient(#ffffff12 1px, transparent 1px), linear-gradient(90deg,#ffffff12 1px, transparent 1px)', backgroundSize: `${ITEM_TRAVEL_X * 10}% ${ITEM_TRAVEL_Y * 10}%` }} />
           {items.map(item => <button key={item.id} type="button" aria-label={`Move ${item.name}`} aria-pressed={selected === item.id}
             className="room-editor-item room-furniture-art" data-editor-item={item.id}
             onClick={event => { event.stopPropagation(); setSelected(item.id); }}
@@ -103,7 +117,7 @@ export function RoomEditor({ items, layout, roomName, accent, background, roomSt
               if (!active.moved && Math.hypot(dx, dy) < 5) return;
               active.moved = true;
               const rect = board.current.getBoundingClientRect();
-              move(active.id, active.origin.x + dx / (rect.width * .85) * 100, active.origin.y + dy / (rect.height * .70) * 100);
+              move(active.id, active.origin.x + dx / (rect.width * ITEM_TRAVEL_X) * 100, active.origin.y + dy / (rect.height * ITEM_TRAVEL_Y) * 100);
             }}
             onPointerUp={event => { if (drag.current?.pointer === event.pointerId) drag.current = null; }}
             onPointerCancel={event => {
