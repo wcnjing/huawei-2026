@@ -89,13 +89,19 @@ async function unlockedHouseId(tx, userId) {
  * Lock the caller's house, then the caller, and confirm they are still a member.
  * Returns { house, user }.
  */
-async function lockOwnHouse(tx, userId) {
+export async function lockHouseMember(tx, userId, expectedHouseId) {
   const houseId = await unlockedHouseId(tx, userId);
-  if (!houseId) throw new HouseError('NOT_IN_HOUSE');
+  if (!houseId || (expectedHouseId !== undefined && houseId !== expectedHouseId)) {
+    throw new HouseError('NOT_IN_HOUSE');
+  }
   const house = await lockHouse(tx, houseId);
   const user = await lockUser(tx, userId);
   if (!house || !user || user.houseId !== house.id) throw new HouseError('NOT_IN_HOUSE');
   return { house, user };
+}
+
+async function lockOwnHouse(tx, userId) {
+  return lockHouseMember(tx, userId);
 }
 
 async function memberIds(tx, houseId) {

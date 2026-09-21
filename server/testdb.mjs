@@ -10,7 +10,7 @@ import { applyMigrations, listMigrations } from './migrate.js';
 // Child tables before parents, although `cascade` makes the order forgiving.
 const TABLES = [
   'sessions', 'consent_events', 'rate_limit_hits', 'drill_runs', 'drill_results',
-  'drill_attempts', 'tactic_cards', 'houses', 'users',
+  'drill_attempts', 'tactic_cards', 'chat_messages', 'houses', 'users',
 ];
 let throwaway = null;
 
