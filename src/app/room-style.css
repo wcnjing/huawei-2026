@@ -2,6 +2,23 @@
 .room-wall-pattern { position: absolute; inset: 0; }
 .room-wall-grid { background-image: linear-gradient(#ffffff09 1px, transparent 1px), linear-gradient(90deg, #ffffff09 1px, transparent 1px); background-size: 16px 16px; }
 .room-wall-stripes { background-image: repeating-linear-gradient(90deg, transparent 0 20px, #ffffff08 20px 24px); }
+.room-wall-brick {
+  background-image: repeating-linear-gradient(0deg, transparent 0 14px, #0a0e1a55 14px 16px),
+    repeating-linear-gradient(90deg, transparent 0 30px, #0a0e1a44 30px 32px);
+  background-size: 100% 16px, 32px 32px;
+  background-position: 0 0, 16px 16px;
+}
+.room-wall-hex {
+  background-image: linear-gradient(60deg, #ffffff0a 25%, transparent 25.5% 75%, #ffffff0a 75.5%),
+    linear-gradient(-60deg, #ffffff0a 25%, transparent 25.5% 75%, #ffffff0a 75.5%);
+  background-size: 22px 38px;
+}
+.room-wall-circuit {
+  background-image: linear-gradient(#00ff8816 1px, transparent 1px),
+    linear-gradient(90deg, #00ff8816 1px, transparent 1px),
+    radial-gradient(#00ff8840 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
+}
 .room-stars { position: absolute; inset: 0 0 34%; }
 .room-stars span { position: absolute; width: 2px; height: 6px; background: var(--room-light); opacity: .45; }
 .room-stars span::after { content: ''; position: absolute; left: -2px; top: 2px; width: 6px; height: 2px; background: inherit; }
@@ -10,6 +27,13 @@
 .room-floor-tile { background-image: linear-gradient(#ffffff14 1px, transparent 1px), linear-gradient(90deg, #ffffff14 1px, transparent 1px); background-size: 24px 18px; }
 .room-floor-checker { background-image: conic-gradient(#ffffff0d 25%, transparent 0 50%, #ffffff0d 0 75%, transparent 0); background-size: 32px 32px; }
 .room-floor-carpet { background-image: repeating-linear-gradient(45deg, transparent 0 3px, #ffffff06 3px 4px); }
+.room-floor-concrete {
+  background-image: radial-gradient(#ffffff12 1px, transparent 1px), radial-gradient(#00000024 1px, transparent 1px);
+  background-size: 6px 6px, 9px 9px;
+  background-position: 0 0, 3px 4px;
+}
+.room-floor-neon { background-image: linear-gradient(#4ecdc433 1px, transparent 1px), linear-gradient(90deg, #4ecdc433 1px, transparent 1px); background-size: 20px 20px; }
+.room-floor-metal { background-image: repeating-linear-gradient(115deg, #ffffff0d 0 2px, transparent 2px 6px); }
 .room-neon-light { position: absolute; left: 4%; right: 4%; top: 2%; height: 3px; background: var(--room-light); box-shadow: 0 0 12px var(--room-light); opacity: .85; }
 .room-style-editor { color: #e8f4f8; font-size: var(--text-body); }
 .room-style-intro h2 { margin: 0 0 6px; font-size: var(--text-title); color: #4ecdc4; }

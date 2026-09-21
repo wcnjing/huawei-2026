@@ -11,6 +11,8 @@ export const WALL_COLORS = [
 export const WALL_PATTERNS = [
   { id: 'grid', name: 'Pixel grid' }, { id: 'plain', name: 'Solid' },
   { id: 'stripes', name: 'Stripes' }, { id: 'stars', name: 'Pixel stars' },
+  { id: 'brick', name: 'Brick' }, { id: 'hex', name: 'Honeycomb' },
+  { id: 'circuit', name: 'Circuit' },
 ] as const;
 export const FLOORS = [
   { id: 'original', name: 'Original', color: '' },
@@ -18,6 +20,9 @@ export const FLOORS = [
   { id: 'tile', name: 'Slate tiles', color: '#273348' },
   { id: 'checker', name: 'Arcade checks', color: '#302342' },
   { id: 'carpet', name: 'Soft carpet', color: '#253d43' },
+  { id: 'concrete', name: 'Concrete', color: '#2c2f36' },
+  { id: 'neon', name: 'Neon grid', color: '#0d1f2e' },
+  { id: 'metal', name: 'Brushed metal', color: '#33383f' },
 ] as const;
 export const ROOM_LIGHTS = [
   { id: 'auto', name: 'Match avatar', color: '' },
