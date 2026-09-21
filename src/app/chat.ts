@@ -149,29 +149,14 @@ export function createChatTransport(capturedToken: string, now: () => number = D
   };
 }
 
-type ControllerLease = {
-  key: string;
+type OwnedController = {
   controller: ChatController;
   users: number;
   disposeTimer: number | null;
+  onAccessDenied(): void;
 };
 
-let lease: ControllerLease | null = null;
-
-function acquireController(
-  key: string,
-  create: () => ChatController,
-): ControllerLease {
-  if (lease?.key === key) return lease;
-  if (lease) {
-    if (lease.disposeTimer !== null) window.clearTimeout(lease.disposeTimer);
-    lease.controller.dispose();
-  }
-  lease = { key, controller: create(), users: 0, disposeTimer: null };
-  return lease;
-}
-
-function retainController(selected: ControllerLease) {
+function retainController(selected: OwnedController) {
   selected.users += 1;
   if (selected.disposeTimer !== null) {
     window.clearTimeout(selected.disposeTimer);
@@ -186,7 +171,6 @@ function retainController(selected: ControllerLease) {
       selected.disposeTimer = null;
       if (selected.users === 0) {
         selected.controller.dispose();
-        if (lease === selected) lease = null;
       }
     }, 0);
   };
@@ -208,21 +192,30 @@ export function useHouseChat(options: {
   const identity = options.houseId && options.selfId && options.sessionKey
     ? `${options.sessionKey.length}:${options.sessionKey}|${options.selfId.length}:${options.selfId}|${options.houseId}`
     : null;
-  const accessDenied = useRef(options.onAccessDenied);
-  accessDenied.current = options.onAccessDenied;
+  const committed = useRef<OwnedController | null>(null);
   const selected = useMemo(() => {
     if (!identity || !options.houseId || !options.selfId || !options.sessionKey) return null;
     const houseId = options.houseId;
     const selfId = options.selfId;
     const token = options.sessionKey;
-    return acquireController(identity, () => createChatController({
+    let owned: OwnedController;
+    const controller = createChatController({
       houseId,
       selfId,
       transport: createChatTransport(token),
-      onAccessDenied: () => accessDenied.current(),
+      onAccessDenied: () => {
+        if (committed.current === owned) owned.onAccessDenied();
+      },
       uuid: () => crypto.randomUUID(),
       now: Date.now,
-    }));
+    });
+    owned = {
+      controller,
+      users: 0,
+      disposeTimer: null,
+      onAccessDenied: options.onAccessDenied,
+    };
+    return owned;
   }, [identity, options.houseId, options.selfId, options.sessionKey]);
   const controller = selected?.controller ?? null;
   const snapshot = useSyncExternalStore(
@@ -231,7 +224,21 @@ export function useHouseChat(options: {
     controller?.getSnapshot ?? (() => EMPTY_SNAPSHOT),
   );
 
-  useEffect(() => selected ? retainController(selected) : undefined, [selected]);
+  useEffect(() => {
+    committed.current = selected;
+    if (!selected) return;
+    const release = retainController(selected);
+    return () => {
+      if (committed.current === selected) committed.current = null;
+      release();
+    };
+  }, [selected]);
+
+  useEffect(() => {
+    if (selected && committed.current === selected) {
+      selected.onAccessDenied = options.onAccessDenied;
+    }
+  });
 
   useEffect(() => {
     if (!controller || !options.active) return;
