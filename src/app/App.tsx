@@ -8075,6 +8075,7 @@ export default function App() {
                 houseName={house.state.house?.name ?? ""}
                 hasHouse={!!house.state.house}
                 identityKey={`${selfId}:${house.state.house?.id ?? ""}`}
+                reduceMotion={accessibility.reduceMotion}
                 onBack={goHome}
                 onJoinHouse={() => setScreen("house")}
                 renderAvatar={avatar => (

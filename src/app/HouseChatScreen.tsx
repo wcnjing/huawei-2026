@@ -12,6 +12,7 @@ export type HouseChatScreenProps = {
   houseName: string;
   hasHouse: boolean;
   identityKey: string;
+  reduceMotion: boolean;
   onBack(): void;
   onJoinHouse(): void;
   renderAvatar(avatar: Avatar): ReactNode;
@@ -37,6 +38,7 @@ export function HouseChatScreen({
   houseName,
   hasHouse,
   identityKey,
+  reduceMotion,
   onBack,
   onJoinHouse,
   renderAvatar,
@@ -48,20 +50,35 @@ export function HouseChatScreen({
   const nearBottomRef = useRef(true);
   const forceBottomRef = useRef(false);
   const anchorRef = useRef<{ height: number; top: number; firstKey: string | null } | null>(null);
-  const lastItemRef = useRef<string | null>(null);
+  const lastMessageIdRef = useRef<string | null | undefined>(undefined);
   const validDraft = normalizeDraft(draft);
   const count = Array.from(draft.replace(/\r\n/g, "\n").trim()).length;
   const disabled = !hasHouse || chat.accessDenied;
-  const rows = useMemo(() => [
-    ...chat.messages.map(message => ({ kind: "message" as const, key: `message:${message.id}`, ...message })),
-    ...chat.pending.map(message => ({
+  const rows = useMemo(() => {
+    const messages = chat.messages.map(message => ({
+      kind: "message" as const,
+      key: `message:${message.id}`,
+      ...message,
+    }));
+    const pending = chat.pending.map(message => ({
       kind: "pending" as const,
       key: `pending:${message.clientKey}`,
       senderName: selfName,
       senderAvatar: null,
       ...message,
-    })),
-  ], [chat.messages, chat.pending, selfName]);
+    }));
+    const merged: Array<(typeof messages)[number] | (typeof pending)[number]> = [];
+    let pendingIndex = 0;
+    for (const message of messages) {
+      while (pendingIndex < pending.length && pending[pendingIndex].createdAt <= message.createdAt) {
+        merged.push(pending[pendingIndex]);
+        pendingIndex += 1;
+      }
+      merged.push(message);
+    }
+    merged.push(...pending.slice(pendingIndex));
+    return merged;
+  }, [chat.messages, chat.pending, selfName]);
   const cooldownActive = chat.pending.some(item => item.status === "failed" && item.retryAt > now);
 
   useEffect(() => {
@@ -85,21 +102,23 @@ export function HouseChatScreen({
       history.scrollTop = anchor.top + history.scrollHeight - anchor.height;
       return;
     }
-    const lastItem = rows.at(-1)?.key ?? null;
-    if (lastItem === lastItemRef.current) return;
-    const hadItems = lastItemRef.current !== null;
-    lastItemRef.current = lastItem;
-    if (!hadItems || forceBottomRef.current || nearBottomRef.current) {
+    const lastMessageId = chat.messages.at(-1)?.id ?? null;
+    const previousMessageId = lastMessageIdRef.current;
+    lastMessageIdRef.current = lastMessageId;
+    const messageArrived = lastMessageId !== null && lastMessageId !== previousMessageId;
+    if (!messageArrived && !forceBottomRef.current) return;
+    const hadMessages = previousMessageId !== undefined && previousMessageId !== null;
+    if (!hadMessages || forceBottomRef.current || nearBottomRef.current) {
       forceBottomRef.current = false;
       setNewMessages(false);
       history.scrollTo({
         top: history.scrollHeight,
-        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        behavior: reduceMotion || window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
       });
     } else {
       setNewMessages(true);
     }
-  }, [rows]);
+  }, [chat.messages, reduceMotion, rows]);
 
   const send = () => {
     if (disabled || !validDraft) return;
@@ -125,7 +144,7 @@ export function HouseChatScreen({
     if (!history) return;
     history.scrollTo({
       top: history.scrollHeight,
-      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      behavior: reduceMotion || window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
     });
     nearBottomRef.current = true;
     setNewMessages(false);

@@ -53,23 +53,37 @@ async function seedPlayer(registerVerifiedUser, createSession, name, phone) {
 async function openChat(browserInstance, baseUrl, player, options = {}) {
   const viewport = options.viewport ?? { width: 390, height: 844 };
   const context = await browserInstance.newContext({ viewport });
-  await context.addInitScript(({ token, name, largerText }) => {
+  await context.addInitScript(({ token, name, largerText, reduceMotion }) => {
     localStorage.setItem('safespace_session_token', token);
     localStorage.setItem('safespace_profile', JSON.stringify({
       name,
       avatar: { color: '#4ecdc4', glow: '#00ff88', hat: 'None', eyes: 'Default', outfit: 'Standard' },
     }));
     localStorage.setItem('safespace_tutorial_seen', '1');
-    if (largerText) {
+    if (largerText || reduceMotion) {
       localStorage.setItem('safespace_accessibility_v1', JSON.stringify({
-        reduceMotion: false,
-        largerText: true,
+        reduceMotion,
+        largerText,
         highContrast: false,
         disableScanlines: true,
       }));
     }
-  }, { token: player.token, name: player.user.name, largerText: options.largerText ?? false });
+    const originalScrollTo = HTMLElement.prototype.scrollTo;
+    globalThis.__HOUSE_CHAT_SCROLL_BEHAVIORS__ = [];
+    HTMLElement.prototype.scrollTo = function scrollTo(...args) {
+      if (this.classList?.contains('house-chat__history') && typeof args[0] === 'object') {
+        globalThis.__HOUSE_CHAT_SCROLL_BEHAVIORS__.push(args[0].behavior);
+      }
+      return originalScrollTo.apply(this, args);
+    };
+  }, {
+    token: player.token,
+    name: player.user.name,
+    largerText: options.largerText ?? false,
+    reduceMotion: options.reduceMotion ?? false,
+  });
   const page = await context.newPage();
+  await page.emulateMedia({ reducedMotion: options.osReducedMotion ? 'reduce' : 'no-preference' });
   await page.goto(baseUrl);
   await page.getByRole('button', { name: '[ PRESS START ]', exact: true }).click();
   await page.getByRole('button', { name: 'Open house chat' }).click();
@@ -157,7 +171,10 @@ try {
   browser = await chromium.launch({ headless: true, executablePath: chromeExecutable });
   await fs.mkdir(artifactDir, { recursive: true });
 
-  const alice = await openChat(browser, baseUrl, alicePlayer, { viewport: { width: 1280, height: 900 } });
+  const alice = await openChat(browser, baseUrl, alicePlayer, {
+    viewport: { width: 1280, height: 900 },
+    reduceMotion: true,
+  });
   const bob = await openChat(browser, baseUrl, bobPlayer);
   const runtimeErrors = [];
   const consoleErrors = [];
@@ -251,7 +268,9 @@ try {
   }
   await alice.page.getByText(bulkBodies.at(-1), { exact: true }).waitFor({ timeout: 12_000 });
   const caughtUp = await alice.page.locator('.house-chat__text').allTextContents();
-  assert.equal(new Set(caughtUp.filter(text => text.startsWith('Catch-up message '))).size, 120);
+  const caughtUpBodies = caughtUp.filter(text => text.startsWith('Catch-up message '));
+  assert.equal(caughtUpBodies.length, 120);
+  assert.equal(new Set(caughtUpBodies).size, 120);
 
   await cara.page.reload();
   await cara.page.getByRole('button', { name: '[ PRESS START ]', exact: true }).click();
@@ -266,6 +285,19 @@ try {
   assert.ok(afterOlder.top >= beforeOlder.top + afterOlder.height - beforeOlder.height - 2);
 
   const aliceHistory = alice.page.getByRole('region', { name: 'Message history' });
+  let failPendingPost = true;
+  await alice.page.route('**/chat/messages', async route => {
+    if (route.request().method() === 'POST' && failPendingPost) {
+      failPendingPost = false;
+      await route.abort('connectionfailed');
+    } else {
+      await route.continue();
+    }
+  });
+  const failedPending = `Failed pending ${Date.now()}`;
+  await sendWithButton(alice.page, failedPending);
+  await alice.page.getByRole('button', { name: 'Retry', exact: true }).waitFor({ timeout: 10_000 });
+  await alice.page.evaluate(() => { globalThis.__HOUSE_CHAT_SCROLL_BEHAVIORS__ = []; });
   await aliceHistory.evaluate(element => { element.scrollTop = 0; element.dispatchEvent(new Event('scroll')); });
   const readingTop = await aliceHistory.evaluate(element => element.scrollTop);
   const whileReading = `Arrived while reading ${Date.now()}`;
@@ -278,6 +310,31 @@ try {
   await alice.page.getByText(whileReading, { exact: true }).waitFor({ timeout: 12_000 });
   assert.ok(Math.abs((await aliceHistory.evaluate(element => element.scrollTop)) - readingTop) <= 2);
   await alice.page.getByRole('button', { name: 'New messages', exact: true }).waitFor();
+  const focusedOrder = await alice.page.locator('.house-chat__text').allTextContents();
+  assert.ok(focusedOrder.indexOf(failedPending) < focusedOrder.indexOf(whileReading));
+
+  await alice.page.getByRole('button', { name: 'New messages', exact: true }).click();
+  await alice.page.waitForFunction(() => {
+    const history = document.querySelector('.house-chat__history');
+    return history && history.scrollHeight - history.scrollTop - history.clientHeight <= 2;
+  });
+  const nearBottomArrival = `Arrived near bottom ${Date.now()}`;
+  await database.query(
+    `insert into safespace.chat_messages
+       (house_id, sender_id, sender_name, sender_avatar, client_key, body, created_at)
+     values ($1, $2, $3, $4, $5, $6, $7)`,
+    [originalHouseId, bobPlayer.user.id, 'Bob', avatar, crypto.randomUUID(), nearBottomArrival, new Date().toISOString()],
+  );
+  await alice.page.getByText(nearBottomArrival, { exact: true }).waitFor({ timeout: 12_000 });
+  await alice.page.waitForFunction(() => {
+    const history = document.querySelector('.house-chat__history');
+    return history && history.scrollHeight - history.scrollTop - history.clientHeight <= 2;
+  });
+  assert.equal(await alice.page.getByRole('button', { name: 'New messages', exact: true }).count(), 0);
+  const scrollBehaviors = await alice.page.evaluate(() => globalThis.__HOUSE_CHAT_SCROLL_BEHAVIORS__);
+  assert.ok(scrollBehaviors.length >= 2);
+  assert.deepEqual([...new Set(scrollBehaviors)], ['auto']);
+  await alice.page.unroute('**/chat/messages');
 
   await Promise.all([
     alice.page.waitForRequest(request => request.url().includes('/chat/messages')),
