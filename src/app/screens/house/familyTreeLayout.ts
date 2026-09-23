@@ -1,198 +1,119 @@
-// Turns every member's own family record into one diagram: who sits in which
-// generation, left-to-right order, and the connector lines between them.
-import type { FamilyLink, MemberView } from "../../services/house";
+// Builds the family diagram from each member's chosen role alone: grandparents on top,
+// parents (and uncles/aunties) in the middle, children (and cousins) at the bottom.
+// Couples share a marriage line; each generation hangs from the couple above it.
+import type { FamilyRole, MemberView } from "../../services/house";
 
-export const NODE_W = 84;
+export const NODE_W = 92;
 export const NODE_H = 92;
 const H_GAP = 18;
-const COUPLE_GAP = 14;
+const COUPLE_GAP = 16;
 const ROW_GAP = 46;
 const PAD = 12;
 
+export type Gender = "male" | "female" | "unknown";
 export type TreeNode = { id: string; x: number; y: number };
 export type TreeLine = { key: string; points: [number, number][] };
-export type TreeLayout = {
-  nodes: TreeNode[];
-  lines: TreeLine[];
-  width: number;
-  height: number;
-  unplaced: string[];
-  parentsOf: Map<string, Set<string>>;
-  partnerOf: Map<string, string>;
-};
+export type TreeLayout = { nodes: TreeNode[]; lines: TreeLine[]; width: number; height: number; unplaced: string[] };
 
-const EMPTY: FamilyLink = { role: null, parentIds: [], partnerId: null, childIds: [] };
+const MALE = new Set<FamilyRole>(["GRANDPA", "DAD", "SON", "BROTHER", "UNCLE", "HUSBAND"]);
+const FEMALE = new Set<FamilyRole>(["GRANDMA", "MUM", "DAUGHTER", "SISTER", "AUNTIE", "WIFE"]);
 
-export function linkOf(member: MemberView): FamilyLink {
-  return member.family ?? EMPTY;
+export function genderOf(role: FamilyRole | null | undefined): Gender {
+  if (!role) return "unknown";
+  return MALE.has(role) ? "male" : FEMALE.has(role) ? "female" : "unknown";
 }
 
-/** The merged relations everyone has entered. */
-export function familyGraph(members: MemberView[]) {
-  const ids = new Set(members.map((m) => m.id));
-  const parentsOf = new Map<string, Set<string>>(members.map((m) => [m.id, new Set<string>()]));
-  for (const m of members) {
-    const link = linkOf(m);
-    for (const p of link.parentIds) if (ids.has(p) && p !== m.id) parentsOf.get(m.id)!.add(p);
-    for (const c of link.childIds) if (ids.has(c) && c !== m.id) parentsOf.get(c)!.add(m.id);
-  }
-  // First claim wins if two people name different partners.
-  const partnerOf = new Map<string, string>();
-  for (const m of members) {
-    const p = linkOf(m).partnerId;
-    if (!p || !ids.has(p) || p === m.id || partnerOf.has(m.id) || partnerOf.has(p)) continue;
-    partnerOf.set(m.id, p);
-    partnerOf.set(p, m.id);
-  }
-  return { parentsOf, partnerOf };
+type Unit = string[]; // one person, or a couple
+
+/** Pair the first of `a` with the first of `b`; everyone left over stands alone. */
+function pairUp(a: string[], b: string[]): { couples: Unit[]; singles: Unit[] } {
+  const couples: Unit[] = [];
+  const n = Math.min(a.length, b.length);
+  for (let i = 0; i < n; i += 1) couples.push([a[i], b[i]]);
+  return { couples, singles: [...a.slice(n), ...b.slice(n)].map((id) => [id]) };
 }
 
 export function layoutFamilyTree(members: MemberView[]): TreeLayout {
-  const { parentsOf, partnerOf } = familyGraph(members);
-  const order = new Map(members.map((m, i) => [m.id, i]));
+  const by = (roles: FamilyRole[]) => members.filter((m) => m.family?.role && roles.includes(m.family.role)).map((m) => m.id);
 
-  const linked = new Set<string>();
-  for (const [child, parents] of parentsOf) {
-    if (parents.size) { linked.add(child); parents.forEach((p) => linked.add(p)); }
+  // Generation 0: grandparents.
+  const gp = pairUp(by(["GRANDPA"]), by(["GRANDMA"]));
+  const gen0: Unit[] = [...gp.couples, ...gp.singles];
+
+  // Generation 1: the parents' couple first, then guardians, then uncles and aunties.
+  const parents = pairUp(by(["DAD", "HUSBAND"]), by(["MUM", "WIFE"]));
+  const mainUnits: Unit[] = [...parents.couples, ...parents.singles];
+  const partners = by(["PARTNER"]);
+  for (const p of partners) {
+    const lone = mainUnits.find((u) => u.length === 1);
+    if (lone) lone.push(p); else mainUnits.push([p]);
   }
-  partnerOf.forEach((_, id) => linked.add(id));
-  const placed = members.map((m) => m.id).filter((id) => linked.has(id));
-  const unplaced = members.map((m) => m.id).filter((id) => !linked.has(id));
+  const guardians = by(["GUARDIAN"]).map((id) => [id]);
+  const relatives = by(["UNCLE", "AUNTIE"]).map((id) => [id]);
+  const extended = by(["OTHER"]).map((id) => [id]);
+  const gen1: Unit[] = [...mainUnits, ...guardians, ...relatives, ...extended];
 
-  // Generations: children sit below their parents; partners share a row.
-  const gen = new Map(placed.map((id) => [id, 0]));
-  for (let pass = 0; pass < placed.length * 3 + 2; pass += 1) {
-    let changed = false;
-    for (const [child, parents] of parentsOf) {
-      for (const p of parents) {
-        const want = (gen.get(p) ?? 0) + 1;
-        if ((gen.get(child) ?? 0) < want) { gen.set(child, want); changed = true; }
-      }
-    }
-    for (const [a, b] of partnerOf) {
-      const g = Math.max(gen.get(a) ?? 0, gen.get(b) ?? 0);
-      if (gen.get(a) !== g) { gen.set(a, g); changed = true; }
-    }
-    if (!changed) break;
-  }
-  const maxGen = Math.max(0, ...gen.values());
+  // Generation 2: children and siblings, then cousins.
+  const kids = by(["SON", "DAUGHTER", "BROTHER", "SISTER"]).map((id) => [id]);
+  const cousins = by(["COUSIN"]).map((id) => [id]);
+  const gen2: Unit[] = [...kids, ...cousins];
 
-  const rows: string[][] = Array.from({ length: maxGen + 1 }, () => []);
-  for (const id of placed) rows[gen.get(id)!].push(id);
+  const rows = [gen0, gen1, gen2].filter((r) => r.length);
+  const placed = new Set(rows.flat(2));
+  const unplaced = members.map((m) => m.id).filter((id) => !placed.has(id));
 
+  // Position: every row centred on the widest.
+  const unitW = (u: Unit) => u.length * NODE_W + (u.length - 1) * COUPLE_GAP;
+  const rowW = (r: Unit[]) => r.reduce((w, u) => w + unitW(u), 0) + H_GAP * (r.length - 1);
+  let width = Math.max(NODE_W, ...rows.map(rowW)) + PAD * 2;
   const pos = new Map<string, { x: number; y: number }>();
-  const rowUnits: string[][][] = [];
-
   rows.forEach((row, g) => {
-    // Group partners into one unit.
-    const seen = new Set<string>();
-    const units: string[][] = [];
-    for (const id of row.sort((a, b) => order.get(a)! - order.get(b)!)) {
-      if (seen.has(id)) continue;
-      seen.add(id);
-      const partner = partnerOf.get(id);
-      if (partner && row.includes(partner) && !seen.has(partner)) { seen.add(partner); units.push([id, partner]); }
-      else units.push([id]);
+    let x = (width - rowW(row)) / 2;
+    const y = PAD + g * (NODE_H + ROW_GAP);
+    for (const unit of row) {
+      unit.forEach((id, k) => pos.set(id, { x: x + NODE_W / 2 + k * (NODE_W + COUPLE_GAP), y }));
+      x += unitW(unit) + H_GAP;
     }
-    // Under their parents: order units by where their parents sit.
-    const anchor = (unit: string[]) => {
-      const xs: number[] = [];
-      for (const id of unit) for (const p of parentsOf.get(id) ?? []) { const at = pos.get(p); if (at) xs.push(at.x); }
-      return xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : null;
-    };
-    if (g > 0) {
-      const keyed = units.map((u, i) => ({ u, i, a: anchor(u) }));
-      keyed.sort((l, r) => (l.a ?? Infinity) - (r.a ?? Infinity) || l.i - r.i);
-      units.splice(0, units.length, ...keyed.map((k) => k.u));
-      // Inside a couple, the one with parents on the tree sits next to their siblings.
-      const shareParent = (id: string, unit: string[] | undefined) =>
-        !!unit && unit.some((o) => [...(parentsOf.get(id) ?? [])].some((p) => parentsOf.get(o)?.has(p)));
-      units.forEach((u, i) => {
-        if (u.length !== 2) return;
-        const [a, b] = u;
-        const aHas = (parentsOf.get(a)?.size ?? 0) > 0;
-        const bHas = (parentsOf.get(b)?.size ?? 0) > 0;
-        if (aHas === bHas) return;
-        const p = aHas ? a : b;
-        const other = aHas ? b : a;
-        if (shareParent(p, units[i + 1])) units[i] = [other, p];
-        else if (shareParent(p, units[i - 1])) units[i] = [p, other];
-      });
-    }
-    // Lay the row out centred on x = 0 so rows line up before the final shift.
-    const rowWidth = units.reduce((w, u) => w + u.length * NODE_W + (u.length - 1) * COUPLE_GAP, 0) + H_GAP * Math.max(0, units.length - 1);
-    let x = -rowWidth / 2;
-    for (const unit of units) {
-      unit.forEach((id, k) => {
-        pos.set(id, { x: x + NODE_W / 2, y: g * (NODE_H + ROW_GAP) });
-        x += NODE_W + (k < unit.length - 1 ? COUPLE_GAP : 0);
-      });
-      x += H_GAP;
-    }
-    rowUnits.push(units);
   });
-
-  // Bottom-up: centre each parent unit over its children, then push apart any overlap.
-  const unitWidth = (u: string[]) => u.length * NODE_W + (u.length - 1) * COUPLE_GAP;
-  for (let g = rowUnits.length - 2; g >= 0; g -= 1) {
-    let right = -Infinity;
-    for (const unit of rowUnits[g]) {
-      const kids = new Set<string>();
-      for (const [child, parents] of parentsOf) if (unit.some((id) => parents.has(id)) && pos.has(child)) kids.add(child);
-      const current = pos.get(unit[0])!.x - NODE_W / 2;
-      let left = current;
-      if (kids.size) {
-        const xs = [...kids].map((k) => pos.get(k)!.x);
-        left = (Math.min(...xs) + Math.max(...xs)) / 2 - unitWidth(unit) / 2;
-      }
-      left = Math.max(left, right + H_GAP);
-      unit.forEach((id, k) => { pos.get(id)!.x = left + NODE_W / 2 + k * (NODE_W + COUPLE_GAP); });
-      right = left + unitWidth(unit);
-    }
+  // Slide the children's row so it sits centred under the parents it hangs from.
+  const kidsParent = mainUnits[0] ?? guardians[0];
+  if (kids.length && kidsParent && gen2.length) {
+    const parentX = kidsParent.reduce((sum, id) => sum + pos.get(id)!.x, 0) / kidsParent.length;
+    const kidsW = rowW(kids);
+    const firstLeft = pos.get(gen2[0][0])!.x - NODE_W / 2;
+    const shift = Math.max(PAD, parentX - kidsW / 2) - firstLeft;
+    for (const u of gen2) for (const id of u) pos.get(id)!.x += shift;
+    width = Math.max(width, ...[...pos.values()].map((p) => p.x + NODE_W / 2 + PAD));
   }
-
-  const all = [...pos.values()];
-  const minLeft = all.length ? Math.min(...all.map((p) => p.x - NODE_W / 2)) : 0;
-  const maxRight = all.length ? Math.max(...all.map((p) => p.x + NODE_W / 2)) : NODE_W;
-  const width = maxRight - minLeft + PAD * 2;
-  for (const at of all) { at.x += PAD - minLeft; at.y += PAD; }
+  const height = rows.length ? PAD * 2 + rows.length * NODE_H + (rows.length - 1) * ROW_GAP : 0;
 
   const lines: TreeLine[] = [];
-  const midY = (id: string) => pos.get(id)!.y + NODE_H / 2;
-  for (const units of rowUnits) {
-    for (const u of units) {
-      if (u.length !== 2) continue;
-      const [a, b] = u.map((id) => pos.get(id)!);
-      const left = Math.min(a.x, b.x) + NODE_W / 2;
-      const right = Math.max(a.x, b.x) - NODE_W / 2;
-      lines.push({ key: `couple-${u.join("-")}`, points: [[left, midY(u[0])], [right, midY(u[0])]] });
+  const at = (id: string) => pos.get(id)!;
+  const centreX = (u: Unit) => u.reduce((s, id) => s + at(id).x, 0) / u.length;
+  // Where lines to a unit's children start: the marriage line's middle, or under a single.
+  const origin = (u: Unit): [number, number] =>
+    u.length === 2 ? [centreX(u), at(u[0]).y + NODE_H / 2] : [at(u[0]).x, at(u[0]).y + NODE_H];
+  // Where a line into a unit ends: a couple is joined at its marriage line.
+  const target = (u: Unit): [number, number] =>
+    u.length === 2 ? [centreX(u), at(u[0]).y + NODE_H / 2] : [at(u[0]).x, at(u[0]).y];
+  const connect = (from: Unit | undefined, to: Unit[], tag: string) => {
+    if (!from) return;
+    const [ox, oy] = origin(from);
+    for (const u of to) {
+      const [tx, ty] = target(u);
+      const busY = at(u[0]).y - ROW_GAP / 2;
+      lines.push({ key: `${tag}-${u.join("-")}`, points: [[ox, oy], [ox, busY], [tx, busY], [tx, ty]] });
     }
-  }
-  for (const [child, parents] of parentsOf) {
-    if (!parents.size || !pos.has(child)) continue;
-    const c = pos.get(child)!;
-    const busY = c.y - ROW_GAP / 2;
-    const list = [...parents];
-    const couple = list.length === 2 && partnerOf.get(list[0]) === list[1];
-    const origins: [number, number][] = couple
-      ? [[(pos.get(list[0])!.x + pos.get(list[1])!.x) / 2, midY(list[0])]]
-      : list.filter((p) => pos.has(p)).map((p) => [pos.get(p)!.x, pos.get(p)!.y + NODE_H]);
-    origins.forEach(([ox, oy], i) => {
-      lines.push({
-        key: `child-${child}-${i}`,
-        points: [[ox, oy], [ox, busY], [c.x, busY], [c.x, c.y]],
-      });
-    });
-  }
-
-  const height = rows.length ? PAD * 2 + rows.length * NODE_H + (rows.length - 1) * ROW_GAP : 0;
-  return {
-    nodes: placed.map((id) => ({ id, ...pos.get(id)! })),
-    lines,
-    width,
-    height,
-    unplaced,
-    parentsOf,
-    partnerOf,
   };
+
+  for (const u of [...gen0, ...gen1]) {
+    if (u.length !== 2) continue;
+    const y = at(u[0]).y + NODE_H / 2;
+    lines.push({ key: `couple-${u.join("-")}`, points: [[at(u[0]).x + NODE_W / 2, y], [at(u[1]).x - NODE_W / 2, y]] });
+  }
+  connect(gen0[0], [...mainUnits, ...relatives], "gp");
+  connect(mainUnits[0] ?? guardians[0], kids, "kid");
+  connect(relatives[0], cousins, "cousin");
+
+  return { nodes: [...placed].map((id) => ({ id, ...at(id) })), lines, width, height, unplaced };
 }
