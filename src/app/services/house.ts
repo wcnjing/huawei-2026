@@ -13,7 +13,11 @@ export const FAMILY_ROLES = [
 ] as const;
 export type FamilyRole = typeof FAMILY_ROLES[number];
 /** One member's own placement in the family tree. Ids are other members of the house. */
-export type FamilyLink = { role: FamilyRole | null; parentIds: string[]; partnerId: string | null; childIds: string[] };
+export type FamilyGender = "male" | "female";
+export type FamilyLink = {
+  role: FamilyRole | null; gender: FamilyGender | null;
+  parentIds: string[]; partnerId: string | null; childIds: string[];
+};
 export type MemberView = {
   id: string; name: string; avatar: Avatar | null;
   level: number; xp: number; xpMax: number; streak: number;

@@ -1,5 +1,7 @@
 // Family tree placement. Each member owns one record on their row:
-//   { role, parentIds, partnerId, childIds }
+//   { role, gender, parentIds, partnerId, childIds }
+// The app labels people (Mum, Grandpa, Son…) from where they sit on the tree and their
+// gender; `role` is an older optional label kept for compatibility.
 // Ids must be other members of the same house. The tree everyone sees is the union of
 // every member's record, so the rules below (at most two parents, no one their own
 // ancestor, a partner is not a parent or child) are checked against that union.
@@ -9,6 +11,7 @@ export const FAMILY_ROLES = [
   'UNCLE', 'AUNTIE', 'COUSIN', 'HUSBAND', 'WIFE', 'PARTNER', 'GUARDIAN', 'OTHER',
 ];
 const ROLE_SET = new Set(FAMILY_ROLES);
+const GENDERS = new Set(['male', 'female']);
 const MAX_ID_LENGTH = 64;
 const MAX_PARENTS = 2;
 const MAX_CHILDREN = 5;
@@ -31,15 +34,17 @@ function cleanIds(list, max) {
 /** Exact-shape copy of a placement request, or null. Does not check membership. */
 export function cleanFamilyLinkInput(input) {
   if (!isPlainObject(input)) return null;
-  const allowed = new Set(['role', 'parentIds', 'partnerId', 'childIds']);
+  const allowed = new Set(['role', 'gender', 'parentIds', 'partnerId', 'childIds']);
   if (Object.keys(input).some((key) => !allowed.has(key))) return null;
   const role = input.role ?? null;
   if (role !== null && !ROLE_SET.has(role)) return null;
+  const gender = input.gender ?? null;
+  if (gender !== null && !GENDERS.has(gender)) return null;
   const parentIds = cleanIds(input.parentIds, MAX_PARENTS);
   const childIds = cleanIds(input.childIds, MAX_CHILDREN);
   const partnerId = input.partnerId ?? null;
   if (!parentIds || !childIds || (partnerId !== null && !isId(partnerId))) return null;
-  return { role, parentIds, partnerId, childIds };
+  return { role, gender, parentIds, partnerId, childIds };
 }
 
 /** A stored record limited to ids in `memberIds` (a Set), with self-references dropped. */
@@ -48,6 +53,7 @@ export function projectFamilyLink(link, selfId, memberIds) {
   const keep = (id) => isId(id) && id !== selfId && memberIds.has(id);
   return {
     role: ROLE_SET.has(link.role) ? link.role : null,
+    gender: GENDERS.has(link.gender) ? link.gender : null,
     parentIds: Array.isArray(link.parentIds) ? link.parentIds.filter(keep).slice(0, MAX_PARENTS) : [],
     partnerId: keep(link.partnerId) ? link.partnerId : null,
     childIds: Array.isArray(link.childIds) ? link.childIds.filter(keep).slice(0, MAX_CHILDREN) : [],

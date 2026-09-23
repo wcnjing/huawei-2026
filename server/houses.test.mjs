@@ -286,12 +286,12 @@ test('the house view never carries phone, email or lookup hashes', async () => {
 test('members place themselves in the family tree and everyone sees it', async () => {
   await resetDb();
   const { members: [mum, dad, kid] } = await houseWith(3);
-  await houses.setFamilyLink(mum.id, { role: 'MUM', partnerId: dad.id, childIds: [kid.id] });
-  await houses.setFamilyLink(kid.id, { role: 'SON', parentIds: [mum.id, dad.id] });
+  await houses.setFamilyLink(mum.id, { gender: 'female', partnerId: dad.id, childIds: [kid.id] });
+  await houses.setFamilyLink(kid.id, { gender: 'male', parentIds: [mum.id, dad.id] });
   const view = await houses.getHouseView(dad.id);
   const byId = Object.fromEntries(view.house.members.map((m) => [m.id, m.family]));
-  assert.deepEqual(byId[mum.id], { role: 'MUM', parentIds: [], partnerId: dad.id, childIds: [kid.id] });
-  assert.deepEqual(byId[kid.id], { role: 'SON', parentIds: [mum.id, dad.id], partnerId: null, childIds: [] });
+  assert.deepEqual(byId[mum.id], { role: null, gender: 'female', parentIds: [], partnerId: dad.id, childIds: [kid.id] });
+  assert.deepEqual(byId[kid.id], { role: null, gender: 'male', parentIds: [mum.id, dad.id], partnerId: null, childIds: [] });
   assert.deepEqual(byId[dad.id], null);
 });
 
@@ -301,6 +301,7 @@ test('family tree placements are validated against the whole house', async () =>
   const outsider = await player('Outsider');
   await rejectsWith(() => houses.setFamilyLink(a.id, { role: 'KING' }), 'INVALID_FAMILY_LINK');
   await rejectsWith(() => houses.setFamilyLink(a.id, { extra: 1 }), 'INVALID_FAMILY_LINK');
+  await rejectsWith(() => houses.setFamilyLink(a.id, { gender: 'robot' }), 'INVALID_FAMILY_LINK');
   await rejectsWith(() => houses.setFamilyLink(a.id, { partnerId: outsider.id }), 'NOT_A_MEMBER');
   await rejectsWith(() => houses.setFamilyLink(a.id, { parentIds: [a.id] }), 'NOT_A_MEMBER');
   await rejectsWith(() => houses.setFamilyLink(a.id, { partnerId: b.id, parentIds: [b.id] }), 'FAMILY_LINK_CONFLICT');
@@ -317,8 +318,8 @@ test('family tree placements are validated against the whole house', async () =>
 test('family links to someone who left are dropped from the view', async () => {
   await resetDb();
   const { members: [owner, kid] } = await houseWith(2);
-  await houses.setFamilyLink(kid.id, { role: 'DAUGHTER', parentIds: [owner.id] });
+  await houses.setFamilyLink(kid.id, { gender: 'female', parentIds: [owner.id] });
   await houses.leaveHouse(owner.id);
   const view = await houses.getHouseView(kid.id);
-  assert.deepEqual(view.self.family, { role: 'DAUGHTER', parentIds: [], partnerId: null, childIds: [] });
+  assert.deepEqual(view.self.family, { role: null, gender: 'female', parentIds: [], partnerId: null, childIds: [] });
 });
