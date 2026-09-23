@@ -282,3 +282,44 @@ test('the house view never carries phone, email or lookup hashes', async () => {
   const text = JSON.stringify(await houses.getHouseView(owner.id));
   for (const leak of ['phone', 'email', 'Hash', '+659']) assert.ok(!text.includes(leak), leak);
 });
+
+test('members place themselves in the family tree and everyone sees it', async () => {
+  await resetDb();
+  const { members: [mum, dad, kid] } = await houseWith(3);
+  await houses.setFamilyLink(mum.id, { gender: 'female', partnerId: dad.id, childIds: [kid.id] });
+  await houses.setFamilyLink(kid.id, { gender: 'male', parentIds: [mum.id, dad.id] });
+  const view = await houses.getHouseView(dad.id);
+  const byId = Object.fromEntries(view.house.members.map((m) => [m.id, m.family]));
+  assert.deepEqual(byId[mum.id], { role: null, gender: 'female', parentIds: [], partnerId: dad.id, childIds: [kid.id] });
+  assert.deepEqual(byId[kid.id], { role: null, gender: 'male', parentIds: [mum.id, dad.id], partnerId: null, childIds: [] });
+  assert.deepEqual(byId[dad.id], null);
+});
+
+test('family tree placements are validated against the whole house', async () => {
+  await resetDb();
+  const { members: [a, b, c, d] } = await houseWith(4);
+  const outsider = await player('Outsider');
+  await rejectsWith(() => houses.setFamilyLink(a.id, { role: 'KING' }), 'INVALID_FAMILY_LINK');
+  await rejectsWith(() => houses.setFamilyLink(a.id, { extra: 1 }), 'INVALID_FAMILY_LINK');
+  await rejectsWith(() => houses.setFamilyLink(a.id, { gender: 'robot' }), 'INVALID_FAMILY_LINK');
+  await rejectsWith(() => houses.setFamilyLink(a.id, { partnerId: outsider.id }), 'NOT_A_MEMBER');
+  await rejectsWith(() => houses.setFamilyLink(a.id, { parentIds: [a.id] }), 'NOT_A_MEMBER');
+  await rejectsWith(() => houses.setFamilyLink(a.id, { partnerId: b.id, parentIds: [b.id] }), 'FAMILY_LINK_CONFLICT');
+  await rejectsWith(() => houses.setFamilyLink(outsider.id, { role: 'MUM' }), 'NOT_IN_HOUSE');
+  // a is b's parent, so b can't be a's parent.
+  await houses.setFamilyLink(b.id, { parentIds: [a.id] });
+  await rejectsWith(() => houses.setFamilyLink(a.id, { parentIds: [b.id] }), 'FAMILY_LINK_CYCLE');
+  await rejectsWith(() => houses.setFamilyLink(a.id, { partnerId: b.id }), 'FAMILY_LINK_CONFLICT');
+  // b already has a as a parent; c and d both claiming b as a child makes three.
+  await houses.setFamilyLink(c.id, { childIds: [b.id] });
+  await rejectsWith(() => houses.setFamilyLink(d.id, { childIds: [b.id] }), 'FAMILY_TOO_MANY_PARENTS');
+});
+
+test('family links to someone who left are dropped from the view', async () => {
+  await resetDb();
+  const { members: [owner, kid] } = await houseWith(2);
+  await houses.setFamilyLink(kid.id, { gender: 'female', parentIds: [owner.id] });
+  await houses.leaveHouse(owner.id);
+  const view = await houses.getHouseView(kid.id);
+  assert.deepEqual(view.self.family, { role: null, gender: 'female', parentIds: [], partnerId: null, childIds: [] });
+});

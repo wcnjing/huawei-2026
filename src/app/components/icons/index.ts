@@ -30,6 +30,7 @@ export { IconStar } from "./IconStar";
 export { IconStore } from "./IconStore";
 export { IconTelegram } from "./IconTelegram";
 export { IconTrashBin } from "./IconTrashBin";
+export { IconTree } from "./IconTree";
 export { IconTrophy } from "./IconTrophy";
 export { IconWarning } from "./IconWarning";
 export { IconX } from "./IconX";

@@ -42,7 +42,7 @@ import {
   setSessionToken, reportOutcome, updateVerifiedNameRequest, type ApiResult,
 } from "./services/api";
 import {
-  useHouse, createHouse, joinHouse, leaveHouse, regenerateCode, renameHouse,
+  useHouse, createHouse, joinHouse, leaveHouse, regenerateCode, renameHouse, setFamilyLink,
   removeMember, saveAvatar, postHouseRun, formatCodeInput, captureInviteFromUrl,
   peekPendingInvite, takePendingInvite, type HouseState, type HouseView, type MemberView,
 } from "./services/house";
@@ -87,6 +87,7 @@ import {
   AccessibilitySettingsScreen, AboutSettingsScreen,
 } from "./screens/settings/SettingsScreens";
 import { HouseChoiceScreen, HouseSettingsScreen } from "./screens/house/HouseScreens";
+import { FamilyTreeScreen } from "./screens/house/FamilyTreeScreen";
 import { NotificationsScreen, NotificationDetailScreen } from "./screens/notifications/NotificationScreens";
 import { PaydayScreen } from "./screens/rewards/PaydayScreen";
 
@@ -1179,7 +1180,7 @@ export default function App() {
   // player, so guard the route itself: every create/join from there would 401 with no
   // way back. Signed-out players get the returning sign-in instead of a dead end.
   useEffect(() => {
-    if (signedIn || (screen !== "house" && screen !== "house-settings")) return;
+    if (signedIn || (screen !== "house" && screen !== "house-settings" && screen !== "family-tree")) return;
     setSignInMode("returning");
     setScreen("sign-in");
   }, [screen, signedIn]);
@@ -1373,6 +1374,17 @@ export default function App() {
               ) : null
             )}
 
+            {screen === "family-tree" && signedIn && (
+              <FamilyTreeScreen
+                house={house.state.house}
+                self={house.state.self}
+                selfId={selfId}
+                onSave={(link) => applyHouseResult(() => setFamilyLink(link))}
+                onInvite={() => setScreen("house")}
+                onBack={goHome}
+              />
+            )}
+
             {screen === "home" && (
               <FamilyHomeScreen
                 onDrillSelect={goDrillSelect}
@@ -1388,6 +1400,7 @@ export default function App() {
                 house={house.state.house}
                 onPlayWithOthers={() => setScreen("house")}
                 onRemoveMember={handleRemoveMember}
+                onFamilyTree={() => setScreen("family-tree")}
               />
             )}
             {screen === "leaderboard" && <LeaderboardScreen onPlayWithOthers={() => setScreen("house")} />}

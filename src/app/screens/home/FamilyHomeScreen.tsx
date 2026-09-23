@@ -5,13 +5,14 @@ import type { HouseView } from "../../services/house";
 import { useMembers } from "../../hooks/useMembers";
 import { useSelfId } from "../../hooks/useSelfId";
 import { PixelButton } from "../../components/ui";
+import { IconTree } from "../../components/icons";
 import { FamilySafetyBar } from "./FamilySafetyBar";
 import { HouseRoof } from "./HouseRoof";
 import { DollhouseRoom } from "./DollhouseRoom";
 import { MemberProfileOverlay } from "./MemberProfileOverlay";
 import { SoloRoom } from "./SoloRoom";
 
-export function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize, onArrange, onTutorial, coins, soldItems, purchasedItems, roomLayouts, house, onPlayWithOthers, onRemoveMember }: {
+export function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize, onArrange, onTutorial, coins, soldItems, purchasedItems, roomLayouts, house, onPlayWithOthers, onRemoveMember, onFamilyTree }: {
   onDrillSelect: () => void; onFamilyDrill: () => void;
   onPayday: () => void;
   onCustomize: (memberId: string) => void;
@@ -24,6 +25,7 @@ export function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCus
   house: HouseView | null;
   onPlayWithOthers: () => void;
   onRemoveMember: (id: string) => void;
+  onFamilyTree: () => void;
 }) {
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
   const members = useMembers();
@@ -51,7 +53,12 @@ export function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCus
           <>
             <div data-tour="safety-bar"><FamilySafetyBar coins={coins} /></div>
             <HouseRoof title={house?.name ?? "YOUR HOUSE"} />
-            <div style={{ padding: "8px 16px 0", backgroundColor: "#0a0e1a", display: "flex", justifyContent: "flex-end" }}>
+            <div style={{ padding: "8px 16px 0", backgroundColor: "#0a0e1a", display: "flex", justifyContent: "space-between", gap: 8 }}>
+              <PixelButton onClick={onFamilyTree} color="#1a2340" textColor="#00ff88" size="sm">
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }} aria-label="Family tree">
+                  <IconTree size={16} /> FAMILY TREE
+                </span>
+              </PixelButton>
               <PixelButton onClick={onPlayWithOthers} color="#1a2340" textColor="#4ecdc4" size="sm">+ INVITE</PixelButton>
             </div>
             <div data-tour="family-rooms" style={{ position: "relative" }}>
