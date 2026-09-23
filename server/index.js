@@ -74,6 +74,7 @@ import {
   regenerateInviteCode,
   removeMember,
   renameHouse,
+  setFamilyLink,
 } from './houses.js';
 import { ChatError, listMessages, sendMessage } from './chat.js';
 import { ring } from './doorbell.js';
@@ -226,6 +227,10 @@ const HOUSE_ERRORS = {
   JOIN_RATE_LIMITED: [429, 'too many wrong codes; try again later'],
   INVALID_HOUSE_NAME: [400, 'house names are 1–30 letters, numbers or spaces'],
   INVALID_DRILL_RUN: [400, 'that drill run is not valid'],
+  INVALID_FAMILY_LINK: [400, 'that family tree placement is not valid'],
+  FAMILY_LINK_CONFLICT: [409, "someone can't be both your partner and your parent or child"],
+  FAMILY_LINK_CYCLE: [409, "that would make someone their own ancestor"],
+  FAMILY_TOO_MANY_PARENTS: [409, 'someone in that choice already has two parents'],
 };
 
 const chatStatuses = {
@@ -605,6 +610,7 @@ api.post('/api/house/name', houseRoute((userId, req) => renameHouse(userId, req.
 api.post('/api/house/members/:memberId/remove', houseRoute((userId, req) =>
   removeMember(userId, req.params.memberId)));
 api.post('/api/house/leave', houseRoute((userId) => leaveHouse(userId)));
+api.post('/api/house/family', houseRoute((userId, req) => setFamilyLink(userId, req.body?.family)));
 
 api.get('/api/houses/:houseId/chat/messages', async (req, res) => {
   const userId = await requireUserId(req, res);

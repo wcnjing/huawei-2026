@@ -7,12 +7,21 @@ import { apiPost, handleApiAuth, sessionToken } from "./api";
 
 export type Avatar = { color: string; glow: string; hat: string; eyes: string; outfit: string };
 export type WeekRun = { correct: number; cautious: number; wrong: number };
+export const FAMILY_ROLES = [
+  "GRANDPA", "GRANDMA", "DAD", "MUM", "SON", "DAUGHTER", "BROTHER", "SISTER",
+  "UNCLE", "AUNTIE", "COUSIN", "HUSBAND", "WIFE", "PARTNER", "GUARDIAN", "OTHER",
+] as const;
+export type FamilyRole = typeof FAMILY_ROLES[number];
+/** One member's own placement in the family tree. Ids are other members of the house. */
+export type FamilyLink = { role: FamilyRole | null; parentIds: string[]; partnerId: string | null; childIds: string[] };
 export type MemberView = {
   id: string; name: string; avatar: Avatar | null;
   level: number; xp: number; xpMax: number; streak: number;
   timesSafe: number; timesScammed: number; badgeCount: number; badgeTotal: number;
   recentDrillResult: "WON" | "LOST" | null;
   isOwner: boolean; activeThisWeek: boolean; safeThisWeek: boolean; weekRun: WeekRun | null;
+  /** Null when solo, or when this member hasn't placed themself yet. */
+  family?: FamilyLink | null;
 };
 export type HouseView = {
   id: string; name: string; ownerId: string;
@@ -29,6 +38,7 @@ export const regenerateCode = () => apiPost<HouseState>("/api/house/code");
 export const renameHouse = (name: string) => apiPost<HouseState>("/api/house/name", { name });
 export const removeMember = (id: string) =>
   apiPost<HouseState>(`/api/house/members/${encodeURIComponent(id)}/remove`);
+export const setFamilyLink = (family: FamilyLink) => apiPost<HouseState>("/api/house/family", { family });
 export const leaveHouse = () => apiPost<HouseState>("/api/house/leave");
 export const saveAvatar = (avatar: Avatar) => apiPost<{ user: unknown }>("/api/me/avatar", { avatar });
 export const postHouseRun = (run: { clientKey: string } & WeekRun) =>

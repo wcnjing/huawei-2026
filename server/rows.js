@@ -74,6 +74,7 @@ export function userFromRow(row) {
   setIfPresent(user, 'houseId', row.house_id);
   setIfPresent(user, 'avatar', row.avatar);
   setIfPresent(user, 'homeInventory', row.home_inventory);
+  setIfPresent(user, 'familyLink', row.family_link);
   return user;
 }
 
