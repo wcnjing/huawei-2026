@@ -24,16 +24,10 @@ const TOUR_STEPS: TourStep[] = [
     body: "One room per person. Tap a room to see their level, XP and safe-streak. Everyone trains in their own room.",
   },
   {
-    target: "start-drill",
-    accent: "#00ff88",
-    title: "TRAIN TOGETHER",
-    body: "The house drill runs the whole household through six scam scenarios in one sitting — one round per person.",
-  },
-  {
     target: "nav-drill",
     accent: "#00ff88",
     title: "PICK A DRILL",
-    body: "This button is the heart of it. Choose a call, SMS or email drill, spot the red flags, then report, ask someone you trust, or hang up.",
+    body: "Open Drill to start a quick six-round House Drill together, or choose a call, text or email scenario and practise spotting the red flags.",
   },
   {
     target: "bottom-nav",
@@ -48,10 +42,10 @@ const TOUR_STEPS: TourStep[] = [
     body: "Every drill ends by telling you it was a drill, and you're NEVER punished for stopping. Say 'stop' or 'is this a drill?' any time and it ends — no penalty.",
   },
   {
-    target: "opt-in",
+    target: "payday-tile",
     accent: "#4ecdc4",
-    title: "GO LIVE",
-    body: "Opt in and drills arrive for real, when you least expect them. We only ever contact the number you verify, and every drill tells you it was a drill.",
+    title: "PAYDAY SUNDAY",
+    body: "Tap your coin tile to collect your weekly pay and see your personal coin balance. The tile fills yellow while pay is ready, then shows when you've collected it.",
   },
 ];
 

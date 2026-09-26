@@ -7,12 +7,23 @@ import { FURNITURE_STORE } from "../../data/furniture";
 import { RoomHeading } from "./RoomHeading";
 import { SafetyBadge } from "./SafetyBadge";
 import { roomColors } from "../../types/roomStyle";
+import { PixelButton } from "../../components/ui";
 
-export function DollhouseRoom({ member, onTap, coins, soldItems, purchasedItems, layout }: { member: FamilyMember; onTap: (m: FamilyMember) => void; coins: number | null; soldItems: string[]; purchasedItems: string[]; layout?: RoomLayout }) {
+export function DollhouseRoom({ member, onTap, coins, soldItems, purchasedItems, layout, onCustomize, onArrange }: { member: FamilyMember; onTap: (m: FamilyMember) => void; coins: number | null; soldItems: string[]; purchasedItems: string[]; layout?: RoomLayout; onCustomize?: () => void; onArrange?: () => void }) {
   const colors = roomColors(member.roomStyle, member.roomBg, member.primaryColor);
   return (
-    <button onClick={() => onTap(member)} style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", padding: "0", cursor: "pointer" }}>
-      <div style={{ backgroundColor: colors.wall }}><RoomHeading member={member} coins={coins} /></div>
+    <div className="home-room-card">
+      <div className="home-room-header" style={{ backgroundColor: colors.wall }}>
+        <RoomHeading
+          member={member}
+          coins={coins}
+          actions={onCustomize && <div className="home-room-tools">
+            <PixelButton onClick={onCustomize} color="#1a2340" textColor="#c77dff" size="sm">CUSTOMIZE</PixelButton>
+            {onArrange && purchasedItems.length > 0 && <PixelButton onClick={onArrange} color="#1a2340" textColor="#4ecdc4" size="sm">ARRANGE</PixelButton>}
+          </div>}
+        />
+      </div>
+      <button className="home-room-view" onClick={() => onTap(member)} aria-label={`View ${member.name}'s room`}>
       <div style={{ backgroundColor: member.roomBg, position: "relative", height: 232, overflow: "hidden" }}>
         <RoomBackdrop style={member.roomStyle} background={member.roomBg} accent={member.primaryColor} />
         <div style={{ position: "absolute", top: 10, right: 16 }}>
@@ -41,11 +52,9 @@ export function DollhouseRoom({ member, onTap, coins, soldItems, purchasedItems,
           <MemberChar member={member} size={44} />
         </div>
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 4, background: `linear-gradient(90deg,${member.primaryColor}22,${member.primaryColor}55,${member.primaryColor}22)`, borderTop: `2px solid ${member.primaryColor}44` }} />
+        <div className="home-room-open-hint">TAP TO VIEW</div>
       </div>
-      <div style={{ padding: "8px 14px 12px", backgroundColor: colors.wall, borderBottom: "4px solid #2a3a5c" }}>
-        <div className="room-player-name" style={{ color: member.primaryColor }}>{member.name}</div>
-        <div className="room-tap-label" style={{ color: "#a8bbcf", marginTop: 4 }}>Tap to view</div>
-      </div>
-    </button>
+      </button>
+    </div>
   );
 }

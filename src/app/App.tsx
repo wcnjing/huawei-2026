@@ -1289,6 +1289,7 @@ export default function App() {
               onChat={handleChatIcon}
               onNotifications={handleBellIcon}
               onSettings={handleSettingsIcon}
+              onTutorial={() => { setScreen("home"); setTourOpen(true); }}
             />
           )}
 
@@ -1375,13 +1376,11 @@ export default function App() {
 
             {screen === "home" && (
               <FamilyHomeScreen
-                onDrillSelect={goDrillSelect}
-                onFamilyDrill={goFamilyDrill}
                 onPayday={() => setScreen("payday")}
+                paydayClaimedThisWeek={paydayClaimedThisWeek}
                 onCustomize={openCustomize}
                 onArrange={() => setArrangingRoom(true)}
                 roomLayouts={roomLayouts}
-                onTutorial={() => setTourOpen(true)}
                 coins={coins}
                 soldItems={soldItems}
                 purchasedItems={purchasedItems}
