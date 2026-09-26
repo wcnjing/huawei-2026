@@ -17,22 +17,39 @@ export async function ring(topics, { timeoutMs = DEFAULT_TIMEOUT_MS, env = proce
   const config = doorbellConfig(env);
   const unique = [...new Set((topics || []).filter(Boolean))];
   if (!config || !unique.length) return false;
-  try {
-    const response = await fetch(`${config.url}/realtime/v1/api/broadcast`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', apikey: config.key },
-      body: JSON.stringify({
-        messages: unique.map((topic) => ({ topic, event: 'changed', payload: {}, private: false })),
-      }),
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    if (!response.ok) {
-      console.error(`[doorbell] broadcast returned ${response.status}`);
+
+  const controller = new AbortController();
+  let timer;
+  const timeout = new Promise((resolve) => {
+    timer = setTimeout(() => {
+      controller.abort(new Error('doorbell request timed out'));
+      resolve(false);
+    }, timeoutMs);
+  });
+  const request = (async () => {
+    try {
+      const response = await fetch(`${config.url}/realtime/v1/api/broadcast`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', apikey: config.key },
+        body: JSON.stringify({
+          messages: unique.map((topic) => ({ topic, event: 'changed', payload: {}, private: false })),
+        }),
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        console.error(`[doorbell] broadcast returned ${response.status}`);
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('[doorbell] broadcast failed:', error?.name || 'error');
       return false;
     }
-    return true;
-  } catch (error) {
-    console.error('[doorbell] broadcast failed:', error?.name || 'error');
-    return false;
+  })();
+
+  try {
+    return await Promise.race([request, timeout]);
+  } finally {
+    clearTimeout(timer);
   }
 }
