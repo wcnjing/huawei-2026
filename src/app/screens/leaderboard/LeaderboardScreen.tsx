@@ -9,14 +9,14 @@ import { useSelfId } from "../../hooks/useSelfId";
 export function LeaderboardScreen({ onPlayWithOthers }: { onPlayWithOthers: () => void }) {
   const [tab, setTab] = useState<"fame" | "shame">("fame");
   return (
-    <div className="flex flex-col h-full">
+    <div data-tour="ranks-page" className="flex flex-col h-full">
       <div className="flex" style={{ borderBottom: "4px solid #2a3a5c" }}>
         <button onClick={() => setTab("fame")} className="flex-1 flex flex-col items-center justify-center gap-1 py-3" style={{ backgroundColor: tab === "fame" ? "#1a3a2a" : "#0a0e1a", border: "none", borderBottom: tab === "fame" ? "4px solid #00ff88" : "4px solid transparent", cursor: "pointer" }}>
           <IconTrophy size={16} color={tab === "fame" ? "#00ff88" : "#2a3a5c"} />
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: tab === "fame" ? "#00ff88" : "#2a3a5c" }}>HALL OF FAME</div>
         </button>
         <div style={{ width: 4, backgroundColor: "#2a3a5c" }} />
-        <button onClick={() => setTab("shame")} className="flex-1 flex flex-col items-center justify-center gap-1 py-3" style={{ backgroundColor: tab === "shame" ? "#1a0a10" : "#0a0e1a", border: "none", borderBottom: tab === "shame" ? "4px solid #ff2d55" : "4px solid transparent", cursor: "pointer" }}>
+        <button data-tour="ranks-shame" aria-pressed={tab === "shame"} onClick={() => setTab("shame")} className="flex-1 flex flex-col items-center justify-center gap-1 py-3" style={{ backgroundColor: tab === "shame" ? "#1a0a10" : "#0a0e1a", border: "none", borderBottom: tab === "shame" ? "4px solid #ff2d55" : "4px solid transparent", cursor: "pointer" }}>
           <IconSkull size={16} color={tab === "shame" ? "#ff2d55" : "#2a3a5c"} />
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: tab === "shame" ? "#ff2d55" : "#2a3a5c" }}>HALL OF SHAME</div>
         </button>

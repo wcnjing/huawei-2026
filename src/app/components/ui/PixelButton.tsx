@@ -8,6 +8,7 @@ export function PixelButton({
   size = "md",
   full = false,
   disabled = false,
+  compact = false,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
@@ -16,10 +17,11 @@ export function PixelButton({
   size?: "sm" | "md" | "lg";
   full?: boolean;
   disabled?: boolean;
+  compact?: boolean;
 }) {
   const [pressed, setPressed] = useState(false);
-  const pad = size === "lg" ? "px-6 py-4" : size === "sm" ? "px-3 py-2" : "px-4 py-3";
-  const textSize = size === "lg" ? "var(--text-heading)" : size === "sm" ? "var(--text-label)" : "var(--text-body)";
+  const pad = compact ? "" : size === "lg" ? "px-6 py-4" : size === "sm" ? "px-3 py-2" : "px-4 py-3";
+  const textSize = compact ? "10px" : size === "lg" ? "var(--text-heading)" : size === "sm" ? "var(--text-label)" : "var(--text-body)";
   return (
     <button
       onClick={onClick}
@@ -30,6 +32,7 @@ export function PixelButton({
       onTouchEnd={() => setPressed(false)}
       style={{
         fontSize: textSize,
+        ...(compact ? { padding: "2px 6px", height: "26px", minHeight: "26px", boxSizing: "border-box" as const, lineHeight: "12px" } : {}),
         backgroundColor: disabled ? "#2a3a5c" : color,
         color: disabled ? "#6b8ba4" : textColor,
         border: `4px solid ${disabled ? "#1a2340" : "#0a0e1a"}`,

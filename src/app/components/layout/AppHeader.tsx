@@ -1,4 +1,4 @@
-import { IconBell, IconChat, IconGear, IconSpeaker } from "../icons";
+import { IconBell, IconBulb, IconChat, IconGear, IconSpeaker } from "../icons";
 
 export function AppHeader({
   title,
@@ -9,6 +9,7 @@ export function AppHeader({
   onChat,
   onNotifications,
   onSettings,
+  onTutorial,
 }: {
   title: string;
   titleColor: string;
@@ -18,6 +19,7 @@ export function AppHeader({
   onChat: () => void;
   onNotifications: () => void;
   onSettings: () => void;
+  onTutorial: () => void;
 }) {
   return (
     <div
@@ -37,6 +39,15 @@ export function AppHeader({
         {title}
       </div>
       <div className="app-header-actions" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <button
+          type="button"
+          className="app-header-help"
+          onClick={onTutorial}
+          aria-label="How to play: open the app tutorial"
+          title="How to play"
+        >
+          <IconBulb size={18} color="#c77dff" />
+        </button>
         <button
           onClick={onToggleMute}
           aria-label={muted ? "Unmute music" : "Mute music"}

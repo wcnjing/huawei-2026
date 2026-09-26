@@ -1,0 +1,122 @@
+.app-header-help {
+  width: 30px;
+  height: 32px;
+  padding: 6px;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.app-header-help:hover { filter: brightness(1.3); }
+
+.home-payday-tile {
+  width: 66px;
+  min-width: 66px;
+  min-height: 48px;
+  padding: 3px;
+  border: 2px solid #ffe66d;
+  background: #ffe66d;
+  color: #0a0e1a;
+  box-shadow: 2px 2px 0 #0a0e1a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  font-family: 'Share Tech Mono', monospace;
+  transition: background-color 120ms ease, color 120ms ease, transform 50ms ease;
+}
+
+.home-payday-tile .home-payday-label {
+  color: #0a0e1a;
+  font-size: 7px;
+  line-height: 1.1;
+}
+
+.home-payday-tile.is-collected {
+  background: #0a0e1a;
+  box-shadow: 2px 2px 0 #06080d;
+}
+
+.home-payday-tile.is-collected .home-payday-label { color: #ffe66d; }
+.home-payday-tile:hover { filter: brightness(1.08); }
+.home-payday-tile:active { transform: translate(3px, 3px); box-shadow: none; }
+
+.house-title-row {
+  position: relative;
+  padding: 0;
+  background: #0a0e1a;
+}
+
+.house-title-row > :first-child { flex: 1; min-width: 0; }
+.house-invite-overlay { position: absolute; z-index: 2; top: 2px; right: 8px; }
+
+.home-room-card { display: block; }
+.home-room-header .room-heading,
+.solo-room-heading .room-heading { display: flex; align-items: center; gap: 8px; }
+.room-heading-primary { flex: 1; min-width: 0; }
+.room-heading-actions { flex-shrink: 0; }
+.home-room-view {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.solo-room-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+
+.solo-room-invite-row {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 14px;
+  background: #0a0e1a;
+  border-top: 2px solid #2a3a5c;
+  border-bottom: 3px solid #2a3a5c;
+}
+
+.home-room-tools { display: flex; align-items: center; gap: 6px; }
+.home-room-tools .pixel-button { padding: 6px 8px; font-size: var(--text-caption) !important; }
+.home-room-view:focus-visible { outline: 3px solid #4ecdc4; outline-offset: -3px; }
+.home-room-open-hint {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 4;
+  padding: 3px 5px;
+  border: 1px solid #4a5a7c;
+  background: #0a0e1ae8;
+  color: #a8bbcf;
+  font: 9px 'Share Tech Mono', monospace;
+  letter-spacing: .5px;
+  pointer-events: none;
+}
+
+.house-title-row :focus-visible,
+.app-header-help:focus-visible { outline: 3px solid #4ecdc4; outline-offset: 2px; }
+
+.app-header-help:focus-visible,
+.home-payday-tile:focus-visible {
+  outline: 3px solid #4ecdc4;
+  outline-offset: 3px;
+}
+
+@media (max-width: 360px) {
+  .home-room-tools { gap: 4px; }
+  .home-room-tools .pixel-button { padding-inline: 6px; font-size: 10px !important; }
+  .solo-room-invite-row { padding-inline: 8px; }
+  .house-invite-overlay { right: 5px; }
+}

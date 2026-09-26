@@ -38,7 +38,7 @@ export function ShopScreen({
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div data-tour="store-page" className="flex flex-col h-full">
       <div style={{ padding: "10px 12px", backgroundColor: "#0a0e1a", borderBottom: `4px solid ${member.primaryColor}`, flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8" }}>YOUR COINS</div>
@@ -51,7 +51,7 @@ export function ShopScreen({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+      <div data-tour="store-scroll" className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
         <div style={{ padding: "14px 14px 4px" }}>
           {/* Virtual house preview */}
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>

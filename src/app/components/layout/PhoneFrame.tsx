@@ -38,6 +38,7 @@ export function PhoneFrame({ children }: { children: React.ReactNode }) {
           most of what anyone actually presses. Capture phase so a handler that stops
           propagation can't silence the click. */}
       <div
+        data-phone-frame
         className="relative overflow-hidden flex flex-col"
         style={inner}
         onClickCapture={(e) => {
