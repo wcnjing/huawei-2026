@@ -1684,8 +1684,11 @@ export default function App() {
           }}
         />
       )}
-      {tourOpen && screen === "home" && (
-        <TourOverlay onDone={() => { markTutorialSeen(); setTourOpen(false); }} />
+      {tourOpen && (screen === "home" || screen === "drill-select" || screen === "leaderboard" || screen === "store") && (
+        <TourOverlay
+          onScreenChange={setScreen}
+          onDone={() => { markTutorialSeen(); setTourOpen(false); setScreen("home"); }}
+        />
       )}
       {neutralResultNotice && (
         <div

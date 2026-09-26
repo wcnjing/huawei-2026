@@ -13,7 +13,7 @@ export function BottomNav({ activeTab, drillActive = false, onTab, onDrillSelect
   return (
     <div data-tour="bottom-nav" className="bottom-nav flex items-stretch" style={{ borderTop: "4px solid #2a3a5c", backgroundColor: "#0a0e1a", flexShrink: 0 }}>
       {leftItems.map((item) => (
-        <button key={item.tab} onClick={() => onTab(item.tab)} className="flex-1 flex flex-col items-center justify-center gap-1" style={{ background: "none", border: "none", borderTop: !drillActive && activeTab === item.tab ? `4px solid ${item.activeColor}` : "4px solid transparent", cursor: "pointer", paddingTop: 6 }}>
+        <button key={item.tab} data-tour={item.tab === "leaderboard" ? "nav-ranks" : undefined} onClick={() => onTab(item.tab)} className="flex-1 flex flex-col items-center justify-center gap-1" style={{ background: "none", border: "none", borderTop: !drillActive && activeTab === item.tab ? `4px solid ${item.activeColor}` : "4px solid transparent", cursor: "pointer", paddingTop: 6 }}>
           {item.icon}
           <div className="bottom-nav-label" style={{ fontFamily: "'Share Tech Mono', monospace", color: !drillActive && activeTab === item.tab ? item.activeColor : "#9bb0c8" }}>{item.label}</div>
         </button>
@@ -25,7 +25,7 @@ export function BottomNav({ activeTab, drillActive = false, onTab, onDrillSelect
         </button>
       </div>
       {rightItems.map((item) => (
-        <button key={item.tab} onClick={() => onTab(item.tab)} className="flex-1 flex flex-col items-center justify-center gap-1" style={{ background: "none", border: "none", borderTop: !drillActive && activeTab === item.tab ? `4px solid ${item.activeColor}` : "4px solid transparent", cursor: "pointer", paddingTop: 6 }}>
+        <button key={item.tab} data-tour={item.tab === "store" ? "nav-store" : undefined} onClick={() => onTab(item.tab)} className="flex-1 flex flex-col items-center justify-center gap-1" style={{ background: "none", border: "none", borderTop: !drillActive && activeTab === item.tab ? `4px solid ${item.activeColor}` : "4px solid transparent", cursor: "pointer", paddingTop: 6 }}>
           {item.icon}
           <div className="bottom-nav-label" style={{ fontFamily: "'Share Tech Mono', monospace", color: !drillActive && activeTab === item.tab ? item.activeColor : "#9bb0c8" }}>{item.label}</div>
         </button>

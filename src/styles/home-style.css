@@ -57,7 +57,7 @@
 
 .home-room-card { display: block; }
 .home-room-header .room-heading,
-.solo-room > .room-heading { display: flex; align-items: center; gap: 8px; }
+.solo-room-heading .room-heading { display: flex; align-items: center; gap: 8px; }
 .room-heading-primary { flex: 1; min-width: 0; }
 .room-heading-actions { flex-shrink: 0; }
 .home-room-view {

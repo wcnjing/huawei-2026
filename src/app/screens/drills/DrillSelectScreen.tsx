@@ -59,14 +59,14 @@ export function DrillSelectScreen({
   ];
 
   return (
-    <div className="h-full overflow-y-auto" style={{ scrollbarWidth: "none", backgroundColor: "#0d1324" }}>
+    <div data-tour="drill-page" className="h-full overflow-y-auto" style={{ scrollbarWidth: "none", backgroundColor: "#0d1324" }}>
       <div className="flex flex-col gap-4 px-4 py-5">
         <div style={{ padding: "2px 2px 4px" }}>
           <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.5, marginBottom: 8 }}>
             CHOOSE YOUR<br /><span style={{ color: "#00ff88" }}>TRAINING</span>
           </div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#8da4b8", lineHeight: 1.5 }}>
-            Build your scam instincts with a quick house challenge or a live-channel drill.
+            Choose a House Drill or practise with Scam Call, Text, Telegram, or Phishing Email.
           </div>
         </div>
 

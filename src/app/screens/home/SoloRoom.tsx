@@ -7,18 +7,20 @@ import { SafetyBadge } from "./SafetyBadge";
 import { RoomHeading } from "./RoomHeading";
 import { PixelButton } from "../../components/ui";
 
-export function SoloRoom({ member, coins, purchasedItems, layout, inviteCode, onTap, onPlayWithOthers, onCustomize, onArrange, hasFurniture }: {
-  member: FamilyMember; coins: number; purchasedItems: string[]; layout?: RoomLayout;
+export function SoloRoom({ member, purchasedItems, layout, inviteCode, onTap, onPlayWithOthers, onCustomize, onArrange, hasFurniture }: {
+  member: FamilyMember; purchasedItems: string[]; layout?: RoomLayout;
   inviteCode: string | null; onTap: () => void; onPlayWithOthers: () => void;
   onCustomize: () => void; onArrange: () => void; hasFurniture: boolean;
 }) {
   return (
-    <div className="solo-room" style={{ position: "relative", flex: 1, minHeight: 420, display: "flex", flexDirection: "column", backgroundColor: member.roomBg }}>
+    <div data-tour="solo-room" className="solo-room" style={{ position: "relative", flex: 1, minHeight: 420, display: "flex", flexDirection: "column", backgroundColor: member.roomBg }}>
       <RoomBackdrop style={member.roomStyle} background={member.roomBg} accent={member.primaryColor} />
-      <RoomHeading member={member} coins={coins} actions={<div className="home-room-tools">
-        <PixelButton onClick={onCustomize} color="#1a2340" textColor="#c77dff" size="sm">CUSTOMIZE</PixelButton>
-        {hasFurniture && <PixelButton onClick={onArrange} color="#1a2340" textColor="#4ecdc4" size="sm">ARRANGE</PixelButton>}
-      </div>} />
+      <div className="solo-room-heading">
+        <RoomHeading member={member} actions={<div className="home-room-tools">
+          <PixelButton onClick={onCustomize} color="#1a2340" textColor="#c77dff" size="sm">CUSTOMIZE</PixelButton>
+          {hasFurniture && <PixelButton onClick={onArrange} color="#1a2340" textColor="#4ecdc4" size="sm">ARRANGE</PixelButton>}
+        </div>} />
+      </div>
       <div className="solo-room-invite-row">
         <PixelButton onClick={onPlayWithOthers} color="#1a2340" textColor="#4ecdc4" size="sm">
           {inviteCode ? `+ INVITE · ${inviteCode}` : "+ PLAY WITH OTHERS"}
