@@ -5,13 +5,14 @@ import type { HouseView } from "../../services/house";
 import { useMembers } from "../../hooks/useMembers";
 import { useSelfId } from "../../hooks/useSelfId";
 import { PixelButton } from "../../components/ui";
+import { IconTree } from "../../components/icons";
 import { FamilySafetyBar } from "./FamilySafetyBar";
 import { HouseRoof } from "./HouseRoof";
 import { DollhouseRoom } from "./DollhouseRoom";
 import { MemberProfileOverlay } from "./MemberProfileOverlay";
 import { SoloRoom } from "./SoloRoom";
 
-export function FamilyHomeScreen({ onPayday, paydayClaimedThisWeek, onCustomize, onArrange, coins, soldItems, purchasedItems, roomLayouts, house, onPlayWithOthers, onRemoveMember }: {
+export function FamilyHomeScreen({ onPayday, paydayClaimedThisWeek, onCustomize, onArrange, coins, soldItems, purchasedItems, roomLayouts, house, onPlayWithOthers, onRemoveMember, onFamilyTree }: {
   onPayday: () => void;
   paydayClaimedThisWeek: boolean;
   onCustomize: (memberId: string) => void;
@@ -23,6 +24,7 @@ export function FamilyHomeScreen({ onPayday, paydayClaimedThisWeek, onCustomize,
   house: HouseView | null;
   onPlayWithOthers: () => void;
   onRemoveMember: (id: string) => void;
+  onFamilyTree: () => void;
 }) {
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
   const members = useMembers();
@@ -43,6 +45,13 @@ export function FamilyHomeScreen({ onPayday, paydayClaimedThisWeek, onCustomize,
               <div className="house-invite-overlay">
                 <PixelButton onClick={onPlayWithOthers} color="#1a2340" textColor="#4ecdc4" size="sm" compact>+ INVITE</PixelButton>
               </div>
+            </div>
+            <div style={{ padding: "8px 16px", backgroundColor: "#0a0e1a", borderBottom: "4px solid #2a3a5c" }}>
+              <PixelButton onClick={onFamilyTree} color="#1a2340" textColor="#00ff88" size="sm">
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }} aria-label="Family tree">
+                  <IconTree size={16} /> FAMILY TREE
+                </span>
+              </PixelButton>
             </div>
             <div data-tour="family-rooms" style={{ position: "relative" }}>
               <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 8, backgroundColor: "#2a3a5c", backgroundImage: "repeating-linear-gradient(0deg,#1a2a3c,#1a2a3c 4px,#2a3a5c 4px,#2a3a5c 8px)" }} />

@@ -8,6 +8,7 @@ import crypto from 'crypto';
 import { query, transaction } from './db.js';
 import { userFromRow } from './rows.js';
 import { weekStart } from './week.js';
+import { cleanFamilyLinkInput, familyConflict, projectFamilyLink } from './family-tree.js';
 import {
   addXp,
   lockRateLimits,
@@ -261,6 +262,36 @@ export async function leaveHouse(userId) {
   }, 'leaveHouse');
 }
 
+/**
+ * Place the caller in their house's family tree. Only their own record changes; the
+ * house row lock serialises placements so the whole-tree checks see a stable tree.
+ */
+export async function setFamilyLink(userId, input) {
+  const clean = cleanFamilyLinkInput(input);
+  if (!clean) throw new HouseError('INVALID_FAMILY_LINK');
+  return transaction(async (tx) => {
+    const { house, user } = await lockHouseMember(tx, userId);
+    const { rows } = await tx.query(
+      'select id, family_link from safespace.users where house_id = $1',
+      [house.id],
+    );
+    const ids = new Set(rows.map((row) => row.id));
+    const referenced = [clean.partnerId, ...clean.parentIds, ...clean.childIds].filter(Boolean);
+    if (referenced.some((id) => id === user.id || !ids.has(id))) throw new HouseError('NOT_A_MEMBER');
+    const links = new Map(rows.map((row) => [
+      row.id,
+      row.id === user.id ? clean : projectFamilyLink(row.family_link, row.id, ids) ?? projectFamilyLink({}, row.id, ids),
+    ]));
+    const conflict = familyConflict(user.id, links);
+    if (conflict) throw new HouseError(conflict);
+    await tx.query(
+      'update safespace.users set family_link = $2::jsonb where id = $1',
+      [user.id, JSON.stringify(clean)],
+    );
+    return { ring: [house.doorbell] };
+  }, 'setFamilyLink');
+}
+
 function runFromRow(row) {
   return {
     id: row.id,
@@ -340,7 +371,7 @@ async function weeklyStats(userIds, since) {
 }
 
 // Explicit field list: never spread a user row, so private fields cannot leak.
-function memberView(user, stats, ownerId) {
+function memberView(user, stats, ownerId, memberIdSet = null) {
   return {
     id: user.id,
     name: user.name,
@@ -358,6 +389,7 @@ function memberView(user, stats, ownerId) {
     activeThisWeek: stats.active,
     safeThisWeek: !stats.lost,
     weekRun: stats.weekRun,
+    family: memberIdSet ? projectFamilyLink(user.familyLink, user.id, memberIdSet) : null,
   };
 }
 
@@ -386,7 +418,8 @@ export async function getHouseView(userId, { now = new Date() } = {}) {
   );
   const members = memberRows.map(userFromRow);
   const stats = await weeklyStats(members.map((m) => m.id), since);
-  const views = members.map((m) => memberView(m, stats.get(m.id), house.owner_id));
+  const memberIdSet = new Set(members.map((m) => m.id));
+  const views = members.map((m) => memberView(m, stats.get(m.id), house.owner_id, memberIdSet));
   const selfInHouse = views.find((m) => m.id === self.id);
   if (!selfInHouse) return soloView(self, since);
   const codeLive = house.invite_code && new Date(house.invite_expires_at).getTime() > now.getTime();

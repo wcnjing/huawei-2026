@@ -71,6 +71,7 @@ identity.
 | POST | `/api/house/name` | Owner only: rename the house |
 | POST | `/api/house/members/:memberId/remove` | Owner only: remove a member (not themself); rotates the doorbell |
 | POST | `/api/house/leave` | Leave; an owner leaving hands ownership to the earliest joiner, the last member leaving deletes the house |
+| POST | `/api/house/family` | Place yourself in the family tree with `{family: {gender, parentIds, partnerId, childIds}}` (the app derives Mum/Dad/Son… labels from the tree); ids must be other members; rejects cycles, a third parent, or a partner who is also a parent/child |
 | GET | `/api/houses/:houseId/chat/messages` | Current members only: latest, older or newer message page |
 | POST | `/api/houses/:houseId/chat/messages` | Current members only: idempotently send one text message |
 | POST | `/api/drills/house-run` | Record a house drill run `{clientKey, correct, cautious, wrong}`; only the first run of the week earns XP; replaying a key returns the stored run |
