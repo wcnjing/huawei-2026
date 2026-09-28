@@ -1,6 +1,7 @@
 export { AnnotatedMessage } from "./AnnotatedMessage";
 export { Blink } from "./Blink";
 export { ClueTooltip } from "./ClueTooltip";
+export { DevLoginButton, isLocalhost } from "./DevLoginButton";
 export { FlagTooltip } from "./FlagTooltip";
 export { InspectableLink } from "./InspectableLink";
 export { PixelButton } from "./PixelButton";

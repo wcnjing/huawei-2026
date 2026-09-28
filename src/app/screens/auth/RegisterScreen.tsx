@@ -4,9 +4,9 @@ import { apiPost, setSessionToken, type ApiResult } from "../../services/api";
 import { loadContact, saveContact } from "../../services/storage";
 import { PixelMascot } from "../../components/avatars";
 import { IconPhone, IconWarning } from "../../components/icons";
-import { PixelButton, PixelPanel } from "../../components/ui";
+import { DevLoginButton, PixelButton, PixelPanel } from "../../components/ui";
 
-export function RegisterScreen({ mode, name, avatar, onDone, onNewPlayer, onBack }: {
+export function RegisterScreen({ mode, name, avatar, onDone, onNewPlayer, onBack, onDevSignedIn }: {
   mode: "new" | "returning";
   name: string;
   avatar: AvatarConfig;
@@ -15,6 +15,8 @@ export function RegisterScreen({ mode, name, avatar, onDone, onNewPlayer, onBack
   // belongs to a player who already has an account and a session to protect.
   onNewPlayer?: () => void;
   onBack: () => void;
+  /** Localhost-only developer sign-in; omitted for the drill opt-in re-verify. */
+  onDevSignedIn?: (name: string) => void;
 }) {
   // Seed from saved contact so returning users don't retype their details.
   const saved = loadContact();
@@ -125,6 +127,7 @@ export function RegisterScreen({ mode, name, avatar, onDone, onNewPlayer, onBack
           )}
         </PixelPanel>
         <PixelButton onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="md" full>BACK</PixelButton>
+        {onDevSignedIn && <DevLoginButton onSignedIn={onDevSignedIn} />}
       </div>
     </div>
   );

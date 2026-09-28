@@ -1317,6 +1317,7 @@ export default function App() {
               <StartScreen
                 onNew={() => { setSignInMode("new"); setScreen("new-character"); }}
                 onReturning={() => { setSignInMode("returning"); setScreen("sign-in"); }}
+                onDevSignedIn={(name) => { void finishSignIn(name); }}
               />
             )}
             {screen === "new-character" && (
@@ -1340,6 +1341,7 @@ export default function App() {
                 onNewPlayer={() => { setSignInMode("new"); setScreen("new-character"); }}
                 onBack={() => setScreen(signInMode === "new" ? "new-character" : "start")}
                 onDone={(name) => { void finishSignIn(name); }}
+                onDevSignedIn={(name) => { void finishSignIn(name); }}
               />
             )}
             {/* The drill opt-in entry points re-verify an already signed-in player, so no

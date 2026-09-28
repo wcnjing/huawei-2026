@@ -46,6 +46,7 @@ the race tests PGlite cannot run; CI runs both.
 | `db.test.mjs` | Schema placement and row-level security, migrations, database selection, retries, error redaction |
 | `rows.test.mjs` | Row ↔ object mapping that keeps the API's JSON unchanged |
 | `routes.test.mjs` | HTTP authentication, ownership, replay, input validation and production-shaped fail-closed behavior |
+| `dev-login.test.mjs` | Localhost-only developer sign-in: off in production/Vercel, rejects proxied or non-local requests, idempotent DEV HOUSE |
 
 ## HTTP API
 
@@ -72,6 +73,7 @@ identity.
 | POST | `/api/house/members/:memberId/remove` | Owner only: remove a member (not themself); rotates the doorbell |
 | POST | `/api/house/leave` | Leave; an owner leaving hands ownership to the earliest joiner, the last member leaving deletes the house |
 | POST | `/api/house/family` | Place yourself in the family tree with `{family: {gender, parentIds, partnerId, childIds}}` (the app derives Mum/Dad/Son… labels from the tree); ids must be other members; rejects cycles, a third parent, or a partner who is also a parent/child |
+| POST | `/api/dev/login` | **Localhost development only.** Signs in as the `DEV` account with a ready-made DEV HOUSE, no OTP. Not registered when `NODE_ENV=production`, on Vercel, or with `DISABLE_DEV_LOGIN=true`; rejects any request that isn't a direct loopback call to a localhost host |
 | GET | `/api/houses/:houseId/chat/messages` | Current members only: latest, older or newer message page |
 | POST | `/api/houses/:houseId/chat/messages` | Current members only: idempotently send one text message |
 | POST | `/api/drills/house-run` | Record a house drill run `{clientKey, correct, cautious, wrong}`; only the first run of the week earns XP; replaying a key returns the stored run |

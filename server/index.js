@@ -78,6 +78,7 @@ import {
 } from './houses.js';
 import { ChatError, listMessages, sendMessage } from './chat.js';
 import { ring } from './doorbell.js';
+import { devLogin, devLoginEnabled, isLocalRequest } from './dev-login.js';
 
 const E164 = /^\+[1-9]\d{6,14}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -1171,6 +1172,16 @@ if (process.env.ENABLE_DEMO_ROUTES === 'true') {
     } catch (error) {
       return fail(res, 400, 'could not simulate result', error);
     }
+  });
+}
+
+// Developer sign-in for localhost only: never registered in production or on Vercel,
+// and each request must come straight from this machine (see dev-login.js).
+if (devLoginEnabled()) {
+  console.warn('[dev] /api/dev/login enabled for localhost — set NODE_ENV=production to remove it.');
+  api.post('/api/dev/login', async (req, res) => {
+    if (!isLocalRequest(req)) return res.status(404).json({ error: 'API route not found' });
+    return res.json({ ok: true, ...(await devLogin()) });
   });
 }
 

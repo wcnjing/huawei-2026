@@ -1,8 +1,8 @@
-import { PixelButton } from "../../components/ui";
+import { DevLoginButton, PixelButton } from "../../components/ui";
 import { PixelMascot } from "../../components/avatars";
 import { Stars } from "../../components/layout";
 
-export function StartScreen({ onNew, onReturning }: { onNew: () => void; onReturning: () => void }) {
+export function StartScreen({ onNew, onReturning, onDevSignedIn }: { onNew: () => void; onReturning: () => void; onDevSignedIn?: (name: string) => void }) {
   return (
     <div className="relative flex flex-col items-center justify-center h-full px-6 gap-6">
       <Stars />
@@ -10,6 +10,7 @@ export function StartScreen({ onNew, onReturning }: { onNew: () => void; onRetur
         <PixelMascot size={96} animate />
         <PixelButton onClick={onNew} color="#00ff88" size="lg" full>[ NEW PLAYER ]</PixelButton>
         <PixelButton onClick={onReturning} color="#1a2340" textColor="#4ecdc4" size="md" full>I HAVE AN ACCOUNT</PixelButton>
+        {onDevSignedIn && <DevLoginButton onSignedIn={onDevSignedIn} />}
       </div>
     </div>
   );
