@@ -62,6 +62,7 @@ import {
 } from './drill-links.js';
 import { KNOWN_OUTCOMES } from './xp.js';
 import { educationalPage } from './pages.js';
+import { normalizeLanguage, pageText, withLanguage } from './language.js';
 import { renderTactic } from './intel/render.js';
 import {
   HouseError,
@@ -355,7 +356,16 @@ function callConfigured() {
 // educationalPage (imported from ./pages.js) renders the win/lose/neutral drill-link
 // landing page; this just ships it.
 function sendEducationalPage(res, options) {
-  const page = educationalPage(options);
+  const language = normalizeLanguage(res.req?.query?.lang);
+  const page = educationalPage({
+    ...options,
+    language,
+    title: pageText(language, options.title),
+    heading: pageText(language, options.heading),
+    message: pageText(language, options.message),
+    confirmLabel: pageText(language, options.confirmLabel),
+    confirmAction: options.confirmAction ? withLanguage(options.confirmAction, language) : options.confirmAction,
+  });
   return res.status(page.status).type('html').send(page.html);
 }
 
@@ -677,6 +687,7 @@ async function startEmailOwnership(req, res) {
   const userId = await sessionUserId(req);
   if (!userId) return res.status(401).json({ error: 'sign in to verify an email' });
   const email = String(req.body?.email || '').trim().toLowerCase();
+  const language = normalizeLanguage(req.body?.language);
   if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'email is not a valid address' });
   if (!emailVerificationConfigured() || !drillLinksConfigured()) {
     return fail(res, 503, 'email verification is not configured');
@@ -701,8 +712,8 @@ async function startEmailOwnership(req, res) {
 
   const user = reservation.user;
   try {
-    const verificationUrl = createEmailVerificationUrl(userId, verificationId);
-    await sendEmailOwnershipVerification({ to: email, name: user.name, verificationUrl });
+    const verificationUrl = withLanguage(createEmailVerificationUrl(userId, verificationId), language);
+    await sendEmailOwnershipVerification({ to: email, name: user.name, verificationUrl, language });
     return res.json({ ok: true, verified: false });
   } catch (error) {
     await cancelEmailVerification(userId, email, verificationId).catch((storeError) => {
@@ -874,12 +885,15 @@ api.post('/api/drills/email', async (req, res) => {
 
   let output;
   try {
+    const language = normalizeLanguage(req.body?.language);
     const links = createEmailDrillLinks(attempt.id);
     output = await sendDrillEmail({
       to: user.email,
       name: user.name,
       scenarioId: req.body?.scenario,
-      ...links,
+      revealUrl: withLanguage(links.revealUrl, language),
+      reportUrl: withLanguage(links.reportUrl, language),
+      language,
     });
   } catch (error) {
     if (error?.code === 'EMAIL_DELIVERY_UNCONFIRMED') {
@@ -943,12 +957,14 @@ api.post('/api/drills/sms', async (req, res) => {
 
   let output;
   try {
+    const language = normalizeLanguage(req.body?.language);
     const { revealUrl } = createEmailDrillLinks(attempt.id);
     output = await sendDrillSms({
       to: user.phone,
       name: user.name,
       scenarioId: req.body?.scenario,
-      revealUrl,
+      revealUrl: withLanguage(revealUrl, language),
+      language,
     });
   } catch (error) {
     if (error?.code === 'SMS_DELIVERY_UNCONFIRMED') {

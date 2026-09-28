@@ -7,6 +7,8 @@
 //   lose    — they clicked the scam link           (red; the teaching "gotcha")
 //   neutral — confirm steps, invalid/expired, errors (teal)
 
+import { htmlLang, pageText } from './language.js';
+
 export const PAGE_VARIANTS = {
   win: { bg: '#07130d', panel: '#0d2117', edge: '#00ff88', shadow: '#031a0e', accent: '#00ff88', ink: '#eafff2', mark: '✔', tag: 'DRILL PASSED' },
   lose: { bg: '#170a0d', panel: '#210f11', edge: '#ff2d55', shadow: '#1a0509', accent: '#ff6b35', ink: '#ffeef1', mark: '✖', tag: 'GOTCHA' },
@@ -21,10 +23,11 @@ export function educationalPage({
   confirmAction = null,
   confirmLabel = null,
   variant = 'neutral',
+  language = 'en',
 }) {
   const v = PAGE_VARIANTS[variant] || PAGE_VARIANTS.neutral;
   const html = `<!doctype html>
-<html lang="en">
+<html lang="${htmlLang(language)}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -50,14 +53,14 @@ export function educationalPage({
   </style>
 </head>
 <body><main>
-  <div class="tag">${v.tag}</div>
+  <div class="tag">${pageText(language, v.tag)}</div>
   <div class="mark" aria-hidden="true">${v.mark}</div>
   <h1>${heading}</h1>
   <p>${message}</p>
   ${confirmAction && confirmLabel
     ? `<form method="post" action="${confirmAction}"><button type="submit">${confirmLabel}</button></form>`
     : ''}
-  <a class="home" href="/">▸ Return to SafeSpace</a>
+  <a class="home" href="/">${pageText(language, '▸ Return to SafeSpace')}</a>
 </main></body></html>`;
   return { html, status };
 }

@@ -1,3 +1,4 @@
+import { useT } from "../../i18n";
 import { SHOP_CATALOGUE } from "../../data/shopCatalogue";
 import type { ShopItem } from "../../types/store";
 import { furnitureAnchor, type RoomLayout } from "../../types/roomLayout";
@@ -19,8 +20,9 @@ export function purchasedFurniture(itemIds: string[]) {
 }
 
 export function PurchasedRoomFurniture({ itemIds, accent, layout, topInset }: { itemIds: string[]; accent: string; layout?: RoomLayout; topInset: number }) {
+  const t = useT();
   if (!itemIds.length) return null;
-  return <div data-room-purchased-items={itemIds.length} aria-label={`${itemIds.length} purchased furniture items in room`}
+  return <div data-room-purchased-items={itemIds.length} aria-label={t("{count} purchased furniture items in room", { count: itemIds.length })}
     style={{ position: "absolute", inset: `${topInset}px 10px 12px`, pointerEvents: "none", filter: `drop-shadow(1px 1px 0 ${memberShadowColor(accent)})` }}>
     <RoomFurnitureLayer items={purchasedFurniture(itemIds)} layout={layout} />
   </div>;

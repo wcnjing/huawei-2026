@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { IconAttachment, IconDownload, IconSkull } from "../../../components/icons";
 import { Blink, PixelButton } from "../../../components/ui";
+import { useT } from "../../../i18n";
 
 export function EmailDownloadScreen({ onCancel, onComplete }: { activeMemberId: string; onCancel: () => void; onComplete: () => void }) {
+  const t = useT();
   const [phase, setPhase] = useState<"downloading" | "opening" | "malware">("downloading");
   const [progress, setProgress] = useState(0);
   const doneRef = useRef(false);
@@ -26,12 +28,12 @@ export function EmailDownloadScreen({ onCancel, onComplete }: { activeMemberId: 
           <IconSkull size={72} color="#ff2d55" />
         </div>
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ff2d55", textAlign: "center", lineHeight: 1.8, textShadow: "0 0 20px #ff2d55" }}>
-          MALWARE SIMULATION<br />DETECTED
+          {t("MALWARE SIMULATION")}<br />{t("DETECTED")}
         </div>
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ff6b35", textAlign: "center", lineHeight: 2 }}>
-          DEVICE COMPROMISED<br />PASSWORDS AT RISK
+          {t("DEVICE COMPROMISED")}<br />{t("PASSWORDS AT RISK")}
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#9bb0c8" }}>Returning to result...</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#9bb0c8" }}>{t("Returning to result...")}</div>
       </div>
     );
   }
@@ -55,12 +57,12 @@ export function EmailDownloadScreen({ onCancel, onComplete }: { activeMemberId: 
             </div>
           </div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: phase === "opening" ? "#ff6b35" : "#c77dff", textAlign: "center" }}>
-            {phase === "downloading" ? "DOWNLOADING..." : "OPENING FILE..."}
+            {phase === "downloading" ? t("DOWNLOADING...") : t("OPENING FILE...")}
           </div>
         </div>
-        <PixelButton onClick={handleCancel} color="#00ff88" textColor="#0a0e1a" size="md" full>CANCEL DOWNLOAD</PixelButton>
+        <PixelButton onClick={handleCancel} color="#00ff88" textColor="#0a0e1a" size="md" full>{t("CANCEL DOWNLOAD")}</PixelButton>
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff2d55", textAlign: "center", lineHeight: 2 }}>
-          <Blink ms={500}>WARNING — SIMULATED MALWARE DETECTED</Blink>
+          <Blink ms={500}>{t("WARNING — SIMULATED MALWARE DETECTED")}</Blink>
         </div>
       </div>
   );

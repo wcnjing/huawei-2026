@@ -1,3 +1,5 @@
+import { translate, type Translate } from "../i18n";
+
 export function localDateKey(date = new Date()): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -13,13 +15,13 @@ export function localWeekKey(date = new Date()): string {
   return localDateKey(sunday);
 }
 
-export function formatNotifTimestamp(ts: number): string {
+export function formatNotifTimestamp(ts: number, t: Translate = (text, vars) => translate("en", text, vars)): string {
   const secs = Math.floor((Date.now() - ts) / 1000);
-  if (secs < 60) return "JUST NOW";
+  if (secs < 60) return t("JUST NOW");
   const mins = Math.floor(secs / 60);
-  if (mins < 60) return `${mins}M AGO`;
+  if (mins < 60) return t("{mins}M AGO", { mins });
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}H AGO`;
+  if (hrs < 24) return t("{hrs}H AGO", { hrs });
   const days = Math.floor(hrs / 24);
-  return `${days}D AGO`;
+  return t("{days}D AGO", { days });
 }

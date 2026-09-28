@@ -6,6 +6,7 @@ import {
   sendDrillSms,
   SCENARIOS,
   REVEAL_TEXT,
+  REVEAL_TEXTS,
   pickScenario,
   personalizeSmsText,
   scenarioText,
@@ -216,4 +217,69 @@ test('a bait-send failure cancels the previously scheduled standalone reveal', a
   assert.equal(calls.length, 3);
   assert.match(calls[2].url, /Messages\/SM_reveal\.json$/);
   assert.equal(calls[2].form.get('Status'), 'canceled');
+});
+
+test('every translated scenario keeps the fictional brand-free text, size and bait URL', () => {
+  for (const scenario of SCENARIOS) {
+    const englishUrl = scenario.text.match(/https:\/\/\S+$/)[0];
+    for (const lang of ['zh', 'ms', 'ta']) {
+      const text = scenario.translations?.[lang];
+      assert.ok(text, `${scenario.id} is missing a ${lang} translation`);
+      assert.ok(text.length <= 320, `${scenario.id}/${lang} is ${text.length} chars`);
+      assert.equal(text.match(/https:\/\/\S+$/)?.[0], englishUrl, `${scenario.id}/${lang} must end with the bait URL`);
+      for (const brand of ['dbs', 'ocbc', 'uob', 'posb', 'singpost', 'iras', 'cpf', 'singtel', 'shopee', 'lazada']) {
+        assert.ok(!text.toLowerCase().includes(brand), `${scenario.id}/${lang} mentions ${brand}`);
+      }
+    }
+  }
+});
+
+test('translated reveal texts name the drill and carry no link', () => {
+  for (const lang of ['en', 'zh', 'ms', 'ta']) {
+    assert.match(REVEAL_TEXTS[lang], /SafeSpace/, `${lang} reveal must name SafeSpace`);
+    assert.ok(!/http|www\./i.test(REVEAL_TEXTS[lang]), `${lang} reveal must not contain a link`);
+  }
+  assert.equal(REVEAL_TEXT, REVEAL_TEXTS.en);
+});
+
+test('scenarioText swaps the signed link into the chosen language and falls back to English', () => {
+  process.env.PUBLIC_URL = 'https://safe.example.test';
+  const token = `payload.${'s'.repeat(43)}`;
+  const revealUrl = `https://safe.example.test/drill-reveal?token=${token}&lang=zh`;
+  const parcel = pickScenario('parcel');
+  const zh = scenarioText(parcel, revealUrl, 'zh');
+  assert.ok(zh.startsWith('ParcelLink：'));
+  assert.ok(zh.endsWith(revealUrl));
+  assert.equal(scenarioText(parcel, null, 'klingon'), parcel.text);
+  delete process.env.PUBLIC_URL;
+});
+
+test('sendDrillSms sends the bait and the scheduled reveal in the chosen language', async (t) => {
+  clearSmsEnv();
+  configureSms();
+  process.env.PUBLIC_URL = 'https://safe.example.test';
+  const originalFetch = global.fetch;
+  t.after(() => {
+    global.fetch = originalFetch;
+    clearSmsEnv();
+  });
+  const calls = [];
+  global.fetch = async (url, options) => {
+    calls.push(new URLSearchParams(options.body));
+    if (calls.length === 1) return response(201, { sid: 'SM_reveal', status: 'scheduled' });
+    return response(201, { sid: 'SM_bait', status: 'accepted' });
+  };
+  const token = `payload.${'s'.repeat(43)}`;
+
+  await sendDrillSms({
+    to: '+6591234567',
+    name: 'JUDGE',
+    scenarioId: 'bank',
+    revealUrl: `https://safe.example.test/drill-reveal?token=${token}&lang=ta`,
+    language: 'ta',
+  });
+
+  assert.equal(calls[0].get('Body'), REVEAL_TEXTS.ta);
+  assert.ok(calls[1].get('Body').startsWith('JUDGE, Meridian Bank எச்சரிக்கை'));
+  assert.ok(calls[1].get('Body').endsWith('&lang=ta'));
 });

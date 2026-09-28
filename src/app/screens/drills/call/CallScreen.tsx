@@ -5,6 +5,7 @@ import { PixelAvatar } from "../../../components/avatars";
 import { PixelButton, AnnotatedMessage, FlagTooltip, Blink } from "../../../components/ui";
 import { PixelPhone } from "./PixelPhone";
 import { IconWarning } from "../../../components/icons";
+import { useT } from "../../../i18n";
 
 const CONVERSATION: ConversationLine[] = [
   { who: "caller", text: "Hello! This is David from the IRS Fraud Division.", highlights: [{ phrase: "IRS Fraud Division", flagId: "impersonation" }] },
@@ -19,6 +20,7 @@ const CONVERSATION: ConversationLine[] = [
 ];
 
 export function CallScreen({ onHangUp, onResult, onDistress }: { activeMemberId: string; onHangUp: (win: boolean) => void; onResult: (win: boolean) => void; onDistress: () => void }) {
+  const t = useT();
   const [visibleLines, setVisibleLines] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [callerSpeaking, setCallerSpeaking] = useState(true);
@@ -66,7 +68,7 @@ export function CallScreen({ onHangUp, onResult, onDistress }: { activeMemberId:
         <div className="flex items-center gap-2">
           <div style={{ width: 8, height: 8, backgroundColor: callerSpeaking ? "#ff6b35" : "#00ff88", animation: "pulse-dot 1s ease-in-out infinite" }} />
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: callerSpeaking ? "#ff6b35" : "#00ff88" }}>
-            {callerSpeaking ? "CALLER SPEAKING" : "LISTENING..."}
+            {callerSpeaking ? t("CALLER SPEAKING") : t("LISTENING...")}
           </div>
         </div>
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ffe66d" }}>{mins}:{secs}</div>
@@ -74,10 +76,10 @@ export function CallScreen({ onHangUp, onResult, onDistress }: { activeMemberId:
       <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: "3px solid #1a2340" }}>
         <PixelPhone />
         <div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ffffff" }}>UNKNOWN CALLER</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ffffff" }}>{t("UNKNOWN CALLER")}</div>
           <div className="flex items-center gap-1 mt-1">
             <IconWarning size={10} color="#ff6b35" />
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff6b35" }}>SCAM DRILL ACTIVE</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff6b35" }}>{t("SCAM DRILL ACTIVE")}</div>
           </div>
         </div>
       </div>
@@ -93,7 +95,7 @@ export function CallScreen({ onHangUp, onResult, onDistress }: { activeMemberId:
                   {hasFlags && line.who === "caller" && (
                     <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
                       <IconWarning size={9} color="#ff2d55" />
-                      <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff2d55" }}>TAP RED TEXT</span>
+                      <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff2d55" }}>{t("TAP RED TEXT")}</span>
                     </div>
                   )}
                 </div>
@@ -113,12 +115,12 @@ export function CallScreen({ onHangUp, onResult, onDistress }: { activeMemberId:
       </div>
       <div className="px-4 py-4" style={{ borderTop: "4px solid #2a3a5c", backgroundColor: "#0a0e1a" }}>
         <PixelButton onClick={() => onHangUp(true)} color="#ff2d55" textColor="#ffffff" size="lg" full>
-          [ HANG UP — DEFEAT SCAMMER ]
+          {t("[ HANG UP — DEFEAT SCAMMER ]")}
         </PixelButton>
         {/* Distress off-ramp — always available, never scored. Quiet styling on purpose:
             it should be findable without competing with the primary action. */}
         <button onClick={onDistress} style={{ width: "100%", marginTop: 10, background: "none", border: "2px solid #2a3a5c", cursor: "pointer", padding: "8px" }}>
-          <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>THIS IS TOO MUCH — STOP THE DRILL</span>
+          <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>{t("THIS IS TOO MUCH — STOP THE DRILL")}</span>
         </button>
       </div>
     </div>
