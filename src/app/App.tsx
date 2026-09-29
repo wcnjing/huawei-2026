@@ -55,7 +55,7 @@ import {
   IconShield, IconSkull, IconSpeaker, IconStar, IconStore, IconTelegram,
   IconTrophy, IconWarning, IconX,
 } from "./components/icons";
-import { MemberChar, PixelAvatar, PixelMascot } from "./components/avatars";
+import { CharacterAvatar, MemberChar, normalizeAvatarConfig, PixelAvatar } from "./components/avatars";
 import { FurnitureIcon, ShopFurnitureArt, purchasedFurniture } from "./components/furniture";
 import { Blink, PixelButton, PixelPanel, PixelRadio, PixelToggle, ToggleSwitchB, XPBar } from "./components/ui";
 import { AppHeader, BottomNav, PhoneFrame, Scanlines, Stars, SubPageHeader } from "./components/layout";
@@ -300,7 +300,7 @@ const DEFAULT_AVATAR: AvatarConfig = DEFAULT_PROFILE.avatar;
 
 // The server's member shape, adapted to what the existing screens already render.
 function toFamilyMember(m: MemberView, roomStyle = DEFAULT_ROOM_STYLE): FamilyMember {
-  const avatar = { ...DEFAULT_AVATAR, ...(m.avatar ?? {}) };
+  const avatar = normalizeAvatarConfig(m.avatar ?? DEFAULT_AVATAR);
   return {
     id: m.id, name: m.name, role: m.isOwner ? "HOUSE OWNER" : "HOUSEMATE",
     level: m.level, xp: m.xp, xpMax: m.xpMax, streak: m.streak,
@@ -575,8 +575,8 @@ export default function App() {
   const serverAvatarKey = selfView?.avatar ? JSON.stringify(selfView.avatar) : "";
   useEffect(() => {
     if (!serverAvatarKey) return;
-    const merged = { ...DEFAULT_PROFILE.avatar, ...(JSON.parse(serverAvatarKey) as Partial<AvatarConfig>) };
-    const same = (Object.keys(merged) as (keyof AvatarConfig)[]).every((k) => merged[k] === profile.avatar[k]);
+    const merged = normalizeAvatarConfig(JSON.parse(serverAvatarKey));
+    const same = JSON.stringify(merged) === JSON.stringify(profile.avatar);
     if (!same) updateProfile({ avatar: merged });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverAvatarKey]);
@@ -1472,13 +1472,7 @@ export default function App() {
                 onBack={goHome}
                 onJoinHouse={() => setScreen("house")}
                 renderAvatar={avatar => (
-                  <PixelMascot
-                    size={28}
-                    color={avatar.color}
-                    hat={avatar.hat}
-                    eyes={avatar.eyes}
-                    outfit={avatar.outfit}
-                  />
+                  <CharacterAvatar size={32} config={normalizeAvatarConfig(avatar)} title="Message sender character" />
                 )}
               />
             )}

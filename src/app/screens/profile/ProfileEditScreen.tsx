@@ -1,6 +1,7 @@
 import type { NameUpdateResult, PlayerProfile } from "../../types/profile";
 import { PixelButton, PixelRadio } from "../../components/ui";
 import { SubPageHeader } from "../../components/layout";
+import { CharacterAvatar } from "../../components/avatars";
 import { useState } from "react";
 
 export function ProfileEditScreen({ profile, onRename, onBack, onAvatar, onHouse }: {
@@ -60,8 +61,11 @@ export function ProfileEditScreen({ profile, onRename, onBack, onAvatar, onHouse
           )}
           {nameError && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ff2d55", lineHeight: 1.5, marginTop: 8 }}>{nameError}</div>}
         </div>
-        <button onClick={onAvatar} style={{ width: "100%", backgroundColor: "#111827", border: "3px solid #c77dff", padding: "12px 14px", cursor: "pointer", textAlign: "left", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#c77dff", marginBottom: 4 }}>CHANGE AVATAR</div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#9bb0c8" }}>Customise your pixel character</div></div>
+        <button onClick={onAvatar} style={{ width: "100%", backgroundColor: "#111827", border: "3px solid #c77dff", padding: "10px 14px", cursor: "pointer", textAlign: "left", marginBottom: 10, display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ width: 48, display: "flex", justifyContent: "center", filter: `drop-shadow(0 0 6px ${profile.avatar.glow})` }}>
+            <CharacterAvatar size={64} config={profile.avatar} title={`${profile.name}'s character`} />
+          </div>
+          <div style={{ flex: 1 }}><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#c77dff", marginBottom: 4 }}>CUSTOMISE CHARACTER</div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#9bb0c8" }}>Hair, skin, outfit & accessories</div></div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#c77dff" }}>›</div>
         </button>
         <button onClick={onHouse} style={{ width: "100%", backgroundColor: "#111827", border: "3px solid #00ff88", padding: "12px 14px", cursor: "pointer", textAlign: "left", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>

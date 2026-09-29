@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 import { setupTestDb, resetDb, teardownTestDb } from './testdb.mjs';
+import { DEFAULT_AVATAR } from './avatar.js';
 
 process.env.IDENTITY_LOOKUP_SECRET = 'chat-test-identity-secret-at-least-32-characters';
 await setupTestDb();
@@ -72,9 +73,7 @@ test('sending normalizes the UUID and returns only server-derived message fields
     houseId,
     senderId: owner.id,
     senderName: 'ALICE',
-    senderAvatar: {
-      color: '#4ecdc4', glow: '#00ff88', hat: 'None', eyes: 'Default', outfit: 'Standard',
-    },
+    senderAvatar: DEFAULT_AVATAR,
     text: '<b>Hello</b>\nthere',
     createdAt: now.toISOString(),
     clientKey: clientKey.toLowerCase(),

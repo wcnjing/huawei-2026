@@ -4,8 +4,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { apiPost, handleApiAuth, sessionToken } from "./api";
+import type { AvatarConfig } from "../components/avatars/character";
 
-export type Avatar = { color: string; glow: string; hat: string; eyes: string; outfit: string };
+export type Avatar = AvatarConfig;
 export type WeekRun = { correct: number; cautious: number; wrong: number };
 export type MemberView = {
   id: string; name: string; avatar: Avatar | null;

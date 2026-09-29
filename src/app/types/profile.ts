@@ -1,10 +1,5 @@
-export interface AvatarConfig { 
-    color: string; 
-    glow: string; 
-    hat: string; 
-    eyes: string; 
-    outfit: string; 
-}
+export type { AvatarConfig } from "../components/avatars/character";
+import type { AvatarConfig } from "../components/avatars/character";
 
 export interface PlayerProfile { 
     name: string; 
@@ -22,4 +17,3 @@ export interface NameUpdateResult {
     name?: string; 
     error?: string 
 }
-

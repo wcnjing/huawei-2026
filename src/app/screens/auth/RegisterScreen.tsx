@@ -2,7 +2,6 @@ import { useState } from "react";
 import type { AvatarConfig } from "../../types/profile";
 import { apiPost, setSessionToken, type ApiResult } from "../../services/api";
 import { loadContact, saveContact } from "../../services/storage";
-import { PixelMascot } from "../../components/avatars";
 import { IconPhone, IconWarning } from "../../components/icons";
 import { PixelButton, PixelPanel } from "../../components/ui";
 

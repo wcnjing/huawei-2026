@@ -42,6 +42,19 @@ drills still work. Real phone registration and live channels correctly return
 `ALLOW_DEV_VERIFY=true`; for the result-loop helper, also set
 `ENABLE_DEMO_ROUTES=true`. Never use either flag in production.
 
+### Local character customisation lab
+
+To test character customisation without an account or backend, run:
+
+```sh
+npm run dev:character
+```
+
+This opens `http://127.0.0.1:5173/?character-lab=1`. The lab is available only in
+Vite development mode on a loopback address, never mounts the authenticated app,
+and makes no API calls. Selections are stored separately in this browser under the
+local character-lab key, so they do not overwrite the normal Drill Mode profile.
+
 ## Layout
 
 ```text

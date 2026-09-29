@@ -1,19 +1,14 @@
 // src/app/services/storage.ts
 import type { AccessibilityPrefs } from "../types/settings";
 import type { ContactInfo, PlayerProfile } from "../types/profile";
+import { DEFAULT_AVATAR_CONFIG, normalizeAvatarConfig } from "../components/avatars/character";
 
 export const PROFILE_KEY = "safespace_profile";
 export const CONTACT_KEY = "safespace_contact";
 
 export const DEFAULT_PROFILE: PlayerProfile = {
   name: "PLAYER_001",
-  avatar: {
-    color: "#4ecdc4",
-    glow: "#00ff88",
-    hat: "None",
-    eyes: "Default",
-    outfit: "Standard",
-  },
+  avatar: DEFAULT_AVATAR_CONFIG,
 };
 
 export const DEFAULT_CONTACT: ContactInfo = {
@@ -30,7 +25,7 @@ export function loadProfile(): PlayerProfile {
     // Merge over defaults so an older/partial stored shape can't leave a field undefined.
     return { 
       name: p.name || DEFAULT_PROFILE.name, 
-      avatar: { ...DEFAULT_PROFILE.avatar, ...(p.avatar || {}) } 
+      avatar: normalizeAvatarConfig(p.avatar)
     };
   } catch { return DEFAULT_PROFILE; }
 }
