@@ -8,10 +8,11 @@ import { SmsMockCard } from "./SmsMockCard";
 import { FAMILY_COINS, FAMILY_XP } from "../../../data/familyData";
 import { useT } from "../../../i18n";
 
-export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNext, onEnd }: {
+export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNext, onEnd, targetLabel, nextLabel, prompt, footerNote }: {
   scenario: FamilyScenario; roundIndex: number; totalRounds: number;
   onComplete: (action: string, foundClues: number[], outcome: FamilyOutcome) => void;
-  onNext: () => void; onEnd: () => void;
+  onNext: () => void; onEnd?: () => void;
+  targetLabel?: string; nextLabel?: string; prompt?: string; footerNote?: string | null;
 }) {
   const t = useT();
   const [mode, setMode] = useState<"play" | "debrief">("play");
@@ -133,7 +134,7 @@ export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplet
         <PixelMascot size={36} animate />
         <div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>{t("TARGET:")}</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color }}>{t("A HOUSEMATE")}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color }}>{targetLabel ?? t("A HOUSEMATE")}</div>
         </div>
         <div style={{ marginLeft: "auto", backgroundColor: "rgba(255,107,53,0.1)", border: `2px solid ${color}`, padding: "3px 7px" }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color }}>{typeLabels[scenario.type] ?? t("MSG")}</div>
@@ -213,7 +214,7 @@ export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplet
               </div>
             </button>
           </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8", marginBottom: 6, textAlign: "center" }}>{t("WHAT SHOULD THE HOUSE DO?")}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8", marginBottom: 6, textAlign: "center" }}>{prompt ?? t("WHAT SHOULD THE HOUSE DO?")}</div>
           <div className="grid grid-cols-2 gap-2">
             {displayActions.map((action) => (
               <button key={action} onClick={() => handleAction(action)} style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "8px 6px", cursor: "pointer", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#e8f4f8", textAlign: "center", lineHeight: 1.5 }}>
@@ -223,9 +224,14 @@ export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplet
           </div>
         </div>
       ) : (
-        <div style={{ display: "flex", gap: 12, padding: "12px", borderTop: "4px solid #2a3a5c", backgroundColor: "#0a0e1a", flexShrink: 0 }}>
-          <div style={{ flex: 1 }}><PixelButton onClick={onNext} color="#00ff88" textColor="#0a0e1a" size="sm" full>{t("NEXT MEMBER")}</PixelButton></div>
-          <div style={{ flex: 1 }}><PixelButton onClick={onEnd} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>{t("END DRILL")}</PixelButton></div>
+        <div style={{ padding: "12px", borderTop: "4px solid #2a3a5c", backgroundColor: "#0a0e1a", flexShrink: 0 }}>
+          {footerNote && (
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ffe66d", textAlign: "center", marginBottom: 8 }}>{footerNote}</div>
+          )}
+          <div style={{ display: "flex", gap: 12 }}>
+            <div style={{ flex: 1 }}><PixelButton onClick={onNext} color="#00ff88" textColor="#0a0e1a" size="sm" full>{nextLabel ?? t("NEXT MEMBER")}</PixelButton></div>
+            {onEnd && <div style={{ flex: 1 }}><PixelButton onClick={onEnd} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>{t("END DRILL")}</PixelButton></div>}
+          </div>
         </div>
       )}
       {showSenderPanel && (

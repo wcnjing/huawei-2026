@@ -171,6 +171,38 @@ test('create, join, rename, remove and leave over HTTP, ringing after each chang
   assert.deepEqual((await left.json()).house, null);
 });
 
+test('a house drill runs over HTTP: invite, accept, take turns, finish', async () => {
+  await freshStore();
+  const host = await signedIn('Host');
+  const guest = await signedIn('Guest');
+  assert.equal((await post('/api/house/drill', { perPlayer: 2 })).status, 401);
+  assert.equal((await post('/api/house/drill', { perPlayer: 2 }, host.auth)).status, 404, 'no house yet');
+  const { house } = await (await post('/api/house', { name: 'The Tans' }, host.auth)).json();
+  await post('/api/house/join', { code: house.inviteCode }, guest.auth);
+
+  doorbellRings.length = 0;
+  const opened = await post('/api/house/drill', { perPlayer: 2 }, host.auth);
+  assert.equal(opened.status, 200);
+  const { drill } = await opened.json();
+  assert.deepEqual(doorbellRings, [house.doorbell]);
+  const invite = (await getJson('/api/house/drill', guest.auth)).body.drill;
+  assert.equal(invite.players.find((p) => p.id === guest.user.id).status, 'invited');
+
+  const path = (action) => `/api/house/drill/${drill.id}/${action}`;
+  assert.equal((await post(path('respond'), { accept: true }, guest.auth)).status, 200);
+  assert.equal((await post(path('start'), { scenarioIds: [1, 2, 3, 4] }, guest.auth)).status, 403);
+  assert.equal((await post(path('start'), { scenarioIds: [1, 2, 3, 4] }, host.auth)).status, 200);
+
+  const answer = (who, turn) => post(path('answer'), { turn, action: 'REPORT AS SCAM', outcome: 'correct', foundClues: 2 }, who.auth);
+  const early = await answer(guest, 0);
+  assert.equal(early.status, 409);
+  assert.equal((await early.json()).code, 'NOT_YOUR_TURN');
+  for (const [who, turn] of [[host, 0], [guest, 1], [host, 2]]) assert.equal((await answer(who, turn)).status, 200);
+  const last = await (await answer(guest, 3)).json();
+  assert.equal(last.drill.status, 'finished');
+  assert.deepEqual(last.drill.xp, { [host.user.id]: 200, [guest.user.id]: 200 });
+});
+
 test('wrong and expired codes get the same answer', async () => {
   await freshStore();
   const p = await signedIn('Guesser');

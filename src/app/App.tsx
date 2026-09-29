@@ -20,7 +20,7 @@ import {
 import { SAFETY_TIPS } from "./data/safetyTips";
 import { HALL_OF_FAME } from "./data/leaderboard";
 import { RED_FLAGS, LIVE_CALL_FLAGS, SMS_FLAGS, EMAIL_FLAGS, FLAG_MAP } from "./data/scamFlags";
-import { FAMILY_SCENARIOS } from "./data/familyScenarios";
+import { pickScenarios } from "./data/drillPool";
 import { DAILY_REWARD_AMOUNT, LEDGER_CAP } from "./data/economy";
 import { NOTIFICATIONS_CAP } from "./data/notifications";
 import { FURNITURE_STORE } from "./data/furniture";
@@ -70,9 +70,12 @@ import { CallScreen, IncomingCallScreen } from "./screens/drills/call";
 import { EmailBrowserScreen, EmailDetailScreen, EmailDownloadScreen, EmailInboxScreen } from "./screens/drills/email";
 import { SMSBrowserScreen, SMSInboxScreen, SMSThreadScreen } from "./screens/drills/sms";
 import { ResultScreen } from "./screens/drills/result/ResultScreen";
-import { FamilyDrillIntroScreen } from "./screens/drills/family/FamilyDrillIntroScreen";
 import { FamilyRoundScreen } from "./screens/drills/family/FamilyRoundScreen";
 import { FamilySummaryScreen } from "./screens/drills/family/FamilySummaryScreen";
+import { SoloDrillIntroScreen } from "./screens/drills/family/SoloDrillIntroScreen";
+import { FamilyDrillScreen } from "./screens/drills/family/FamilyDrillScreen";
+import { HouseDrillInvite } from "./screens/drills/family/HouseDrillInvite";
+import { useHouseDrill, type HouseDrill } from "./services/houseDrill";
 import { HouseChatScreen } from "./screens/chat";
 import { StartScreen } from "./screens/auth/StartScreen";
 import { RegisterScreen } from "./screens/auth/RegisterScreen";
@@ -409,11 +412,12 @@ export default function App() {
     setMutedState(next);
   };
 
-  const [familyRoundIndex, setFamilyRoundIndex] = useState(0);
-  const [familyAnswers, setFamilyAnswers] = useState<{ scenarioId: number; action: string; outcome: FamilyOutcome; foundClues: number[] }[]>([]);
+  const [soloScenarios, setSoloScenarios] = useState<FamilyScenario[]>([]);
+  const [soloIndex, setSoloIndex] = useState(0);
+  const [soloAnswers, setSoloAnswers] = useState<{ scenarioId: number; action: string; outcome: FamilyOutcome; foundClues: number[] }[]>([]);
   const [houseRunXp, setHouseRunXp] = useState<number | null | "pending">(null);
   // The latest answers, readable synchronously when the drill ends (state lags a render).
-  const familyAnswersRef = useRef<typeof familyAnswers>([]);
+  const soloAnswersRef = useRef<typeof soloAnswers>([]);
   // One post per run, even if the end handler fires twice.
   const houseRunKeyRef = useRef<string | null>(null);
 
@@ -553,6 +557,12 @@ export default function App() {
     changeRevision: house.changeRevision,
     onAccessDenied: refreshHouseAfterChatDenied,
   });
+  const houseDrill = useHouseDrill({
+    enabled: signedIn && !!selfView,
+    houseId: house.state.house?.id ?? null,
+    selfId,
+    changeRevision: house.changeRevision,
+  });
   const members = useMemo(() => {
     const views = house.state.house?.members ?? (house.state.self ? [house.state.self] : []);
     return views.map(view => toFamilyMember(view, roomStyles[view.id] ?? DEFAULT_ROOM_STYLE, language));
@@ -655,11 +665,12 @@ export default function App() {
     });
   };
 
-  const emitNotifFamilyDrill = (correctCount: number, totalRounds: number) => {
+  const emitNotifFamilyDrill = (correctCount: number, totalRounds: number, title = "House drill complete") => {
+    if (totalRounds === 0) return;
     appendNotification({
       kind: "family-drill-complete",
       memberId: "family",
-      title: translate(language, "House drill complete"),
+      title: translate(language, title),
       body: translate(language,
         correctCount === totalRounds
           ? "{correct}/{total} correct — perfect run!"
@@ -736,8 +747,10 @@ export default function App() {
   };
 
   const FULLSCREEN_ROUTES: Screen[] = ["customize", "family-chat", "payday"];
+  // A house-drill invite never interrupts sign-in, a live call, or the drill screen itself.
+  const INVITE_SUPPRESSED_SCREENS: Screen[] = ["title", "start", "new-character", "sign-in", "register", "incoming", "call", "family-drill-intro"];
 
-  const SUB_PAGE_ROUTES: Screen[] = ["account-settings", "privacy-settings", "accessibility-settings", "about-settings", "profile-edit", "avatar-customisation", "family-drill-intro", "family-summary"];
+  const SUB_PAGE_ROUTES: Screen[] = ["account-settings", "privacy-settings", "accessibility-settings", "about-settings", "profile-edit", "avatar-customisation", "family-drill-intro", "solo-drill-intro", "solo-drill-summary"];
 
   // --- Audio ---------------------------------------------------------------
   // No-ops until unlock() has run from a real click (PRESS START); browsers refuse to
@@ -764,13 +777,16 @@ export default function App() {
     setResultXp(null);
     setScreen("drill-select");
   };
-  const goFamilyDrill = () => {
-    setFamilyRoundIndex(0);
-    setFamilyAnswers([]);
-    familyAnswersRef.current = [];
+  const goFamilyDrill = () => setScreen("family-drill-intro");
+  const goSoloDrill = () => setScreen("solo-drill-intro");
+  const startSoloDrill = (count: number) => {
+    setSoloScenarios(pickScenarios(count));
+    setSoloIndex(0);
+    setSoloAnswers([]);
+    soloAnswersRef.current = [];
     houseRunKeyRef.current = null;
     setHouseRunXp(null);
-    setScreen("family-drill-intro");
+    setScreen("solo-drill-round");
   };
 
   const handleTab = (tab: Tab) => { setActiveTab(tab); setScreen(tab as Screen); };
@@ -1017,22 +1033,24 @@ export default function App() {
     setScreen("result-lose");
   };
 
-  // Family round completion: the coins go to whoever is playing this run.
-  const handleFamilyComplete = (action: string, foundClues: number[], outcome: FamilyOutcome) => {
-    const scenario = FAMILY_SCENARIOS[familyRoundIndex];
+  // Solo round completion: the coins go to whoever is playing this run.
+  const handleSoloComplete = (action: string, foundClues: number[], outcome: FamilyOutcome) => {
+    const scenario = soloScenarios[soloIndex];
     emitFamilyRoundEvent(selfId, outcome);
-    const next = [...familyAnswersRef.current, { scenarioId: scenario.id, action, outcome, foundClues }];
-    familyAnswersRef.current = next;
-    setFamilyAnswers(next);
+    const next = [...soloAnswersRef.current, { scenarioId: scenario.id, action, outcome, foundClues }];
+    soloAnswersRef.current = next;
+    setSoloAnswers(next);
   };
 
-  // Posts the finished house drill's tally once. familyAnswersRef holds the last
-  // answer synchronously (familyAnswers itself lags a render behind), and
-  // houseRunKeyRef stops a second post if the end handler ever fires twice.
-  const finishHouseDrill = () => {
-    const answers = familyAnswersRef.current;
+  // Posts the finished solo drill's tally once. soloAnswersRef holds the last answer
+  // synchronously (soloAnswers itself lags a render behind), and houseRunKeyRef stops a
+  // second post if the end handler ever fires twice.
+  const finishSoloDrill = () => {
+    const answers = soloAnswersRef.current;
     const count = (o: FamilyOutcome) => answers.filter((a) => a.outcome === o).length;
+    emitNotifFamilyDrill(count("correct"), answers.length, "Individual drill complete");
     const run = { correct: count("correct"), cautious: count("cautious"), wrong: count("wrong") };
+    setScreen("solo-drill-summary");
     if (run.correct + run.cautious + run.wrong === 0 || houseRunKeyRef.current) {
       if (!houseRunKeyRef.current) setHouseRunXp(null);
       return;
@@ -1046,16 +1064,17 @@ export default function App() {
     });
   };
 
-  const handleFamilyNext = () => {
-    if (familyRoundIndex + 1 >= FAMILY_SCENARIOS.length) {
-      const correctCount = familyAnswers.filter(a => a.outcome === "correct").length;
-      emitNotifFamilyDrill(correctCount, FAMILY_SCENARIOS.length);
-      finishHouseDrill();
-      setScreen("family-summary");
-    } else {
-      setFamilyRoundIndex((i) => i + 1);
-    }
+  const handleSoloNext = () => {
+    if (soloIndex + 1 >= soloScenarios.length) finishSoloDrill();
+    else setSoloIndex((i) => i + 1);
   };
+
+  const handleHouseDrillFinished = useCallback((drill: HouseDrill) => {
+    const answered = drill.answers.filter((a) => !a.skipped);
+    emitNotifFamilyDrill(answered.filter((a) => a.outcome === "correct").length, answered.length);
+    void house.refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [house.refresh, language]);
 
   // Furniture sell — now routes through ledger
   const handleSellItem = (memberId: string, itemId: string, value: number) => {
@@ -1559,28 +1578,43 @@ export default function App() {
               />
             )}
             {screen === "payday" && <PaydayScreen coins={coins} claimedThisWeek={paydayClaimedThisWeek} canCollect={canEarn} onCollect={collectPayday} onClose={goHome} />}
-            {screen === "family-drill-intro" && <FamilyDrillIntroScreen onStart={() => setScreen("family-round")} onBack={goHome} />}
-            {screen === "family-round" && (
-              <FamilyRoundScreen
-                scenario={FAMILY_SCENARIOS[familyRoundIndex]}
-                roundIndex={familyRoundIndex}
-                totalRounds={FAMILY_SCENARIOS.length}
-                onComplete={handleFamilyComplete}
-                onNext={handleFamilyNext}
-                onEnd={() => {
-                  const correctCount = familyAnswers.filter(a => a.outcome === "correct").length;
-                  emitNotifFamilyDrill(correctCount, FAMILY_SCENARIOS.length);
-                  finishHouseDrill();
-                  setScreen("family-summary");
-                }}
-                />
+            {screen === "family-drill-intro" && (
+              <FamilyDrillScreen
+                drill={houseDrill.drill}
+                selfId={selfId}
+                inHouse={!!house.state.house}
+                onApply={houseDrill.apply}
+                onRefresh={() => void houseDrill.refresh()}
+                onRoundResult={(outcome) => emitFamilyRoundEvent(selfId, outcome)}
+                onFinished={handleHouseDrillFinished}
+                onExit={goDrillSelect}
+                onIndividual={goSoloDrill}
+                onSetUpHouse={() => setScreen("house")}
+              />
             )}
-            {screen === "family-summary" && (
+            {screen === "solo-drill-intro" && <SoloDrillIntroScreen onStart={startSoloDrill} onBack={goDrillSelect} />}
+            {screen === "solo-drill-round" && soloScenarios[soloIndex] && (
+              <FamilyRoundScreen
+                scenario={soloScenarios[soloIndex]}
+                roundIndex={soloIndex}
+                totalRounds={soloScenarios.length}
+                targetLabel={t("YOU")}
+                prompt={t("WHAT SHOULD YOU DO?")}
+                nextLabel={soloIndex + 1 >= soloScenarios.length ? t("SEE RESULTS") : t("NEXT QUESTION")}
+                onComplete={handleSoloComplete}
+                onNext={handleSoloNext}
+                onEnd={finishSoloDrill}
+              />
+            )}
+            {screen === "solo-drill-summary" && (
               <FamilySummaryScreen
-                answers={familyAnswers}
+                mode="solo"
+                answers={soloAnswers.map((a) => ({ scenarioId: a.scenarioId, outcome: a.outcome, foundClues: a.foundClues.length }))}
+                total={soloAnswers.length}
+                coins={soloAnswers.reduce((sum, a) => sum + FAMILY_COINS[a.outcome], 0)}
                 serverXp={houseRunXp}
-                onPlayAgain={goFamilyDrill}
-                onIndividual={goDrillSelect}
+                onPlayAgain={() => startSoloDrill(soloScenarios.length || 5)}
+                onSwitchMode={goFamilyDrill}
                 onHome={goHome}
               />
             )}
@@ -1591,7 +1625,9 @@ export default function App() {
                 onRealisticSms={() => setScreen("realistic-sms-intro")}
                 onTelegram={() => setScreen("telegram-intro")}
                 onRealisticEmail={() => setScreen("realistic-email-intro")}
-                onFamily={goFamilyDrill}
+                onFamily={house.state.house ? goFamilyDrill : () => setScreen("house")}
+                onIndividual={goSoloDrill}
+                inHouse={!!house.state.house}
                 onBack={goHome}
               />
             )}
@@ -1700,6 +1736,13 @@ export default function App() {
           onDone={() => { markTutorialSeen(); setTourOpen(false); setScreen("home"); }}
         />
       )}
+      <HouseDrillInvite
+        drill={houseDrill.drill}
+        selfId={selfId}
+        suppressed={tourOpen || !!neutralResultNotice || INVITE_SUPPRESSED_SCREENS.includes(screen)}
+        onApply={houseDrill.apply}
+        onOpen={goFamilyDrill}
+      />
       {neutralResultNotice && (
         <div
           role="dialog"

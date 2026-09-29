@@ -1,5 +1,5 @@
 import {
-  IconChatBubble, IconPhone,
+  IconChatBubble, IconPerson, IconPhone,
   IconRealEmail, IconShield, IconTelegram
 } from "../../components/icons";
 import { PixelButton } from "../../components/ui";
@@ -7,13 +7,15 @@ import { SafetyHabitsDropdown } from "./SafetyHabitsDropdown";
 import { useT } from "../../i18n";
 
 export function DrillSelectScreen({
-  onRealisticPhone, onRealisticSms, onTelegram, onRealisticEmail, onFamily,
+  onRealisticPhone, onRealisticSms, onTelegram, onRealisticEmail, onFamily, onIndividual, inHouse,
 }: {
   onRealisticPhone: () => void;
   onRealisticSms: () => void;
   onTelegram: () => void;
   onRealisticEmail: () => void;
   onFamily: () => void;
+  onIndividual: () => void;
+  inHouse: boolean;
   onBack: () => void;
 }) {
   const t = useT();
@@ -68,25 +70,42 @@ export function DrillSelectScreen({
             {t("CHOOSE YOUR")}<br /><span style={{ color: "#00ff88" }}>{t("TRAINING")}</span>
           </div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#8da4b8", lineHeight: 1.5 }}>
-            {t("Choose a House Drill or practise with Scam Call, Text, Telegram, or Phishing Email.")}
+            {t("Play on your own or with your house, or practise with Scam Call, Text, Telegram, or Phishing Email.")}
           </div>
         </div>
 
-        <div data-tour="family-drill" style={{ backgroundColor: "#111b2e", border: "3px solid #00ff88", boxShadow: "4px 4px 0 #006633", padding: 16 }}>
-          <div className="flex items-start gap-3">
-            <div style={{ width: 44, height: 44, flexShrink: 0, backgroundColor: "rgba(0,255,136,0.1)", border: "2px solid #00ff88", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <IconShield size={24} color="#00ff88" />
+        {[
+          {
+            key: "individual", tour: undefined, color: "#4ecdc4", shadow: "#1f5f5b", eyebrowColor: "#6fb3ae",
+            icon: <IconPerson size={24} color="#4ecdc4" />,
+            eyebrow: t("SOLO · 5–10 QUESTIONS"), title: t("INDIVIDUAL DRILL"),
+            description: t("Practise on your own. Spot the scams, choose how many questions."),
+            action: t("START INDIVIDUAL DRILL"), onClick: onIndividual,
+          },
+          {
+            key: "house", tour: "family-drill", color: "#00ff88", shadow: "#006633", eyebrowColor: "#72a58a",
+            icon: <IconShield size={24} color="#00ff88" />,
+            eyebrow: inHouse ? t("FAMILY · TAKE TURNS") : t("FAMILY · HOUSE NEEDED"), title: t("HOUSE DRILL"),
+            description: t("Everyone plays on their own phone and takes turns protecting the household."),
+            action: inHouse ? t("START HOUSE DRILL") : t("SET UP A HOUSE"), onClick: onFamily,
+          },
+        ].map((card) => (
+          <div key={card.key} data-tour={card.tour} style={{ backgroundColor: "#111b2e", border: `3px solid ${card.color}`, boxShadow: `4px 4px 0 ${card.shadow}`, padding: 16 }}>
+            <div className="flex items-start gap-3">
+              <div style={{ width: 44, height: 44, flexShrink: 0, backgroundColor: "rgba(0,255,136,0.1)", border: `2px solid ${card.color}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {card.icon}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: card.eyebrowColor, letterSpacing: 1, marginBottom: 5 }}>{card.eyebrow}</div>
+                <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "var(--text-body)", color: card.color, lineHeight: 1.4 }}>{card.title}</div>
+              </div>
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#72a58a", letterSpacing: 1, marginBottom: 5 }}>{t("QUICK PLAY · 6 ROUNDS")}</div>
-              <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "var(--text-body)", color: "#00ff88", lineHeight: 1.4 }}>{t("HOUSE DRILL")}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#b4c6d4", margin: "13px 0 14px", lineHeight: 1.5 }}>
+              {card.description}
             </div>
+            <PixelButton onClick={card.onClick} color={card.color} textColor="#0a0e1a" size="md" full>{card.action}</PixelButton>
           </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#b4c6d4", margin: "13px 0 14px", lineHeight: 1.5 }}>
-            {t("Decide what is safe, uncover clues, and protect every member of the household.")}
-          </div>
-          <PixelButton onClick={onFamily} color="#00ff88" textColor="#0a0e1a" size="md" full>{t("START HOUSE DRILL")}</PixelButton>
-        </div>
+        ))}
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
           <div style={{ flex: 1, height: 2, backgroundColor: "#2a3a5c" }} />
