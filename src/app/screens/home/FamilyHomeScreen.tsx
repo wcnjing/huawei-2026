@@ -1,3 +1,4 @@
+import { useT } from "../../i18n";
 import { useState } from "react";
 import type { FamilyMember } from "../../types/family";
 import type { RoomLayouts } from "../../types/roomLayout";
@@ -24,6 +25,7 @@ export function FamilyHomeScreen({ onPayday, paydayClaimedThisWeek, onCustomize,
   onPlayWithOthers: () => void;
   onRemoveMember: (id: string) => void;
 }) {
+  const t = useT();
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
   const members = useMembers();
   const selfId = useSelfId();
@@ -39,9 +41,9 @@ export function FamilyHomeScreen({ onPayday, paydayClaimedThisWeek, onCustomize,
           <>
             <div data-tour="safety-bar"><FamilySafetyBar coins={coins} onPayday={onPayday} paydayClaimedThisWeek={paydayClaimedThisWeek} /></div>
             <div className="house-title-row">
-              <HouseRoof title={house?.name ?? "YOUR HOUSE"} />
+              <HouseRoof title={house?.name ?? t("YOUR HOUSE")} />
               <div className="house-invite-overlay">
-                <PixelButton onClick={onPlayWithOthers} color="#1a2340" textColor="#4ecdc4" size="sm" compact>+ INVITE</PixelButton>
+                <PixelButton onClick={onPlayWithOthers} color="#1a2340" textColor="#4ecdc4" size="sm" compact>{t("+ INVITE")}</PixelButton>
               </div>
             </div>
             <div data-tour="family-rooms" style={{ position: "relative" }}>
@@ -82,7 +84,7 @@ export function FamilyHomeScreen({ onPayday, paydayClaimedThisWeek, onCustomize,
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#2a3a5c", letterSpacing: 3 }}>████████████████████████████</div>
         </div>
         <div style={{ padding: "0 16px 24px", backgroundColor: "#0a0e1a", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8", textAlign: "center" }}>
-          Train together. Protect the whole house.
+          {t("Train together. Protect the whole house.")}
         </div>
       </div>
       {selectedMember && (

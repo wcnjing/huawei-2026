@@ -3,6 +3,7 @@ import { PixelMascot } from "../../components/avatars";
 import { PixelButton } from "../../components/ui";
 import { SubPageHeader } from "../../components/layout";
 import { useState } from "react";
+import { useT } from "../../i18n";
 
 export function AvatarCustomisationScreen({ avatar, onSave, onBack, onChange, onboarding }: {
   avatar: AvatarConfig; onSave: (a: AvatarConfig) => void; onBack: () => void;
@@ -13,6 +14,7 @@ export function AvatarCustomisationScreen({ avatar, onSave, onBack, onChange, on
   onboarding?: { name: string; onName: (n: string) => void; onContinue: () => void };
 }) {
   // Local working copy so the preview updates live; committed on save/back.
+  const t = useT();
   const [draft, setDraft] = useState<AvatarConfig>(avatar);
   const set = (patch: Partial<AvatarConfig>) => {
     const next = { ...draft, ...patch };
@@ -25,23 +27,23 @@ export function AvatarCustomisationScreen({ avatar, onSave, onBack, onChange, on
   const nameOk = !!onboarding && /^[\p{L}][\p{L}\p{M} .'-]{0,29}$/u.test(onboarding.name.trim());
 
   const colorRows: { label: string; key: "color" | "glow" }[] = [
-    { label: "AVATAR COLOUR", key: "color" },
-    { label: "GLOW COLOUR", key: "glow" },
+    { label: t("AVATAR COLOUR"), key: "color" },
+    { label: t("GLOW COLOUR"), key: "glow" },
   ];
   const optionRows: { label: string; key: "hat" | "eyes" | "outfit"; opts: string[] }[] = [
-    { label: "HELMET / HAT", key: "hat", opts: ["None", "Cap", "Helmet", "Crown"] },
-    { label: "EYE STYLE", key: "eyes", opts: ["Default", "Shades", "Visor", "Goggles"] },
-    { label: "OUTFIT", key: "outfit", opts: ["Standard", "Camo", "Neon", "Stealth"] },
+    { label: t("HELMET / HAT"), key: "hat", opts: ["None", "Cap", "Helmet", "Crown"] },
+    { label: t("EYE STYLE"), key: "eyes", opts: ["Default", "Shades", "Visor", "Goggles"] },
+    { label: t("OUTFIT"), key: "outfit", opts: ["Standard", "Camo", "Neon", "Stealth"] },
   ];
 
   return (
     <div className="flex flex-col h-full">
-      <SubPageHeader title={onboarding ? "DESIGN YOUR CHARACTER" : "AVATAR"} titleColor="#c77dff" onBack={save} />
+      <SubPageHeader title={onboarding ? t("DESIGN YOUR CHARACTER") : t("AVATAR")} titleColor="#c77dff" onBack={save} />
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
         {onboarding && (
           <div style={{ marginBottom: 12 }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8", marginBottom: 8 }}>WHAT SHOULD WE CALL YOU?</div>
-            <input maxLength={30} value={onboarding.name} onChange={(e) => onboarding.onName(e.target.value)} placeholder="YOUR NAME" autoComplete="nickname"
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8", marginBottom: 8 }}>{t("WHAT SHOULD WE CALL YOU?")}</div>
+            <input maxLength={30} value={onboarding.name} onChange={(e) => onboarding.onName(e.target.value)} placeholder={t("YOUR NAME")} autoComplete="nickname"
               style={{ width: "100%", padding: 12, backgroundColor: "#0a0e1a", border: "3px solid #2a3a5c", color: "#e8f4f8", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", outline: "none" }} />
           </div>
         )}
@@ -58,16 +60,16 @@ export function AvatarCustomisationScreen({ avatar, onSave, onBack, onChange, on
           <div key={sec.label} style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "12px 14px", marginBottom: 10 }}>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#c77dff", marginBottom: 8 }}>{sec.label}</div>
             <div className="flex gap-2 flex-wrap">{sec.opts.map((opt) => { const on = draft[sec.key] === opt; return (
-              <button key={opt} onClick={() => set({ [sec.key]: opt })} style={{ backgroundColor: on ? "#c77dff" : "#0a0e1a", border: `2px solid ${on ? "#c77dff" : "#2a3a5c"}`, padding: "4px 8px", cursor: "pointer", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: on ? "#0a0e1a" : "#6b8ba4" }}>{opt}</button>
+              <button key={opt} onClick={() => set({ [sec.key]: opt })} style={{ backgroundColor: on ? "#c77dff" : "#0a0e1a", border: `2px solid ${on ? "#c77dff" : "#2a3a5c"}`, padding: "4px 8px", cursor: "pointer", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: on ? "#0a0e1a" : "#6b8ba4" }}>{t(opt)}</button>
             ); })}</div>
           </div>
         ))}
         {onboarding ? (
-          <PixelButton onClick={onboarding.onContinue} color="#00ff88" textColor="#0a0e1a" size="lg" full disabled={!nameOk}>[ CONTINUE ]</PixelButton>
+          <PixelButton onClick={onboarding.onContinue} color="#00ff88" textColor="#0a0e1a" size="lg" full disabled={!nameOk}>{t("[ CONTINUE ]")}</PixelButton>
         ) : (
           <div className="flex gap-3">
-            <div style={{ flex: 1 }}><PixelButton onClick={save} color="#c77dff" textColor="#0a0e1a" size="sm" full>[ SAVE AVATAR ]</PixelButton></div>
-            <div style={{ flex: 1 }}><PixelButton onClick={onBack} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>[ CANCEL ]</PixelButton></div>
+            <div style={{ flex: 1 }}><PixelButton onClick={save} color="#c77dff" textColor="#0a0e1a" size="sm" full>{t("[ SAVE AVATAR ]")}</PixelButton></div>
+            <div style={{ flex: 1 }}><PixelButton onClick={onBack} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>{t("[ CANCEL ]")}</PixelButton></div>
           </div>
         )}
       </div>

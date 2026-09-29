@@ -1,3 +1,4 @@
+import { useT } from "../../i18n";
 import { useState } from "react";
 import { SAFETY_TIPS } from "../../data/safetyTips";
 import { MemberChar, PixelMascot } from "../../components/avatars";
@@ -7,18 +8,19 @@ import { useMembers } from "../../hooks/useMembers";
 import { useSelfId } from "../../hooks/useSelfId";
 
 export function LeaderboardScreen({ onPlayWithOthers }: { onPlayWithOthers: () => void }) {
+  const t = useT();
   const [tab, setTab] = useState<"fame" | "shame">("fame");
   return (
     <div data-tour="ranks-page" className="flex flex-col h-full">
       <div className="flex" style={{ borderBottom: "4px solid #2a3a5c" }}>
         <button onClick={() => setTab("fame")} className="flex-1 flex flex-col items-center justify-center gap-1 py-3" style={{ backgroundColor: tab === "fame" ? "#1a3a2a" : "#0a0e1a", border: "none", borderBottom: tab === "fame" ? "4px solid #00ff88" : "4px solid transparent", cursor: "pointer" }}>
           <IconTrophy size={16} color={tab === "fame" ? "#00ff88" : "#2a3a5c"} />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: tab === "fame" ? "#00ff88" : "#2a3a5c" }}>HALL OF FAME</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: tab === "fame" ? "#00ff88" : "#2a3a5c" }}>{t("HALL OF FAME")}</div>
         </button>
         <div style={{ width: 4, backgroundColor: "#2a3a5c" }} />
         <button data-tour="ranks-shame" aria-pressed={tab === "shame"} onClick={() => setTab("shame")} className="flex-1 flex flex-col items-center justify-center gap-1 py-3" style={{ backgroundColor: tab === "shame" ? "#1a0a10" : "#0a0e1a", border: "none", borderBottom: tab === "shame" ? "4px solid #ff2d55" : "4px solid transparent", cursor: "pointer" }}>
           <IconSkull size={16} color={tab === "shame" ? "#ff2d55" : "#2a3a5c"} />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: tab === "shame" ? "#ff2d55" : "#2a3a5c" }}>HALL OF SHAME</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: tab === "shame" ? "#ff2d55" : "#2a3a5c" }}>{t("HALL OF SHAME")}</div>
         </button>
       </div>
       {tab === "fame" ? <FameBoard onPlayWithOthers={onPlayWithOthers} /> : <ShameBoard onPlayWithOthers={onPlayWithOthers} />}
@@ -29,15 +31,17 @@ export function LeaderboardScreen({ onPlayWithOthers }: { onPlayWithOthers: () =
 // A panel steering solo players toward a house — both boards end with it once there's
 // no one else to compare against.
 function PlayWithOthersPanel({ onPlayWithOthers }: { onPlayWithOthers: () => void }) {
+  const t = useT();
   return (
     <div className="px-3 py-4 flex flex-col items-center gap-3" style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c" }}>
-      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>PLAY WITH OTHERS TO COMPARE</div>
-      <PixelButton onClick={onPlayWithOthers} color="#4ecdc4" textColor="#0a0e1a" size="sm">+ CREATE OR JOIN A HOUSE</PixelButton>
+      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>{t("PLAY WITH OTHERS TO COMPARE")}</div>
+      <PixelButton onClick={onPlayWithOthers} color="#4ecdc4" textColor="#0a0e1a" size="sm">{t("+ CREATE OR JOIN A HOUSE")}</PixelButton>
     </div>
   );
 }
 
 function FameBoard({ onPlayWithOthers }: { onPlayWithOthers: () => void }) {
+  const t = useT();
   const members = useMembers();
   const board = [...members].sort((a, b) => b.level - a.level || b.xp - a.xp).map((m, i) => ({ rank: i + 1, member: m }));
 
@@ -46,8 +50,8 @@ function FameBoard({ onPlayWithOthers }: { onPlayWithOthers: () => void }) {
       <div className="mx-4 mt-3 px-3 py-3 flex items-center gap-3" style={{ backgroundColor: "rgba(0,255,136,0.08)", border: "3px solid #00ff88" }}>
         <PixelMascot size={28} />
         <div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#00ff88", marginBottom: 4 }}>TRAINING PROGRESS</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#8da4b8", lineHeight: 1.5 }}>Ranks celebrate safe practice in your house.</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#00ff88", marginBottom: 4 }}>{t("TRAINING PROGRESS")}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#8da4b8", lineHeight: 1.5 }}>{t("Ranks celebrate safe practice in your house.")}</div>
         </div>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2" style={{ scrollbarWidth: "none" }}>
@@ -59,7 +63,7 @@ function FameBoard({ onPlayWithOthers }: { onPlayWithOthers: () => void }) {
             <MemberChar member={m} size={28} />
             <div className="flex-1">
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#e8f4f8" }}>{m.name}</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8", marginTop: 2 }}>{m.timesSafe} WINS · LVL {m.level}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8", marginTop: 2 }}>{t("{wins} WINS · LVL {level}", { wins: m.timesSafe, level: m.level })}</div>
             </div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#4ecdc4" }}>{m.xp} XP</div>
           </div>
@@ -71,6 +75,7 @@ function FameBoard({ onPlayWithOthers }: { onPlayWithOthers: () => void }) {
 }
 
 function ShameBoard({ onPlayWithOthers }: { onPlayWithOthers: () => void }) {
+  const t = useT();
   const members = useMembers();
   const selfId = useSelfId();
   const board = [...members].filter((m) => !m.safeThisWeek).sort((a, b) => b.timesScammed - a.timesScammed);
@@ -79,12 +84,12 @@ function ShameBoard({ onPlayWithOthers }: { onPlayWithOthers: () => void }) {
     <div className="flex flex-col flex-1 overflow-hidden">
       <div className="mx-4 mt-3 px-3 py-2 flex items-center gap-2" style={{ backgroundColor: "rgba(255,45,85,0.08)", border: "3px solid #ff2d55" }}>
         <IconWarning size={12} color="#ff2d55" />
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff2d55" }}>SCAMMED THIS WEEK</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff2d55" }}>{t("SCAMMED THIS WEEK")}</div>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2" style={{ scrollbarWidth: "none" }}>
         {board.length === 0 && (
           <div className="py-8 text-center" style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#00ff88" }}>
-            NOBODY SCAMMED THIS WEEK. KEEP IT THAT WAY.
+            {t("NOBODY SCAMMED THIS WEEK. KEEP IT THAT WAY.")}
           </div>
         )}
         {board.map((m, i) => {
@@ -98,11 +103,11 @@ function ShameBoard({ onPlayWithOthers }: { onPlayWithOthers: () => void }) {
               </div>
               <MemberChar member={m} size={28} />
               <div className="flex-1">
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: isYou ? "#ff6b35" : "#e8f4f8" }}>{isYou ? "YOU" : m.name}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: isYou ? "#ff6b35" : "#e8f4f8" }}>{isYou ? t("YOU") : m.name}</div>
               </div>
               <div className="flex flex-col items-end gap-1">
                 <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: rowColor }}>{m.timesScammed}x</div>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>SCAMMED</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>{t("SCAMMED")}</div>
               </div>
             </div>
           );
@@ -114,13 +119,14 @@ function ShameBoard({ onPlayWithOthers }: { onPlayWithOthers: () => void }) {
 }
 
 function LearningBoard() {
+  const t = useT();
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       <div className="mx-4 mt-3 px-3 py-3 flex items-center gap-3" style={{ backgroundColor: "rgba(255,107,53,0.08)", border: "3px solid #ff6b35" }}>
         <IconBulb size={18} color="#ffe66d" />
         <div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ff6b35", marginBottom: 4 }}>SAFETY HABITS</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#8da4b8", lineHeight: 1.5 }}>A missed drill is private. Use it to practise the next response—never to rank or shame someone.</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ff6b35", marginBottom: 4 }}>{t("SAFETY HABITS")}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#8da4b8", lineHeight: 1.5 }}>{t("A missed drill is private. Use it to practise the next response—never to rank or shame someone.")}</div>
         </div>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2" style={{ scrollbarWidth: "none" }}>
@@ -130,8 +136,8 @@ function LearningBoard() {
               {tip.num}
             </div>
             <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: tip.color, marginBottom: 5 }}>{tip.title}</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#b4c6d4", lineHeight: 1.5 }}>{tip.text}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: tip.color, marginBottom: 5 }}>{t(tip.title)}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#b4c6d4", lineHeight: 1.5 }}>{t(tip.text)}</div>
             </div>
           </div>
         ))}

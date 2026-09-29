@@ -1,3 +1,4 @@
+import { useT } from "../../i18n";
 export function SubPageHeader({
   title,
   titleColor,
@@ -7,6 +8,7 @@ export function SubPageHeader({
   titleColor: string;
   onBack: () => void;
 }) {
+  const t = useT();
   return (
     <div
       className="subpage-header"
@@ -23,10 +25,10 @@ export function SubPageHeader({
     >
       <button
         onClick={onBack}
-        aria-label="Go back"
+        aria-label={t("Go back")}
         style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}
       >
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8" }}>{"< BACK"}</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8" }}>{t("< BACK")}</div>
       </button>
       <div className="subpage-title" style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "var(--text-label)", color: titleColor }}>{title}</div>
     </div>

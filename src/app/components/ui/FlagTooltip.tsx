@@ -1,7 +1,9 @@
 import type { DrillFlag } from "../../types/drills";
 import { IconX, IconWarning } from "../icons";
+import { useT } from "../../i18n";
 
 export function FlagTooltip({ flag, onClose }: { flag: DrillFlag; onClose: () => void }) {
+  const t = useT();
   return (
     <div
       onClick={onClose}
@@ -24,10 +26,10 @@ export function FlagTooltip({ flag, onClose }: { flag: DrillFlag; onClose: () =>
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ff2d55", marginBottom: 6, letterSpacing: 1 }}>
-            {flag.name}
+            {t(flag.name)}
           </div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.5 }}>
-            {flag.explanation}
+            {t(flag.explanation)}
           </div>
         </div>
         <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", flexShrink: 0, padding: 4 }}>

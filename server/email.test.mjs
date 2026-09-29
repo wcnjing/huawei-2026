@@ -82,6 +82,7 @@ function loadAppsScript() {
   vm.runInContext(fs.readFileSync(new URL('./apps-script/Code.gs', import.meta.url), 'utf8'), sandbox);
   return {
     sent,
+    properties,
     post(payload) {
       const output = sandbox.doPost({
         postData: { contents: JSON.stringify({ secret: 's3cret', ...payload }) },
@@ -314,4 +315,89 @@ test('Apps Script rejects the legacy arbitrary-HTML relay contract', () => {
   });
   assert.equal(result.success, false);
   assert.equal(script.sent.length, 0);
+});
+
+test('the chosen language reaches every relay payload of an email drill', async (t) => {
+  clearEmailEnv();
+  configureEmail();
+  const originalFetch = global.fetch;
+  t.after(() => {
+    global.fetch = originalFetch;
+    clearEmailEnv();
+  });
+  const calls = [];
+  global.fetch = async (_url, options) => {
+    const payload = JSON.parse(options.body);
+    calls.push(payload);
+    if (payload.kind === 'schedule-safety-followup') {
+      return response(200, { success: true, scheduled: true, jobId: 'job-12345678' });
+    }
+    return response(200, { success: true });
+  };
+
+  await sendDrillEmail({
+    to: 'judge@example.com',
+    name: 'Judge',
+    scenarioId: 'bank',
+    revealUrl: signed('/drill-reveal', 'reveal') + '&lang=ms',
+    reportUrl: signed('/drill-report', 'report') + '&lang=ms',
+    language: 'ms',
+  });
+  assert.deepEqual(calls.map((call) => call.language), ['ms', 'ms']);
+
+  await sendEmailOwnershipVerification({
+    to: 'judge@example.com',
+    name: 'Judge',
+    verificationUrl: signed('/email-verify', 'verify'),
+    language: '<script>',
+  });
+  assert.equal(calls[2].language, 'en', 'unknown languages fall back to English');
+});
+
+test('Apps Script renders drill, verification and follow-up emails in the chosen language', () => {
+  const script = loadAppsScript();
+  assert.equal(script.post({
+    kind: 'drill',
+    email: 'judge@example.com',
+    recipientName: 'Judge',
+    scenarioId: 'parcel',
+    revealUrl: signed('/drill-reveal', 'reveal') + '&lang=zh',
+    reportUrl: signed('/drill-report', 'report') + '&lang=zh',
+    language: 'zh',
+  }).success, true);
+  assert.equal(script.sent[0].subject, '运费尚未缴付');
+  assert.equal(script.sent[0].name, 'ParcelLink');
+  assert.match(script.sent[0].htmlBody, /Judge，您好/);
+  assert.match(script.sent[0].htmlBody, /举报可疑邮件/);
+
+  assert.equal(script.post({
+    kind: 'email-verification',
+    email: 'judge@example.com',
+    verificationUrl: signed('/email-verify', 'verify'),
+    language: 'ta',
+  }).success, true);
+  assert.match(script.sent[1].subject, /SafeSpace/);
+  assert.match(script.sent[1].htmlBody, /என் மின்னஞ்சலைச் சரிபார்/);
+
+  assert.equal(script.post({ kind: 'safety-followup', email: 'judge@example.com', language: 'ms' }).success, true);
+  assert.equal(script.sent[2].subject, 'Susulan latihan SafeSpace: anda selamat');
+
+  assert.equal(script.post({
+    kind: 'safety-followup', email: 'judge@example.com', recipientName: '$& Judge', language: 'xx',
+  }).success, true);
+  assert.equal(script.sent[3].subject, 'SafeSpace drill follow-up: you are safe');
+  assert.match(script.sent[3].body, /^Hi \$& Judge,/, 'names are inserted literally');
+});
+
+test('Apps Script keeps a scheduled follow-up in the language it was requested in', () => {
+  const script = loadAppsScript();
+  const scheduled = script.post({
+    kind: 'schedule-safety-followup',
+    email: 'judge@example.com',
+    sendAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+    language: 'zh',
+  });
+  assert.equal(scheduled.success, true);
+  const job = JSON.parse(script.properties.getProperty('SAFESPACE_FOLLOWUP_' + scheduled.jobId));
+  assert.equal(job.language, 'zh');
 });

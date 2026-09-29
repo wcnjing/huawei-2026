@@ -1,3 +1,4 @@
+import { useT } from "../../i18n";
 import { IconBell, IconBulb, IconChat, IconGear, IconSpeaker } from "../icons";
 
 export function AppHeader({
@@ -21,6 +22,7 @@ export function AppHeader({
   onSettings: () => void;
   onTutorial: () => void;
 }) {
+  const t = useT();
   return (
     <div
       className="app-header"
@@ -43,14 +45,14 @@ export function AppHeader({
           type="button"
           className="app-header-help"
           onClick={onTutorial}
-          aria-label="How to play: open the app tutorial"
-          title="How to play"
+          aria-label={t("How to play: open the app tutorial")}
+          title={t("How to play")}
         >
           <IconBulb size={18} color="#c77dff" />
         </button>
         <button
           onClick={onToggleMute}
-          aria-label={muted ? "Unmute music" : "Mute music"}
+          aria-label={muted ? t("Unmute music") : t("Mute music")}
           aria-pressed={muted}
           style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }}
         >
@@ -58,14 +60,14 @@ export function AppHeader({
         </button>
         <button
           onClick={onChat}
-          aria-label="Open house chat"
+          aria-label={t("Open house chat")}
           style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }}
         >
           <IconChat size={18} color="#4ecdc4" />
         </button>
         <button
           onClick={onNotifications}
-          aria-label="Open notifications"
+          aria-label={t("Open notifications")}
           style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center", position: "relative" }}
         >
           <IconBell size={18} color="#ffe66d" />
@@ -85,7 +87,7 @@ export function AppHeader({
         </button>
         <button
           onClick={onSettings}
-          aria-label="Open settings"
+          aria-label={t("Open settings")}
           style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }}
         >
           <IconGear size={18} color="#6b8ba4" />

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Blink } from "../../../components/ui";
 import { IconEnvelope, IconWarning } from "../../../components/icons";
+import { useT } from "../../../i18n";
 
 const EMAIL_INBOX_ITEMS = [
   { id: "campus", sender: "Campus Rewards Office", subject: "IMPORTANT: Claim Your $300 Digital Safety Reward", preview: "You have been selected for a limited-time cyber safety reward…", time: "NOW", isScam: true },
@@ -11,6 +12,7 @@ const EMAIL_INBOX_ITEMS = [
 ];
 
 export function EmailInboxScreen({ onOpenScam, onBack }: { activeMemberId: string; onOpenScam: () => void; onBack: () => void }) {
+  const t = useT();
   const [toast, setToast] = useState("");
   const [glowFrame, setGlowFrame] = useState(true);
 
@@ -20,7 +22,7 @@ export function EmailInboxScreen({ onOpenScam, onBack }: { activeMemberId: strin
   }, []);
 
   const handleNonScam = () => {
-    setToast("This email is safe. Open the important email to continue.");
+    setToast(t("This email is safe. Open the important email to continue."));
     setTimeout(() => setToast(""), 2500);
   };
 
@@ -28,23 +30,23 @@ export function EmailInboxScreen({ onOpenScam, onBack }: { activeMemberId: strin
     <div className="flex flex-col h-full" style={{ position: "relative" }}>
       <div className="flex items-center justify-between px-4" style={{ backgroundColor: "#0a0e1a", borderBottom: "4px solid #2a3a5c", minHeight: 56, flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8" }}>{"< BACK"}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8" }}>{t("< BACK")}</div>
         </button>
         <div className="flex items-center gap-2">
           <IconEnvelope size={16} color="#c77dff" />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#c77dff" }}>MAILBOX</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#c77dff" }}>{t("MAILBOX")}</div>
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff6b35" }}>DRILL ACTIVE</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff6b35" }}>{t("DRILL ACTIVE")}</div>
       </div>
       <div className="px-4 py-2" style={{ borderBottom: "2px solid #1a2340" }}>
         <div style={{ backgroundColor: "#111827", border: "2px solid #2a3a5c", padding: "6px 10px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#2a3a5c" }}>
-          Search mail…
+          {t("Search mail…")}
         </div>
       </div>
       <div className="flex items-center gap-2 px-4 py-2" style={{ backgroundColor: "rgba(255,107,53,0.1)", borderBottom: "2px solid #ff6b35", flexShrink: 0 }}>
         <IconWarning size={12} color="#ff6b35" />
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff6b35" }}>
-          New important email detected. Inspect before clicking.
+          {t("New important email detected. Inspect before clicking.")}
         </div>
       </div>
       {toast && (
@@ -72,21 +74,21 @@ export function EmailInboxScreen({ onOpenScam, onBack }: { activeMemberId: strin
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="flex items-center justify-between mb-1">
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: item.isScam ? 6 : 5, color: item.isScam ? "#ff6b35" : "#e8f4f8" }}>{item.sender}</div>
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: item.isScam ? "#ff6b35" : "#6b8ba4" }}>{item.time}</div>
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: item.isScam ? 6 : 5, color: item.isScam ? "#ff6b35" : "#e8f4f8" }}>{t(item.sender)}</div>
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: item.isScam ? "#ff6b35" : "#6b8ba4" }}>{t(item.time)}</div>
                 </div>
                 <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: item.isScam ? "#ff2d55" : "#e8f4f8", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {item.subject}
+                  {t(item.subject)}
                 </div>
                 <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#9bb0c8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {item.preview}
+                  {t(item.preview)}
                 </div>
                 {item.isScam && (
                   <div className="flex gap-2 mt-1">
                     <div style={{ backgroundColor: "#ff6b35", padding: "1px 5px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#0a0e1a" }}>
-                      <Blink ms={500}>IMPORTANT</Blink>
+                      <Blink ms={500}>{t("IMPORTANT")}</Blink>
                     </div>
-                    <div style={{ backgroundColor: "#ff2d55", padding: "1px 5px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ffffff" }}>UNREAD</div>
+                    <div style={{ backgroundColor: "#ff2d55", padding: "1px 5px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ffffff" }}>{t("UNREAD")}</div>
                   </div>
                 )}
               </div>

@@ -62,6 +62,7 @@ import {
 } from './drill-links.js';
 import { KNOWN_OUTCOMES } from './xp.js';
 import { educationalPage } from './pages.js';
+import { normalizeLanguage, pageText, withLanguage } from './language.js';
 import { renderTactic } from './intel/render.js';
 import {
   HouseError,
@@ -75,6 +76,15 @@ import {
   removeMember,
   renameHouse,
 } from './houses.js';
+import {
+  answerHouseDrill,
+  createHouseDrill,
+  getHouseDrill,
+  leaveHouseDrill,
+  respondToHouseDrill,
+  skipHouseDrillTurn,
+  startHouseDrill,
+} from './house-drills.js';
 import { ChatError, listMessages, sendMessage } from './chat.js';
 import { ring } from './doorbell.js';
 
@@ -226,6 +236,17 @@ const HOUSE_ERRORS = {
   JOIN_RATE_LIMITED: [429, 'too many wrong codes; try again later'],
   INVALID_HOUSE_NAME: [400, 'house names are 1–30 letters, numbers or spaces'],
   INVALID_DRILL_RUN: [400, 'that drill run is not valid'],
+  INVALID_DRILL_SETTINGS: [400, 'those drill settings are not valid'],
+  INVALID_DRILL_ANSWER: [400, 'that answer is not valid'],
+  DRILL_IN_PROGRESS: [409, 'a house drill is already running'],
+  DRILL_NOT_FOUND: [404, 'that house drill was not found'],
+  DRILL_OVER: [409, 'that house drill has ended'],
+  DRILL_ALREADY_STARTED: [409, 'that house drill has already started'],
+  DRILL_NOT_STARTED: [409, 'that house drill has not started yet'],
+  NOT_DRILL_HOST: [403, 'only the drill host can do that'],
+  NOT_INVITED: [403, "you're not in this house drill"],
+  INVITE_EXPIRED: [410, 'that invite has expired'],
+  NOT_YOUR_TURN: [409, "it's not your turn"],
 };
 
 const chatStatuses = {
@@ -355,7 +376,16 @@ function callConfigured() {
 // educationalPage (imported from ./pages.js) renders the win/lose/neutral drill-link
 // landing page; this just ships it.
 function sendEducationalPage(res, options) {
-  const page = educationalPage(options);
+  const language = normalizeLanguage(res.req?.query?.lang);
+  const page = educationalPage({
+    ...options,
+    language,
+    title: pageText(language, options.title),
+    heading: pageText(language, options.heading),
+    message: pageText(language, options.message),
+    confirmLabel: pageText(language, options.confirmLabel),
+    confirmAction: options.confirmAction ? withLanguage(options.confirmAction, language) : options.confirmAction,
+  });
   return res.status(page.status).type('html').send(page.html);
 }
 
@@ -606,6 +636,40 @@ api.post('/api/house/members/:memberId/remove', houseRoute((userId, req) =>
   removeMember(userId, req.params.memberId)));
 api.post('/api/house/leave', houseRoute((userId) => leaveHouse(userId)));
 
+api.get('/api/house/drill', async (req, res) => {
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+  return res.json(await getHouseDrill(userId));
+});
+
+/** Run a house-drill change, ring the house, and answer with that drill's fresh view. */
+function drillRoute(change) {
+  return async (req, res) => {
+    const userId = await requireUserId(req, res);
+    if (!userId) return;
+    try {
+      const result = await change(userId, req);
+      await ring(result.ring);
+      return res.json(await getHouseDrill(userId, { drillId: result.drillId }));
+    } catch (error) {
+      return houseFail(res, error);
+    }
+  };
+}
+
+api.post('/api/house/drill', drillRoute((userId, req) =>
+  createHouseDrill(userId, { perPlayer: req.body?.perPlayer })));
+api.post('/api/house/drill/:drillId/respond', drillRoute((userId, req) =>
+  respondToHouseDrill(userId, req.params.drillId, req.body?.accept === true)));
+api.post('/api/house/drill/:drillId/start', drillRoute((userId, req) =>
+  startHouseDrill(userId, req.params.drillId, req.body?.scenarioIds)));
+api.post('/api/house/drill/:drillId/answer', drillRoute((userId, req) =>
+  answerHouseDrill(userId, req.params.drillId, req.body)));
+api.post('/api/house/drill/:drillId/skip', drillRoute((userId, req) =>
+  skipHouseDrillTurn(userId, req.params.drillId, req.body?.turn)));
+api.post('/api/house/drill/:drillId/leave', drillRoute((userId, req) =>
+  leaveHouseDrill(userId, req.params.drillId)));
+
 api.get('/api/houses/:houseId/chat/messages', async (req, res) => {
   const userId = await requireUserId(req, res);
   if (!userId) return;
@@ -677,6 +741,7 @@ async function startEmailOwnership(req, res) {
   const userId = await sessionUserId(req);
   if (!userId) return res.status(401).json({ error: 'sign in to verify an email' });
   const email = String(req.body?.email || '').trim().toLowerCase();
+  const language = normalizeLanguage(req.body?.language);
   if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'email is not a valid address' });
   if (!emailVerificationConfigured() || !drillLinksConfigured()) {
     return fail(res, 503, 'email verification is not configured');
@@ -701,8 +766,8 @@ async function startEmailOwnership(req, res) {
 
   const user = reservation.user;
   try {
-    const verificationUrl = createEmailVerificationUrl(userId, verificationId);
-    await sendEmailOwnershipVerification({ to: email, name: user.name, verificationUrl });
+    const verificationUrl = withLanguage(createEmailVerificationUrl(userId, verificationId), language);
+    await sendEmailOwnershipVerification({ to: email, name: user.name, verificationUrl, language });
     return res.json({ ok: true, verified: false });
   } catch (error) {
     await cancelEmailVerification(userId, email, verificationId).catch((storeError) => {
@@ -874,12 +939,15 @@ api.post('/api/drills/email', async (req, res) => {
 
   let output;
   try {
+    const language = normalizeLanguage(req.body?.language);
     const links = createEmailDrillLinks(attempt.id);
     output = await sendDrillEmail({
       to: user.email,
       name: user.name,
       scenarioId: req.body?.scenario,
-      ...links,
+      revealUrl: withLanguage(links.revealUrl, language),
+      reportUrl: withLanguage(links.reportUrl, language),
+      language,
     });
   } catch (error) {
     if (error?.code === 'EMAIL_DELIVERY_UNCONFIRMED') {
@@ -943,12 +1011,14 @@ api.post('/api/drills/sms', async (req, res) => {
 
   let output;
   try {
+    const language = normalizeLanguage(req.body?.language);
     const { revealUrl } = createEmailDrillLinks(attempt.id);
     output = await sendDrillSms({
       to: user.phone,
       name: user.name,
       scenarioId: req.body?.scenario,
-      revealUrl,
+      revealUrl: withLanguage(revealUrl, language),
+      language,
     });
   } catch (error) {
     if (error?.code === 'SMS_DELIVERY_UNCONFIRMED') {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { PixelMascot } from "../avatars";
 import { PixelButton } from "../ui";
+import { useT } from "../../i18n";
 
 type TourStep = { target: string | null; actionTarget?: string; frameTarget?: string; scrollTarget?: string; accent: string; title: string; body: string; screen?: "home" | "drill-select" | "leaderboard" | "store"; placement?: "below" | "bottom" };
 
@@ -88,27 +89,28 @@ function SpeechBubble({ step, index, total, onNext, onSkip, onBack, style, inner
   style?: React.CSSProperties;
   innerRef?: React.RefObject<HTMLDivElement>;
 }) {
+  const t = useT();
   const last = index === total - 1;
   return (
     <div ref={innerRef} style={{ position: "fixed", zIndex: 10001, width: 300, ...style }}>
       <div style={{ display: "flex", alignItems: "flex-end", gap: 8, marginBottom: -4 }}>
         <PixelMascot size={step.target === "drill-page" ? 32 : 44} animate />
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: step.accent, padding: "5px 8px", marginBottom: 8, backgroundColor: "#111827", boxShadow: "3px 3px 0 #0a0e1a" }}>
-          {step.title}
+          {t(step.title)}
         </div>
       </div>
       <div style={{ backgroundColor: "#111827", border: `4px solid ${step.accent}`, boxShadow: `4px 4px 0 #0a0e1a`, padding: step.target === "drill-page" ? 10 : 14 }}>
         <div style={{ fontFamily: "'Share Tech Mono',monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.5 }}>
-          {step.body}
+          {t(step.body)}
         </div>
         {(step.target === "drill-page" || step.scrollTarget) && !scrollComplete && (
           <div style={{ marginTop: 10, color: "#ffe66d", font: "11px 'Share Tech Mono', monospace", letterSpacing: 1, textAlign: "center" }}>
-            SCROLL DOWN TO CONTINUE ↓
+            {t("SCROLL DOWN TO CONTINUE ↓")}
           </div>
         )}
         {step.actionTarget === "ranks-shame" && !shameVisited && (
           <div style={{ marginTop: 10, color: step.accent, font: "11px 'Share Tech Mono', monospace", letterSpacing: 1, textAlign: "center" }}>
-            TAP HALL OF SHAME TO CONTINUE
+            {t("TAP HALL OF SHAME TO CONTINUE")}
           </div>
         )}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
@@ -118,13 +120,13 @@ function SpeechBubble({ step, index, total, onNext, onSkip, onBack, style, inner
             ))}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            {index > 0 && <PixelButton onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm">BACK</PixelButton>}
-            {!(((step.target === "drill-page" || step.scrollTarget) && !scrollComplete) || (step.actionTarget === "ranks-shame" && !shameVisited)) && <PixelButton onClick={onNext} color={step.accent} size="sm">{last ? "DONE" : "NEXT"}</PixelButton>}
+            {index > 0 && <PixelButton onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm">{t("BACK")}</PixelButton>}
+            {!(((step.target === "drill-page" || step.scrollTarget) && !scrollComplete) || (step.actionTarget === "ranks-shame" && !shameVisited)) && <PixelButton onClick={onNext} color={step.accent} size="sm">{last ? t("DONE") : t("NEXT")}</PixelButton>}
           </div>
         </div>
       </div>
       <button onClick={onSkip} style={{ background: "none", border: "none", cursor: "pointer", padding: "8px 2px" }}>
-        <div style={{ display: "inline-block", padding: "5px 8px", backgroundColor: "#111827", boxShadow: "3px 3px 0 #0a0e1a", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8" }}>SKIP TOUR</div>
+        <div style={{ display: "inline-block", padding: "5px 8px", backgroundColor: "#111827", boxShadow: "3px 3px 0 #0a0e1a", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8" }}>{t("SKIP TOUR")}</div>
       </button>
     </div>
   );

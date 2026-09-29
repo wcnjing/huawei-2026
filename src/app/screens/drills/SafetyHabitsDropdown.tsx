@@ -1,8 +1,10 @@
 import { SAFETY_TIPS } from "../../data/safetyTips";
 import { IconBadge } from "../../components/icons";
 import { useState } from "react";
+import { useT } from "../../i18n";
 
 export function SafetyHabitsDropdown() {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const panelId = "safety-habits-panel";
   return (
@@ -18,11 +20,11 @@ export function SafetyHabitsDropdown() {
         <IconBadge size={22} color="#ffe66d" />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="flex items-center justify-between" style={{ gap: 8 }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ff6b35", letterSpacing: 1 }}>SAFETY HABITS</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ff6b35", letterSpacing: 1 }}>{t("SAFETY HABITS")}</div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ff6b35" }}>{open ? "▲" : "▼"}</div>
           </div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.5, marginTop: 6 }}>
-            A missed drill is private. Use it to practise the next response — never to rank or shame someone.
+            {t("A missed drill is private. Use it to practise the next response — never to rank or shame someone.")}
           </div>
         </div>
       </button>
@@ -35,8 +37,8 @@ export function SafetyHabitsDropdown() {
                 <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: tip.color }}>{tip.num}</span>
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: tip.color, letterSpacing: 1, marginBottom: 4 }}>{tip.title}</div>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#b4c6d4", lineHeight: 1.5 }}>{tip.text}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: tip.color, letterSpacing: 1, marginBottom: 4 }}>{t(tip.title)}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#b4c6d4", lineHeight: 1.5 }}>{t(tip.text)}</div>
               </div>
             </div>
           ))}

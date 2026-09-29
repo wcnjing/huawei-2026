@@ -46,8 +46,8 @@ const OUTCOME_SET = new Set(KNOWN_OUTCOMES);
 const ACTIVE_ATTEMPT_STATUSES = new Set(['created', 'sent']);
 const TERMINAL_ATTEMPT_STATUSES = new Set(['completed', 'failed']);
 const ONE_HOUR_MS = 60 * 60 * 1000;
-const EMAIL_VERIFICATION_ACCOUNT_MAX = 5;
-const EMAIL_VERIFICATION_DESTINATION_MAX = 3;
+const EMAIL_VERIFICATION_ACCOUNT_MAX = 10;
+const EMAIL_VERIFICATION_DESTINATION_MAX = 10;
 const PHONE_VERIFICATION_DESTINATION_MAX = 5;
 const PHONE_VERIFICATION_REQUESTER_MAX = 20;
 
@@ -892,7 +892,7 @@ export async function beginEmailVerification({
   userId,
   email,
   verificationId,
-  cooldownMs = 60_000,
+  cooldownMs = 10,
   now = Date.now(),
   rateWindowMs = ONE_HOUR_MS,
   maxAccountSends = EMAIL_VERIFICATION_ACCOUNT_MAX,

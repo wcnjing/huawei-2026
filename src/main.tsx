@@ -1,9 +1,14 @@
 
   import { createRoot } from "react-dom/client";
   import App from "./app/App.tsx";
+  import { LanguageProvider } from "./app/i18n";
   import "./styles/index.css";
 
-  createRoot(document.getElementById("root")!).render(<App />);
+  createRoot(document.getElementById("root")!).render(
+    <LanguageProvider>
+      <App />
+    </LanguageProvider>,
+  );
 
   // Registered only in production: in dev the Vite server already owns the page,
   // and a worker sitting in front of it confuses hot reload. Failure is non-fatal

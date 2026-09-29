@@ -1,8 +1,10 @@
+import { useT } from "../../i18n";
 import { IconShield, IconCoin } from "../../components/icons";
 import { useMembers } from "../../hooks/useMembers";
 import { useSelfId } from "../../hooks/useSelfId";
 
 export function FamilySafetyBar({ coins, onPayday, paydayClaimedThisWeek }: { coins: Record<string, number>; onPayday: () => void; paydayClaimedThisWeek: boolean }) {
+  const t = useT();
   const members = useMembers();
   const selfId = useSelfId();
   const safeCount = members.filter((m) => m.safeThisWeek).length;
@@ -15,9 +17,9 @@ export function FamilySafetyBar({ coins, onPayday, paydayClaimedThisWeek }: { co
         <IconShield size={32} color={allSafe ? "#00ff88" : "#ff6b35"} />
       </div>
       <div style={{ flex: 1 }}>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: allSafe ? "#00ff88" : "#ff6b35", marginBottom: 4 }}>HOUSE SAFETY</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: allSafe ? "#00ff88" : "#ff6b35", marginBottom: 4 }}>{t("HOUSE SAFETY")}</div>
         <div style={{ fontFamily: "'Share Tech Mono',monospace", fontSize: "var(--text-body)", color: "#9bb0c8", lineHeight: 1.4 }}>
-          {safeCount}/{members.length} MEMBERS SAFE
+          {t("{safe}/{total} MEMBERS SAFE", { safe: safeCount, total: members.length })}
         </div>
         <div className="house-safety-members" style={{ display: "flex", gap: 6, marginTop: 6 }}>
           {members.map((m) => (
@@ -35,8 +37,8 @@ export function FamilySafetyBar({ coins, onPayday, paydayClaimedThisWeek }: { co
         className={`home-payday-tile${paydayClaimedThisWeek ? " is-collected" : ""}`}
         data-tour="payday-tile"
         onClick={onPayday}
-        aria-label={paydayClaimedThisWeek ? "Payday Sunday, weekly pay collected. View payday." : "Payday Sunday, collect your weekly pay."}
-        title="Open Payday Sunday"
+        aria-label={paydayClaimedThisWeek ? t("Payday Sunday, weekly pay collected. View payday.") : t("Payday Sunday, collect your weekly pay.")}
+        title={t("Open Payday Sunday")}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <IconCoin size={12} color={coinColor} />
@@ -44,7 +46,7 @@ export function FamilySafetyBar({ coins, onPayday, paydayClaimedThisWeek }: { co
             {selfCoins >= 0 ? "" : "-"}{Math.abs(selfCoins)}
           </div>
         </div>
-        <div className="home-payday-label">{paydayClaimedThisWeek ? "PAID" : "PAYDAY"}</div>
+        <div className="home-payday-label">{paydayClaimedThisWeek ? t("PAID") : t("PAYDAY")}</div>
       </button>
     </div>
   );

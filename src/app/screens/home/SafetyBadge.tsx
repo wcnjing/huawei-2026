@@ -1,6 +1,8 @@
+import { useT } from "../../i18n";
 import { IconShield } from "../../components/icons";
 
 export function SafetyBadge({ safe, size = 20 }: { safe: boolean; size?: number }) {
+  const t = useT();
   const color = safe ? "#00ff88" : "#ff2d55";
   const glow = safe ? "0 0 8px rgba(0,255,136,0.8)" : "0 0 8px rgba(255,45,85,0.8)";
   return (
@@ -9,7 +11,7 @@ export function SafetyBadge({ safe, size = 20 }: { safe: boolean; size?: number 
         <IconShield size={size} color={color} />
       </div>
       <div style={{ fontFamily: "var(--font-family-ui)", fontSize: "var(--font-ui-micro)", color, letterSpacing: 0.5 }}>
-        {safe ? "SAFE" : "SCAMMED"}
+        {safe ? t("SAFE") : t("SCAMMED")}
       </div>
     </div>
   );
