@@ -200,8 +200,8 @@ export function HouseChatScreen({
         <div className="house-chat__nudge" role="status">
           <p>
             {nudge.senderId === selfId
-              ? "You got caught out by a drill. Tell your house what happened?"
-              : `${nudge.senderName} got caught out by a drill. Check in and talk it through?`}
+              ? t("You got caught out by a drill. Tell your house what happened?")
+              : t("{name} got caught out by a drill. Check in and talk it through?", { name: nudge.senderName })}
           </p>
           <div className="house-chat__nudge-actions">
             <button
@@ -209,15 +209,15 @@ export function HouseChatScreen({
               onClick={() => {
                 if (!draft.trim()) {
                   setDraft(nudge.senderId === selfId
-                    ? "I got caught out by that drill. "
-                    : `Hey ${nudge.senderName}, those drills are tricky. Want to talk it through? `);
+                    ? t("I got caught out by that drill. ")
+                    : t("Hey {name}, those drills are tricky. Want to talk it through? ", { name: nudge.senderName }));
                 }
                 composerRef.current?.focus();
               }}
             >
-              Say something
+              {t("Say something")}
             </button>
-            <button type="button" aria-label="Dismiss" onClick={() => setDismissedNudge(nudge.id)}>×</button>
+            <button type="button" aria-label={t("Dismiss")} onClick={() => setDismissedNudge(nudge.id)}>×</button>
           </div>
         </div>
       )}
@@ -252,7 +252,9 @@ export function HouseChatScreen({
               <div key={row.key} className="house-chat__entry" data-chat-row-key={row.key}>
                 {showDay && <div className="house-chat__day">{dayFormatter.format(new Date(row.createdAt))}</div>}
                 <p className="house-chat__event">
-                  {row.senderId === selfId ? "You" : row.senderName} {row.text}
+                  {row.senderId === selfId
+                    ? t("You got caught out by a drill")
+                    : t("{name} got caught out by a drill", { name: row.senderName })}
                   <time dateTime={row.createdAt}> · {timeFormatter.format(new Date(row.createdAt))}</time>
                 </p>
               </div>
