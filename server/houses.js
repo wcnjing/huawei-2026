@@ -8,6 +8,7 @@ import crypto from 'crypto';
 import { query, transaction } from './db.js';
 import { userFromRow } from './rows.js';
 import { weekStart } from './week.js';
+import { announceDrillFinished } from './drill-announce.js';
 import {
   addXp,
   lockRateLimits,
@@ -283,11 +284,14 @@ export async function recordHouseRun(userId, { clientKey, correct, cautious, wro
   const total = correct + cautious + wrong;
   if (total < 1 || total > MAX_ROUNDS) throw new HouseError('INVALID_DRILL_RUN');
 
-  return transaction(async (tx) => {
+  const outcome = await transaction(async (tx) => {
     const user = await lockUser(tx, userId);
     if (!user) throw new Error(`unknown user ${userId}`);
     return recordRunLocked(tx, user, key, { correct, cautious, wrong }, now);
   }, 'recordHouseRun');
+  // Win or lose, a finished house drill is a reason to talk; the line never says how it went.
+  if (outcome.status === 'completed') await announceDrillFinished(userId, `run:${outcome.run.id}`);
+  return outcome;
 }
 
 /** Only the week's first run earns XP. `user` must already be locked by `tx`. */

@@ -93,3 +93,33 @@
 @media (prefers-reduced-motion: reduce) {
   .house-chat__history { scroll-behavior: auto; }
 }
+
+.house-chat__event {
+  margin: 8px 0;
+  text-align: center;
+  color: #8ba5b8;
+  font-size: var(--text-caption);
+}
+.house-chat__event time { color: #6b8499; }
+
+.house-chat__nudge {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #102c36;
+  border-bottom: 2px solid #4ecdc4;
+}
+.house-chat__nudge p { margin: 0; color: #e8fff9; font-size: var(--text-body); }
+.house-chat__nudge-actions { display: flex; flex: 0 0 auto; gap: 6px; }
+.house-chat__nudge button {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 2px solid #4ecdc4;
+  background: transparent;
+  color: #4ecdc4;
+  cursor: pointer;
+}
+.house-chat__nudge button:last-child { min-width: 44px; padding: 0; border-color: transparent; color: #a8bbcf; }

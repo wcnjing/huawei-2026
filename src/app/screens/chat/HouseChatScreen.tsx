@@ -19,6 +19,7 @@ export type HouseChatScreenProps = {
 };
 
 const BOTTOM_THRESHOLD = 80;
+const NUDGE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 function dayKey(value: string) {
   const date = new Date(value);
@@ -48,6 +49,8 @@ export function HouseChatScreen({
   const [draft, setDraft] = useState("");
   const [now, setNow] = useState(Date.now);
   const [newMessages, setNewMessages] = useState(false);
+  const [dismissedNudge, setDismissedNudge] = useState<string | null>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
   const historyRef = useRef<HTMLDivElement>(null);
   const nearBottomRef = useRef(true);
   const forceBottomRef = useRef(false);
@@ -82,6 +85,17 @@ export function HouseChatScreen({
     return merged;
   }, [chat.messages, chat.pending, selfName]);
   const cooldownActive = chat.pending.some(item => item.status === "failed" && item.retryAt > now);
+  // The latest "finished a drill" line from the last day that this player hasn't followed up
+  // on yet. Derived from the messages already loaded, so it needs no extra request.
+  const nudge = useMemo(() => {
+    const event = [...chat.messages].reverse().find(message => message.type === "drill_finished");
+    if (!event || event.id === dismissedNudge) return null;
+    const at = Date.parse(event.createdAt);
+    if (now - at > NUDGE_WINDOW_MS) return null;
+    const followedUp = chat.pending.length > 0 || chat.messages.some(message =>
+      message.type === "message" && message.senderId === selfId && Date.parse(message.createdAt) > at);
+    return followedUp ? null : event;
+  }, [chat.messages, chat.pending, dismissedNudge, now, selfId]);
 
   useEffect(() => {
     setDraft("");
@@ -182,6 +196,32 @@ export function HouseChatScreen({
         </div>
       </header>
 
+      {nudge && !disabled && (
+        <div className="house-chat__nudge" role="status">
+          <p>
+            {nudge.senderId === selfId
+              ? "You finished a drill. Tell your house how it went?"
+              : `${nudge.senderName} finished a drill. Ask how it went?`}
+          </p>
+          <div className="house-chat__nudge-actions">
+            <button
+              type="button"
+              onClick={() => {
+                if (!draft.trim()) {
+                  setDraft(nudge.senderId === selfId
+                    ? "Just finished a drill! "
+                    : `Nice one on the drill, ${nudge.senderName}! How did it go? `);
+                }
+                composerRef.current?.focus();
+              }}
+            >
+              Say something
+            </button>
+            <button type="button" aria-label="Dismiss" onClick={() => setDismissedNudge(nudge.id)}>×</button>
+          </div>
+        </div>
+      )}
+
       <div
         ref={historyRef}
         role="region"
@@ -207,6 +247,17 @@ export function HouseChatScreen({
           const currentDay = dayKey(row.createdAt);
           const showDay = currentDay !== previousDay;
           previousDay = currentDay;
+          if (row.kind === "message" && row.type === "drill_finished") {
+            return (
+              <div key={row.key} className="house-chat__entry" data-chat-row-key={row.key}>
+                {showDay && <div className="house-chat__day">{dayFormatter.format(new Date(row.createdAt))}</div>}
+                <p className="house-chat__event">
+                  {row.senderId === selfId ? "You" : row.senderName} {row.text}
+                  <time dateTime={row.createdAt}> · {timeFormatter.format(new Date(row.createdAt))}</time>
+                </p>
+              </div>
+            );
+          }
           const own = row.senderId === selfId;
           const failed = row.kind === "pending" && row.status === "failed";
           const wait = failed ? remainingSeconds(row.retryAt, now) : 0;
@@ -259,6 +310,7 @@ export function HouseChatScreen({
         <div className="house-chat__composer">
           <label htmlFor="chat-message">{t("Message")}</label>
           <textarea
+            ref={composerRef}
             id="chat-message"
             rows={3}
             value={draft}

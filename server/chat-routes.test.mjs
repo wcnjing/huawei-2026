@@ -80,7 +80,7 @@ function assertNoStore(response) {
 }
 
 const MESSAGE_KEYS = [
-  'clientKey', 'createdAt', 'houseId', 'id', 'senderAvatar', 'senderId', 'senderName', 'text',
+  'clientKey', 'createdAt', 'houseId', 'id', 'senderAvatar', 'senderId', 'senderName', 'text', 'type',
 ];
 
 function assertMessageEnvelope(body) {

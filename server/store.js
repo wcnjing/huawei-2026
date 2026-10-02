@@ -10,6 +10,7 @@ import { computeResult, KNOWN_OUTCOMES } from './xp.js';
 import { query, transaction } from './db.js';
 import { cleanAvatar } from './avatar.js';
 import { cleanHomeInventory } from './home-inventory.js';
+import { announceDrillFinished } from './drill-announce.js';
 // houses.js imports this module's locking helpers in turn. Neither module calls the
 // other while it is being evaluated, so the cycle resolves before any call happens.
 import { lockHouseOf, releaseFromHouse } from './houses.js';
@@ -196,6 +197,13 @@ async function readResult(tx, id) {
   return resultFromRow(rows[0]);
 }
 
+/** After a scored win or loss commits, tell the house a drill finished. Never the outcome.
+ * Distress off-ramps (SAFE) and unscored results are not announced. */
+async function announceScored(record) {
+  if (record?.result !== 'WON' && record?.result !== 'LOST') return;
+  await announceDrillFinished(record.userId, `drill:${record.id}`);
+}
+
 // Every real (non-practice) result stays pending until the client explicitly ACKs it,
 // SAFE outcomes included: they have no result screen, but delivery still clears the
 // client's "awaiting call" marker. The pending queue is `acknowledged_at is null`.
@@ -239,10 +247,12 @@ async function applyOutcomeInTx(tx, {
 export async function applyOutcome({ userId, outcome, channel = 'call', practice = false }) {
   const recordId = `drill_${crypto.randomUUID()}`;
   const at = new Date().toISOString();
-  return transaction(
+  const done = await transaction(
     (tx) => applyOutcomeInTx(tx, { userId, outcome, channel, practice, recordId, at }),
     'applyOutcome',
   );
+  await announceScored(done.record);
+  return done;
 }
 
 /**
@@ -262,7 +272,7 @@ export async function applyPracticeOutcomeOnce({
   const recordId = `drill_${crypto.randomUUID()}`;
   const at = new Date().toISOString();
 
-  return transaction(async (tx) => {
+  const result = await transaction(async (tx) => {
     // Locking the user serialises a double-click; the unique key is the backstop.
     const user = await lockUser(tx, userId);
     const { rows } = await tx.query(
@@ -283,6 +293,8 @@ export async function applyPracticeOutcomeOnce({
     });
     return { status: 'completed', applied: true, record: scored.record, user: scored.user };
   }, 'applyPracticeOutcomeOnce');
+  if (result.applied) await announceScored(result.record);
+  return result;
 }
 
 // --- Pending results ----------------------------------------------------------
@@ -570,7 +582,7 @@ export async function completeDrillAttempt({
 
   const completedAt = new Date().toISOString();
   const recordId = `drill_${crypto.randomUUID()}`;
-  return transaction(async (tx) => {
+  const finished = await transaction(async (tx) => {
     const attempt = await lockAttemptByIdentifiers(tx, {
       providerId: cleanProviderId,
       attemptId: cleanAttemptId,
@@ -639,6 +651,8 @@ export async function completeDrillAttempt({
       user,
     };
   }, 'completeDrillAttempt');
+  if (finished.status === 'completed') await announceScored(finished.record);
+  return finished;
 }
 
 /** Backward-compatible post-send helper used by the existing call/email/SMS routes. */
