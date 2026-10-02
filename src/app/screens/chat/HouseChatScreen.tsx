@@ -85,10 +85,10 @@ export function HouseChatScreen({
     return merged;
   }, [chat.messages, chat.pending, selfName]);
   const cooldownActive = chat.pending.some(item => item.status === "failed" && item.retryAt > now);
-  // The latest "finished a drill" line from the last day that this player hasn't followed up
-  // on yet. Derived from the messages already loaded, so it needs no extra request.
+  // The latest "got caught out by a drill" line from the last day that this player hasn't
+  // followed up on yet. Derived from the messages already loaded, so it needs no extra request.
   const nudge = useMemo(() => {
-    const event = [...chat.messages].reverse().find(message => message.type === "drill_finished");
+    const event = [...chat.messages].reverse().find(message => message.type === "drill_scammed");
     if (!event || event.id === dismissedNudge) return null;
     const at = Date.parse(event.createdAt);
     if (now - at > NUDGE_WINDOW_MS) return null;
@@ -200,8 +200,8 @@ export function HouseChatScreen({
         <div className="house-chat__nudge" role="status">
           <p>
             {nudge.senderId === selfId
-              ? "You finished a drill. Tell your house how it went?"
-              : `${nudge.senderName} finished a drill. Ask how it went?`}
+              ? "You got caught out by a drill. Tell your house what happened?"
+              : `${nudge.senderName} got caught out by a drill. Check in and talk it through?`}
           </p>
           <div className="house-chat__nudge-actions">
             <button
@@ -209,8 +209,8 @@ export function HouseChatScreen({
               onClick={() => {
                 if (!draft.trim()) {
                   setDraft(nudge.senderId === selfId
-                    ? "Just finished a drill! "
-                    : `Nice one on the drill, ${nudge.senderName}! How did it go? `);
+                    ? "I got caught out by that drill. "
+                    : `Hey ${nudge.senderName}, those drills are tricky. Want to talk it through? `);
                 }
                 composerRef.current?.focus();
               }}
@@ -247,7 +247,7 @@ export function HouseChatScreen({
           const currentDay = dayKey(row.createdAt);
           const showDay = currentDay !== previousDay;
           previousDay = currentDay;
-          if (row.kind === "message" && row.type === "drill_finished") {
+          if (row.kind === "message" && row.type === "drill_scammed") {
             return (
               <div key={row.key} className="house-chat__entry" data-chat-row-key={row.key}>
                 {showDay && <div className="house-chat__day">{dayFormatter.format(new Date(row.createdAt))}</div>}

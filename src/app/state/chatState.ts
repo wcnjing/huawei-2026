@@ -9,8 +9,8 @@ export type ChatMessage = {
   text: string;
   createdAt: string;
   clientKey: string;
-  /** `drill_finished` is a neutral event line (never the outcome), not something a player typed. */
-  type: "message" | "drill_finished";
+  /** `drill_scammed` is an event line posted by the server, not something a player typed. */
+  type: "message" | "drill_scammed";
 };
 
 export type PendingMessage = {

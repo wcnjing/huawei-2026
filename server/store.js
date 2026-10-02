@@ -10,7 +10,7 @@ import { computeResult, KNOWN_OUTCOMES } from './xp.js';
 import { query, transaction } from './db.js';
 import { cleanAvatar } from './avatar.js';
 import { cleanHomeInventory } from './home-inventory.js';
-import { announceDrillFinished } from './drill-announce.js';
+import { announceDrillScammed } from './drill-announce.js';
 // houses.js imports this module's locking helpers in turn. Neither module calls the
 // other while it is being evaluated, so the cycle resolves before any call happens.
 import { lockHouseOf, releaseFromHouse } from './houses.js';
@@ -197,11 +197,11 @@ async function readResult(tx, id) {
   return resultFromRow(rows[0]);
 }
 
-/** After a scored win or loss commits, tell the house a drill finished. Never the outcome.
- * Distress off-ramps (SAFE) and unscored results are not announced. */
+/** After a scored result commits, tell the house only if the player got scammed (LOST).
+ * Wins, distress off-ramps (SAFE) and unscored results are not announced. */
 async function announceScored(record) {
-  if (record?.result !== 'WON' && record?.result !== 'LOST') return;
-  await announceDrillFinished(record.userId, `drill:${record.id}`);
+  if (record?.result !== 'LOST') return;
+  await announceDrillScammed(record.userId, `drill:${record.id}`);
 }
 
 // Every real (non-practice) result stays pending until the client explicitly ACKs it,

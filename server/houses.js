@@ -8,7 +8,7 @@ import crypto from 'crypto';
 import { query, transaction } from './db.js';
 import { userFromRow } from './rows.js';
 import { weekStart } from './week.js';
-import { announceDrillFinished } from './drill-announce.js';
+import { announceDrillScammed } from './drill-announce.js';
 import {
   addXp,
   lockRateLimits,
@@ -289,8 +289,10 @@ export async function recordHouseRun(userId, { clientKey, correct, cautious, wro
     if (!user) throw new Error(`unknown user ${userId}`);
     return recordRunLocked(tx, user, key, { correct, cautious, wrong }, now);
   }, 'recordHouseRun');
-  // Win or lose, a finished house drill is a reason to talk; the line never says how it went.
-  if (outcome.status === 'completed') await announceDrillFinished(userId, `run:${outcome.run.id}`);
+  // A house run has no pass/fail, so getting any round wrong counts as getting caught out.
+  if (outcome.status === 'completed' && outcome.run.wrong > 0) {
+    await announceDrillScammed(userId, `run:${outcome.run.id}`);
+  }
   return outcome;
 }
 

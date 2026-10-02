@@ -11,7 +11,7 @@ after(teardownTestDb);
 const { registerVerifiedUser } = await import('./store.js');
 const houses = await import('./houses.js');
 const chat = await import('./chat.js');
-const { announceDrillFinished } = await import('./drill-announce.js');
+const { announceDrillScammed } = await import('./drill-announce.js');
 const { query, transaction } = await import('./db.js');
 
 const rejectsChat = (fn, code) => assert.rejects(fn, (error) => error?.code === code);
@@ -349,39 +349,41 @@ test('send and removal serialize at the house lock in either arrival order', { s
 
 // --- Drill announcements ---------------------------------------------------------
 
-test('a finished drill posts one neutral line to the house chat, once per result', async () => {
+test('getting caught out by a drill posts one line to the house chat, once per result', async () => {
   const { owner, houseId } = await fixture();
-  const topic = await announceDrillFinished(owner.id, 'drill:abc');
+  const topic = await announceDrillScammed(owner.id, 'drill:abc');
   assert.match(topic, /^house-[0-9a-f]{32}$/);
   // The same result announced again (a replay) posts nothing.
-  assert.equal(await announceDrillFinished(owner.id, 'drill:abc'), null);
-  await announceDrillFinished(owner.id, 'drill:def');
+  assert.equal(await announceDrillScammed(owner.id, 'drill:abc'), null);
+  await announceDrillScammed(owner.id, 'drill:def');
   const { messages } = await chat.listMessages(owner.id, houseId);
   assert.deepEqual(messages.map(m => [m.type, m.text, m.senderName]), [
-    ['drill_finished', 'finished a drill', 'ALICE'],
-    ['drill_finished', 'finished a drill', 'ALICE'],
+    ['drill_scammed', 'got caught out by a drill', 'ALICE'],
+    ['drill_scammed', 'got caught out by a drill', 'ALICE'],
   ]);
 });
 
-test('a player with no house posts nothing, and the line never carries the outcome', async () => {
+test('a player with no house posts nothing', async () => {
   const { other } = await fixture();
-  assert.equal(await announceDrillFinished(other.id, 'drill:solo'), null);
+  assert.equal(await announceDrillScammed(other.id, 'drill:solo'), null);
   const { rows } = await query('select count(*)::int as n from safespace.chat_messages');
   assert.equal(rows[0].n, 0);
 });
 
-test('real scoring, practice scoring and house runs each announce; unscored and distress do not', async () => {
+test('only drills someone fell for are announced: not wins, unscored results or distress exits', async () => {
   const { owner, houseId } = await fixture();
   const store = await import('./store.js');
-  await store.applyOutcome({ userId: owner.id, outcome: 'hung_up' });                    // win
-  await store.applyOutcome({ userId: owner.id, outcome: 'complied' });                   // loss: still announced, neutrally
+  await store.applyOutcome({ userId: owner.id, outcome: 'hung_up' });                    // win: quiet
   await store.applyOutcome({ userId: owner.id, outcome: 'distress_offramp' });           // distress: private
-  const practice = { userId: owner.id, clientAttemptId: 'p1', outcome: 'hung_up' };
-  await store.applyPracticeOutcomeOnce(practice);
+  await store.applyOutcome({ userId: owner.id, outcome: 'complied' });                   // scammed: announced
+  const practice = { userId: owner.id, clientAttemptId: 'p1', outcome: 'shared_data' };
+  await store.applyPracticeOutcomeOnce(practice);                                        // scammed in practice: announced
   await store.applyPracticeOutcomeOnce(practice);                                        // replay: no second line
-  await houses.recordHouseRun(owner.id, { clientKey: 'r1', correct: 2, cautious: 1, wrong: 0 });
-  await houses.recordHouseRun(owner.id, { clientKey: 'r1', correct: 2, cautious: 1, wrong: 0 }); // replay
+  await store.applyPracticeOutcomeOnce({ userId: owner.id, clientAttemptId: 'p2', outcome: 'hung_up' }); // win: quiet
+  await houses.recordHouseRun(owner.id, { clientKey: 'r1', correct: 3, cautious: 0, wrong: 0 }); // clean run: quiet
+  await houses.recordHouseRun(owner.id, { clientKey: 'r2', correct: 2, cautious: 0, wrong: 1 }); // a wrong round: announced
+  await houses.recordHouseRun(owner.id, { clientKey: 'r2', correct: 2, cautious: 0, wrong: 1 }); // replay: no second line
   const { messages } = await chat.listMessages(owner.id, houseId);
-  assert.equal(messages.length, 4);
-  assert.ok(messages.every(m => m.type === 'drill_finished' && m.text === 'finished a drill'));
+  assert.equal(messages.length, 3);
+  assert.ok(messages.every(m => m.type === 'drill_scammed' && m.text === 'got caught out by a drill'));
 });
