@@ -30,7 +30,7 @@ const TABS: ReadonlyArray<{ id: CustomisationTab; label: string; short: string }
 function Section({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
   return (
     <section style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: 12 }}>
-      <div style={{ fontFamily: mono, fontSize: "var(--text-caption)", color: "#c77dff", letterSpacing: 1 }}>{title}</div>
+      <div style={{ fontFamily: mono, fontSize: "var(--text-heading)", color: "#c77dff", letterSpacing: 1 }}>{title}</div>
       {note && <div style={{ fontFamily: mono, fontSize: 9, color: "#6b8ba4", marginTop: 5, lineHeight: 1.4 }}>{note}</div>}
       <div style={{ marginTop: 10 }}>{children}</div>
     </section>
@@ -66,7 +66,7 @@ function Choice({ selected, label, onClick, children }: {
       }}
     >
       {children}
-      <span style={{ fontFamily: mono, fontSize: 9, lineHeight: 1.2, textAlign: "center" }}>{label}</span>
+      <span style={{ fontFamily: mono, fontSize: 13, lineHeight: 1.2, textAlign: "center" }}>{label}</span>
     </button>
   );
 }
@@ -123,7 +123,7 @@ export function AvatarCustomisationScreen({ avatar, onSave, onBack, onChange, on
               aria-selected={tab === item.id}
               aria-label={item.label}
               onClick={() => setTab(item.id)}
-              style={{ minWidth: 0, padding: "10px 1px", border: "none", borderRight: index < TABS.length - 1 ? "2px solid #2a3a5c" : "none", borderBottom: tab === item.id ? "4px solid #c77dff" : "4px solid transparent", background: tab === item.id ? "#1a2340" : "transparent", color: tab === item.id ? "#ffffff" : "#7f93a8", fontFamily: mono, fontSize: 9.5, lineHeight: 1.2, letterSpacing: -0.2, cursor: "pointer" }}
+              style={{ minWidth: 0, padding: "10px 1px", border: "none", borderRight: index < TABS.length - 1 ? "2px solid #2a3a5c" : "none", borderBottom: tab === item.id ? "4px solid #c77dff" : "4px solid transparent", background: tab === item.id ? "#1a2340" : "transparent", color: tab === item.id ? "#ffffff" : "#7f93a8", fontFamily: mono, fontSize: "var(--text-caption)", lineHeight: 1.2, letterSpacing: -0.2, cursor: "pointer" }}
             >
               {item.short}
             </button>
@@ -180,7 +180,7 @@ export function AvatarCustomisationScreen({ avatar, onSave, onBack, onChange, on
                 {HAIR_STYLES.map((style) => (
                   <Choice key={style.id} selected={draft.hairStyle === style.id} label={style.label} onClick={() => update({ hairStyle: style.id })}>
                     {style.id === "none" ? (
-                      <span aria-hidden="true" style={{ width: 48, height: 48, display: "grid", placeItems: "center", border: "3px dashed #53677e", color: "#9bb0c8", fontFamily: mono, fontSize: 22 }}>∅</span>
+                      <span aria-hidden="true" style={{ width: 48, height: 48, display: "grid", placeItems: "center", border: "3px dashed #53677e", color: "#9bb0c8", fontFamily: mono, fontSize: "var(--text-hero)" }}>∅</span>
                     ) : (
                       <HairPreview style={style.id} color={draft.hairColor} label={`${style.label} hairstyle`} />
                     )}
