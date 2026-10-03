@@ -4,7 +4,7 @@ import type { CoinTx } from "../../types/economy";
 import { ACHIEVEMENTS } from "../../data/achievements";
 import { DAILY_REWARD_AMOUNT } from "../../data/economy";
 
-import { PixelMascot } from "../../components/avatars";
+import { CharacterAvatar } from "../../components/avatars";
 import { XPBar } from "../../components/ui";
 import { 
     IconBadge, IconBell, IconChatBubble, IconCoin, 
@@ -60,8 +60,8 @@ export function ProfileScreen({
           <button onClick={onEditProfile} style={{ gridColumn: "1 / -1", justifySelf: "end", minHeight: 44, background: "none", border: "2px solid #4ecdc4", cursor: "pointer", padding: "4px 8px" }}>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#4ecdc4" }}>{t("EDIT")}</div>
           </button>
-          <div style={{ filter: `drop-shadow(0 0 8px ${profile.avatar.glow})` }}>
-            <PixelMascot size={72} animate color={profile.avatar.color} hat={profile.avatar.hat} eyes={profile.avatar.eyes} outfit={profile.avatar.outfit} />
+          <div style={{ minWidth: 68, display: "flex", justifyContent: "center", filter: `drop-shadow(0 0 8px ${profile.avatar.glow})` }}>
+            <CharacterAvatar size={104} animate config={profile.avatar} title={`${profile.name}'s character`} />
           </div>
           <div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-title)", color: "#ffffff" }}>{profile.name}</div>

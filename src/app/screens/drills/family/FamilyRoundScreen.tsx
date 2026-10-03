@@ -2,11 +2,13 @@ import { useState, useMemo, useEffect } from "react";
 import type { FamilyScenario, FamilyClue, FamilyOutcome } from "../../../types/drills";
 import { familyOutcome } from "./familyOutcome";
 import { InspectableLink, PixelButton, ClueTooltip, SenderInspectPanel } from "../../../components/ui";
-import { PixelMascot } from "../../../components/avatars";
+import { MemberChar } from "../../../components/avatars";
 import { IconBulb, IconCoin } from "../../../components/icons";
 import { SmsMockCard } from "./SmsMockCard";
 import { FAMILY_COINS, FAMILY_XP } from "../../../data/familyData";
+import { useMembers } from "../../../hooks/useMembers";
 import { useT } from "../../../i18n";
+import { useSelfId } from "../../../hooks/useSelfId";
 
 export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNext, onEnd, targetLabel, nextLabel, prompt, footerNote }: {
   scenario: FamilyScenario; roundIndex: number; totalRounds: number;
@@ -15,6 +17,12 @@ export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplet
   targetLabel?: string; nextLabel?: string; prompt?: string; footerNote?: string | null;
 }) {
   const t = useT();
+  const members = useMembers();
+  const selfId = useSelfId();
+  // A playable round belongs to this device's player in both solo and synced house
+  // drills. Fall back to the rotating member only for older/offline drill callers.
+  const targetMember = members.find((member) => member.id === selfId)
+    ?? (members.length > 0 ? members[roundIndex % members.length] : null);
   const [mode, setMode] = useState<"play" | "debrief">("play");
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
   const [lightbulbIdx, setLightbulbIdx] = useState(-1);
@@ -131,10 +139,16 @@ export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplet
         </div>
       </div>
       <div className="flex items-center gap-3 px-4 py-2" style={{ backgroundColor: "#111827", borderBottom: `4px solid ${color}`, flexShrink: 0 }}>
-        <PixelMascot size={36} animate />
+        {targetMember && (
+          <div style={{ minWidth: 34, display: "flex", justifyContent: "center", filter: `drop-shadow(0 0 6px ${targetMember.primaryColor})` }}>
+            <MemberChar member={targetMember} size={52} />
+          </div>
+        )}
         <div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>{t("TARGET:")}</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color }}>{targetLabel ?? t("A HOUSEMATE")}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: targetMember?.primaryColor ?? color }}>
+            {targetLabel ?? targetMember?.name.toUpperCase() ?? t("A HOUSEMATE")}
+          </div>
         </div>
         <div style={{ marginLeft: "auto", backgroundColor: "rgba(255,107,53,0.1)", border: `2px solid ${color}`, padding: "3px 7px" }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color }}>{typeLabels[scenario.type] ?? t("MSG")}</div>

@@ -33,7 +33,7 @@
 .subpage-header { flex-wrap: wrap; }
 .subpage-header > button { min-height: 44px; flex-shrink: 0; }
 .subpage-title { flex: 1 1 220px; min-width: 0; line-height: 1.6; }
-.profile-summary { display: grid; grid-template-columns: 72px minmax(0, 1fr); align-items: center; gap: 12px; }
+.profile-summary { display: grid; grid-template-columns: 84px minmax(0, 1fr); align-items: center; gap: 12px; }
 .accessibility-option { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
 .accessibility-option-description { grid-column: 1 / -1; }
 

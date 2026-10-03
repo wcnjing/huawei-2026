@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { HouseView } from "../../services/house";
 import { formatCodeInput } from "../../services/house";
-import { PixelMascot } from "../../components/avatars";
+import { CharacterAvatar, normalizeAvatarConfig } from "../../components/avatars";
 import { IconHouse } from "../../components/icons";
 import { PixelButton, PixelPanel } from "../../components/ui";
 import { SubPageHeader } from "../../components/layout";
@@ -148,7 +148,7 @@ export function HouseSettingsScreen({ house, selfId, onRegenerate, onRename, onR
           {sectionLabel(t("MEMBERS ({count}/6)", { count: house.members.length }), "#c77dff")}
           {house.members.map((m) => (
             <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderTop: "2px solid #2a3a5c" }}>
-              <PixelMascot size={36} color={m.avatar?.color ?? "#4ecdc4"} hat={m.avatar?.hat ?? "None"} eyes={m.avatar?.eyes ?? "Default"} outfit={m.avatar?.outfit ?? "Standard"} />
+              <CharacterAvatar size={40} config={normalizeAvatarConfig(m.avatar)} title={`${m.name}'s character`} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8" }}>{m.name}</div>
                 {m.isOwner && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ffe66d", marginTop: 3 }}>{t("OWNER")}</div>}

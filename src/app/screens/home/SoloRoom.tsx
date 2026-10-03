@@ -15,7 +15,7 @@ export function SoloRoom({ member, purchasedItems, layout, inviteCode, onTap, on
 }) {
   const t = useT();
   return (
-    <div data-tour="solo-room" className="solo-room" style={{ position: "relative", flex: 1, minHeight: 420, display: "flex", flexDirection: "column", backgroundColor: member.roomBg }}>
+    <div data-tour="solo-room" className="solo-room" style={{ position: "relative", flex: 1, minHeight: 480, display: "flex", flexDirection: "column", backgroundColor: member.roomBg }}>
       <RoomBackdrop style={member.roomStyle} background={member.roomBg} accent={member.primaryColor} />
       <div className="solo-room-heading">
         <RoomHeading member={member} actions={<div className="home-room-tools">
@@ -30,9 +30,9 @@ export function SoloRoom({ member, purchasedItems, layout, inviteCode, onTap, on
       </div>
       <button className="home-room-view solo-room-view" onClick={onTap} aria-label={t("View {name}'s room", { name: member.name })}>
         <PurchasedRoomFurniture itemIds={purchasedItems} accent={member.primaryColor} layout={layout} topInset={16} />
-        <div className="room-player" style={{ position: "relative", zIndex: 3, alignSelf: "center", marginTop: "auto", marginBottom: 40, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+        <div className="room-player" style={{ position: "relative", zIndex: 3, alignSelf: "center", marginTop: "auto", marginBottom: 32, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
           <SafetyBadge safe={member.safeThisWeek} size={22} />
-          <MemberChar member={member} size={112} />
+          <MemberChar member={member} size={160} />
           <div className="room-player-name" style={{ color: member.primaryColor }}>{member.name}</div>
         </div>
         <div className="home-room-open-hint" aria-hidden="true">{t("TAP TO VIEW")}</div>

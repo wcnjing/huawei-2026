@@ -1260,8 +1260,9 @@ const isEntrypoint =
 
 if (isEntrypoint) {
   const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.log(`SafeSpace backend on http://localhost:${PORT}`);
+  const HOST = process.env.HOST || undefined;
+  app.listen(PORT, HOST, () => {
+    console.log(`SafeSpace backend on http://${HOST || 'localhost'}:${PORT}`);
     const mode = verifyMode();
     if (mode === 'dev') {
       console.warn('[verify] mode=dev — fixed code accepted. NEVER enable in production.');

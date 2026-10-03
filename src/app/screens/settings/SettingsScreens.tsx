@@ -3,7 +3,7 @@ import type { PlayerProfile } from "../../types/profile";
 import type { AccessibilityPrefs, AppSettings } from "../../types/settings";
 import { TOKEN_KEY, authHeaders, handleApiAuth, sessionToken, setSessionToken } from "../../services/api";
 import { CONTACT_KEY, PROFILE_KEY, loadContact, saveContact } from "../../services/storage";
-import { PixelMascot } from "../../components/avatars";
+import { CharacterAvatar } from "../../components/avatars";
 import { PixelButton, PixelToggle, ToggleSwitchB } from "../../components/ui";
 import { SubPageHeader } from "../../components/layout";
 import { LANGUAGES, useI18n, useT, type Language } from "../../i18n";
@@ -59,7 +59,7 @@ export function SettingsScreen({ profile, settings, muted, onToggleMute, onSetti
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ffe66d", marginBottom: 14 }}>{t("ACCOUNT")}</div>
 
         <div style={{ padding: "14px 16px", backgroundColor: "#111827", border: "3px solid #2a3a5c", marginBottom: 8, display: "flex", alignItems: "center", gap: 12 }}>
-          <PixelMascot size={36} color={profile.avatar.color} hat={profile.avatar.hat} eyes={profile.avatar.eyes} outfit={profile.avatar.outfit} />
+          <CharacterAvatar size={40} config={profile.avatar} title={`${profile.name}'s character`} />
           <div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ffffff" }}>{profile.name}</div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#4ecdc4", marginTop: 4 }}>{t("LVL {level} — {title}", { level: 7, title: t("WATCHER") })}</div>
