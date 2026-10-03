@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background-color: #0A0E14;
+}
+
+/* reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(132, 148, 166, 0.25);
+  border-radius: 4px;
+}
+
+@keyframes ts-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.ts-input::placeholder { color: #56706b; }
+.ts-input:focus {
+  box-shadow: 0 0 0 1px #35e0a1, 0 0 16px rgba(53, 224, 161, 0.25);
+}
+.ts-send:hover {
+  background: rgba(53, 224, 161, 0.08);
+  border-color: #35e0a1 !important;
+  box-shadow: 0 0 14px rgba(53, 224, 161, 0.25);
+}
+.ts-send:active { transform: translateY(1px); }

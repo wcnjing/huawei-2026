@@ -39,3 +39,17 @@ test('a confirm action renders a POST form; its absence renders none', () => {
   const noForm = educationalPage({ title: 't', heading: 'h', message: 'm' }).html;
   assert.ok(!noForm.includes('<form'), 'no confirmAction -> no form');
 });
+
+test('landing-page chrome follows the link language and ignores unknown values', async () => {
+  const { pageText, withLanguage, normalizeLanguage } = await import('./language.js');
+  const zh = educationalPage({ title: 't', heading: 'h', message: 'm', variant: 'win', language: 'zh' }).html;
+  assert.match(zh, /<html lang="zh-Hans">/);
+  assert.ok(zh.includes('演练通过'));
+  assert.ok(zh.includes('返回 SafeSpace'));
+
+  assert.equal(normalizeLanguage('"><script>'), 'en');
+  assert.equal(withLanguage('/drill-reveal?token=x', 'ta'), '/drill-reveal?token=x&lang=ta');
+  assert.equal(withLanguage('/drill-reveal?token=x', 'nope'), '/drill-reveal?token=x');
+  assert.equal(pageText('ms', 'CONFIRM REPORT'), 'SAHKAN LAPORAN');
+  assert.equal(pageText('ms', 'untranslated text'), 'untranslated text');
+});

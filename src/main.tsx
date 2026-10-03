@@ -5,6 +5,7 @@ import { DEFAULT_AVATAR_CONFIG } from "./app/components/avatars/character";
 import { setSessionToken } from "./app/services/session";
 import { loadProfile, saveProfile } from "./app/services/storage";
 import type { AvatarConfig } from "./app/types/profile";
+import { LanguageProvider } from "./app/i18n";
 import "./styles/index.css";
 
 const params = new URLSearchParams(window.location.search);
@@ -108,7 +109,11 @@ function CharacterDevBootstrap() {
   return <App initialScreen="avatar-customisation" />;
 }
 
-createRoot(document.getElementById("root")!).render(characterDev ? <CharacterDevBootstrap /> : <App />);
+createRoot(document.getElementById("root")!).render(
+  <LanguageProvider>
+    {characterDev ? <CharacterDevBootstrap /> : <App />}
+  </LanguageProvider>,
+);
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {

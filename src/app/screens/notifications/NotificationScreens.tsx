@@ -5,6 +5,9 @@ import { PixelButton } from "../../components/ui";
 import { SubPageHeader } from "../../components/layout";
 import { useMemberMap } from "../../hooks/useMembers";
 import { formatNotifTimestamp } from "../../utils/date";
+import { useI18n, useT } from "../../i18n";
+
+const DATE_LOCALES = { en: "en-SG", zh: "zh-SG", ms: "ms-SG", ta: "ta-SG" } as const;
 
 function iconForNotifKind(kind: NotificationKind): { icon: React.ReactNode; accent: string } {
   if (kind.startsWith("drill-win")) {
@@ -35,6 +38,7 @@ export function NotificationsScreen({
   onMarkAllRead: () => void;
   onBack: () => void;
 }) {
+  const t = useT();
   const memberMap = useMemberMap();
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -45,9 +49,9 @@ export function NotificationsScreen({
           <IconX size={16} color="#6b8ba4" />
         </button>
         <IconBell size={16} color="#ffe66d" />
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ffe66d" }}>NOTIFICATIONS</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ffe66d" }}>{t("NOTIFICATIONS")}</div>
         <div style={{ marginLeft: "auto", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: unreadCount > 0 ? "#ff2d55" : "#6b8ba4" }}>
-          {unreadCount > 0 ? `${unreadCount} UNREAD` : "ALL READ"}
+          {unreadCount > 0 ? t("{count} UNREAD", { count: unreadCount }) : t("ALL READ")}
         </div>
       </div>
 
@@ -55,9 +59,9 @@ export function NotificationsScreen({
         {notifications.length === 0 ? (
           <div style={{ padding: "48px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
             <IconBell size={40} color="#2a3a5c" />
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8" }}>NO NOTIFICATIONS YET</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8" }}>{t("NO NOTIFICATIONS YET")}</div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#9bb0c8", lineHeight: 1.5, maxWidth: 260 }}>
-              Complete drills, collect payday, or claim daily rewards to see activity here.
+              {t("Complete drills, collect payday, or claim daily rewards to see activity here.")}
             </div>
           </div>
         ) : (
@@ -91,23 +95,23 @@ export function NotificationsScreen({
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
                       <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: isUnread ? "#e8f4f8" : "#6b8ba4", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {n.title}
+                        {t(n.title)}
                       </div>
                       {isUnread && (
                         <div style={{ width: 6, height: 6, backgroundColor: "#ff2d55", flexShrink: 0, marginTop: 2 }} />
                       )}
                     </div>
                     <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: isUnread ? "#4ecdc4" : "#4a5c78", marginTop: 4, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {n.body}
+                      {t(n.body)}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}>
                       {member && (
                         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: member.primaryColor }}>
-                          {member.name}
+                          {t(member.name)}
                         </div>
                       )}
                       <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#2a3a5c" }}>
-                        {formatNotifTimestamp(n.timestamp)}
+                        {formatNotifTimestamp(n.timestamp, t)}
                       </div>
                     </div>
                   </div>
@@ -128,7 +132,7 @@ export function NotificationsScreen({
             full
             disabled={unreadCount === 0}
           >
-            {unreadCount > 0 ? `MARK ALL READ (${unreadCount})` : "ALL CAUGHT UP"}
+            {unreadCount > 0 ? t("MARK ALL READ ({count})", { count: unreadCount }) : t("ALL CAUGHT UP")}
           </PixelButton>
         </div>
       )}
@@ -143,10 +147,11 @@ export function NotificationDetailScreen({
   onBack: () => void;
   onAction: (action: "train" | "family-drill") => void;
 }) {
+  const { language, t } = useI18n();
   const { icon, accent } = iconForNotifKind(notification.kind);
   const memberMap = useMemberMap();
   const member = notification.memberId !== "family" ? memberMap[notification.memberId] : null;
-  const fullTimestamp = new Date(notification.timestamp).toLocaleString(undefined, {
+  const fullTimestamp = new Date(notification.timestamp).toLocaleString(DATE_LOCALES[language], {
     weekday: "short", hour: "2-digit", minute: "2-digit",
   }).toUpperCase();
 
@@ -154,9 +159,9 @@ export function NotificationDetailScreen({
   const isDrillOutcome = notification.kind.startsWith("drill-");
   const isFamilyDrill = notification.kind === "family-drill-complete";
   const actionLabel = isDrillOutcome
-    ? "TRAIN AGAIN"
+    ? t("TRAIN AGAIN")
     : isFamilyDrill
-      ? "PLAY HOUSE DRILL AGAIN"
+      ? t("PLAY HOUSE DRILL AGAIN")
       : null;
   const actionHandler = isDrillOutcome
     ? () => onAction("train")
@@ -168,9 +173,9 @@ export function NotificationDetailScreen({
     <div className="flex flex-col h-full">
       <div style={{ padding: "0 16px", minHeight: 52, backgroundColor: "#0a0e1a", borderBottom: `4px solid ${accent}`, display: "flex", alignItems: "center", gap: 12 }}>
         <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8" }}>{"< BACK"}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8" }}>{t("< BACK")}</div>
         </button>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: accent }}>NOTIFICATION</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: accent }}>{t("NOTIFICATION")}</div>
       </div>
 
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none", padding: "16px" }}>
@@ -181,7 +186,7 @@ export function NotificationDetailScreen({
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: accent, lineHeight: 1.5 }}>
-                {notification.title}
+                {t(notification.title)}
               </div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8", marginTop: 4 }}>
                 {fullTimestamp}
@@ -190,7 +195,7 @@ export function NotificationDetailScreen({
           </div>
 
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.6, paddingTop: 12, borderTop: "2px solid #2a3a5c" }}>
-            {notification.body}
+            {t(notification.body)}
           </div>
         </div>
 
@@ -198,12 +203,12 @@ export function NotificationDetailScreen({
           <div style={{ marginTop: 14, backgroundColor: "#0a0e1a", border: `3px solid ${member.primaryColor}`, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12 }}>
             <MemberChar member={member} size={40} />
             <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>MEMBER</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>{t("MEMBER")}</div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: member.primaryColor, marginTop: 3 }}>
-                {member.name}
+                {t(member.name)}
               </div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8", marginTop: 3 }}>
-                {member.role}
+                {t(member.role)}
               </div>
             </div>
           </div>

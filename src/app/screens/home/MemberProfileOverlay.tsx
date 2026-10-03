@@ -1,3 +1,4 @@
+import { useT } from "../../i18n";
 import type { FamilyMember } from "../../types/family";
 import { MemberChar } from "../../components/avatars";
 import { XPBar, PixelButton } from "../../components/ui";
@@ -10,6 +11,7 @@ import { useSelfId } from "../../hooks/useSelfId";
 export function MemberProfileOverlay({
   member, onClose, onCustomize, coins, canRemove, onRemove,
 }: { member: FamilyMember; onClose: () => void; onCustomize: (memberId: string) => void; coins: number; canRemove: boolean; onRemove: () => void }) {
+  const t = useT();
   const selfId = useSelfId();
   const badges = Array.from({ length: member.badgeTotal }, (_, i) => ({
     unlocked: i < member.badgeCount,
@@ -27,8 +29,8 @@ export function MemberProfileOverlay({
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: member.primaryColor }}>{member.name}</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8", marginTop: 4 }}>{member.role}</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#e8f4f8", marginTop: 6 }}>LVL {member.level}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8", marginTop: 4 }}>{t(member.role)}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#e8f4f8", marginTop: 6 }}>{t("LVL {level}", { level: member.level })}</div>
             <div style={{ marginTop: 6 }}>
               <XPBar current={member.xp} max={member.xpMax} color={member.primaryColor} />
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8", marginTop: 3 }}>
@@ -46,14 +48,14 @@ export function MemberProfileOverlay({
             <IconCoin size={20} color={coins < 0 ? "#ff2d55" : "#ffe66d"} />
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: coins < 0 ? "#ff2d55" : "#ffe66d" }}>
-                {coins < 0 ? "-" : "+"}{Math.abs(coins)} COINS
+                {t("{amount} COINS", { amount: `${coins < 0 ? "-" : "+"}${Math.abs(coins)}` })}
               </div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8", marginTop: 3 }}>
-                {coins < 0 ? "IN DEBT — sell furniture to recover" : "Balance this week"}
+                {coins < 0 ? t("IN DEBT — sell furniture to recover") : t("Balance this week")}
               </div>
             </div>
             {coins < 0 && (
-              <div style={{ backgroundColor: "#ff2d55", padding: "4px 6px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#0a0e1a" }}>IOU</div>
+              <div style={{ backgroundColor: "#ff2d55", padding: "4px 6px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#0a0e1a" }}>{t("IOU")}</div>
             )}
           </div>
         )}
@@ -62,23 +64,23 @@ export function MemberProfileOverlay({
           <IconShield size={20} color={member.safeThisWeek ? "#00ff88" : "#ff2d55"} />
           <div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: member.safeThisWeek ? "#00ff88" : "#ff2d55" }}>
-              {member.safeThisWeek ? "SAFE THIS WEEK" : "REVIEW THIS WEEK"}
+              {member.safeThisWeek ? t("SAFE THIS WEEK") : t("REVIEW THIS WEEK")}
             </div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8", marginTop: 3 }}>
-              Last drill: {member.recentDrillResult ?? "—"}
+              {t("Last drill: {result}", { result: member.recentDrillResult ? t(member.recentDrillResult) : "—" })}
             </div>
           </div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, margin: "12px 16px 0" }}>
           {[
-            { label: "STREAK", val: member.streak === 0 ? "BROKEN" : `${member.streak}`, color: member.streak > 0 ? "#ff6b35" : "#ff2d55", icon: <IconFlame size={12} color={member.streak > 0 ? "#ff6b35" : "#ff2d55"} /> },
+            { label: "STREAK", val: member.streak === 0 ? t("BROKEN") : `${member.streak}`, color: member.streak > 0 ? "#ff6b35" : "#ff2d55", icon: <IconFlame size={12} color={member.streak > 0 ? "#ff6b35" : "#ff2d55"} /> },
             { label: "SAFE", val: `${member.timesSafe}`, color: "#00ff88", icon: <IconShield size={12} color="#00ff88" /> },
             { label: "MISSED", val: `${member.timesScammed}`, color: "#ff2d55", icon: <IconBulb size={12} color="#ff2d55" /> },
           ].map((s) => (
             <div key={s.label} style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "10px 8px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
                 {s.icon}
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>{s.label}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>{t(s.label)}</div>
               </div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: s.color }}>{s.val}</div>
             </div>
@@ -87,7 +89,7 @@ export function MemberProfileOverlay({
         <div style={{ margin: "12px 16px 0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
             <IconBadge size={12} color="#ffe66d" />
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ffe66d" }}>BADGES — {member.badgeCount}/{member.badgeTotal}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ffe66d" }}>{t("BADGES — {count}/{total}", { count: member.badgeCount, total: member.badgeTotal })}</div>
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {badges.map((b, i) => (
@@ -104,12 +106,12 @@ export function MemberProfileOverlay({
                 onClick={() => { onClose(); onCustomize(member.id); }}
                 color="#1a2340" textColor="#6b8ba4" size="md" full
               >
-                CUSTOMIZE ROOM
+                {t("CUSTOMIZE ROOM")}
               </PixelButton>
             )}
             {canRemove && (
-              <PixelButton onClick={() => { if (window.confirm(`Remove ${member.name} from the house?`)) { onRemove(); onClose(); } }} color="#ff2d55" textColor="#0a0e1a" size="sm" full>
-                REMOVE FROM HOUSE
+              <PixelButton onClick={() => { if (window.confirm(t("Remove {name} from the house?", { name: member.name }))) { onRemove(); onClose(); } }} color="#ff2d55" textColor="#0a0e1a" size="sm" full>
+                {t("REMOVE FROM HOUSE")}
               </PixelButton>
             )}
           </div>

@@ -8,6 +8,7 @@ import crypto from 'crypto';
 import { query, transaction } from './db.js';
 import { userFromRow } from './rows.js';
 import { weekStart } from './week.js';
+import { announceDrillScammed } from './drill-announce.js';
 import {
   addXp,
   lockRateLimits,
@@ -283,30 +284,40 @@ export async function recordHouseRun(userId, { clientKey, correct, cautious, wro
   const total = correct + cautious + wrong;
   if (total < 1 || total > MAX_ROUNDS) throw new HouseError('INVALID_DRILL_RUN');
 
-  return transaction(async (tx) => {
+  const outcome = await transaction(async (tx) => {
     const user = await lockUser(tx, userId);
     if (!user) throw new Error(`unknown user ${userId}`);
-    const existing = await tx.query(
-      'select * from safespace.drill_runs where user_id = $1 and client_key = $2',
-      [user.id, key],
-    );
-    if (existing.rows[0]) return { status: 'duplicate', run: runFromRow(existing.rows[0]), user };
-    const earlier = await tx.query(
-      'select count(*) as n from safespace.drill_runs where user_id = $1 and at >= $2',
-      [user.id, weekStart(now).toISOString()],
-    );
-    const xpGained = Number(earlier.rows[0].n) === 0
-      ? correct * HOUSE_RUN_XP.correct + cautious * HOUSE_RUN_XP.cautious + wrong * HOUSE_RUN_XP.wrong
-      : 0;
-    let saved = user;
-    if (xpGained) saved = await saveUser(tx, addXp(user, xpGained));
-    const { rows } = await tx.query(
-      `insert into safespace.drill_runs (id, user_id, client_key, correct, cautious, wrong, xp_gained, at)
-       values ($1, $2, $3, $4, $5, $6, $7, $8) returning *`,
-      [`run_${crypto.randomUUID()}`, user.id, key, correct, cautious, wrong, xpGained, now.toISOString()],
-    );
-    return { status: 'completed', run: runFromRow(rows[0]), user: saved };
+    return recordRunLocked(tx, user, key, { correct, cautious, wrong }, now);
   }, 'recordHouseRun');
+  // A house run has no pass/fail, so getting any round wrong counts as getting caught out.
+  if (outcome.status === 'completed' && outcome.run.wrong > 0) {
+    await announceDrillScammed(userId, `run:${outcome.run.id}`);
+  }
+  return outcome;
+}
+
+/** Only the week's first run earns XP. `user` must already be locked by `tx`. */
+export async function recordRunLocked(tx, user, key, { correct, cautious, wrong }, now) {
+  const existing = await tx.query(
+    'select * from safespace.drill_runs where user_id = $1 and client_key = $2',
+    [user.id, key],
+  );
+  if (existing.rows[0]) return { status: 'duplicate', run: runFromRow(existing.rows[0]), user };
+  const earlier = await tx.query(
+    'select count(*) as n from safespace.drill_runs where user_id = $1 and at >= $2',
+    [user.id, weekStart(now).toISOString()],
+  );
+  const xpGained = Number(earlier.rows[0].n) === 0
+    ? correct * HOUSE_RUN_XP.correct + cautious * HOUSE_RUN_XP.cautious + wrong * HOUSE_RUN_XP.wrong
+    : 0;
+  let saved = user;
+  if (xpGained) saved = await saveUser(tx, addXp(user, xpGained));
+  const { rows } = await tx.query(
+    `insert into safespace.drill_runs (id, user_id, client_key, correct, cautious, wrong, xp_gained, at)
+     values ($1, $2, $3, $4, $5, $6, $7, $8) returning *`,
+    [`run_${crypto.randomUUID()}`, user.id, key, correct, cautious, wrong, xpGained, now.toISOString()],
+  );
+  return { status: 'completed', run: runFromRow(rows[0]), user: saved };
 }
 
 // --- Read model -------------------------------------------------------------------

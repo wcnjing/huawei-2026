@@ -1,4 +1,5 @@
 import type { Highlight } from "../../types/drills";
+import { useT } from "../../i18n";
 
 export function AnnotatedMessage({
   text,
@@ -9,18 +10,21 @@ export function AnnotatedMessage({
   highlights?: Highlight[];
   onFlagTap: (flagId: string) => void;
 }) {
-  if (highlights.length === 0) return <>{text}</>;
-  const sorted = [...highlights].sort((a, b) => text.indexOf(a.phrase) - text.indexOf(b.phrase));
+  const t = useT();
+  const shown = t(text);
+  if (highlights.length === 0) return <>{shown}</>;
+  const translated = highlights.map((h) => ({ phrase: t(h.phrase), flagId: h.flagId }));
+  const sorted = translated.sort((a, b) => shown.indexOf(a.phrase) - shown.indexOf(b.phrase));
   const segments: { text: string; flagId?: string }[] = [];
   let cursor = 0;
   for (const h of sorted) {
-    const idx = text.indexOf(h.phrase, cursor);
+    const idx = shown.indexOf(h.phrase, cursor);
     if (idx === -1) continue;
-    if (idx > cursor) segments.push({ text: text.slice(cursor, idx) });
+    if (idx > cursor) segments.push({ text: shown.slice(cursor, idx) });
     segments.push({ text: h.phrase, flagId: h.flagId });
     cursor = idx + h.phrase.length;
   }
-  if (cursor < text.length) segments.push({ text: text.slice(cursor) });
+  if (cursor < shown.length) segments.push({ text: shown.slice(cursor) });
   return (
     <>
       {segments.map((seg, i) =>

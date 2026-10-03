@@ -7,16 +7,22 @@ import { IconBulb, IconCoin } from "../../../components/icons";
 import { SmsMockCard } from "./SmsMockCard";
 import { FAMILY_COINS, FAMILY_XP } from "../../../data/familyData";
 import { useMembers } from "../../../hooks/useMembers";
+import { useT } from "../../../i18n";
+import { useSelfId } from "../../../hooks/useSelfId";
 
-export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNext, onEnd }: {
+export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNext, onEnd, targetLabel, nextLabel, prompt, footerNote }: {
   scenario: FamilyScenario; roundIndex: number; totalRounds: number;
   onComplete: (action: string, foundClues: number[], outcome: FamilyOutcome) => void;
-  onNext: () => void; onEnd: () => void;
+  onNext: () => void; onEnd?: () => void;
+  targetLabel?: string; nextLabel?: string; prompt?: string; footerNote?: string | null;
 }) {
+  const t = useT();
   const members = useMembers();
-  // A house drill hands each round to the next real member. This also keeps custom
-  // names and avatars correct instead of relying on the old Grandma/Mum/Dad fixtures.
-  const targetMember = members.length > 0 ? members[roundIndex % members.length] : null;
+  const selfId = useSelfId();
+  // A playable round belongs to this device's player in both solo and synced house
+  // drills. Fall back to the rotating member only for older/offline drill callers.
+  const targetMember = members.find((member) => member.id === selfId)
+    ?? (members.length > 0 ? members[roundIndex % members.length] : null);
   const [mode, setMode] = useState<"play" | "debrief">("play");
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
   const [lightbulbIdx, setLightbulbIdx] = useState(-1);
@@ -46,7 +52,7 @@ export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplet
   }, [scenario.id]);
 
   const color = "#4ecdc4";
-  const typeLabels: Record<string, string> = { sms: "SMS", email: "EMAIL", notification: "NOTIF" };
+  const typeLabels: Record<string, string> = { sms: "SMS", email: t("EMAIL"), notification: t("NOTIF") };
 
   const handleAction = (action: string) => {
     if (mode !== "play") return;
@@ -77,27 +83,27 @@ export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplet
       </div>
       <button onClick={() => setShowSenderPanel(true)} style={{ width: "100%", padding: "10px 12px", backgroundColor: "#f9f9f9", borderBottom: "1px solid #e0e0e0", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", textAlign: "left" }}>
         <div style={{ width: 32, height: 32, backgroundColor: scenario.isScam ? "#f4a261" : "#4ecdc4", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", flexShrink: 0 }}>
-          <span style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", fontWeight: "bold", color: "#fff" }}>{scenario.sender[0]}</span>
+          <span style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", fontWeight: "bold", color: "#fff" }}>{t(scenario.sender)[0]}</span>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", fontWeight: 600, color: "#1a1a1a" }}>
-            {scenario.sender}
+            {t(scenario.sender)}
             {scenario.senderEmail && <span style={{ fontWeight: 400, color: "#888", fontSize: "var(--text-body)" }}> &lt;{scenario.senderEmail}&gt;</span>}
           </div>
-          {scenario.subject && <div style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", color: "#555", fontWeight: 600, marginTop: 1 }}>{scenario.subject}</div>}
+          {scenario.subject && <div style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", color: "#555", fontWeight: 600, marginTop: 1 }}>{t(scenario.subject)}</div>}
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#4ecdc4", border: "1px solid #4ecdc4", padding: "2px 4px", flexShrink: 0 }}>INSPECT</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#4ecdc4", border: "1px solid #4ecdc4", padding: "2px 4px", flexShrink: 0 }}>{t("INSPECT")}</div>
       </button>
       <div style={{ padding: "12px 14px", backgroundColor: "#fff" }}>
-        <div style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", color: "#1a1a1a", lineHeight: 1.6, marginBottom: 8 }}>{scenario.message}</div>
+        <div style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", color: "#1a1a1a", lineHeight: 1.6, marginBottom: 8 }}>{t(scenario.message)}</div>
         {scenario.invoiceDetails && (
           <div style={{ margin: "10px 0", backgroundColor: "#f8f8f8", border: "1px solid #ddd", padding: "12px" }}>
-            <div style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", fontWeight: 700, color: "#333", marginBottom: 8 }}>Invoice details</div>
-            <div style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", color: "#888", marginBottom: 2 }}>Amount requested</div>
+            <div style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", fontWeight: 700, color: "#333", marginBottom: 8 }}>{t("Invoice details")}</div>
+            <div style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", color: "#888", marginBottom: 2 }}>{t("Amount requested")}</div>
             <div style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", fontWeight: 700, color: "#333", marginBottom: 8 }}>{scenario.invoiceDetails.amount}</div>
-            <div style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", color: "#888", marginBottom: 4 }}>Note from seller</div>
-            <div style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", color: "#c0392b", lineHeight: 1.5 }}>{scenario.invoiceDetails.noteFromSeller}</div>
-            <div style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", color: "#888", marginTop: 8 }}>Invoice number</div>
+            <div style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", color: "#888", marginBottom: 4 }}>{t("Note from seller")}</div>
+            <div style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", color: "#c0392b", lineHeight: 1.5 }}>{t(scenario.invoiceDetails.noteFromSeller)}</div>
+            <div style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", color: "#888", marginTop: 8 }}>{t("Invoice number")}</div>
             <div style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", color: "#333" }}>{scenario.invoiceDetails.invoiceNumber}</div>
           </div>
         )}
@@ -107,17 +113,17 @@ export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplet
               <div style={{ width: 18, height: 18, backgroundColor: "#4285f4", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <span style={{ color: "#fff", fontSize: "var(--text-body)", fontWeight: "bold" }}>D</span>
               </div>
-              <div style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", fontWeight: 600, color: "#333" }}>2026 Department Budget</div>
+              <div style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", fontWeight: 600, color: "#333" }}>{t("2026 Department Budget")}</div>
             </div>
             <div style={{ height: 40, backgroundColor: "#e0e0e0", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 6 }}>
               <span style={{ color: "#4285f4", fontSize: "var(--text-title)", fontWeight: "bold" }}>≡</span>
             </div>
-            <div style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", color: "#888" }}>Luke Johnson is the owner · Last edited 1 hour ago</div>
+            <div style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", color: "#888" }}>{t("{name} is the owner · Last edited 1 hour ago", { name: "Luke Johnson" })}</div>
           </div>
         )}
         {scenario.buttonLabel && scenario.buttonUrl && (
           <div style={{ marginTop: 12 }}>
-            <InspectableLink label={scenario.buttonLabel} url={scenario.buttonUrl} showWarning={inDebrief} />
+            <InspectableLink label={t(scenario.buttonLabel)} url={scenario.buttonUrl} showWarning={inDebrief} />
           </div>
         )}
       </div>
@@ -127,9 +133,9 @@ export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplet
   return (
     <div className="flex flex-col h-full" style={{ position: "relative", background: inDebrief ? (outcome === "wrong" ? "linear-gradient(180deg,#1a0a0f,#0a0e1a)" : "linear-gradient(180deg,#0a1a0f,#0a0e1a)") : undefined }}>
       <div className="flex items-center justify-between px-4" style={{ backgroundColor: "#0a0e1a", borderBottom: "4px solid #2a3a5c", minHeight: 48, flexShrink: 0 }}>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>ROUND {roundIndex + 1}/{totalRounds}</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>{t("ROUND {current}/{total}", { current: roundIndex + 1, total: totalRounds })}</div>
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ffe66d" }}>
-          {inDebrief ? "DEBRIEF" : `${foundCluesLocal.length}/${scenario.clues.length} CLUES`}
+          {inDebrief ? t("DEBRIEF") : t("{found}/{total} CLUES", { found: foundCluesLocal.length, total: scenario.clues.length })}
         </div>
       </div>
       <div className="flex items-center gap-3 px-4 py-2" style={{ backgroundColor: "#111827", borderBottom: `4px solid ${color}`, flexShrink: 0 }}>
@@ -139,19 +145,21 @@ export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplet
           </div>
         )}
         <div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>TARGET:</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: targetMember?.primaryColor ?? color }}>{targetMember?.name.toUpperCase() ?? scenario.targetMember.toUpperCase()}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>{t("TARGET:")}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: targetMember?.primaryColor ?? color }}>
+            {targetLabel ?? targetMember?.name.toUpperCase() ?? t("A HOUSEMATE")}
+          </div>
         </div>
         <div style={{ marginLeft: "auto", backgroundColor: "rgba(255,107,53,0.1)", border: `2px solid ${color}`, padding: "3px 7px" }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color }}>{typeLabels[scenario.type] ?? "MSG"}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color }}>{typeLabels[scenario.type] ?? t("MSG")}</div>
         </div>
       </div>
       {inDebrief && (() => {
         // Three states, so "ask family first" reads as cautious rather than scammed.
         const banner = {
-          correct:  { title: "SAFE CHOICE!",   color: "#00ff88", bg: "rgba(0,255,136,0.15)" },
-          cautious: { title: "CAUTIOUS — SMART", color: "#ffe66d", bg: "rgba(255,230,109,0.15)" },
-          wrong:    { title: "LET'S REVIEW",   color: "#ff6b35", bg: "rgba(255,107,53,0.15)" },
+          correct:  { title: t("SAFE CHOICE!"), color: "#00ff88", bg: "rgba(0,255,136,0.15)" },
+          cautious: { title: t("CAUTIOUS — SMART"), color: "#ffe66d", bg: "rgba(255,230,109,0.15)" },
+          wrong:    { title: t("LET'S REVIEW"), color: "#ff6b35", bg: "rgba(255,107,53,0.15)" },
         }[outcome];
         const coins = FAMILY_COINS[outcome];
         return (
@@ -163,16 +171,16 @@ export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplet
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ffe66d" }}>+{FAMILY_XP[outcome]} XP</div>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <IconCoin size={9} color={coins > 0 ? "#ffe66d" : "#4ecdc4"} />
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: coins > 0 ? "#00ff88" : "#4ecdc4" }}>{coins > 0 ? `+${coins}` : "NO LOSS"}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: coins > 0 ? "#00ff88" : "#4ecdc4" }}>{coins > 0 ? `+${coins}` : t("NO LOSS")}</div>
             </div>
             {outcome === "cautious" && (
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>
-                EVEN SAFER: <span style={{ color: "#00ff88" }}>{scenario.correctAction}</span>
+                {t("EVEN SAFER:")} <span style={{ color: "#00ff88" }}>{t(scenario.correctAction)}</span>
               </div>
             )}
             {outcome === "wrong" && (
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>
-                CORRECT: <span style={{ color: "#00ff88" }}>{scenario.correctAction}</span>
+                {t("CORRECT:")} <span style={{ color: "#00ff88" }}>{t(scenario.correctAction)}</span>
               </div>
             )}
           </div>
@@ -187,21 +195,21 @@ export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplet
         {inDebrief && (
           <>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#4ecdc4", marginTop: 14, marginBottom: 8 }}>
-              TAP CLUES TO EXPLORE
+              {t("TAP CLUES TO EXPLORE")}
             </div>
             <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 8, marginBottom: 12 }}>
               {scenario.clues.map((clue, i) => (
                 <button key={i} onClick={() => setActiveClue(clue)} style={{ backgroundColor: "rgba(255,107,53,0.15)", border: "3px solid #ff6b35", padding: "7px 13px", cursor: "pointer" }}>
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ff6b35" }}>{clue.label}</div>
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ff6b35" }}>{t(clue.label)}</div>
                 </button>
               ))}
             </div>
             <div style={{ backgroundColor: "#0d1526", border: "3px solid #4ecdc4", padding: "12px 14px", marginBottom: 8 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                 <IconBulb size={12} color="#ffe66d" />
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ffe66d" }}>WHY?</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ffe66d" }}>{t("WHY?")}</div>
               </div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.6 }}>{scenario.explanation}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.6 }}>{t(scenario.explanation)}</div>
             </div>
           </>
         )}
@@ -216,23 +224,28 @@ export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplet
             >
               <IconBulb size={12} color={lightbulbIdx >= scenario.clues.length - 1 ? "#1a2340" : "#ffe66d"} />
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: lightbulbIdx >= scenario.clues.length - 1 ? "#1a2340" : "#ffe66d" }}>
-                HINT{lightbulbIdx + 1 < scenario.clues.length ? ` (${scenario.clues.length - lightbulbIdx - 1})` : ""}
+                {lightbulbIdx + 1 < scenario.clues.length ? t("HINT ({count})", { count: scenario.clues.length - lightbulbIdx - 1 }) : t("HINT")}
               </div>
             </button>
           </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8", marginBottom: 6, textAlign: "center" }}>WHAT SHOULD THE HOUSE DO?</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8", marginBottom: 6, textAlign: "center" }}>{prompt ?? t("WHAT SHOULD THE HOUSE DO?")}</div>
           <div className="grid grid-cols-2 gap-2">
             {displayActions.map((action) => (
               <button key={action} onClick={() => handleAction(action)} style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "8px 6px", cursor: "pointer", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#e8f4f8", textAlign: "center", lineHeight: 1.5 }}>
-                {action}
+                {t(action)}
               </button>
             ))}
           </div>
         </div>
       ) : (
-        <div style={{ display: "flex", gap: 12, padding: "12px", borderTop: "4px solid #2a3a5c", backgroundColor: "#0a0e1a", flexShrink: 0 }}>
-          <div style={{ flex: 1 }}><PixelButton onClick={onNext} color="#00ff88" textColor="#0a0e1a" size="sm" full>NEXT MEMBER</PixelButton></div>
-          <div style={{ flex: 1 }}><PixelButton onClick={onEnd} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>END DRILL</PixelButton></div>
+        <div style={{ padding: "12px", borderTop: "4px solid #2a3a5c", backgroundColor: "#0a0e1a", flexShrink: 0 }}>
+          {footerNote && (
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ffe66d", textAlign: "center", marginBottom: 8 }}>{footerNote}</div>
+          )}
+          <div style={{ display: "flex", gap: 12 }}>
+            <div style={{ flex: 1 }}><PixelButton onClick={onNext} color="#00ff88" textColor="#0a0e1a" size="sm" full>{nextLabel ?? t("NEXT MEMBER")}</PixelButton></div>
+            {onEnd && <div style={{ flex: 1 }}><PixelButton onClick={onEnd} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>{t("END DRILL")}</PixelButton></div>}
+          </div>
         </div>
       )}
       {showSenderPanel && (

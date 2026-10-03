@@ -14,6 +14,7 @@ import {
 } from "../../components/avatars/character";
 import { PixelButton } from "../../components/ui";
 import { SubPageHeader } from "../../components/layout";
+import { useT } from "../../i18n";
 
 const mono = "'Share Tech Mono', monospace";
 type CustomisationTab = "skin" | "hair" | "outfit" | "accessories" | "profile";
@@ -79,6 +80,8 @@ export function AvatarCustomisationScreen({ avatar, onSave, onBack, onChange, on
   onChange?: (avatar: AvatarConfig) => void;
   onboarding?: { name: string; onName: (name: string) => void; onContinue: () => void };
 }) {
+  // Local working copy so the preview updates live; committed on save/back.
+  const t = useT();
   const [draft, setDraft] = useState<AvatarConfig>(avatar);
   const [tab, setTab] = useState<CustomisationTab>("skin");
   const update = (patch: Partial<AvatarConfig>) => {
@@ -92,16 +95,16 @@ export function AvatarCustomisationScreen({ avatar, onSave, onBack, onChange, on
 
   return (
     <div className="flex flex-col h-full">
-      <SubPageHeader title={onboarding ? "DESIGN YOUR CHARACTER" : "YOUR CHARACTER"} titleColor="#c77dff" onBack={save} />
+      <SubPageHeader title={onboarding ? t("DESIGN YOUR CHARACTER") : t("AVATAR")} titleColor="#c77dff" onBack={save} />
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
         {onboarding && (
           <div style={{ marginBottom: 12 }}>
-            <div style={{ fontFamily: mono, fontSize: "var(--text-label)", color: "#9bb0c8", marginBottom: 8 }}>WHAT SHOULD WE CALL YOU?</div>
+            <div style={{ fontFamily: mono, fontSize: "var(--text-label)", color: "#9bb0c8", marginBottom: 8 }}>{t("WHAT SHOULD WE CALL YOU?")}</div>
             <input
               maxLength={30}
               value={onboarding.name}
               onChange={(event) => onboarding.onName(event.target.value)}
-              placeholder="YOUR NAME"
+              placeholder={t("YOUR NAME")}
               autoComplete="nickname"
               style={{ width: "100%", padding: 12, backgroundColor: "#0a0e1a", border: "3px solid #2a3a5c", color: "#e8f4f8", fontFamily: mono, fontSize: "var(--text-body)", outline: "none" }}
             />
@@ -111,7 +114,6 @@ export function AvatarCustomisationScreen({ avatar, onSave, onBack, onChange, on
         <div style={{ minHeight: 174, display: "flex", alignItems: "center", justifyContent: "center", background: `radial-gradient(circle, ${draft.color}2e, transparent 68%), #111827`, border: `3px solid ${draft.color}`, boxShadow: `0 0 18px ${draft.glow}`, overflow: "hidden" }}>
           <CharacterAvatar config={draft} size={148} animate title="Character preview" />
         </div>
-
         <div role="tablist" aria-label="Character customisation categories" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", margin: "12px 0", border: "3px solid #2a3a5c", background: "#0a0e1a" }}>
           {TABS.map((item, index) => (
             <button
@@ -239,11 +241,11 @@ export function AvatarCustomisationScreen({ avatar, onSave, onBack, onChange, on
 
         <div style={{ marginTop: 12 }}>
           {onboarding ? (
-            <PixelButton onClick={onboarding.onContinue} color="#00ff88" textColor="#0a0e1a" size="lg" full disabled={!nameOk}>[ CONTINUE ]</PixelButton>
+            <PixelButton onClick={onboarding.onContinue} color="#00ff88" textColor="#0a0e1a" size="lg" full disabled={!nameOk}>{t("[ CONTINUE ]")}</PixelButton>
           ) : (
             <div className="flex gap-3">
-              <div style={{ flex: 1 }}><PixelButton onClick={save} color="#c77dff" textColor="#0a0e1a" size="sm" full>[ SAVE ]</PixelButton></div>
-              <div style={{ flex: 1 }}><PixelButton onClick={onBack} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>[ CANCEL ]</PixelButton></div>
+              <div style={{ flex: 1 }}><PixelButton onClick={save} color="#c77dff" textColor="#0a0e1a" size="sm" full>{t("[ SAVE AVATAR ]")}</PixelButton></div>
+              <div style={{ flex: 1 }}><PixelButton onClick={onBack} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>{t("[ CANCEL ]")}</PixelButton></div>
             </div>
           )}
         </div>

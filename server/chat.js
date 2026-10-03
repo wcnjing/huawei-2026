@@ -60,6 +60,7 @@ function messageFromRow(row) {
     text: row.body,
     createdAt: new Date(row.created_at).toISOString(),
     clientKey: row.client_key,
+    type: row.type,
   };
 }
 
@@ -73,7 +74,7 @@ export async function listMessages(userId, houseId, cursors = {}) {
       const clause = bound ? `and id ${ascending ? '>' : '<'} $2::bigint` : '';
       const result = await tx.query(
         `select id::text, house_id, sender_id, sender_name, sender_avatar,
-                client_key, body, created_at
+                client_key, body, created_at, type
            from safespace.chat_messages where house_id = $1 ${clause}
            order by chat_messages.id ${ascending ? 'asc' : 'desc'} limit 51`,
         bound ? [house.id, bound] : [house.id],
@@ -113,7 +114,7 @@ export async function sendMessage(userId, houseId, input, { now = new Date() } =
       const { house, user } = await lockHouseMember(tx, userId, houseId);
       const existing = await tx.query(
         `select id::text, house_id, sender_id, sender_name, sender_avatar,
-                client_key, body, created_at
+                client_key, body, created_at, type
            from safespace.chat_messages
           where house_id = $1 and sender_id = $2 and client_key = $3`,
         [house.id, user.id, clientKey],
@@ -133,7 +134,7 @@ export async function sendMessage(userId, houseId, input, { now = new Date() } =
            (house_id, sender_id, sender_name, sender_avatar, client_key, body, created_at)
          values ($1, $2, $3, $4, $5, $6, $7)
          returning id::text, house_id, sender_id, sender_name, sender_avatar,
-                   client_key, body, created_at`,
+                   client_key, body, created_at, type`,
         [house.id, user.id, user.name, cleanAvatar(user.avatar) ?? DEFAULT_AVATAR,
           clientKey, text, now.toISOString()],
       );

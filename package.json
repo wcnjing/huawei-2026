@@ -16,7 +16,8 @@
     "test": "node --test server/*.test.mjs",
     "db:migrate": "node --env-file-if-exists=.env server/migrate.js",
     "test:pg": "node scripts/test-pg.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:i18n": "node scripts/check-i18n.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.125.0",

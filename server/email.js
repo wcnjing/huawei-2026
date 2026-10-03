@@ -7,6 +7,8 @@
 //   * a durable safety follow-up must be accepted by Apps Script before bait is sent;
 //   * arbitrary subject/body/html fields are never sent to the relay.
 
+import { normalizeLanguage } from './language.js';
+
 export class EmailUnavailable extends Error {
   constructor(msg) {
     super(msg);
@@ -184,7 +186,7 @@ async function relay(payload) {
  * Sends the ownership challenge only. The caller must persist pending state and verify
  * the token when /email-verify is opened.
  */
-export async function sendEmailOwnershipVerification({ to, name, verificationUrl }) {
+export async function sendEmailOwnershipVerification({ to, name, verificationUrl, language }) {
   if (!emailVerificationConfigured()) {
     throw new EmailUnavailable(
       'GOOGLE_SCRIPT_URL, GOOGLE_SCRIPT_SECRET and HTTPS PUBLIC_URL '
@@ -197,6 +199,7 @@ export async function sendEmailOwnershipVerification({ to, name, verificationUrl
     email: recipient(to),
     recipientName: recipientName(name),
     verificationUrl: safeUrl,
+    language: normalizeLanguage(language),
   });
   return { ok: true };
 }
@@ -206,7 +209,7 @@ export async function sendEmailOwnershipVerification({ to, name, verificationUrl
  * This is intentionally a separate request so sendDrillEmail can confirm scheduling
  * before it sends any bait.
  */
-export async function scheduleEmailSafetyFollowup({ to, name, sendAt }) {
+export async function scheduleEmailSafetyFollowup({ to, name, sendAt, language }) {
   const parsedSendAt = new Date(sendAt);
   if (!Number.isFinite(parsedSendAt.getTime())) {
     throw new EmailUnavailable('a valid safety follow-up sendAt time is required');
@@ -216,6 +219,7 @@ export async function scheduleEmailSafetyFollowup({ to, name, sendAt }) {
     email: recipient(to),
     recipientName: recipientName(name),
     sendAt: parsedSendAt.toISOString(),
+    language: normalizeLanguage(language),
   });
   if (data?.scheduled !== true || !data?.jobId) {
     throw new EmailUnavailable('mail relay did not confirm the safety follow-up schedule');
@@ -230,11 +234,12 @@ export async function cancelEmailSafetyFollowup(jobId) {
 }
 
 /** Sends an immediate, unambiguous manual safety follow-up. */
-export async function sendEmailSafetyFollowup({ to, name }) {
+export async function sendEmailSafetyFollowup({ to, name, language }) {
   await relay({
     kind: 'safety-followup',
     email: recipient(to),
     recipientName: recipientName(name),
+    language: normalizeLanguage(language),
   });
   return { ok: true };
 }
@@ -242,7 +247,7 @@ export async function sendEmailSafetyFollowup({ to, name }) {
 /**
  * Send one drill email. Both action URLs must be generated and supplied by the caller.
  * @param {{to: string, name: string, scenarioId?: string, revealUrl: string,
- *   reportUrl: string, safetyFollowupAfterMs?: number}} opts
+ *   reportUrl: string, safetyFollowupAfterMs?: number, language?: string}} opts
  */
 export async function sendDrillEmail({
   to,
@@ -251,6 +256,7 @@ export async function sendDrillEmail({
   revealUrl,
   reportUrl,
   safetyFollowupAfterMs,
+  language,
 }) {
   if (!emailConfigured()) {
     throw new EmailUnavailable(
@@ -270,11 +276,13 @@ export async function sendDrillEmail({
   const scenario = pickEmailScenario(scenarioId);
   const delay = resolveEmailFollowupDelay(safetyFollowupAfterMs);
   const safetyFollowupAt = new Date(Date.now() + delay).toISOString();
+  const lang = normalizeLanguage(language);
 
   const scheduled = await scheduleEmailSafetyFollowup({
     to: target,
     name: safeName,
     sendAt: safetyFollowupAt,
+    language: lang,
   });
 
   try {
@@ -285,6 +293,7 @@ export async function sendDrillEmail({
       scenarioId: scenario.id,
       revealUrl: safeRevealUrl,
       reportUrl: safeReportUrl,
+      language: lang,
     });
   } catch (baitError) {
     if (baitError?.code === 'EMAIL_PROVIDER_REJECTED') {

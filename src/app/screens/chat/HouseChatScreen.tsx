@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { normalizeDraft, type useHouseChat } from "../../hooks/useHouseChat";
 import type { Avatar } from "../../services/house";
+import { useI18n } from "../../i18n";
 
 type HouseChat = ReturnType<typeof useHouseChat>;
 
@@ -18,8 +19,7 @@ export type HouseChatScreenProps = {
 };
 
 const BOTTOM_THRESHOLD = 80;
-const dayFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
-const timeFormatter = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
+const NUDGE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 function dayKey(value: string) {
   const date = new Date(value);
@@ -42,9 +42,15 @@ export function HouseChatScreen({
   onJoinHouse,
   renderAvatar,
 }: HouseChatScreenProps) {
+  const { t, language } = useI18n();
+  const locale = language === "en" ? "en-SG" : `${language}-SG`;
+  const dayFormatter = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: "medium" }), [locale]);
+  const timeFormatter = useMemo(() => new Intl.DateTimeFormat(locale, { hour: "numeric", minute: "2-digit" }), [locale]);
   const [draft, setDraft] = useState("");
   const [now, setNow] = useState(Date.now);
   const [newMessages, setNewMessages] = useState(false);
+  const [dismissedNudge, setDismissedNudge] = useState<string | null>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
   const historyRef = useRef<HTMLDivElement>(null);
   const nearBottomRef = useRef(true);
   const forceBottomRef = useRef(false);
@@ -79,6 +85,17 @@ export function HouseChatScreen({
     return merged;
   }, [chat.messages, chat.pending, selfName]);
   const cooldownActive = chat.pending.some(item => item.status === "failed" && item.retryAt > now);
+  // The latest "got caught out by a drill" line from the last day that this player hasn't
+  // followed up on yet. Derived from the messages already loaded, so it needs no extra request.
+  const nudge = useMemo(() => {
+    const event = [...chat.messages].reverse().find(message => message.type === "drill_scammed");
+    if (!event || event.id === dismissedNudge) return null;
+    const at = Date.parse(event.createdAt);
+    if (now - at > NUDGE_WINDOW_MS) return null;
+    const followedUp = chat.pending.length > 0 || chat.messages.some(message =>
+      message.type === "message" && message.senderId === selfId && Date.parse(message.createdAt) > at);
+    return followedUp ? null : event;
+  }, [chat.messages, chat.pending, dismissedNudge, now, selfId]);
 
   useEffect(() => {
     setDraft("");
@@ -162,28 +179,54 @@ export function HouseChatScreen({
 
   let previousDay = "";
   const deliveryStatus = chat.pending.some(item => item.status === "sending")
-    ? "Sending message"
+    ? t("Sending message")
     : chat.pending.some(item => item.status === "failed")
-      ? "One or more messages failed to send"
+      ? t("One or more messages failed to send")
       : chat.loading && rows.length > 0
-        ? "Checking for new messages"
+        ? t("Checking for new messages")
         : "";
 
   return (
-    <section className="house-chat" aria-label={`${houseName || "House"} chat`}>
+    <section className="house-chat" aria-label={houseName ? t("{house} chat", { house: houseName }) : t("House chat")}>
       <header className="house-chat__header">
-        <button type="button" className="house-chat__icon-button" onClick={onBack} aria-label="Close house chat">×</button>
+        <button type="button" className="house-chat__icon-button" onClick={onBack} aria-label={t("Close house chat")}>×</button>
         <div>
-          <h1>HOUSE CHAT</h1>
-          <p>{houseName || "PRIVATE HOUSE CONVERSATION"}</p>
+          <h1>{t("HOUSE CHAT")}</h1>
+          <p>{houseName || t("PRIVATE HOUSE CONVERSATION")}</p>
         </div>
       </header>
+
+      {nudge && !disabled && (
+        <div className="house-chat__nudge" role="status">
+          <p>
+            {nudge.senderId === selfId
+              ? t("You got caught out by a drill. Tell your house what happened?")
+              : t("{name} got caught out by a drill. Check in and talk it through?", { name: nudge.senderName })}
+          </p>
+          <div className="house-chat__nudge-actions">
+            <button
+              type="button"
+              onClick={() => {
+                if (!draft.trim()) {
+                  setDraft(nudge.senderId === selfId
+                    ? t("I got caught out by that drill. ")
+                    : t("Hey {name}, those drills are tricky. Want to talk it through? ", { name: nudge.senderName }));
+                }
+                composerRef.current?.focus();
+              }}
+            >
+              {t("Say something")}
+            </button>
+            <button type="button" aria-label={t("Dismiss")} onClick={() => setDismissedNudge(nudge.id)}>×</button>
+          </div>
+        </div>
+      )}
 
       <div
         ref={historyRef}
         role="region"
         className="house-chat__history"
-        aria-label="Message history"
+        aria-label={t("Message history")}
         onScroll={event => {
           const element = event.currentTarget;
           nearBottomRef.current = element.scrollHeight - element.scrollTop - element.clientHeight <= BOTTOM_THRESHOLD;
@@ -192,18 +235,31 @@ export function HouseChatScreen({
       >
         {chat.hasOlder && (
           <button type="button" className="house-chat__load" disabled={chat.loadingOlder} onClick={() => void loadOlder()}>
-            {chat.loadingOlder ? "Loading..." : chat.olderError ? "Try loading older messages" : "Load older messages"}
+            {chat.loadingOlder ? t("Loading...") : chat.olderError ? t("Try loading older messages") : t("Load older messages")}
           </button>
         )}
-        {chat.olderError && <p className="house-chat__error" role="status">{chat.olderError}</p>}
-        {chat.loading && rows.length === 0 && <p className="house-chat__empty">Loading messages...</p>}
+        {chat.olderError && <p className="house-chat__error" role="status">{t(chat.olderError)}</p>}
+        {chat.loading && rows.length === 0 && <p className="house-chat__empty">{t("Loading messages...")}</p>}
         {!chat.loading && rows.length === 0 && hasHouse && !chat.accessDenied && (
-          <p className="house-chat__empty">No messages yet. Start the conversation.</p>
+          <p className="house-chat__empty">{t("No messages yet. Start the conversation.")}</p>
         )}
         {rows.map(row => {
           const currentDay = dayKey(row.createdAt);
           const showDay = currentDay !== previousDay;
           previousDay = currentDay;
+          if (row.kind === "message" && row.type === "drill_scammed") {
+            return (
+              <div key={row.key} className="house-chat__entry" data-chat-row-key={row.key}>
+                {showDay && <div className="house-chat__day">{dayFormatter.format(new Date(row.createdAt))}</div>}
+                <p className="house-chat__event">
+                  {row.senderId === selfId
+                    ? t("You got caught out by a drill")
+                    : t("{name} got caught out by a drill", { name: row.senderName })}
+                  <time dateTime={row.createdAt}> · {timeFormatter.format(new Date(row.createdAt))}</time>
+                </p>
+              </div>
+            );
+          }
           const own = row.senderId === selfId;
           const failed = row.kind === "pending" && row.status === "failed";
           const wait = failed ? remainingSeconds(row.retryAt, now) : 0;
@@ -221,17 +277,17 @@ export function HouseChatScreen({
                   </div>
                   <p className="house-chat__text">{row.text}</p>
                   <div className="house-chat__delivery">
-                    {row.kind === "message" && own && "Sent"}
-                    {row.kind === "pending" && row.status === "sending" && "Sending"}
+                    {row.kind === "message" && own && t("Sent")}
+                    {row.kind === "pending" && row.status === "sending" && t("Sending")}
                     {failed && (
                       <>
-                        <span>{row.error || "Failed to send."}</span>
+                        <span>{row.error ? t(row.error) : t("Failed to send.")}</span>
                         <button
                           type="button"
                           disabled={wait > 0}
                           onClick={() => chat.retry(row.clientKey)}
                         >
-                          {wait > 0 ? `Retry in ${wait}s` : "Retry"}
+                          {wait > 0 ? t("Retry in {seconds}s", { seconds: wait }) : t("Retry")}
                         </button>
                       </>
                     )}
@@ -243,19 +299,20 @@ export function HouseChatScreen({
         })}
       </div>
 
-      {newMessages && <button type="button" className="house-chat__new" onClick={scrollToLatest}>New messages</button>}
+      {newMessages && <button type="button" className="house-chat__new" onClick={scrollToLatest}>{t("New messages")}</button>}
 
       <div className="house-chat__status" aria-live="polite">{deliveryStatus}</div>
-      {chat.error && <div className="house-chat__status house-chat__error" role="status">{chat.error}</div>}
+      {chat.error && <div className="house-chat__status house-chat__error" role="status">{t(chat.error)}</div>}
       {disabled ? (
         <div className="house-chat__no-access">
-          <p>Create or join a house to use chat.</p>
-          <button type="button" onClick={onJoinHouse}>Create or join a house</button>
+          <p>{t("Create or join a house to use chat.")}</p>
+          <button type="button" onClick={onJoinHouse}>{t("Create or join a house")}</button>
         </div>
       ) : (
         <div className="house-chat__composer">
-          <label htmlFor="chat-message">Message</label>
+          <label htmlFor="chat-message">{t("Message")}</label>
           <textarea
+            ref={composerRef}
             id="chat-message"
             rows={3}
             value={draft}
@@ -269,7 +326,7 @@ export function HouseChatScreen({
           />
           <div className="house-chat__composer-actions">
             <span className={count > 1000 ? "house-chat__count house-chat__count--invalid" : "house-chat__count"}>{count}/1000</span>
-            <button type="button" disabled={!validDraft} onClick={send}>Send</button>
+            <button type="button" disabled={!validDraft} onClick={send}>{t("Send")}</button>
           </div>
         </div>
       )}

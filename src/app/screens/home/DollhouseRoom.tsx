@@ -1,3 +1,4 @@
+import { useT } from "../../i18n";
 import type { FamilyMember } from "../../types/family";
 import type { RoomLayout } from "../../types/roomLayout";
 import { FurnitureIcon, PurchasedRoomFurniture } from "../../components/furniture";
@@ -10,6 +11,7 @@ import { roomColors } from "../../types/roomStyle";
 import { PixelButton } from "../../components/ui";
 
 export function DollhouseRoom({ member, onTap, soldItems, purchasedItems, layout, onCustomize, onArrange }: { member: FamilyMember; onTap: (m: FamilyMember) => void; soldItems: string[]; purchasedItems: string[]; layout?: RoomLayout; onCustomize?: () => void; onArrange?: () => void }) {
+  const t = useT();
   const colors = roomColors(member.roomStyle, member.roomBg, member.primaryColor);
   return (
     <div className="home-room-card">
@@ -17,12 +19,12 @@ export function DollhouseRoom({ member, onTap, soldItems, purchasedItems, layout
         <RoomHeading
           member={member}
           actions={onCustomize && <div className="home-room-tools">
-            <PixelButton onClick={onCustomize} color="#1a2340" textColor="#c77dff" size="sm">CUSTOMIZE</PixelButton>
-            {onArrange && purchasedItems.length > 0 && <PixelButton onClick={onArrange} color="#1a2340" textColor="#4ecdc4" size="sm">ARRANGE</PixelButton>}
+            <PixelButton onClick={onCustomize} color="#1a2340" textColor="#c77dff" size="sm">{t("CUSTOMIZE")}</PixelButton>
+            {onArrange && purchasedItems.length > 0 && <PixelButton onClick={onArrange} color="#1a2340" textColor="#4ecdc4" size="sm">{t("ARRANGE")}</PixelButton>}
           </div>}
         />
       </div>
-      <button className="home-room-view" onClick={() => onTap(member)} aria-label={`View ${member.name}'s room`}>
+      <button className="home-room-view" onClick={() => onTap(member)} aria-label={t("View {name}'s room", { name: member.name })}>
       <div style={{ backgroundColor: member.roomBg, position: "relative", height: 252, overflow: "hidden" }}>
         <RoomBackdrop style={member.roomStyle} background={member.roomBg} accent={member.primaryColor} />
         <div style={{ position: "absolute", top: 10, right: 16 }}>
@@ -38,7 +40,7 @@ export function DollhouseRoom({ member, onTap, soldItems, purchasedItems, layout
           {FURNITURE_STORE
             .filter(item => item.memberId === member.id && !soldItems.includes(item.id))
             .map(item => (
-              <div key={item.id} title={item.name} style={{ width: 38, height: 42, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+              <div key={item.id} title={t(item.name)} style={{ width: 38, height: 42, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
                 <FurnitureIcon itemId={item.id} size={36} />
               </div>
             ))}
@@ -51,7 +53,7 @@ export function DollhouseRoom({ member, onTap, soldItems, purchasedItems, layout
           <MemberChar member={member} size={80} />
         </div>
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 4, background: `linear-gradient(90deg,${member.primaryColor}22,${member.primaryColor}55,${member.primaryColor}22)`, borderTop: `2px solid ${member.primaryColor}44` }} />
-        <div className="home-room-open-hint">TAP TO VIEW</div>
+        <div className="home-room-open-hint">{t("TAP TO VIEW")}</div>
       </div>
       </button>
     </div>

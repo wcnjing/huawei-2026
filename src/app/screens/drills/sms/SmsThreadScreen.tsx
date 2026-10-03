@@ -4,8 +4,10 @@ import { FLAG_MAP } from "../../../data/scamFlags";
 import { IconWarning } from "../../../components/icons";
 import { FlagTooltip, AnnotatedMessage, PixelButton } from "../../../components/ui";
 import { SMS_LINES } from "./smsScenario";
+import { useT } from "../../../i18n";
 
 export function SMSThreadScreen({ onReport, onAskFamily, onTapLink, onBack }: { activeMemberId: string; onReport: () => void; onAskFamily: () => void; onTapLink: () => void; onBack: () => void }) {
+  const t = useT();
   const [activeFlag, setActiveFlag] = useState<DrillFlag | null>(null);
 
   const handleFlagTap = (flagId: string) => {
@@ -25,9 +27,9 @@ export function SMSThreadScreen({ onReport, onAskFamily, onTapLink, onBack }: { 
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ff2d55" }}>ParcelGo Alert</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8", marginTop: 2 }}>Unknown sender</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8", marginTop: 2 }}>{t("Unknown sender")}</div>
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff6b35" }}>DRILL ACTIVE</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff6b35" }}>{t("DRILL ACTIVE")}</div>
       </div>
       <div style={{ flex: 1, position: "relative", overflow: "hidden" }} onClick={() => setActiveFlag(null)}>
         <div className="flex flex-col gap-3" style={{ height: "100%", overflowY: "auto", padding: "16px", scrollbarWidth: "none" }}>
@@ -40,13 +42,13 @@ export function SMSThreadScreen({ onReport, onAskFamily, onTapLink, onBack }: { 
               ))}
               <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 4 }}>
                 <IconWarning size={9} color="#ff2d55" />
-                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff2d55" }}>TAP RED TEXT TO INSPECT</span>
+                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff2d55" }}>{t("TAP RED TEXT TO INSPECT")}</span>
               </div>
             </div>
           </div>
           <div className="flex justify-end">
             <div style={{ maxWidth: "75%", backgroundColor: "#0c1a10", border: "3px solid #00ff88", padding: "10px 12px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#00ff88", lineHeight: 1.5 }}>
-              Something feels off. Inspect the message carefully before acting.
+              {t("Something feels off. Inspect the message carefully before acting.")}
             </div>
           </div>
         </div>
@@ -55,13 +57,13 @@ export function SMSThreadScreen({ onReport, onAskFamily, onTapLink, onBack }: { 
       <div className="px-4 py-4 flex flex-col gap-3" style={{ borderTop: "4px solid #2a3a5c", backgroundColor: "#0a0e1a" }}>
         <div className="flex gap-3">
           <div style={{ flex: 1 }}>
-            <PixelButton onClick={onReport} color="#00ff88" textColor="#0a0e1a" size="sm" full>REPORT + BLOCK</PixelButton>
+            <PixelButton onClick={onReport} color="#00ff88" textColor="#0a0e1a" size="sm" full>{t("REPORT + BLOCK")}</PixelButton>
           </div>
           <div style={{ flex: 1 }}>
-            <PixelButton onClick={onAskFamily} color="#ffe66d" textColor="#0a0e1a" size="sm" full>ASK SOMEONE YOU TRUST</PixelButton>
+            <PixelButton onClick={onAskFamily} color="#ffe66d" textColor="#0a0e1a" size="sm" full>{t("ASK SOMEONE YOU TRUST")}</PixelButton>
           </div>
         </div>
-        <PixelButton onClick={onTapLink} color="#ff2d55" textColor="#ffffff" size="sm" full>TAP LINK</PixelButton>
+        <PixelButton onClick={onTapLink} color="#ff2d55" textColor="#ffffff" size="sm" full>{t("TAP LINK")}</PixelButton>
       </div>
     </div>
   );

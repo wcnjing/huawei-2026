@@ -3,6 +3,7 @@ import type { DrillFlag, Highlight } from "../../../types/drills";
 import { FLAG_MAP } from "../../../data/scamFlags";
 import { IconAttachment, IconWarning,  } from "../../../components/icons";
 import { FlagTooltip, AnnotatedMessage, PixelButton } from "../../../components/ui";
+import { useT } from "../../../i18n";
 
 const EMAIL_BODY_LINES: { text: string; highlights?: Highlight[] }[] = [
   { text: "Dear Student," },
@@ -23,6 +24,7 @@ const EMAIL_BODY_LINES: { text: string; highlights?: Highlight[] }[] = [
 ];
 
 export function EmailDetailScreen({ onReport, onAskFamily, onClaimReward, onOpenAttachment, onBack }: { activeMemberId: string; onReport: () => void; onAskFamily: () => void; onClaimReward: () => void; onOpenAttachment: () => void; onBack: () => void }) {
+  const t = useT();
   const [activeFlag, setActiveFlag] = useState<DrillFlag | null>(null);
   const [foundFlags, setFoundFlags] = useState<Set<string>>(new Set());
 
@@ -40,22 +42,22 @@ export function EmailDetailScreen({ onReport, onAskFamily, onClaimReward, onOpen
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8" }}>{"<"}</div>
         </button>
         <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#c77dff" }}>Campus Rewards Office</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#c77dff" }}>{t("Campus Rewards Office")}</div>
           <div className="flex items-center gap-1 mt-1">
             <IconWarning size={8} color="#ff6b35" />
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ff6b35" }}>rewards-office@campus-secure.example</div>
           </div>
         </div>
-        <div style={{ backgroundColor: "#ff6b35", padding: "2px 6px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#0a0e1a", flexShrink: 0 }}>IMPORTANT</div>
+        <div style={{ backgroundColor: "#ff6b35", padding: "2px 6px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#0a0e1a", flexShrink: 0 }}>{t("IMPORTANT")}</div>
       </div>
       <div className="px-4 py-3" style={{ borderBottom: "2px solid #1a2340", backgroundColor: "#0d1120" }}>
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ff2d55", lineHeight: 1.5, marginBottom: 6 }}>
-          IMPORTANT: Claim Your $300 Digital Safety Reward
+          {t("IMPORTANT: Claim Your $300 Digital Safety Reward")}
         </div>
         <div className="flex items-center justify-between">
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>Tap red text to inspect</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>{t("Tap red text to inspect")}</div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: foundFlags.size > 0 ? "#ff6b35" : "#6b8ba4" }}>
-            RED FLAGS: {foundFlags.size}/6
+            {t("RED FLAGS: {found}/{total}", { found: foundFlags.size, total: 6 })}
           </div>
         </div>
       </div>
@@ -67,7 +69,7 @@ export function EmailDetailScreen({ onReport, onAskFamily, onClaimReward, onOpen
                 {line.highlights?.length ? (
                   <AnnotatedMessage text={line.text} highlights={line.highlights} onFlagTap={handleFlagTap} />
                 ) : (
-                  line.text
+                  t(line.text)
                 )}
               </div>
             ))}
@@ -84,14 +86,14 @@ export function EmailDetailScreen({ onReport, onAskFamily, onClaimReward, onOpen
       <div className="px-4 py-3 flex flex-col gap-2" style={{ borderTop: "4px solid #2a3a5c", backgroundColor: "#0a0e1a", flexShrink: 0 }}>
         <div className="flex gap-2">
           <div style={{ flex: 1 }}>
-            <PixelButton onClick={onReport} color="#00ff88" textColor="#0a0e1a" size="sm" full>REPORT PHISHING</PixelButton>
+            <PixelButton onClick={onReport} color="#00ff88" textColor="#0a0e1a" size="sm" full>{t("REPORT PHISHING")}</PixelButton>
           </div>
           <div style={{ flex: 1 }}>
-            <PixelButton onClick={onAskFamily} color="#ffe66d" textColor="#0a0e1a" size="sm" full>ASK SOMEONE YOU TRUST</PixelButton>
+            <PixelButton onClick={onAskFamily} color="#ffe66d" textColor="#0a0e1a" size="sm" full>{t("ASK SOMEONE YOU TRUST")}</PixelButton>
           </div>
         </div>
-        <PixelButton onClick={onClaimReward} color="#ff2d55" textColor="#ffffff" size="sm" full>CLAIM REWARD</PixelButton>
-        <PixelButton onClick={onOpenAttachment} color="#1a2340" textColor="#c77dff" size="sm" full>OPEN ATTACHMENT</PixelButton>
+        <PixelButton onClick={onClaimReward} color="#ff2d55" textColor="#ffffff" size="sm" full>{t("CLAIM REWARD")}</PixelButton>
+        <PixelButton onClick={onOpenAttachment} color="#1a2340" textColor="#c77dff" size="sm" full>{t("OPEN ATTACHMENT")}</PixelButton>
       </div>
     </div>
   );

@@ -1,17 +1,19 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 
 import { Blink, PixelButton } from "../../components/ui";
 import { PixelMascot } from "../../components/avatars";
 import { Stars } from "../../components/layout";
+import { useT } from "../../i18n";
 
 export function TitleScreen({ onNext }: { onNext: () => void }) {
+  const t = useT();
   const [glitch, setGlitch] = useState(false);
   useEffect(() => {
-    const t = setInterval(() => {
+    const timer = setInterval(() => {
       setGlitch(true);
       setTimeout(() => setGlitch(false), 120);
     }, 3000);
-    return () => clearInterval(t);
+    return () => clearInterval(timer);
   }, []);
 
   return (
@@ -31,10 +33,10 @@ export function TitleScreen({ onNext }: { onNext: () => void }) {
             textAlign: "center",
           }}
         >
-          DRILL<br />MODE
+          {t("DRILL\nMODE").split("\n").map((line, i) => <Fragment key={i}>{i > 0 && <br />}{line}</Fragment>)}
         </div>
         <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "var(--text-label)", color: "#4ecdc4", letterSpacing: 3, marginTop: 4 }}>
-          SCAM FIGHTER
+          {t("SCAM FIGHTER")}
         </div>
         <div className="flex gap-2 mt-2">
           {["#ff6b35", "#ffe66d", "#00ff88", "#4ecdc4", "#ff2d55"].map((c, i) => (
@@ -46,16 +48,16 @@ export function TitleScreen({ onNext }: { onNext: () => void }) {
       <div className="relative z-10 flex flex-col items-center gap-4">
         <PixelMascot size={128} animate />
         <div style={{ fontFamily: "'VT323', monospace", fontSize: "var(--text-title)", color: "#ffe66d", textAlign: "center" }}>
-          DEFEND YOUR MIND.<br />DEFEAT THE SCAMMERS.
+          {t("DEFEND YOUR MIND.")}<br />{t("DEFEAT THE SCAMMERS.")}
         </div>
       </div>
 
       <div className="relative z-10 flex flex-col items-center gap-6 mb-4">
         <Blink ms={700} min={0.5}>
-          <PixelButton onClick={onNext} color="#00ff88" size="lg">[ PRESS START ]</PixelButton>
+          <PixelButton onClick={onNext} color="#00ff88" size="lg">{t("[ PRESS START ]")}</PixelButton>
         </Blink>
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#2a3a5c" }}>
-          v2.0.0 © 2026 DRILL MODE
+          v2.0.0 © 2026 {t("DRILL MODE")}
         </div>
       </div>
     </div>
