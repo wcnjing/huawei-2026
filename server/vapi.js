@@ -242,8 +242,9 @@ export async function fireDrillCall({ toNumber, name, attemptId = null, tactic =
 }
 
 function buildVoice() {
-  const provider = process.env.VAPI_VOICE_PROVIDER || 'azure';
-  const voiceId = process.env.VAPI_VOICE_ID || 'en-SG-WayneNeural';
+  const provider = process.env.VAPI_VOICE_PROVIDER || '11labs';
+  const voiceId = process.env.VAPI_VOICE_ID
+    || (provider === '11labs' ? 'FXMPPfJPpDj0GSwJ6ASO' : 'en-SG-WayneNeural');
   const voice = { provider, voiceId };
   if (provider === '11labs') {
     voice.model = process.env.VAPI_VOICE_MODEL || 'eleven_turbo_v2_5';

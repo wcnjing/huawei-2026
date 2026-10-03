@@ -300,3 +300,31 @@ test('fireDrillCall sends a rendered tactic ahead of the unchanged safety rules'
   assert.ok(system.includes('HARD SAFETY RULES'));
   assert.ok(!system.includes('Officer Tan'));
 });
+
+// Voice selection must produce a provider-compatible ID even without deployment overrides.
+test('call assistant defaults to the selected ElevenLabs voice and preserves provider overrides', () => {
+  const keys = ['VAPI_VOICE_PROVIDER', 'VAPI_VOICE_ID', 'VAPI_VOICE_MODEL'];
+  const previous = Object.fromEntries(keys.map(key => [key, process.env[key]]));
+  try {
+    for (const key of keys) delete process.env[key];
+    let voice = buildAssistant('TEST').voice;
+    assert.equal(voice.provider, '11labs');
+    assert.equal(voice.voiceId, 'FXMPPfJPpDj0GSwJ6ASO');
+    assert.equal(voice.model, 'eleven_turbo_v2_5');
+
+    process.env.VAPI_VOICE_PROVIDER = 'azure';
+    assert.deepEqual(buildAssistant('TEST').voice, { provider: 'azure', voiceId: 'en-SG-WayneNeural' });
+
+    process.env.VAPI_VOICE_PROVIDER = '11labs';
+    process.env.VAPI_VOICE_ID = 'another-voice';
+    process.env.VAPI_VOICE_MODEL = 'eleven_flash_v2_5';
+    voice = buildAssistant('TEST').voice;
+    assert.equal(voice.voiceId, 'another-voice');
+    assert.equal(voice.model, 'eleven_flash_v2_5');
+  } finally {
+    for (const key of keys) {
+      if (previous[key] === undefined) delete process.env[key];
+      else process.env[key] = previous[key];
+    }
+  }
+});

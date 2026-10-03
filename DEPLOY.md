@@ -353,6 +353,23 @@ Vercel URL, adding `curl https://YOUR_DOMAIN/api/health/db` (expect `{"ok":true}
 
 ## Notes
 
+- Voice calls default to ElevenLabs voice `FXMPPfJPpDj0GSwJ6ASO` through Vapi.
+  In Vercel's **Settings → Environment Variables**, set or replace these values for
+  **Production**, then redeploy for the settings to take effect:
+
+  ```dotenv
+  VAPI_VOICE_PROVIDER=11labs
+  VAPI_VOICE_ID=FXMPPfJPpDj0GSwJ6ASO
+  VAPI_VOICE_MODEL=eleven_turbo_v2_5
+  ```
+
+  These match the code defaults; existing Azure overrides must be replaced or removed.
+  Optional tuning uses `VAPI_VOICE_STABILITY=0.4`, `VAPI_VOICE_SIMILARITY=0.8`, and
+  `VAPI_VOICE_STYLE=0.25`. Keep the existing Vapi credentials. This backend does not
+  read an `ELEVENLABS_API_KEY`; any required ElevenLabs account connection belongs in
+  Vapi. Voice availability and billing depend on that provider setup. To return to
+  Azure, set `VAPI_VOICE_PROVIDER=azure` and `VAPI_VOICE_ID=en-SG-WayneNeural`.
+
 - Signed messaging links are top-level paths (`/drill-reveal`, `/drill-report` and
   `/email-verify`) and must route to the Express function, not the SPA fallback. The
   post-deploy checklist above catches an incorrect rewrite immediately.
