@@ -88,7 +88,7 @@ export function CustomizeScreen({ memberId, coins, purchasedItems, soldItems, la
           <RoomStyleEditor key={memberId} value={member.roomStyle} background={member.roomBg}
             accent={member.primaryColor} defaultName={`${member.name}'S ROOM`}
             items={purchasedFurniture(purchasedItems)} layout={layout}
-            avatar={<MemberChar member={member} size={48} />} onSave={onStyleSave} />
+            avatar={<MemberChar member={member} size={104} />} onSave={onStyleSave} />
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8", letterSpacing: 2, marginBottom: 10 }}>FURNITURE</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
             {unifiedItems.map(item => {

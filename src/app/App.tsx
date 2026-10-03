@@ -350,9 +350,9 @@ function claimRealEventId(id: string): boolean {
 // ROOT
 // ─────────────────────────────────────────────────────────────────────────
 
-export default function App() {
+export default function App({ initialScreen = "title" }: { initialScreen?: Screen }) {
   const [sessionEpoch, setSessionEpoch] = useState(0);
-  const [screen, setScreen] = useState<Screen>("title");
+  const [screen, setScreen] = useState<Screen>(initialScreen);
   const [activeTab, setActiveTab] = useState<Tab>("home");
   const [drillType, setDrillType] = useState<DrillType>("call");
   const [callOutcome, setCallOutcome] = useState<CallOutcome | null>(null);

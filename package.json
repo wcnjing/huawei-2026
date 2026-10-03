@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "dev:character": "vite --host 127.0.0.1 --open '/?character-lab=1'",
+    "dev:character": "node scripts/dev-character.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "server": "node --env-file-if-exists=.env server/index.js",

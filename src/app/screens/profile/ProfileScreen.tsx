@@ -58,8 +58,8 @@ export function ProfileScreen({
           <button onClick={onEditProfile} style={{ gridColumn: "1 / -1", justifySelf: "end", minHeight: 44, background: "none", border: "2px solid #4ecdc4", cursor: "pointer", padding: "4px 8px" }}>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#4ecdc4" }}>EDIT</div>
           </button>
-          <div style={{ filter: `drop-shadow(0 0 8px ${profile.avatar.glow})` }}>
-            <CharacterAvatar size={72} animate config={profile.avatar} title={`${profile.name}'s character`} />
+          <div style={{ minWidth: 68, display: "flex", justifyContent: "center", filter: `drop-shadow(0 0 8px ${profile.avatar.glow})` }}>
+            <CharacterAvatar size={104} animate config={profile.avatar} title={`${profile.name}'s character`} />
           </div>
           <div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-title)", color: "#ffffff" }}>{profile.name}</div>

@@ -1,4 +1,5 @@
 export { CharacterAvatar } from "./CharacterAvatar";
+export { AccessoryPreview, HairPreview, OutfitPreview } from "./CharacterPartPreview";
 export {
   ACCESSORIES,
   DEFAULT_AVATAR_CONFIG,

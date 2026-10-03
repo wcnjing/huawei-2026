@@ -4,19 +4,19 @@ export const AVATAR_PALETTE = ['#4ecdc4', '#ff6b35', '#c77dff', '#ffe66d', '#ff2
 export const AVATAR_OPTIONS = {
   color: AVATAR_PALETTE,
   glow: AVATAR_PALETTE,
-  skinTone: ['peach', 'golden', 'brown', 'deep'],
-  hairStyle: ['long', 'pigtails', 'shoulder', 'side-part', 'cropped'],
-  hairColor: ['midnight', 'brown', 'auburn', 'gold', 'silver'],
-  outfit: ['sailor', 'yellow-dress', 'blue-shirt-pants', 'overalls', 'green-sweater'],
+  skinTone: ['porcelain', 'peach', 'golden', 'tan', 'brown', 'deep', 'green', 'blue', 'purple', 'yellow', 'red'],
+  hairStyle: ['none', 'bowl', 'tousled', 'fluffy', 'short', 'crew-cut', 'twin-buns', 'pigtails', 'wavy', 'long', 'bob'],
+  hairColor: ['midnight', 'espresso', 'chestnut', 'silver', 'platinum', 'blonde', 'auburn', 'violet', 'denim', 'sage'],
+  outfit: ['purple-coat', 'red-hoodie', 'blue-tank', 'overalls', 'puffer-vest', 'jersey-67', 'yellow-skirt', 'teal-dress', 'pinafore', 'striped-pants'],
 };
 export const AVATAR_ACCESSORIES = ['round-glasses', 'hair-bow', 'necklace'];
 export const DEFAULT_AVATAR = {
   color: '#4ecdc4',
   glow: '#00ff88',
   skinTone: 'peach',
-  hairStyle: 'long',
+  hairStyle: 'short',
   hairColor: 'midnight',
-  outfit: 'blue-shirt-pants',
+  outfit: 'blue-tank',
   accessories: [],
 };
 

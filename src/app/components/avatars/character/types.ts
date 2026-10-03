@@ -1,7 +1,49 @@
-export type SkinToneId = "peach" | "golden" | "brown" | "deep";
-export type HairStyleId = "long" | "pigtails" | "shoulder" | "side-part" | "cropped";
-export type HairColorId = "midnight" | "brown" | "auburn" | "gold" | "silver";
-export type OutfitId = "sailor" | "yellow-dress" | "blue-shirt-pants" | "overalls" | "green-sweater";
+export type SkinToneId =
+  | "porcelain"
+  | "peach"
+  | "golden"
+  | "tan"
+  | "brown"
+  | "deep"
+  | "green"
+  | "blue"
+  | "purple"
+  | "yellow"
+  | "red";
+export type HairStyleId =
+  | "none"
+  | "bowl"
+  | "tousled"
+  | "fluffy"
+  | "short"
+  | "crew-cut"
+  | "twin-buns"
+  | "pigtails"
+  | "wavy"
+  | "long"
+  | "bob";
+export type HairColorId =
+  | "midnight"
+  | "espresso"
+  | "chestnut"
+  | "silver"
+  | "platinum"
+  | "blonde"
+  | "auburn"
+  | "violet"
+  | "denim"
+  | "sage";
+export type OutfitId =
+  | "purple-coat"
+  | "red-hoodie"
+  | "blue-tank"
+  | "overalls"
+  | "puffer-vest"
+  | "jersey-67"
+  | "yellow-skirt"
+  | "teal-dress"
+  | "pinafore"
+  | "striped-pants";
 export type AccessoryId = "round-glasses" | "hair-bow" | "necklace";
 
 export interface CharacterConfig {
@@ -20,4 +62,4 @@ export interface AvatarConfig extends CharacterConfig {
 
 export type PixelMap = readonly string[];
 export type PixelPalette = Readonly<Record<string, string>>;
-
+export type OutfitDefinition = Readonly<{ map: PixelMap; palette: PixelPalette }>;

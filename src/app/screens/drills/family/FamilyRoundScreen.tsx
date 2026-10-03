@@ -2,16 +2,21 @@ import { useState, useMemo, useEffect } from "react";
 import type { FamilyScenario, FamilyClue, FamilyOutcome } from "../../../types/drills";
 import { familyOutcome } from "./familyOutcome";
 import { InspectableLink, PixelButton, ClueTooltip, SenderInspectPanel } from "../../../components/ui";
-import { PixelMascot } from "../../../components/avatars";
+import { MemberChar } from "../../../components/avatars";
 import { IconBulb, IconCoin } from "../../../components/icons";
 import { SmsMockCard } from "./SmsMockCard";
 import { FAMILY_COINS, FAMILY_XP } from "../../../data/familyData";
+import { useMembers } from "../../../hooks/useMembers";
 
 export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNext, onEnd }: {
   scenario: FamilyScenario; roundIndex: number; totalRounds: number;
   onComplete: (action: string, foundClues: number[], outcome: FamilyOutcome) => void;
   onNext: () => void; onEnd: () => void;
 }) {
+  const members = useMembers();
+  // A house drill hands each round to the next real member. This also keeps custom
+  // names and avatars correct instead of relying on the old Grandma/Mum/Dad fixtures.
+  const targetMember = members.length > 0 ? members[roundIndex % members.length] : null;
   const [mode, setMode] = useState<"play" | "debrief">("play");
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
   const [lightbulbIdx, setLightbulbIdx] = useState(-1);
@@ -128,10 +133,14 @@ export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplet
         </div>
       </div>
       <div className="flex items-center gap-3 px-4 py-2" style={{ backgroundColor: "#111827", borderBottom: `4px solid ${color}`, flexShrink: 0 }}>
-        <PixelMascot size={36} animate />
+        {targetMember && (
+          <div style={{ minWidth: 34, display: "flex", justifyContent: "center", filter: `drop-shadow(0 0 6px ${targetMember.primaryColor})` }}>
+            <MemberChar member={targetMember} size={52} />
+          </div>
+        )}
         <div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>TARGET:</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color }}>A HOUSEMATE</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: targetMember?.primaryColor ?? color }}>{targetMember?.name.toUpperCase() ?? scenario.targetMember.toUpperCase()}</div>
         </div>
         <div style={{ marginLeft: "auto", backgroundColor: "rgba(255,107,53,0.1)", border: `2px solid ${color}`, padding: "3px 7px" }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color }}>{typeLabels[scenario.type] ?? "MSG"}</div>

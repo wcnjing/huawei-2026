@@ -17,13 +17,13 @@ export function MemberProfileOverlay({
   }));
   return (
     <div onClick={onClose} style={{ position: "absolute", inset: 0, zIndex: 100, backgroundColor: "rgba(0,0,0,0.75)", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: "#0a0e1a", border: `4px solid ${member.primaryColor}`, boxShadow: `0 -6px 0 ${member.primaryColor}66`, maxHeight: "82%", overflowY: "auto", scrollbarWidth: "none", animation: "slideUp 0.2s ease-out" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: "#0a0e1a", border: `4px solid ${member.primaryColor}`, boxShadow: `0 -6px 0 ${member.primaryColor}66`, maxHeight: "88%", overflowY: "auto", scrollbarWidth: "none", animation: "slideUp 0.2s ease-out" }}>
         <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 4px" }}>
           <div style={{ width: 40, height: 4, backgroundColor: "#2a3a5c" }} />
         </div>
-        <div style={{ padding: "0 16px 12px", borderBottom: `3px solid ${member.primaryColor}33`, display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ filter: `drop-shadow(0 0 8px ${member.primaryColor})` }}>
-            <MemberChar member={member} size={56} />
+        <div style={{ padding: "0 16px 14px", borderBottom: `3px solid ${member.primaryColor}33`, display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ minWidth: 56, display: "flex", justifyContent: "center", filter: `drop-shadow(0 0 8px ${member.primaryColor})` }}>
+            <MemberChar member={member} size={88} />
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: member.primaryColor }}>{member.name}</div>

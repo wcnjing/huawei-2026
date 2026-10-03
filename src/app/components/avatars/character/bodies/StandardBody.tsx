@@ -3,16 +3,15 @@ import type { PixelMap, PixelPalette } from "../types";
 
 const BODY: PixelMap = [
   "....................", "....................", "....................", "....................",
-  ".......mmmmmm.......", "......mmmmmmmm......", ".....mmmmmmmmmm.....", ".....mmmmmmmmmm.....",
-  ".....mmmmmmmmmm.....", ".....mmmmmmmmmm.....", ".....mmmmmmmmmm.....", ".....mmmmmmmmmm.....",
+  ".......mmmmmm.......", "......mmmmmmmm......", ".....mmmmmmmmmm.....", ".....mmermmermm.....",
+  ".....mmeemmeemm.....", ".....mmmmmmmmmm.....", ".....mmfmmmmfmm.....", ".....mmmffffmmm.....",
   "......mmmmmmmm......", ".......mmmmmm.......", "......ssmssmss......", ".....smssmmssms.....",
   "....smmsmmmmsmms....", "....smssmmmmssms....", "....smsmmmmmmsms....", "...smsmmmmmmmmsms...",
   "...smsmmmmmmmmsms...", "...smsmmmmmmmmsms...", "...smsmmmmmmmmsms...", "....ssmmmmmmmmss....",
-  "......smmmmmms......", "......smm..mms......", "......sms..sms......", "......sms..sms......",
-  "......sms..sms......", "......sms..sms......", "......sms..sms......", ".......ss..ss.......",
+  "......smmmmmms......", "......smmssmms......", "......sms..sms......", "......sms..sms......",
+  "......sms..sms......", "......sms..sms......", "......sms..sms......", "....................",
 ];
 
 export function StandardBody({ palette }: { palette: PixelPalette }) {
   return <PixelLayer map={BODY} palette={palette} name="body-standard" />;
 }
-

@@ -63,7 +63,7 @@ identity.
 | POST | `/api/verify/start` | Send phone ownership OTP |
 | POST | `/api/verify/check` | Verify OTP; name required only for a new account; optional avatar; `NO_ACCOUNT` for unknown numbers |
 | POST | `/api/me/name` | Update the name used by future drills |
-| POST | `/api/me/avatar` | Set the mascot avatar (allowlisted color/glow/hat/eyes/outfit) |
+| POST | `/api/me/avatar` | Save the allowlisted layered character (skin, hair, outfit, accessories, profile colour/glow) |
 | GET | `/api/house` | `{ self, house }`: `self` is the caller's own member view (weekly flags even when solo); `house` is `null` when solo |
 | POST | `/api/house` | Create a house with `{name}`; the creator becomes owner with a fresh 24h code |
 | POST | `/api/house/join` | Join with `{code}`; the same message for a wrong or an expired code; refuses at 6 members |

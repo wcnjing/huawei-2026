@@ -23,7 +23,7 @@ export function DollhouseRoom({ member, onTap, soldItems, purchasedItems, layout
         />
       </div>
       <button className="home-room-view" onClick={() => onTap(member)} aria-label={`View ${member.name}'s room`}>
-      <div style={{ backgroundColor: member.roomBg, position: "relative", height: 232, overflow: "hidden" }}>
+      <div style={{ backgroundColor: member.roomBg, position: "relative", height: 252, overflow: "hidden" }}>
         <RoomBackdrop style={member.roomStyle} background={member.roomBg} accent={member.primaryColor} />
         <div style={{ position: "absolute", top: 10, right: 16 }}>
           <svg width={28} height={32} viewBox="0 0 7 8" style={{ imageRendering: "pixelated" }}>
@@ -48,7 +48,7 @@ export function DollhouseRoom({ member, onTap, soldItems, purchasedItems, layout
         <PurchasedRoomFurniture itemIds={purchasedItems} accent={member.primaryColor} layout={layout} topInset={16} />
         <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", zIndex: 3, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
           <SafetyBadge safe={member.safeThisWeek} size={18} />
-          <MemberChar member={member} size={44} />
+          <MemberChar member={member} size={80} />
         </div>
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 4, background: `linear-gradient(90deg,${member.primaryColor}22,${member.primaryColor}55,${member.primaryColor}22)`, borderTop: `2px solid ${member.primaryColor}44` }} />
         <div className="home-room-open-hint">TAP TO VIEW</div>
