@@ -7,7 +7,7 @@ import { SafetyHabitsDropdown } from "./SafetyHabitsDropdown";
 import { useT } from "../../i18n";
 
 export function DrillSelectScreen({
-  onRealisticPhone, onRealisticSms, onTelegram, onRealisticEmail, onFamily, onIndividual, inHouse,
+  onRealisticPhone, onRealisticSms, onTelegram, onRealisticEmail, onFamily, onIndividual, inHouse, preferredChannels,
 }: {
   onRealisticPhone: () => void;
   onRealisticSms: () => void;
@@ -16,6 +16,7 @@ export function DrillSelectScreen({
   onFamily: () => void;
   onIndividual: () => void;
   inHouse: boolean;
+  preferredChannels?: string[];
   onBack: () => void;
 }) {
   const t = useT();
@@ -116,14 +117,16 @@ export function DrillSelectScreen({
           {t("Sent to your verified channels. Registration required.")}
         </div>
 
-        {realisticDrills.map((drill) => (
+        {[...realisticDrills].sort((a, b) => preferredChannels && preferredChannels.length < 3
+          ? Number(preferredChannels.includes(b.id === "phone" ? "call" : b.id)) - Number(preferredChannels.includes(a.id === "phone" ? "call" : a.id))
+          : 0).map((drill) => (
           <div key={drill.id} style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", borderLeft: `5px solid ${drill.color}`, padding: 14 }}>
             <div className="flex items-start gap-3">
               <div style={{ width: 42, height: 42, flexShrink: 0, backgroundColor: "#0a0e1a", border: `2px solid ${drill.color}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {drill.icon}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8", letterSpacing: 1, marginBottom: 5 }}>{drill.eyebrow}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8", letterSpacing: 1, marginBottom: 5 }}>{drill.eyebrow}{preferredChannels && preferredChannels.length < 3 && preferredChannels.includes(drill.id === "phone" ? "call" : drill.id) ? ` · ${t("YOUR CHOICE")}` : ""}</div>
                 <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "var(--text-label)", color: drill.color, lineHeight: 1.4 }}>{drill.title}</div>
               </div>
             </div>

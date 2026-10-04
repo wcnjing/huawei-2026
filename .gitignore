@@ -9,4 +9,5 @@ test-data/
 server/.pglite/
 server/.pglite-houses/
 server/.pglite-character/
+server/.pglite-dev-mode/
 src/.DS_Store

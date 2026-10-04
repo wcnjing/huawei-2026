@@ -8,7 +8,7 @@ export default defineConfig({
   // as when the backend serves the built app in production (`npm start`).
   server: {
     proxy: {
-      "/api": "http://localhost:3000",
+      "/api": process.env.DEV_API_TARGET || "http://localhost:3000",
     },
   },
 });

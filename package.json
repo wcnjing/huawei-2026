@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "dev:character": "node scripts/dev-character.mjs",
+    "dev:test": "node scripts/dev-test.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "server": "node --env-file-if-exists=.env server/index.js",

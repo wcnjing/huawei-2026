@@ -9,8 +9,9 @@ import { account } from "./account";
 import { world } from "./world";
 import { houseDrill } from "./houseDrill";
 import { scenarios } from "./scenarios";
+import { personalisation } from "./personalisation";
 
-const TABLES: LocaleTable[] = [core, app, drillsLive, drillsPractice, data, account, world, houseDrill, scenarios];
+const TABLES: LocaleTable[] = [core, app, drillsLive, drillsPractice, data, account, world, houseDrill, scenarios, personalisation];
 
 function merge(language: TranslatedLanguage): Record<string, string> {
   return Object.assign({}, ...TABLES.map((table) => table[language] ?? {}));

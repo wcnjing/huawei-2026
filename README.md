@@ -42,18 +42,23 @@ drills still work. Real phone registration and live channels correctly return
 `ALLOW_DEV_VERIFY=true`; for the result-loop helper, also set
 `ENABLE_DEMO_ROUTES=true`. Never use either flag in production.
 
-### Local character customisation lab
+### Local dev mode
 
-To test character customisation without an account or backend, run:
+To preview the full app from registration through sign-out, run:
 
 ```sh
-npm run dev:character
+npm run dev:test
 ```
 
-This opens `http://127.0.0.1:5173/?character-lab=1`. The lab is available only in
-Vite development mode on a loopback address, never mounts the authenticated app,
-and makes no API calls. Selections are stored separately in this browser under the
-local character-lab key, so they do not overwrite the normal Drill Mode profile.
+This opens a loopback URL with `?dev-mode=1` at the new-player/returning-player
+choice. Sign-up asks for a name and phone number; email is optional for email drills.
+The local server uses `000000` as the displayed phone verification code, so you can continue through
+optional drill preferences, character customisation, and the tutorial. You can leave
+preferences blank or change them later in Settings. The **DEV: SKIP TO APP**
+button signs into a local demo account immediately. Signing out returns to the same
+account choice screen. Dev mode uses a local PGlite database and disables live call,
+SMS, and email delivery. It picks unused local ports, so it can run beside another
+dev server. Dev mode is available only in Vite development on a loopback host.
 
 ## Layout
 

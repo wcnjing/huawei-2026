@@ -2,6 +2,8 @@ export type Screen =
   | "title"
   | "start"
   | "new-character"
+  | "drill-preferences-onboarding"
+  | "preferences"
   | "sign-in"
   | "home"
   | "drill-select"

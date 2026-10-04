@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { createServer } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -12,7 +13,7 @@ function start(command, args, env) {
   child.once('exit', (code, signal) => {
     children.delete(child);
     if (!stopping) {
-      if (code !== 0) console.error(`[character-dev] process stopped (${signal ?? code})`);
+      if (code !== 0) console.error(`[dev-mode] process stopped (${signal ?? code})`);
       stop(code || 0);
     }
   });
@@ -22,18 +23,45 @@ function start(command, args, env) {
 function stop(code = 0) {
   if (stopping) return;
   stopping = true;
+  process.exitCode = code;
   for (const child of children) child.kill('SIGTERM');
-  setTimeout(() => process.exit(code), 100).unref();
+  setTimeout(() => process.exit(code), 100);
 }
 
 process.once('SIGINT', () => stop(0));
 process.once('SIGTERM', () => stop(0));
 
+async function freePort() {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      const port = address.port;
+      server.close((error) => error ? reject(error) : resolve(port));
+    });
+  });
+}
+
+const apiPort = await freePort();
+let uiPort = await freePort();
+while (uiPort === apiPort) uiPort = await freePort();
+
 const backendEnv = {
   ...process.env,
   HOST: '127.0.0.1',
-  PORT: '3000',
-  PGLITE_DIR: 'server/.pglite-character',
+  PORT: String(apiPort),
+  PGLITE_DIR: 'server/.pglite-dev-mode',
+  DATABASE_URL: '',
+  SUPABASE_URL: '',
+  VAPI_API_KEY: '',
+  VAPI_PHONE_NUMBER_ID: '',
+  TWILIO_ACCOUNT_SID: '',
+  TWILIO_AUTH_TOKEN: '',
+  TWILIO_MESSAGING_SERVICE_SID: '',
+  GOOGLE_SCRIPT_URL: '',
+  GOOGLE_SCRIPT_SECRET: '',
+  INTEL_ENABLED: 'false',
   NODE_ENV: 'development',
   UNSAFE_FORCE_DEV_VERIFY: 'true',
 };
@@ -48,7 +76,7 @@ async function waitForBackend() {
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline && backend.exitCode == null) {
     try {
-      const response = await fetch('http://127.0.0.1:3000/api/health');
+      const response = await fetch(`http://127.0.0.1:${apiPort}/api/health`);
       if (response.ok) return;
     } catch {
       // The PGlite-backed server is still starting.
@@ -60,12 +88,13 @@ async function waitForBackend() {
 
 try {
   await waitForBackend();
+  console.log(`[dev-mode] opening http://127.0.0.1:${uiPort}/?dev-mode=1`);
   start(
     process.execPath,
-    [path.join(root, 'node_modules/vite/bin/vite.js'), '--host', '127.0.0.1', '--open', '/?character-dev=1'],
-    process.env,
+    [path.join(root, 'node_modules/vite/bin/vite.js'), '--host', '127.0.0.1', '--port', String(uiPort), '--strictPort', '--open', '/?dev-mode=1&reset=1'],
+    { ...process.env, DEV_API_TARGET: `http://127.0.0.1:${apiPort}` },
   );
 } catch (error) {
-  console.error(`[character-dev] ${error.message}`);
+  console.error(`[dev-mode] ${error.message}`);
   stop(1);
 }

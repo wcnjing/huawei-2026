@@ -21,6 +21,7 @@ import { SAFETY_TIPS } from "./data/safetyTips";
 import { HALL_OF_FAME } from "./data/leaderboard";
 import { RED_FLAGS, LIVE_CALL_FLAGS, SMS_FLAGS, EMAIL_FLAGS, FLAG_MAP } from "./data/scamFlags";
 import { pickScenarios } from "./data/drillPool";
+import { loadDrillPreferences, saveDrillPreferences, setPreferenceUser, type DrillPreferences } from "./data/drillPreferences";
 import { DAILY_REWARD_AMOUNT, LEDGER_CAP } from "./data/economy";
 import { NOTIFICATIONS_CAP } from "./data/notifications";
 import { FURNITURE_STORE } from "./data/furniture";
@@ -79,6 +80,7 @@ import { useHouseDrill, type HouseDrill } from "./services/houseDrill";
 import { HouseChatScreen } from "./screens/chat";
 import { StartScreen } from "./screens/auth/StartScreen";
 import { RegisterScreen } from "./screens/auth/RegisterScreen";
+import { DrillPreferencesScreen } from "./screens/auth/DrillPreferencesScreen";
 import {
   TelegramDrillIntroScreen, RealisticPhoneDrillIntroScreen,
   RealisticSmsDrillIntroScreen, RealisticEmailDrillIntroScreen, TELEGRAM_BOT_URL,
@@ -100,6 +102,16 @@ import { SelfIdContext, useSelfId } from "./hooks/useSelfId";
 import { useHouseChat } from "./hooks/useHouseChat";
 
 const TUTORIAL_KEY = "safespace_tutorial_seen";
+const ONBOARDING_STAGE_KEY = "safespace_onboarding_stage";
+function onboardingStage(): string | null {
+  try { return localStorage.getItem(ONBOARDING_STAGE_KEY); } catch { return null; }
+}
+function setOnboardingStage(stage: "survey" | "character" | null) {
+  try {
+    if (stage) localStorage.setItem(ONBOARDING_STAGE_KEY, stage);
+    else localStorage.removeItem(ONBOARDING_STAGE_KEY);
+  } catch { /* private mode */ }
+}
 function hasSeenTutorial(): boolean {
   try { return localStorage.getItem(TUTORIAL_KEY) === "1"; } catch { return false; }
 }
@@ -363,7 +375,7 @@ function claimRealEventId(id: string): boolean {
 // ROOT
 // ─────────────────────────────────────────────────────────────────────────
 
-export default function App({ initialScreen = "title" }: { initialScreen?: Screen }) {
+export default function App({ initialScreen = "title", devMode = false }: { initialScreen?: Screen; devMode?: boolean }) {
   const { t, language } = useI18n();
   const [sessionEpoch, setSessionEpoch] = useState(0);
   const [screen, setScreen] = useState<Screen>(initialScreen);
@@ -391,6 +403,9 @@ export default function App({ initialScreen = "title" }: { initialScreen?: Scree
     // sign-in they can actually complete, rather than leaving them on a screen whose
     // every request now 401s.
     const onExpired = () => {
+      setPreferenceUser(null);
+      setOnboardingStage(null);
+      setDrillPreferences(loadDrillPreferences());
       setSessionEpoch(value => value + 1);
       setSignInMode("returning");
       setScreen("sign-in");
@@ -442,6 +457,10 @@ export default function App({ initialScreen = "title" }: { initialScreen?: Scree
     // holds it — and the next successful load reconciles normally.
     apiGet<any>("/api/me").then((data) => {
       if (!data) return;
+      if (typeof data.id === "string") {
+        setPreferenceUser(data.id);
+        setDrillPreferences(loadDrillPreferences());
+      }
       const serverName = data?.name ?? data?.user?.name ?? data?.profile?.name;
       if (typeof serverName === "string" && serverName.trim()) {
         const clean = serverName.trim();
@@ -493,6 +512,11 @@ export default function App({ initialScreen = "title" }: { initialScreen?: Scree
   };
 
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
+  const [drillPreferences, setDrillPreferences] = useState<DrillPreferences>(loadDrillPreferences);
+  const updateDrillPreferences = (next: DrillPreferences) => {
+    setDrillPreferences(next);
+    saveDrillPreferences(next);
+  };
   // Persist settings so the drill schedule (and every other toggle) survives a reload.
   const updateSettings = (patch: Partial<AppSettings>) =>
     setSettings((prev) => { const next = { ...prev, ...patch }; saveSettings(next); return next; });
@@ -748,9 +772,9 @@ export default function App({ initialScreen = "title" }: { initialScreen?: Scree
 
   const FULLSCREEN_ROUTES: Screen[] = ["customize", "family-chat", "payday"];
   // A house-drill invite never interrupts sign-in, a live call, or the drill screen itself.
-  const INVITE_SUPPRESSED_SCREENS: Screen[] = ["title", "start", "new-character", "sign-in", "register", "incoming", "call", "family-drill-intro"];
+  const INVITE_SUPPRESSED_SCREENS: Screen[] = ["title", "start", "new-character", "drill-preferences-onboarding", "sign-in", "register", "incoming", "call", "family-drill-intro"];
 
-  const SUB_PAGE_ROUTES: Screen[] = ["account-settings", "privacy-settings", "accessibility-settings", "about-settings", "profile-edit", "avatar-customisation", "family-drill-intro", "solo-drill-intro", "solo-drill-summary"];
+  const SUB_PAGE_ROUTES: Screen[] = ["account-settings", "privacy-settings", "accessibility-settings", "about-settings", "preferences", "profile-edit", "avatar-customisation", "family-drill-intro", "solo-drill-intro", "solo-drill-summary"];
 
   // --- Audio ---------------------------------------------------------------
   // No-ops until unlock() has run from a real click (PRESS START); browsers refuse to
@@ -780,7 +804,7 @@ export default function App({ initialScreen = "title" }: { initialScreen?: Scree
   const goFamilyDrill = () => setScreen("family-drill-intro");
   const goSoloDrill = () => setScreen("solo-drill-intro");
   const startSoloDrill = (count: number) => {
-    setSoloScenarios(pickScenarios(count));
+    setSoloScenarios(pickScenarios(count, Math.random, drillPreferences));
     setSoloIndex(0);
     setSoloAnswers([]);
     soloAnswersRef.current = [];
@@ -1215,8 +1239,14 @@ export default function App({ initialScreen = "title" }: { initialScreen?: Scree
 
   // Signing in is the point the app becomes "yours": adopt the verified name, load the
   // house, and land on Home (or the house, for an invited player).
-  const finishSignIn = async (name: string) => {
+  const finishSignIn = async (name: string, userId?: string, skipOnboarding = false) => {
     updateProfile({ name });
+    if (skipOnboarding) setOnboardingStage(null);
+    else if (signInMode === "new" && !onboardingStage()) setOnboardingStage("survey");
+    if (userId) {
+      setPreferenceUser(userId);
+      setDrillPreferences(loadDrillPreferences());
+    }
     // This may be a different account than the one that was last signed in here. Forget
     // the previous session's house so the removed-from-a-house watcher doesn't fire on
     // the switch, and drop any half-finished leave.
@@ -1229,9 +1259,16 @@ export default function App({ initialScreen = "title" }: { initialScreen?: Scree
     const signedInIdentity = sessionToken() ?? "signed-out";
     const state = await apiGet<HouseState>("/api/house");
     if (state) house.apply(state, signedInIdentity);
+    const account = await apiGet<{ avatar?: AvatarConfig }>("/api/me");
+    if (account?.avatar) updateProfile({ avatar: normalizeAvatarConfig(account.avatar) });
+    else if (signInMode === "new" && !skipOnboarding) updateProfile({ avatar: DEFAULT_PROFILE.avatar });
     const invite = peekPendingInvite();
+    if (onboardingStage()) {
+      setScreen(onboardingStage() === "character" ? "new-character" : "drill-preferences-onboarding");
+      return;
+    }
     goHome();
-    if (!hasSeenTutorial()) setTourOpen(true);
+    if (!skipOnboarding && !hasSeenTutorial()) setTourOpen(true);
     if (!invite) return;
     // One house per person: someone who already has one can never use this code, so spend
     // it here. Left alone it would re-route every later sign-in and pre-fill a dead code.
@@ -1239,13 +1276,26 @@ export default function App({ initialScreen = "title" }: { initialScreen?: Scree
     else setScreen("house");
   };
 
+  const finishNewPlayerOnboarding = () => {
+    setOnboardingStage(null);
+    goHome();
+    if (!hasSeenTutorial()) setTourOpen(true);
+    const invite = peekPendingInvite();
+    if (invite && !house.state.house) setScreen("house");
+    else if (invite) takePendingInvite();
+  };
+
   const openRegistration = (returnTo: Screen) => {
     setRegistrationReturn(returnTo);
     setScreen("register");
   };
 
-  const finishRegistration = (name: string) => {
+  const finishRegistration = (name: string, userId?: string) => {
     const canonical = name.trim();
+    if (userId) {
+      setPreferenceUser(userId);
+      setDrillPreferences(loadDrillPreferences());
+    }
     updateProfile({ name: canonical });
     saveContact({ ...loadContact(), name: canonical });
     // Verifying here signs in as that number's account, which may not be the one the
@@ -1333,8 +1383,12 @@ export default function App({ initialScreen = "title" }: { initialScreen?: Scree
                   // Signed in: straight to Home. The tour highlights real elements, so
                   // Home must be mounted first. Otherwise: pick new or returning player.
                   if (sessionToken()) {
-                    goHome();
-                    if (!hasSeenTutorial()) setTourOpen(true);
+                    const stage = onboardingStage();
+                    if (stage) setScreen(stage === "character" ? "new-character" : "drill-preferences-onboarding");
+                    else {
+                      goHome();
+                      if (!hasSeenTutorial()) setTourOpen(true);
+                    }
                   } else {
                     setScreen("start");
                   }
@@ -1343,31 +1397,35 @@ export default function App({ initialScreen = "title" }: { initialScreen?: Scree
             )}
             {screen === "start" && (
               <StartScreen
-                onNew={() => { setSignInMode("new"); setScreen("new-character"); }}
-                onReturning={() => { setSignInMode("returning"); setScreen("sign-in"); }}
+                onNew={() => { if (devMode) setOnboardingStage(null); setSignInMode("new"); setScreen("sign-in"); }}
+                onReturning={() => { if (devMode) setOnboardingStage(null); setSignInMode("returning"); setScreen("sign-in"); }}
               />
             )}
             {screen === "new-character" && (
               <AvatarCustomisationScreen
                 avatar={profile.avatar}
-                onChange={(avatar) => updateProfile({ avatar })}
-                onSave={(avatar) => updateProfile({ avatar })}
-                onBack={() => setScreen("start")}
-                onboarding={{
-                  name: profile.name === DEFAULT_PROFILE.name ? "" : profile.name,
-                  onName: (name) => updateProfile({ name }),
-                  onContinue: () => setScreen("sign-in"),
-                }}
+                onSave={persistAvatar}
+                onBack={finishNewPlayerOnboarding}
+                onboardingFinish
+              />
+            )}
+            {screen === "drill-preferences-onboarding" && (
+              <DrillPreferencesScreen
+                onboarding
+                preferences={drillPreferences}
+                onSave={(next) => { updateDrillPreferences(next); setOnboardingStage("character"); setScreen("new-character"); }}
               />
             )}
             {screen === "sign-in" && (
               <RegisterScreen
+                key={signInMode}
                 mode={signInMode}
+                devMode={devMode}
                 name={profile.name}
-                avatar={profile.avatar}
-                onNewPlayer={() => { setSignInMode("new"); setScreen("new-character"); }}
-                onBack={() => setScreen(signInMode === "new" ? "new-character" : "start")}
-                onDone={(name) => { void finishSignIn(name); }}
+                onNewPlayer={() => { setSignInMode("new"); setScreen("sign-in"); }}
+                onBack={() => setScreen("start")}
+                onDone={(name, userId) => { void finishSignIn(name, userId); }}
+                onDevSkip={(name, userId) => { void finishSignIn(name, userId, true); }}
               />
             )}
             {/* The drill opt-in entry points re-verify an already signed-in player, so no
@@ -1376,8 +1434,8 @@ export default function App({ initialScreen = "title" }: { initialScreen?: Scree
             {screen === "register" && (
               <RegisterScreen
                 mode="returning"
+                devMode={devMode}
                 name={profile.name}
-                avatar={profile.avatar}
                 onDone={finishRegistration}
                 onBack={() => setScreen(registrationReturn)}
               />
@@ -1441,6 +1499,7 @@ export default function App({ initialScreen = "title" }: { initialScreen?: Scree
               />
             )}
             {screen === "settings" && <SettingsScreen profile={profile} settings={settings} muted={muted} onToggleMute={toggleMute} onSettings={updateSettings} onNav={handleNav} />}
+            {screen === "preferences" && <DrillPreferencesScreen preferences={drillPreferences} onSave={(next) => { updateDrillPreferences(next); setScreen("settings"); }} onBack={() => setScreen("settings")} />}
 
             {screen === "account-settings" && <AccountSettingsScreen profile={profile} onBack={() => setScreen("settings")} />}
             {screen === "privacy-settings" && <PrivacySettingsScreen onBack={() => setScreen("settings")} />}
@@ -1586,7 +1645,7 @@ export default function App({ initialScreen = "title" }: { initialScreen?: Scree
                 onSetUpHouse={() => setScreen("house")}
               />
             )}
-            {screen === "solo-drill-intro" && <SoloDrillIntroScreen onStart={startSoloDrill} onBack={goDrillSelect} />}
+            {screen === "solo-drill-intro" && <SoloDrillIntroScreen preferences={drillPreferences} onStart={startSoloDrill} onBack={goDrillSelect} />}
             {screen === "solo-drill-round" && soloScenarios[soloIndex] && (
               <FamilyRoundScreen
                 scenario={soloScenarios[soloIndex]}
@@ -1615,6 +1674,7 @@ export default function App({ initialScreen = "title" }: { initialScreen?: Scree
 
             {screen === "drill-select" && (
               <DrillSelectScreen
+                preferredChannels={drillPreferences.channels}
                 onRealisticPhone={() => setScreen("realistic-phone-intro")}
                 onRealisticSms={() => setScreen("realistic-sms-intro")}
                 onTelegram={() => setScreen("telegram-intro")}

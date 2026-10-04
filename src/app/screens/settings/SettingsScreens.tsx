@@ -7,6 +7,7 @@ import { CharacterAvatar } from "../../components/avatars";
 import { PixelButton, PixelToggle, ToggleSwitchB } from "../../components/ui";
 import { SubPageHeader } from "../../components/layout";
 import { LANGUAGES, useI18n, useT, type Language } from "../../i18n";
+import { setPreferenceUser } from "../../data/drillPreferences";
 
 const TUTORIAL_KEY = "safespace_tutorial_seen";
 
@@ -68,6 +69,7 @@ export function SettingsScreen({ profile, settings, muted, onToggleMute, onSetti
 
         {[
           { key: "account-settings", label: t("ACCOUNT") },
+          { key: "preferences", label: t("PREFERENCES") },
           { key: "house", label: t("HOUSE") },
           { key: "privacy-settings", label: t("PRIVACY") },
           { key: "accessibility-settings", label: t("ACCESSIBILITY") },
@@ -101,6 +103,8 @@ export function SettingsScreen({ profile, settings, muted, onToggleMute, onSetti
                   localStorage.removeItem(PROFILE_KEY);
                   localStorage.removeItem(CONTACT_KEY);
                   localStorage.removeItem(TUTORIAL_KEY);
+                  localStorage.removeItem("safespace_onboarding_stage");
+                  setPreferenceUser(null);
                 } catch { /* private mode: nothing to clear */ }
                 location.reload();
               }} color="#ff2d55" textColor="#ffffff" size="sm" full>{t("CONFIRM SIGN OUT")}</PixelButton>

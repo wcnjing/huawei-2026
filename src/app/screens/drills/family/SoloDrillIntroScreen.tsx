@@ -2,12 +2,13 @@ import { useState } from "react";
 import { IconBulb, IconShield } from "../../../components/icons";
 import { PixelButton } from "../../../components/ui";
 import { SOLO_COUNT } from "../../../data/drillPool";
+import type { DrillPreferences } from "../../../data/drillPreferences";
 import { useT } from "../../../i18n";
 import { CountPicker } from "./CountPicker";
 
 const COUNTS = Array.from({ length: SOLO_COUNT.max - SOLO_COUNT.min + 1 }, (_, i) => SOLO_COUNT.min + i);
 
-export function SoloDrillIntroScreen({ onStart, onBack }: { onStart: (count: number) => void; onBack: () => void }) {
+export function SoloDrillIntroScreen({ onStart, onBack, preferences }: { onStart: (count: number) => void; onBack: () => void; preferences?: DrillPreferences }) {
   const t = useT();
   const [count, setCount] = useState<number>(SOLO_COUNT.default);
   return (
@@ -19,6 +20,11 @@ export function SoloDrillIntroScreen({ onStart, onBack }: { onStart: (count: num
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ffffff", marginBottom: 14, lineHeight: 1.7 }}>
           {t("Practise on your own. Each question is a message — decide what to do.")}
+        </div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ffe66d", marginBottom: 14, lineHeight: 1.5 }}>
+          {t(preferences && (preferences.interests.length || preferences.activities.length)
+            ? "Practice mix guided by your selected interests and activities."
+            : "Balanced practice mix across scam types.")}
         </div>
         <div style={{ backgroundColor: "#111827", border: "3px solid #4ecdc4", padding: "12px 14px", marginBottom: 16 }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#4ecdc4", marginBottom: 10 }}>{t("QUESTIONS PER ROUND")}</div>
