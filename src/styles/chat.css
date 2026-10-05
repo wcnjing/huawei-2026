@@ -58,6 +58,9 @@
 
 .house-chat__message { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
 .house-chat__message--own { flex-direction: row-reverse; }
+.house-chat__message--pixi .house-chat__avatar { background: #092332; border: 1px solid #00d4ff; }
+.house-chat__message--pixi .house-chat__bubble { border-color: #00d4ff; background: #0b1c2b; }
+.house-chat__message--pixi .house-chat__meta strong { color: #00d4ff; }
 .house-chat__avatar { display: grid; flex: 0 0 32px; width: 32px; height: 32px; place-items: center; color: #0a0e1a; background: #4ecdc4; }
 .house-chat__bubble { min-width: 0; max-width: min(78%, 34rem); padding: 8px 10px; border: 2px solid #344762; background: #111827; }
 .house-chat__message--own .house-chat__bubble { border-color: #00aa66; background: #10251d; }

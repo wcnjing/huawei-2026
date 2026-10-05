@@ -10,7 +10,7 @@ export type ChatMessage = {
   createdAt: string;
   clientKey: string;
   /** `drill_scammed` is an event line posted by the server, not something a player typed. */
-  type: "message" | "drill_scammed";
+  type: "message" | "drill_scammed" | "pixi_message";
 };
 
 export type PendingMessage = {

@@ -24,6 +24,31 @@ export function ResultScreen({ win, drillType, smsOutcome, emailOutcome, callOut
     ? (drillType === "call" ? 50 : drillType === "sms" ? 40 : 60)
     : (drillType === "call" ? -25 : drillType === "sms" ? -20 : -30);
   const displayedXp = xpOverride ?? xp;
+  const debrief = drillType === "call"
+    ? callOutcome === "hung_up"
+      ? { response: t("You ended the call before sharing information."), next: t("Keep the caller disengaged. If the story worries you, contact the organisation using a number from its official website or your card.") }
+      : callOutcome === "disengaged"
+        ? { response: t("You stopped engaging and chose an independent way to verify the caller."), next: t("Continue using contact details you find yourself. Never use a number or link supplied by the caller.") }
+        : callOutcome === "caught_flag"
+          ? { response: t("You noticed suspicious behaviour in the caller's request."), next: t("End the call without arguing, then verify the story through an official channel.") }
+          : callOutcome === "shared_data"
+            ? { response: t("Sensitive information or payment details were shared in the drill."), next: t("Stop communicating with the caller. Tell someone you trust and contact the relevant bank or organisation through its official channel.") }
+            : callOutcome === "complied"
+              ? { response: t("You followed an unsafe instruction from the caller."), next: t("Hang up. Do not send money or share codes. Verify independently with the organisation or someone you trust.") }
+              : { response: feedback, next: t("Pause, end suspicious calls, and verify the story using contact details you find independently.") }
+    : drillType === "email"
+      ? emailOutcome === "reported"
+        ? { response: t("You recognised the suspicious email and reported it."), next: t("Do not reply or open its attachment. Check unexpected rewards with your school through its official website.") }
+        : emailOutcome === "asked-family"
+          ? { response: t("You paused and checked with someone you trust."), next: t("Keep the message unopened while you verify it through a known school contact or official portal.") }
+          : emailOutcome === "cancelled-download"
+            ? { response: t("You stopped the suspicious download before opening the file."), next: t("Delete the unexpected attachment and verify the offer through the school's official website.") }
+            : emailOutcome === "opened-attachment"
+              ? { response: t("You opened an unexpected ZIP attachment."), next: t("Do not open files inside it or enter details. Close it, tell someone you trust, and follow your device or school support guidance.") }
+              : emailOutcome === "submitted-details"
+                ? { response: t("You entered details on a page reached from the email."), next: t("Close the page and tell someone you trust. If you used a real password, change it through the official site and contact the relevant organisation.") }
+                : { response: feedback, next: t("Check the sender and verify unexpected offers through an official channel before clicking links or opening files.") }
+      : null;
 
   return (
     <div style={{ position: "relative", height: "100%", overflowY: "auto", scrollbarWidth: "none" }}>
@@ -86,6 +111,15 @@ export function ResultScreen({ win, drillType, smsOutcome, emailOutcome, callOut
                 {feedback}
               </div>
             </PixelPanel>
+          </div>
+        )}
+        {showDetails && debrief && (
+          <div style={{ width: "100%", backgroundColor: "#111827", border: "3px solid #4ecdc4", boxShadow: "3px 3px 0 #4ecdc4", padding: "12px 14px" }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#4ecdc4", letterSpacing: 1, marginBottom: 10 }}>{t("=== YOUR DEBRIEF ===")}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ffe66d", marginBottom: 4 }}>{t("WHAT YOUR CHOICE DID")}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.6, marginBottom: 10 }}>{debrief.response}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#00ff88", marginBottom: 4 }}>{t("SAFER NEXT STEP")}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.6 }}>{debrief.next}</div>
           </div>
         )}
         {showDetails && <ScamReasonSection flags={flags} />}

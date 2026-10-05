@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import { normalizeDraft, type useHouseChat } from "../../hooks/useHouseChat";
 import type { Avatar } from "../../services/house";
 import { useI18n } from "../../i18n";
+import { PixiAvatar } from "../../components/avatars";
 
 type HouseChat = ReturnType<typeof useHouseChat>;
 
@@ -266,9 +267,11 @@ export function HouseChatScreen({
           return (
             <div key={row.key} className="house-chat__entry" data-chat-row-key={row.key}>
               {showDay && <div className="house-chat__day">{dayFormatter.format(new Date(row.createdAt))}</div>}
-              <article className={`house-chat__message${own ? " house-chat__message--own" : ""}`}>
+              <article className={`house-chat__message${own ? " house-chat__message--own" : ""}${row.kind === "message" && row.type === "pixi_message" ? " house-chat__message--pixi" : ""}`}>
                 <div className="house-chat__avatar" aria-hidden="true">
-                  {row.senderAvatar ? renderAvatar(row.senderAvatar) : <span>{selfName.slice(0, 1).toUpperCase()}</span>}
+                  {row.kind === "message" && row.type === "pixi_message"
+                    ? <PixiAvatar size={28} />
+                    : row.senderAvatar ? renderAvatar(row.senderAvatar) : <span>{selfName.slice(0, 1).toUpperCase()}</span>}
                 </div>
                 <div className="house-chat__bubble">
                   <div className="house-chat__meta">

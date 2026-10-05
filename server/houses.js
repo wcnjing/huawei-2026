@@ -17,7 +17,7 @@ import {
   FAMILY_LIMITS, applyFamilyEdit, cleanFamilyEdit, cleanFamilyTree, familyEditIds, familyLinkFor,
   familyProblem, familyTreeFromLinks, replaceFamilyLink,
 } from './family-rules.js';
-import { announceDrillScammed } from './drill-announce.js';
+import { announcePixiDrillOutcome } from './drill-announce.js';
 import {
   addXp,
   lockRateLimits,
@@ -406,9 +406,11 @@ export async function recordHouseRun(userId, { clientKey, correct, cautious, wro
     if (!user) throw new Error(`unknown user ${userId}`);
     return recordRunLocked(tx, user, key, { correct, cautious, wrong }, now);
   }, 'recordHouseRun');
-  // A house run has no pass/fail, so getting any round wrong counts as getting caught out.
-  if (outcome.status === 'completed' && outcome.run.wrong > 0) {
-    await announceDrillScammed(userId, `run:${outcome.run.id}`);
+  if (outcome.status === 'completed') {
+    await announcePixiDrillOutcome(userId, `run:${outcome.run.id}`, {
+      channel: 'house',
+      won: outcome.run.wrong === 0,
+    });
   }
   return outcome;
 }

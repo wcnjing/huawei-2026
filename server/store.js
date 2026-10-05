@@ -11,7 +11,7 @@ import { query, transaction } from './db.js';
 import { cleanAvatar } from './avatar.js';
 import { cleanHomeInventory } from './home-inventory.js';
 import { cleanRoomStyle } from './room-style.js';
-import { announceDrillScammed } from './drill-announce.js';
+import { announcePixiDrillOutcome } from './drill-announce.js';
 // houses.js imports this module's locking helpers in turn. Neither module calls the
 // other while it is being evaluated, so the cycle resolves before any call happens.
 import { lockHousesOf, releaseFromHouse } from './houses.js';
@@ -208,11 +208,14 @@ async function readResult(tx, id) {
   return resultFromRow(rows[0]);
 }
 
-/** After a scored result commits, tell the house only if the player got scammed (LOST).
- * Wins, distress off-ramps (SAFE) and unscored results are not announced. */
+/** After a scored result commits, let Pixi celebrate a win or guide the house after a
+ * loss. Distress off-ramps (SAFE) and unscored results are not announced. */
 async function announceScored(record) {
-  if (record?.result !== 'LOST') return;
-  await announceDrillScammed(record.userId, `drill:${record.id}`);
+  if (!['WON', 'LOST'].includes(record?.result)) return;
+  await announcePixiDrillOutcome(record.userId, `drill:${record.id}`, {
+    channel: record.channel,
+    won: record.result === 'WON',
+  });
 }
 
 // Every real (non-practice) result stays pending until the client explicitly ACKs it,
