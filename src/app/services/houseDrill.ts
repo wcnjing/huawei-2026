@@ -21,6 +21,8 @@ export type HouseDrill = {
   createdAt: string; updatedAt: string; inviteExpiresAt: string;
   startedAt: string | null; finishedAt: string | null;
   players: DrillPlayer[]; turns: DrillTurn[]; currentTurn: number;
+  /** The current turn was answered; the game waits until everyone in `ready` continues. */
+  revealing: boolean; ready: string[];
   answers: DrillAnswer[]; xp: Record<string, number> | null;
 };
 type DrillResponse = { drill: HouseDrill | null };
@@ -37,6 +39,9 @@ export const startHouseDrill = (id: string, scenarioIds: number[]) =>
   apiPost<DrillResponse>(drillPath(id, "start"), { scenarioIds });
 export const answerHouseDrill = (id: string, answer: { turn: number; action: string; outcome: FamilyOutcome; foundClues: number }) =>
   apiPost<DrillResponse>(drillPath(id, "answer"), answer);
+/** Ready for the next turn. The host's `force` moves on without waiting for everyone. */
+export const continueHouseDrill = (id: string, turn: number, force = false) =>
+  apiPost<DrillResponse>(drillPath(id, "continue"), { turn, force });
 export const skipHouseDrillTurn = (id: string, turn: number) =>
   apiPost<DrillResponse>(drillPath(id, "skip"), { turn });
 export const leaveHouseDrill = (id: string) =>

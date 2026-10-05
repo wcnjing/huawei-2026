@@ -34,6 +34,14 @@ const view = async (userId, opts) => (await drills.getHouseDrill(userId, opts)).
 const ids = (n, from = 1) => Array.from({ length: n }, (_, i) => from + i);
 const answer = (userId, drillId, turn, outcome = 'correct') =>
   drills.answerHouseDrill(userId, drillId, { turn, action: 'REPORT AS SCAM', outcome, foundClues: 1 });
+const continueAll = async (players, drillId, turn) => {
+  for (const p of players) await drills.continueHouseDrill(p.id, drillId, turn);
+};
+/** Answer a turn, then have every listed player tap Continue so the game moves on. */
+const play = async (players, userId, drillId, turn, outcome) => {
+  await answer(userId, drillId, turn, outcome);
+  await continueAll(players, drillId, turn);
+};
 
 test('solo players cannot open a house drill and see none', async () => {
   await resetDb();
@@ -107,10 +115,11 @@ test('only the current player may answer; retries are harmless; the last answer 
   await answer(host.id, drillId, 0);
   const retry = await answer(host.id, drillId, 0);
   assert.deepEqual(retry.ring, [], 'a repeated answer changes nothing');
-  await answer(a.id, drillId, 1, 'wrong');
-  await answer(host.id, drillId, 2, 'cautious');
+  await continueAll([host, a], drillId, 0);
+  await play([host, a], a.id, drillId, 1, 'wrong');
+  await play([host, a], host.id, drillId, 2, 'cautious');
   const before = await getUser(a.id);
-  await answer(a.id, drillId, 3);
+  await play([host, a], a.id, drillId, 3);
   const d = await view(host.id);
   assert.equal(d.status, 'finished');
   assert.equal(d.answers.length, 4);
@@ -129,7 +138,7 @@ test('the host can skip an absent player, and a player who leaves loses their tu
   await drills.respondToHouseDrill(a.id, drillId, true);
   await drills.respondToHouseDrill(b.id, drillId, true);
   await drills.startHouseDrill(host.id, drillId, ids(6));
-  await answer(host.id, drillId, 0);
+  await play([host, a, b], host.id, drillId, 0);
   await rejectsWith(() => drills.skipHouseDrillTurn(a.id, drillId, 1), 'NOT_DRILL_HOST');
   await drills.skipHouseDrillTurn(host.id, drillId, 1);
   let d = await view(b.id);
@@ -138,11 +147,67 @@ test('the host can skip an absent player, and a player who leaves loses their tu
   await drills.leaveHouseDrill(b.id, drillId);
   d = await view(host.id);
   assert.equal(d.currentTurn, 3, "b's turn 2 was skipped when they left");
-  await answer(host.id, drillId, 3);
-  await answer(a.id, drillId, 4);
+  await play([host, a], host.id, drillId, 3);
+  await play([host, a], a.id, drillId, 4);
   d = await view(host.id);
   assert.equal(d.status, 'finished', "b's last turn is skipped too, ending the game");
   assert.deepEqual(d.answers.map((x) => x.skipped), [false, true, true, false, false, true]);
+});
+
+test('after an answer everyone must tap Continue before the next turn starts', async () => {
+  await resetDb();
+  const [host, a, b] = await houseWith(3);
+  const { drillId } = await drills.createHouseDrill(host.id, { perPlayer: 2 });
+  await drills.respondToHouseDrill(a.id, drillId, true);
+  await drills.respondToHouseDrill(b.id, drillId, true);
+  await drills.startHouseDrill(host.id, drillId, ids(6));
+  assert.deepEqual((await drills.continueHouseDrill(host.id, drillId, 0)).ring, [],
+    'continue before any answer changes nothing');
+
+  await answer(host.id, drillId, 0);
+  let d = await view(a.id);
+  assert.equal(d.currentTurn, 0, 'the game waits on the answered turn');
+  assert.equal(d.revealing, true);
+  assert.deepEqual(d.ready, []);
+  await rejectsWith(() => answer(a.id, drillId, 1), 'NOT_YOUR_TURN');
+  await rejectsWith(() => answer(a.id, drillId, 0), 'NOT_YOUR_TURN');
+  assert.deepEqual((await drills.skipHouseDrillTurn(host.id, drillId, 0)).ring, [],
+    'an answered turn cannot be skipped');
+
+  await drills.continueHouseDrill(host.id, drillId, 0);
+  await drills.continueHouseDrill(a.id, drillId, 0);
+  assert.deepEqual((await drills.continueHouseDrill(a.id, drillId, 0)).ring, [], 'tapping twice is harmless');
+  d = await view(b.id);
+  assert.equal(d.currentTurn, 0, 'still waiting for b');
+  assert.deepEqual(d.ready.sort(), [host.id, a.id].sort());
+
+  await drills.continueHouseDrill(b.id, drillId, 0);
+  d = await view(host.id);
+  assert.equal(d.currentTurn, 1);
+  assert.equal(d.revealing, false);
+  assert.deepEqual(d.ready, []);
+  assert.deepEqual((await drills.continueHouseDrill(b.id, drillId, 0)).ring, [], 'a late tap for an old turn is ignored');
+
+  // The host can move on without someone who wandered off.
+  await answer(a.id, drillId, 1);
+  await rejectsWith(() => drills.continueHouseDrill(a.id, drillId, 1, { force: true }), 'NOT_DRILL_HOST');
+  await drills.continueHouseDrill(host.id, drillId, 1, { force: true });
+  assert.equal((await view(a.id)).currentTurn, 2);
+
+  // Someone leaving while the others are ready lets the game move on.
+  await answer(b.id, drillId, 2);
+  await continueAll([host, a], drillId, 2);
+  await drills.leaveHouseDrill(b.id, drillId);
+  d = await view(host.id);
+  assert.equal(d.currentTurn, 3);
+  assert.equal(d.answers[2].skipped, false, "b's answer still counts after they leave");
+
+  // The last answer also waits for Continue before the game finishes.
+  await play([host, a], host.id, drillId, 3);
+  await answer(a.id, drillId, 4);
+  assert.equal((await view(host.id)).status, 'playing');
+  await continueAll([host, a], drillId, 4);
+  assert.equal((await view(host.id)).status, 'finished', "b's last turn is skipped, ending the game");
 });
 
 test('the host leaving cancels a lobby and ends a game in play', async () => {

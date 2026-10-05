@@ -25,7 +25,7 @@ export function HouseDrillInvite({ drill, selfId, suppressed, onApply, onOpen }:
 
   const me = drill?.players.find((p) => p.id === selfId);
   const hostName = drill?.players.find((p) => p.id === drill.hostId)?.name ?? t("A HOUSEMATE");
-  const myTurn = drill?.status === "playing" && drill.turns[drill.currentTurn]?.playerId === selfId;
+  const myTurn = drill?.status === "playing" && !drill.revealing && drill.turns[drill.currentTurn]?.playerId === selfId;
   const inviteOpen = drill?.status === "lobby" && me?.status === "invited"
     && new Date(drill.inviteExpiresAt).getTime() > now;
   const playingPrompt = drill?.status === "playing" && me?.status === "accepted";

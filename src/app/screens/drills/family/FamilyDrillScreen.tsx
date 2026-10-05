@@ -8,8 +8,8 @@ import { pickScenarios, scenarioById } from "../../../data/drillPool";
 import { FAMILY_COINS } from "../../../data/familyData";
 import { useT } from "../../../i18n";
 import {
-  DEFAULT_PER_PLAYER, PER_PLAYER_OPTIONS, answerHouseDrill, leaveHouseDrill, openHouseDrill,
-  respondToHouseDrill, skipHouseDrillTurn, startHouseDrill,
+  DEFAULT_PER_PLAYER, PER_PLAYER_OPTIONS, answerHouseDrill, continueHouseDrill, leaveHouseDrill,
+  openHouseDrill, respondToHouseDrill, skipHouseDrillTurn, startHouseDrill,
   type DrillPlayer, type HouseDrill,
 } from "../../../services/houseDrill";
 import type { ApiResult } from "../../../services/api";
@@ -69,6 +69,8 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
   const [dismissedId, setDismissedId] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState<number | null>(null);
   const [send, setSend] = useState<Send | null>(null);
+  // The turn this phone tapped Continue on, so it reads as ready before the server answers.
+  const [readyTurn, setReadyTurn] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
@@ -95,10 +97,10 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
   }, [shown, onFinished]);
 
   // A new game (or a game that ended without us) drops any leftover local turn state.
-  useEffect(() => { setReviewing(null); setSend(null); setConfirmLeave(false); }, [shown?.id]);
+  useEffect(() => { setReviewing(null); setSend(null); setReadyTurn(null); setConfirmLeave(false); }, [shown?.id]);
 
   const run = async (request: () => Promise<ApiResult<{ drill: HouseDrill | null }>>) => {
-    if (busy) return;
+    if (busy) return false;
     setBusy(true);
     setError(null);
     const result = await request();
@@ -108,6 +110,15 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
       setError(result.data?.error ?? "Could not reach the server.");
       onRefresh();
     }
+    return result.ok;
+  };
+
+  /** Mark this player ready for the next turn; the host's `force` moves everyone on. */
+  const tapContinue = async (turn: number, force = false) => {
+    if (!shown) return;
+    if (!force) setReadyTurn(turn);
+    const ok = await run(() => continueHouseDrill(shown.id, turn, force));
+    if (!ok && !force) setReadyTurn(null);
   };
 
   const postAnswer = async (answer: Omit<Send, "state">) => {
@@ -154,7 +165,7 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
   }
 
   // ── My turn (or reviewing the answer I just gave) ───────────────────────────
-  const turnToShow = reviewing ?? (shown?.status === "playing" && shown.turns[shown.currentTurn]?.playerId === selfId && me?.status === "accepted" ? shown.currentTurn : null);
+  const turnToShow = reviewing ?? (shown?.status === "playing" && !shown.revealing && shown.turns[shown.currentTurn]?.playerId === selfId && me?.status === "accepted" ? shown.currentTurn : null);
   if (shown && turnToShow !== null && shown.turns[turnToShow]) {
     const scenario = scenarioById(shown.turns[turnToShow].scenarioId);
     if (scenario) {
@@ -179,6 +190,7 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
             if (send?.state === "failed") { void postAnswer(send); return; }
             if (send?.state === "sending") return;
             setReviewing(null);
+            void tapContinue(turnToShow);
           }}
         />
       );
@@ -211,6 +223,101 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
         onSwitchMode={onIndividual}
         onHome={onExit}
       />
+    );
+  }
+
+  const leaveButton = shown && (
+    <PixelButton onClick={() => setConfirmLeave(true)} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>
+      {isHost ? t("[ END DRILL FOR EVERYONE ]") : t("[ LEAVE DRILL ]")}
+    </PixelButton>
+  );
+  const leaveDialog = shown && confirmLeave && (
+    <div role="dialog" aria-modal="true" style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.85)", zIndex: 80, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div style={{ backgroundColor: "#111827", border: "4px solid #ff6b35", width: "100%", padding: 16 }}>
+        <Body>{isHost ? t("End the drill for everyone? Answers so far still count.") : t("Leave the drill? Your remaining turns will be skipped.")}</Body>
+        <div className="flex gap-3" style={{ marginTop: 14 }}>
+          <div style={{ flex: 1 }}><PixelButton onClick={() => { setConfirmLeave(false); void run(() => leaveHouseDrill(shown.id)); }} color="#ff6b35" size="sm" full>{isHost ? t("END") : t("LEAVE")}</PixelButton></div>
+          <div style={{ flex: 1 }}><PixelButton onClick={() => setConfirmLeave(false)} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>{t("STAY")}</PixelButton></div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── Playing: an answer is on screen, waiting for everyone to continue ───────
+  if (shown?.status === "playing" && me?.status === "accepted" && shown.revealing) {
+    const turn = shown.currentTurn;
+    const current = shown.turns[turn];
+    const answer = shown.answers.find((a) => a.turn === turn && !a.skipped && a.outcome);
+    const scenario = current ? scenarioById(current.scenarioId) : null;
+    const byMe = current?.playerId === selfId;
+    const playing = shown.players.filter((p) => p.status === "accepted");
+    const isReady = (id: string) => shown.ready.includes(id) || (id === selfId && readyTurn === turn);
+    const waitingFor = playing.filter((p) => !isReady(p.id));
+    const amReady = isReady(selfId);
+    const [label, color] = answer?.outcome ? OUTCOME_LABEL[answer.outcome] : ["SKIPPED", "#6b8ba4"];
+    const progress = Math.round(((turn + 1) / Math.max(shown.turns.length, 1)) * 100);
+    return (
+      <div className="flex flex-col h-full" style={{ position: "relative" }}>
+        <Header title={t("HOUSE DRILL")} right={t("QUESTION {current}/{total}", { current: turn + 1, total: shown.turns.length })} />
+        <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
+          <div style={{ height: 8, backgroundColor: "#0a0e1a", border: "2px solid #2a3a5c", marginBottom: 18 }}>
+            <div style={{ height: "100%", width: `${progress}%`, backgroundColor: "#00ff88" }} />
+          </div>
+          <Panel color={color}>
+            <Caption color="#9bb0c8">{byMe ? t("YOU ANSWERED") : t("{name} ANSWERED", { name: nameOf(current?.playerId).toUpperCase() })}</Caption>
+            <div aria-live="polite" style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "var(--text-body)", color, lineHeight: 1.6, marginBottom: 8 }}>{t(label)}</div>
+            {answer?.action && <Body>{t("CHOSE:")} <span style={{ color }}>{t(answer.action)}</span></Body>}
+            {scenario && answer?.outcome !== "correct" && (
+              <Body color="#9bb0c8">{t("CORRECT:")} <span style={{ color: "#00ff88" }}>{t(scenario.correctAction)}</span></Body>
+            )}
+          </Panel>
+          {scenario && (
+            <>
+              <Panel>
+                <Caption>{t("THE MESSAGE")}</Caption>
+                <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: "#9bb0c8", marginBottom: 4 }}>{t(scenario.sender)}</div>
+                <Body>{t(scenario.message)}</Body>
+              </Panel>
+              <Panel color="#4ecdc4">
+                <Caption color="#ffe66d">{t("WHY?")}</Caption>
+                <Body>{t(scenario.explanation)}</Body>
+              </Panel>
+            </>
+          )}
+          <Panel>
+            <Caption>{t("WHO'S READY")}</Caption>
+            {playing.map((p) => {
+              const member = memberMap[p.id];
+              const ready = isReady(p.id);
+              return (
+                <div key={p.id} className="flex items-center gap-3" style={{ padding: "6px 0", borderTop: "1px solid #1a2340" }}>
+                  {member ? <MemberChar member={member} size={32} /> : <PixelMascot size={32} />}
+                  <div style={{ flex: 1, fontFamily: MONO, fontSize: "var(--text-body)", color: p.id === selfId ? "#00ff88" : "#e8f4f8" }}>{p.name.toUpperCase()}</div>
+                  <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: ready ? "#00ff88" : "#ffe66d" }}>{ready ? `✓ ${t("READY")}` : t("WAITING…")}</div>
+                </div>
+              );
+            })}
+          </Panel>
+          {errorLine}
+          <div className="flex flex-col gap-3">
+            {amReady ? (
+              <Body color="#ffe66d" center>{t("Waiting for {names}…", { names: waitingFor.map((p) => p.name.toUpperCase()).join(", ") })}</Body>
+            ) : (
+              <>
+                <Body color="#9bb0c8" center>{t("Talk it over together, then tap Continue.")}</Body>
+                <PixelButton onClick={() => void tapContinue(turn)} disabled={busy} color="#00ff88" textColor="#0a0e1a" size="lg" full>{t("[ CONTINUE ]")}</PixelButton>
+              </>
+            )}
+            {isHost && waitingFor.some((p) => p.id !== selfId) && (
+              <PixelButton onClick={() => void tapContinue(turn, true)} disabled={busy} color="#ffe66d" textColor="#0a0e1a" size="sm" full>
+                {t("[ MOVE ON WITHOUT THEM ]")}
+              </PixelButton>
+            )}
+            {leaveButton}
+          </div>
+        </div>
+        {leaveDialog}
+      </div>
     );
   }
 
@@ -265,22 +372,10 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
                 {t("[ SKIP {name}'S TURN ]", { name: currentName.toUpperCase() })}
               </PixelButton>
             )}
-            <PixelButton onClick={() => setConfirmLeave(true)} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>
-              {isHost ? t("[ END DRILL FOR EVERYONE ]") : t("[ LEAVE DRILL ]")}
-            </PixelButton>
+            {leaveButton}
           </div>
         </div>
-        {confirmLeave && (
-          <div role="dialog" aria-modal="true" style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.85)", zIndex: 80, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-            <div style={{ backgroundColor: "#111827", border: "4px solid #ff6b35", width: "100%", padding: 16 }}>
-              <Body>{isHost ? t("End the drill for everyone? Answers so far still count.") : t("Leave the drill? Your remaining turns will be skipped.")}</Body>
-              <div className="flex gap-3" style={{ marginTop: 14 }}>
-                <div style={{ flex: 1 }}><PixelButton onClick={() => { setConfirmLeave(false); void run(() => leaveHouseDrill(shown.id)); }} color="#ff6b35" size="sm" full>{isHost ? t("END") : t("LEAVE")}</PixelButton></div>
-                <div style={{ flex: 1 }}><PixelButton onClick={() => setConfirmLeave(false)} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>{t("STAY")}</PixelButton></div>
-              </div>
-            </div>
-          </div>
-        )}
+        {leaveDialog}
       </div>
     );
   }
@@ -403,6 +498,7 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
             "Everyone in your house gets an invite on their phone.",
             "Players take turns — your question appears on your screen.",
             "While others play, you'll see whose turn it is.",
+            "After each answer, everyone sees it and taps Continue to move on together.",
             "Start whenever you're ready; only those who join will play.",
           ].map((line) => (
             <div key={line} className="flex items-start gap-2 mb-2">

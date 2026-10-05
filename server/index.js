@@ -83,6 +83,7 @@ import {
 } from './houses.js';
 import {
   answerHouseDrill,
+  continueHouseDrill,
   createHouseDrill,
   getHouseDrill,
   leaveHouseDrill,
@@ -703,6 +704,8 @@ api.post('/api/house/drill/:drillId/answer', drillRoute((userId, req) =>
   answerHouseDrill(userId, req.params.drillId, req.body)));
 api.post('/api/house/drill/:drillId/skip', drillRoute((userId, req) =>
   skipHouseDrillTurn(userId, req.params.drillId, req.body?.turn)));
+api.post('/api/house/drill/:drillId/continue', drillRoute((userId, req) =>
+  continueHouseDrill(userId, req.params.drillId, req.body?.turn, { force: req.body?.force === true })));
 api.post('/api/house/drill/:drillId/leave', drillRoute((userId, req) =>
   leaveHouseDrill(userId, req.params.drillId)));
 

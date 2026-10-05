@@ -197,8 +197,16 @@ test('a house drill runs over HTTP: invite, accept, take turns, finish', async (
   const early = await answer(guest, 0);
   assert.equal(early.status, 409);
   assert.equal((await early.json()).code, 'NOT_YOUR_TURN');
-  for (const [who, turn] of [[host, 0], [guest, 1], [host, 2]]) assert.equal((await answer(who, turn)).status, 200);
-  const last = await (await answer(guest, 3)).json();
+  const next = (who, turn, body = {}) => post(path('continue'), { turn, ...body }, who.auth);
+  for (const [who, turn] of [[host, 0], [guest, 1], [host, 2]]) {
+    assert.equal((await answer(who, turn)).status, 200);
+    const waiting = await (await next(host, turn)).json();
+    assert.equal(waiting.drill.currentTurn, turn, 'the game waits for everyone to continue');
+    assert.equal((await next(guest, turn)).status, 200);
+  }
+  assert.equal((await answer(guest, 3)).status, 200);
+  assert.equal((await next(guest, 3, { force: true })).status, 403, 'only the host can move on for everyone');
+  const last = await (await next(host, 3, { force: true })).json();
   assert.equal(last.drill.status, 'finished');
   assert.deepEqual(last.drill.xp, { [host.user.id]: 200, [guest.user.id]: 200 });
 });

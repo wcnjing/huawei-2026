@@ -2,8 +2,10 @@
 //
 // The host opens a lobby, which invites everyone else in the house. The host starts
 // whenever they like; only players who accepted take part. Turns rotate through the
-// players (A, B, C, A, B, C…) until each has had `perPlayer` turns. Phones learn about
-// changes from the house doorbell and poll as a fallback.
+// players (A, B, C, A, B, C…) until each has had `perPlayer` turns. After each answer the
+// game pauses on a shared reveal until every player taps Continue (or the host moves on),
+// so the whole house goes at the same pace. Phones learn about changes from the house
+// doorbell and poll as a fallback.
 //
 // Scenario content lives in the client, so the server stores only scenario ids and the
 // outcome the answering phone reports — the same trust model as POST /api/drills/house-run.
@@ -62,6 +64,8 @@ export function drillView(row, now = new Date()) {
     })),
     turns: state.turns,
     currentTurn: state.currentTurn,
+    revealing: state.revealing === true,
+    ready: state.ready ?? [],
     answers: state.answers,
     xp: state.xp ?? null,
   };
@@ -201,6 +205,8 @@ function skippedAnswer(state, turn) {
 
 /** Move past the current turn, skipping anyone who left. Returns true when the game is over. */
 function advance(state) {
+  state.revealing = false;
+  state.ready = [];
   state.currentTurn += 1;
   while (state.currentTurn < state.turns.length) {
     const player = playerOf(state, state.turns[state.currentTurn].playerId);
@@ -250,7 +256,7 @@ export async function answerHouseDrill(userId, drillId, body, { now = new Date()
       return { unchanged: true };
     }
     const turn = state.turns[state.currentTurn];
-    if (body.turn !== state.currentTurn || !turn || turn.playerId !== user.id) {
+    if (state.revealing || body.turn !== state.currentTurn || !turn || turn.playerId !== user.id) {
       throw new HouseError('NOT_YOUR_TURN');
     }
     state.answers.push({
@@ -262,6 +268,36 @@ export async function answerHouseDrill(userId, drillId, body, { now = new Date()
       foundClues: body.foundClues,
       skipped: false,
     });
+    // Hold here until everyone has seen the answer and tapped Continue.
+    state.revealing = true;
+    state.ready = [];
+    return { status: 'playing' };
+  });
+}
+
+function everyoneReady(state) {
+  return state.players
+    .filter((p) => p.status === 'accepted')
+    .every((p) => state.ready.includes(p.id));
+}
+
+/**
+ * A player has seen the current answer and is ready to move on. When every remaining
+ * player is ready the next turn starts. The host may `force` it for players who wandered off.
+ * A stale or repeated request (the game already moved on) changes nothing.
+ */
+export async function continueHouseDrill(userId, drillId, turn, { force = false, now = new Date() } = {}) {
+  return changeDrill(userId, drillId, now, 'continueHouseDrill', async ({ tx, row, state, user, isHost }) => {
+    if (row.status !== 'playing') throw new HouseError('DRILL_NOT_STARTED');
+    const player = playerOf(state, user.id);
+    if (!player || player.status !== 'accepted') throw new HouseError('NOT_INVITED');
+    if (force && !isHost) throw new HouseError('NOT_DRILL_HOST');
+    if (!state.revealing || turn !== state.currentTurn) return { unchanged: true };
+    if (!force) {
+      if (state.ready.includes(user.id)) return { unchanged: true };
+      state.ready.push(user.id);
+      if (!everyoneReady(state)) return { status: 'playing' };
+    }
     return advance(state) ? finish(tx, row, state, now) : { status: 'playing' };
   });
 }
@@ -271,7 +307,8 @@ export async function skipHouseDrillTurn(userId, drillId, turn, { now = new Date
   return changeDrill(userId, drillId, now, 'skipHouseDrillTurn', async ({ tx, row, state, isHost }) => {
     if (!isHost) throw new HouseError('NOT_DRILL_HOST');
     if (row.status !== 'playing') throw new HouseError('DRILL_NOT_STARTED');
-    if (turn !== state.currentTurn) return { unchanged: true };
+    // An answered turn is moved on with continueHouseDrill's `force` instead.
+    if (turn !== state.currentTurn || state.revealing) return { unchanged: true };
     state.answers.push(skippedAnswer(state, state.currentTurn));
     return advance(state) ? finish(tx, row, state, now) : { status: 'playing' };
   });
@@ -294,12 +331,18 @@ export async function leaveHouseDrill(userId, drillId, { now = new Date() } = {}
     if (isHost) return finish(tx, row, state, now);
     if (player.status !== 'accepted') return { unchanged: true };
     player.status = 'left';
+    if (!state.players.some((p) => p.status === 'accepted')) return finish(tx, row, state, now);
+    if (state.revealing) {
+      // Their answer (if this was their turn) stands; stop waiting for them.
+      state.ready = state.ready.filter((id) => id !== user.id);
+      if (everyoneReady(state) && advance(state)) return finish(tx, row, state, now);
+      return { status: 'playing' };
+    }
     const current = state.turns[state.currentTurn];
     if (current?.playerId === user.id) {
       state.answers.push(skippedAnswer(state, state.currentTurn));
       if (advance(state)) return finish(tx, row, state, now);
     }
-    if (!state.players.some((p) => p.status === 'accepted')) return finish(tx, row, state, now);
     return { status: 'playing' };
   });
 }

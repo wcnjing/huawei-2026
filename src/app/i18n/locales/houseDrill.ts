@@ -129,6 +129,25 @@ const rows: Row[] = [
   ["LEAVE", "退出", "KELUAR", "வெளியேறு"],
   ["STAY", "留下", "KEKAL", "இரு"],
 
+  // House drill: everyone continues together after each answer
+  ["After each answer, everyone sees it and taps Continue to move on together.",
+    "每题答完后，大家都会看到答案，再一起点“继续”进入下一题。",
+    "Selepas setiap jawapan, semua orang melihatnya dan tekan Teruskan untuk bergerak bersama.",
+    "ஒவ்வொரு பதிலுக்குப் பிறகும் அனைவரும் அதைப் பார்த்து, ஒன்றாக முன்னேற ‘தொடர்’ என்பதைத் தட்டுவார்கள்."],
+  ["YOU ANSWERED", "你的作答", "JAWAPAN ANDA", "உங்கள் பதில்"],
+  ["{name} ANSWERED", "{name}的作答", "JAWAPAN {name}", "{name} அவர்களின் பதில்"],
+  ["CHOSE:", "选择：", "PILIHAN:", "தேர்வு:"],
+  ["THE MESSAGE", "这则信息", "MESEJ INI", "இந்தச் செய்தி"],
+  ["WHO'S READY", "谁准备好了", "SIAPA SUDAH SEDIA", "யார் தயார்"],
+  ["WAITING…", "等待中…", "MENUNGGU…", "காத்திருக்கிறது…"],
+  ["Talk it over together, then tap Continue.",
+    "一起讨论一下，然后点“继续”。",
+    "Bincangkan bersama, kemudian tekan Teruskan.",
+    "ஒன்றாகப் பேசுங்கள், பிறகு ‘தொடர்’ என்பதைத் தட்டுங்கள்."],
+  ["Waiting for {names}…", "正在等待{names}…", "Menunggu {names}…", "{names} அவர்களுக்காகக் காத்திருக்கிறது…"],
+  ["[ CONTINUE ]", "[ 继续 ]", "[ TERUSKAN ]", "[ தொடர் ]"],
+  ["[ MOVE ON WITHOUT THEM ]", "[ 不等他们，继续 ]", "[ TERUSKAN TANPA MEREKA ]", "[ அவர்கள் இல்லாமல் தொடர் ]"],
+
   // Invite popup
   ["HOUSE DRILL INVITE", "全家演练邀请", "JEMPUTAN LATIHAN RUMAH", "வீட்டுப் பயிற்சி அழைப்பு"],
   ["IT'S YOUR TURN!", "轮到你了！", "GILIRAN ANDA!", "உங்கள் முறை!"],
