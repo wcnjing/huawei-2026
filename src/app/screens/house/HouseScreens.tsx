@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import type { FamilyEdit, HouseSummary, HouseView } from "../../services/house";
 import { HOUSES_PER_USER } from "../../services/house";
 import { formatCodeInput } from "../../services/house";
@@ -135,30 +135,25 @@ export function HouseSettingsScreen({ house, selfId, onRegenerate, onRename, onR
         titleColor="#00ff88"
         onBack={onBack}
       />
-      {/* Tab banner: sits between the header and the scrolling content, so it stays put. */}
-      <div role="tablist" aria-label={t("House")} style={{
-        display: "flex", gap: 8, padding: "10px 16px 12px", backgroundColor: "#111827",
-        borderBottom: "4px solid #2a3a5c", flexShrink: 0,
-      }}>
+      {/* Tab banner, same design as the Ranks page (Hall of Fame / Hall of Shame). It sits
+          between the header and the scrolling content, so it stays put while you scroll. */}
+      <div role="tablist" aria-label={t("House")} className="flex" style={{ borderBottom: "4px solid #2a3a5c", flexShrink: 0 }}>
         {([
-          ["settings", t("SETTINGS"), "#ffe66d", (c: string) => <IconGear size={18} color={c} />],
-          ["tree", t("FAMILY TREE"), "#c77dff", (c: string) => <IconTree size={18} color={c} />],
-        ] as [HouseTab, string, string, (c: string) => React.ReactNode][]).map(([id, text, accent, icon]) => {
+          ["settings", t("SETTINGS"), "#ffe66d", "#2a2610", (c: string) => <IconGear size={16} color={c} />],
+          ["tree", t("FAMILY TREE"), "#c77dff", "#1f1430", (c: string) => <IconTree size={16} color={c} trunk={c} />],
+        ] as [HouseTab, string, string, string, (c: string) => React.ReactNode][]).map(([id, text, accent, tint, icon], i) => {
           const active = tab === id;
+          const color = active ? accent : "#2a3a5c";
           return (
-            <button key={id} type="button" role="tab" aria-selected={active} onClick={() => onTab?.(id)}
-              style={{
-                flex: 1, minHeight: 48, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", letterSpacing: 1,
-                backgroundColor: active ? accent : "#0a0e1a", color: active ? "#0a0e1a" : accent,
-                border: `3px solid ${active ? accent : "#2a3a5c"}`,
-                boxShadow: active ? "4px 4px 0 #0a0e1a" : "none",
-                transform: active ? "translate(-2px, -2px)" : "none",
-                cursor: active ? "default" : "pointer",
-              }}>
-              {icon(active ? "#0a0e1a" : accent)}
-              {text}
-            </button>
+            <Fragment key={id}>
+              {i > 0 && <div style={{ width: 4, backgroundColor: "#2a3a5c" }} />}
+              <button type="button" role="tab" aria-selected={active} onClick={() => onTab?.(id)}
+                className="flex-1 flex flex-col items-center justify-center gap-1 py-3"
+                style={{ backgroundColor: active ? tint : "#0a0e1a", border: "none", borderBottom: `4px solid ${active ? accent : "transparent"}`, cursor: "pointer" }}>
+                {icon(color)}
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color }}>{text}</div>
+              </button>
+            </Fragment>
           );
         })}
       </div>
