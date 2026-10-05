@@ -624,9 +624,8 @@ api.post('/api/me/avatar', async (req, res) => {
   return res.json({ ok: true, user: accountView(user) });
 });
 
-// Coins stay private, but the player's own furniture and its layout show in their room
-// on every housemate's phone (see roomView). The client saves this record on every coin
-// change too, so ring the house only when the room itself changed.
+// A member's coin balance, furniture and layout are shared in their room view. Ring the
+// house when any of those visible room details change; other inventory fields stay private.
 api.post('/api/me/home-inventory', async (req, res) => {
   const userId = await requireUserId(req, res);
   if (!userId) return;
@@ -635,7 +634,7 @@ api.post('/api/me/home-inventory', async (req, res) => {
   }
   const before = await getUser(userId);
   const user = await setUserHomeInventory(userId, req.body.homeInventory);
-  const roomKey = (u) => JSON.stringify(u ? [roomView(u).items, roomView(u).layout] : null);
+  const roomKey = (u) => JSON.stringify(u ? [roomView(u).items, roomView(u).layout, roomView(u).coins] : null);
   if (roomKey(before) !== roomKey(user)) await ringUser(userId);
   return res.json({ ok: true, user: accountView(user) });
 });

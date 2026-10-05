@@ -6,6 +6,7 @@ export interface FamilyMember {
     id: string; 
     name: string; 
     role: string;
+    coins: number;
     level: number; 
     xp: number; 
     xpMax: number;

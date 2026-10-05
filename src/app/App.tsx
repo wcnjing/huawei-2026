@@ -320,6 +320,7 @@ function toFamilyMember(m: MemberView, roomStyle = DEFAULT_ROOM_STYLE, language:
   const avatar = normalizeAvatarConfig(m.avatar ?? DEFAULT_AVATAR);
   return {
     id: m.id, name: m.name, role: m.isOwner ? translate(language, "HOUSE OWNER") : translate(language, "HOUSEMATE"),
+    coins: m.room?.coins ?? 0,
     level: m.level, xp: m.xp, xpMax: m.xpMax, streak: m.streak,
     timesSafe: m.timesSafe, timesScammed: m.timesScammed,
     safeThisWeek: m.safeThisWeek, recentDrillResult: m.recentDrillResult,
@@ -471,7 +472,15 @@ export default function App({ initialScreen = "title", devMode = false }: { init
       }
       const serverInventory = data?.homeInventory ?? data?.user?.homeInventory;
       if (serverInventory && typeof serverInventory === "object") {
-        setCoins(serverInventory.coins ?? {});
+        const serverCoins = serverInventory.coins ?? {};
+        // A drill can finish while this initial account fetch is still in flight.
+        // Keep any balances already changed in this session instead of replacing them
+        // with the older server snapshot returned by the request.
+        setCoins((current) => ({
+          ...serverCoins,
+          ...Object.fromEntries([...coinMutationsSinceInventoryLoadRef.current]
+            .map((memberId) => [memberId, current[memberId] ?? 0])),
+        }));
         setSoldItems(serverInventory.soldItems ?? []);
         setPurchasedItems(serverInventory.purchasedItems ?? {});
         setRoomLayouts(serverInventory.roomLayouts ?? {});
@@ -536,6 +545,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   // apart after refresh.
   const initialHomeInventory = useMemo(loadHomeInventory, []);
   const [coins, setCoins] = useState<Record<string, number>>(initialHomeInventory.coins);
+  const coinMutationsSinceInventoryLoadRef = useRef(new Set<string>());
   const [soldItems, setSoldItems] = useState<string[]>(initialHomeInventory.soldItems);
   const [purchasedItems, setPurchasedItems] = useState<Record<string, string[]>>(
     initialHomeInventory.purchasedItems
@@ -682,6 +692,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   // Central helper: mutate coins + append to ledger (cap-enforced)
   const addCoinTx = (memberId: string, delta: number, reason: CoinTxReason, label: string) => {
     if (!canEarn) return;
+    coinMutationsSinceInventoryLoadRef.current.add(memberId);
     const tx: CoinTx = { id: makeTxId(), memberId, delta, reason, label, timestamp: Date.now() };
     setCoins(prev => ({ ...prev, [memberId]: (prev[memberId] ?? 0) + delta }));
     setCoinLedger(prev => [tx, ...prev].slice(0, LEDGER_CAP));

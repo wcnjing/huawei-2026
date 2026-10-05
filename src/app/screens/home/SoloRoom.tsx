@@ -8,8 +8,8 @@ import { SafetyBadge } from "./SafetyBadge";
 import { RoomHeading } from "./RoomHeading";
 import { PixelButton } from "../../components/ui";
 
-export function SoloRoom({ member, purchasedItems, layout, inviteCode, onTap, onPlayWithOthers, onCustomize, onArrange, hasFurniture }: {
-  member: FamilyMember; purchasedItems: string[]; layout?: RoomLayout;
+export function SoloRoom({ member, coins, purchasedItems, layout, inviteCode, onTap, onPlayWithOthers, onCustomize, onArrange, hasFurniture }: {
+  member: FamilyMember; coins: number; purchasedItems: string[]; layout?: RoomLayout;
   inviteCode: string | null; onTap: () => void; onPlayWithOthers: () => void;
   onCustomize: () => void; onArrange: () => void; hasFurniture: boolean;
 }) {
@@ -18,7 +18,7 @@ export function SoloRoom({ member, purchasedItems, layout, inviteCode, onTap, on
     <div data-tour="solo-room" className="solo-room" style={{ position: "relative", flex: 1, minHeight: 480, display: "flex", flexDirection: "column", backgroundColor: member.roomBg }}>
       <RoomBackdrop style={member.roomStyle} background={member.roomBg} accent={member.primaryColor} />
       <div className="solo-room-heading">
-        <RoomHeading member={member} actions={<div className="home-room-tools">
+        <RoomHeading member={member} coins={coins} actions={<div className="home-room-tools">
           <PixelButton onClick={onCustomize} color="#1a2340" textColor="#c77dff" size="sm">{t("CUSTOMIZE")}</PixelButton>
           {hasFurniture && <PixelButton onClick={onArrange} color="#1a2340" textColor="#4ecdc4" size="sm">{t("ARRANGE")}</PixelButton>}
         </div>} />

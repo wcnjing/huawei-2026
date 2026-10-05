@@ -10,39 +10,39 @@ const TOUR_STEPS: TourStep[] = [
     target: null,
     accent: "#00ff88",
     title: "HI, I'M PIXI!",
-    body: "Scammers practise on our households every day. Let me show you around so your house can practise back.",
+    body: "Scammers practise on our households everyday. Let's practise back!",
   },
   {
     target: "safety-bar",
     accent: "#ff6b35",
     title: "HOUSE SAFETY",
-    body: "Your household's week at a glance. A shield means they stayed safe; a red heart means a scam got through.",
+    body: "Your family's week at a glance.",
   },
   {
     target: "payday-tile",
     accent: "#ffe66d",
     title: "PAYDAY SUNDAY",
-    body: "Tap your coin tile to collect your weekly pay and see your personal coin balance.",
+    body: "Tap to collect your weekly pay!",
   },
   {
     target: "self-room",
     accent: "#c77dff",
     title: "THE HOUSE",
-    body: "Tap inside it to view your profile. Use Customize to design your room.",
+    body: "This is your room, decorate it!",
     placement: "below",
   },
   {
     target: "nav-drill",
     accent: "#4ecdc4",
     title: "PICK A DRILL",
-    body: "Open Drill to start a six-round House Drill together, or choose a call, text, Telegram, or email scenario.",
+    body: "Open Drill to practise!",
   },
   {
     target: "drill-page",
     screen: "drill-select",
     accent: "#00d4ff",
     title: "THE DRILL PAGE",
-    body: "Choose a House Drill or practise with Scam Call, Text, Telegram, or Phishing Email.",
+    body: "Start a Call, Text, Telegram, or Phishing Email!",
     placement: "bottom",
   },
   {
@@ -50,14 +50,14 @@ const TOUR_STEPS: TourStep[] = [
     screen: "drill-select",
     accent: "#74f0ff",
     title: "ALWAYS SAFE",
-    body: "Every drill ends by telling you it was a drill, and you're NEVER punished for stopping. Say 'stop' or 'is this a drill?' any time and it ends — no penalty.",
+    body: "Say 'stop' any time to end the Call Drill. There are NEVER real consequences for stopping it.",
   },
   {
     target: "bottom-nav",
     screen: "drill-select",
     accent: "#4d8cff",
     title: "EXPLORE",
-    body: "Visit Home, climb the leaderboard in Ranks, spend coins in Store, and customise your character in Profile.",
+    body: "Use this to switch pages.",
   },
   {
     target: "ranks-page",
@@ -66,7 +66,7 @@ const TOUR_STEPS: TourStep[] = [
     screen: "leaderboard",
     accent: "#ff4fd8",
     title: "RANKS",
-    body: "Hall of Fame celebrates safe practice; Hall of Shame shows where your house can learn.",
+    body: "Hall of Fame: Outsmarted the scam\nHall of Shame: Fell for the scam",
     placement: "bottom",
   },
   {
@@ -100,7 +100,7 @@ function SpeechBubble({ step, index, total, onNext, onSkip, onBack, style, inner
         </div>
       </div>
       <div style={{ backgroundColor: "#111827", border: `4px solid ${step.accent}`, boxShadow: `4px 4px 0 #0a0e1a`, padding: step.target === "drill-page" ? 10 : 14 }}>
-        <div style={{ fontFamily: "'Share Tech Mono',monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.5 }}>
+        <div style={{ fontFamily: "'Share Tech Mono',monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.5, whiteSpace: "pre-line" }}>
           {t(step.body)}
         </div>
         {(step.target === "drill-page" || step.scrollTarget) && !scrollComplete && (

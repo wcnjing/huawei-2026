@@ -32,16 +32,19 @@ export function cleanRoomStyle(input) {
 }
 
 /**
- * What a member's housemates see of their room: the look plus the furniture they own
- * and where it stands. Coins and everything else in home_inventory stay private.
+ * What a member's housemates see of their room: its look, owned furniture and layout,
+ * plus the coin balance the member has chosen to share through the room UI. Other
+ * home-inventory fields remain private.
  */
 export function roomView(user) {
   const inventory = isPlainObject(user?.homeInventory) ? user.homeInventory : {};
   const items = inventory.purchasedItems?.[user.id];
   const layout = inventory.roomLayouts?.[user.id];
+  const balance = inventory.coins?.[user.id];
   return {
     style: user?.roomStyle ?? null,
     items: Array.isArray(items) ? items : [],
     layout: isPlainObject(layout) ? layout : null,
+    coins: Number.isSafeInteger(balance) && balance >= 0 ? balance : 0,
   };
 }

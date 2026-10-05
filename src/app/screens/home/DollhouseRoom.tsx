@@ -10,7 +10,7 @@ import { SafetyBadge } from "./SafetyBadge";
 import { roomColors } from "../../types/roomStyle";
 import { PixelButton } from "../../components/ui";
 
-export function DollhouseRoom({ member, onTap, soldItems, purchasedItems, layout, onCustomize, onArrange }: { member: FamilyMember; onTap: (m: FamilyMember) => void; soldItems: string[]; purchasedItems: string[]; layout?: RoomLayout; onCustomize?: () => void; onArrange?: () => void }) {
+export function DollhouseRoom({ member, coins, onTap, soldItems, purchasedItems, layout, onCustomize, onArrange }: { member: FamilyMember; coins: number; onTap: (m: FamilyMember) => void; soldItems: string[]; purchasedItems: string[]; layout?: RoomLayout; onCustomize?: () => void; onArrange?: () => void }) {
   const t = useT();
   const colors = roomColors(member.roomStyle, member.roomBg, member.primaryColor);
   return (
@@ -18,6 +18,7 @@ export function DollhouseRoom({ member, onTap, soldItems, purchasedItems, layout
       <div className="home-room-header" style={{ backgroundColor: colors.wall }}>
         <RoomHeading
           member={member}
+          coins={coins}
           actions={onCustomize && <div className="home-room-tools">
             <PixelButton onClick={onCustomize} color="#1a2340" textColor="#c77dff" size="sm">{t("CUSTOMIZE")}</PixelButton>
             {onArrange && purchasedItems.length > 0 && <PixelButton onClick={onArrange} color="#1a2340" textColor="#4ecdc4" size="sm">{t("ARRANGE")}</PixelButton>}

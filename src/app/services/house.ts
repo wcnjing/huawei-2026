@@ -29,7 +29,7 @@ export type MemberView = {
   room?: MemberRoom;
 };
 /** `style` is the raw stored look (normalise before use); null until they customise. */
-export type MemberRoom = { style: unknown; items: string[]; layout: RoomLayout | null };
+export type MemberRoom = { style: unknown; items: string[]; layout: RoomLayout | null; coins: number };
 export type HouseView = {
   id: string; name: string; ownerId: string;
   inviteCode: string | null; inviteExpiresAt: string | null;

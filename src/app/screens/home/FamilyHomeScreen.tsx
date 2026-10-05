@@ -48,13 +48,14 @@ export function FamilyHomeScreen({ onPayday, paydayClaimedThisWeek, onCustomize,
           <>
             <HouseRoofButton title={house?.name ?? t("YOUR HOUSE")} onOpen={onPlayWithOthers} houses={houses} onSwitch={onSwitchHouse} />
             {/* House safety and payday, right under the roof. */}
-            <div data-tour="safety-bar"><FamilySafetyBar coins={coins} onPayday={onPayday} paydayClaimedThisWeek={paydayClaimedThisWeek} /></div>
+            <div data-tour="safety-bar"><FamilySafetyBar onPayday={onPayday} paydayClaimedThisWeek={paydayClaimedThisWeek} /></div>
             <div data-tour="family-rooms" style={{ position: "relative" }}>
               <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 8, backgroundColor: "#2a3a5c", backgroundImage: "repeating-linear-gradient(0deg,#1a2a3c,#1a2a3c 4px,#2a3a5c 4px,#2a3a5c 8px)" }} />
               <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 8, backgroundColor: "#2a3a5c", backgroundImage: "repeating-linear-gradient(0deg,#1a2a3c,#1a2a3c 4px,#2a3a5c 4px,#2a3a5c 8px)" }} />
               {homeMembers.map((member) => <div key={member.id} data-tour={member.id === selfId ? "self-room" : undefined} className={member.id === selfId ? "home-self-room" : undefined}>
                 <DollhouseRoom
                   member={member}
+                  coins={member.id === selfId ? coins[selfId] ?? member.coins : member.coins}
                   onTap={setSelectedMember}
                   soldItems={soldItems}
                   purchasedItems={member.id === selfId ? purchasedItems[selfId] ?? [] : member.roomItems}
@@ -68,10 +69,11 @@ export function FamilyHomeScreen({ onPayday, paydayClaimedThisWeek, onCustomize,
         ) : self ? (
           <>
             {house && <HouseRoofButton title={house.name} onOpen={onPlayWithOthers} houses={houses} onSwitch={onSwitchHouse} />}
-            <div data-tour="safety-bar"><FamilySafetyBar coins={coins} onPayday={onPayday} paydayClaimedThisWeek={paydayClaimedThisWeek} /></div>
+            <div data-tour="safety-bar"><FamilySafetyBar onPayday={onPayday} paydayClaimedThisWeek={paydayClaimedThisWeek} /></div>
             <div data-tour="family-rooms" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
               <SoloRoom
                 member={self}
+                coins={coins[selfId] ?? self.coins}
                 purchasedItems={purchasedItems[selfId] ?? []}
                 layout={roomLayouts[selfId]}
                 inviteCode={house?.inviteCode ?? null}
