@@ -8,7 +8,7 @@ const { SHOP_CATALOGUE, SHOP_CATEGORIES, filterShopItems } = await import(`data:
 test('approved catalogue preserves existing purchases and serves all approved art', () => {
   assert.equal(SHOP_CATALOGUE.length, 44);
   assert.equal(new Set(SHOP_CATALOGUE.map(item => item.id)).size, 44);
-  const prices = { sofa: 250, lamp: 225, plant: 230, tv: 280, rug: 260, bookshelf: 290, bed: 320, window: 400 };
+  const prices = { sofa: 1400, lamp: 300, plant: 350, tv: 2000, rug: 480, bookshelf: 950, bed: 1800, window: 1450 };
   for (const [id, price] of Object.entries(prices)) assert.equal(SHOP_CATALOGUE.find(item => item.id === `shop-${id}`).cost, price);
   for (const item of SHOP_CATALOGUE) {
     assert.ok(Number.isInteger(item.cost) && item.cost > 0);
@@ -23,8 +23,8 @@ test('Decor subfilters combine with availability and do not leak into other cate
   const ids = (...args) => filterShopItems(...args).map(item => item.id);
   assert.deepEqual(ids('decor','carpets','ALL',[],0), ['shop-rug','shop-orbit-carpet','shop-zigzag-rug','shop-circle-mat']);
   assert.deepEqual(ids('decor','plants','OWNED',['shop-cactus','shop-rug'],100), ['shop-cactus']);
-  assert.deepEqual(ids('decor','plants','AFFORDABLE',['shop-cactus'],232), ['shop-plant']);
-  assert.deepEqual(ids('decor','openings','AFFORDABLE',[],310), ['shop-door']);
+  assert.deepEqual(ids('decor','plants','AFFORDABLE',['shop-cactus'],300), ['shop-succulent-trio']);
+  assert.deepEqual(ids('decor','openings','AFFORDABLE',[],1200), ['shop-door']);
   assert.equal(ids('sports','plants','ALL',[],0).length,8);
   assert.equal(ids('all','plants','ALL',[],0).length,44);
 });
