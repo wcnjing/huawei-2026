@@ -258,12 +258,7 @@ export function FamilyTreeTab({ house, selfId, onEdit }: {
 
       {person && (
         <PixelPanel accent="#c77dff" className="w-full">
-          <div style={{ fontFamily: MONO, fontSize: "var(--text-label)", color: "#c77dff" }}>
-            {t("EDITING {name}", { name: person.name })}
-            {selected === selfId ? ` · ${t("YOU")}` : labels.get(selected) ? ` · ${roleText(labels.get(selected)!)}` : ""}
-          </div>
-
-          {label(t("GENDER"))}
+          <div style={{ fontFamily: MONO, fontSize: "var(--text-label)", color: "#9bb0c8", marginBottom: 6 }}>{t("GENDER")}</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {GENDERS.map((g) => (
               <Chip key={g.id} label={t(g.label)} gender={g.id} color={SHAPE_COLOR[g.id]} active={link.gender === g.id}
