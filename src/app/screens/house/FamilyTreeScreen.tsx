@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
-import type { FamilyGender, FamilyLink, HouseView, MemberView } from "../../services/house";
+import type { FamilyEdit, FamilyGender, HouseView, MemberView } from "../../services/house";
 import { IconTree } from "../../components/icons";
 import { PixelButton, PixelPanel } from "../../components/ui";
-import { SubPageHeader } from "../../components/layout";
-import { NODE_H, NODE_W, SHAPE, familyGraph, layoutFamilyTree, linkOf, relationLabels, roleBase } from "./familyTreeLayout";
+import { NODE_H, NODE_W, SHAPE, layoutFamilyTree, linkOf, relationLabels, roleBase, treeFromMembers, withTree } from "./familyTreeLayout";
+import { applyFamilyEdit, familyLinkFor, familyProblem } from "../../../../server/family-rules.js";
 import { useI18n, useT } from "../../i18n";
 
 const MONO = "'Share Tech Mono', monospace";
@@ -13,14 +13,20 @@ const GENDERS: { id: FamilyGender; label: string }[] = [
   { id: "female", label: "FEMALE" },
   { id: "other", label: "OTHERS" },
 ];
-type Relation = "child" | "partner" | "parent" | "friend" | "alone";
+/** What the selected person is to someone else. "child" = they are a child of that person. */
+type Relation = "child" | "parent" | "partner" | "friend";
 const RELATIONS: { id: Relation; label: string }[] = [
   { id: "child", label: "CHILD OF" },
-  { id: "partner", label: "PARTNER OF" },
   { id: "parent", label: "PARENT OF" },
+  { id: "partner", label: "PARTNER OF" },
   { id: "friend", label: "FRIEND OF" },
-  { id: "alone", label: "ON MY OWN" },
 ];
+/** The server edit that makes `person` the `relation` of `other` (add or remove). */
+function relationEdit(kind: "add" | "remove", relation: Relation, person: string, other: string): FamilyEdit {
+  if (relation === "child") return { kind, relation: "parent", a: other, b: person };
+  if (relation === "parent") return { kind, relation: "parent", a: person, b: other };
+  return { kind, relation, a: person, b: other };
+}
 
 /**
  * Square = male, circle = female, triangle = others, dashed = not set yet. The three
@@ -98,35 +104,41 @@ function Chip({ label, active, color, onClick, gender }: { label: string; active
   );
 }
 
-function relationOf(link: FamilyLink): { relation: Relation; target: string | null } {
-  if (link.parentIds.length) return { relation: "child", target: link.parentIds[0] };
-  if (link.partnerId) return { relation: "partner", target: link.partnerId };
-  if (link.childIds.length) return { relation: "parent", target: link.childIds[0] };
-  if (link.friendIds.length) return { relation: "friend", target: link.friendIds[0] };
-  return { relation: "alone", target: null };
+function timeAgo(iso: string, t: ReturnType<typeof useT>): string {
+  const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (minutes < 1) return t("JUST NOW");
+  if (minutes < 60) return t("{n} MIN AGO", { n: minutes });
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return t("{n} H AGO", { n: hours });
+  return t("{n} D AGO", { n: Math.round(hours / 24) });
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// SCREEN: FAMILY TREE — members add their own branch; the app names everyone from it.
+// TAB: FAMILY TREE — one shared tree for the house that every member can edit.
+// Tap anyone on the tree to change their gender or their relationships.
 // ─────────────────────────────────────────────────────────────────────────
-export function FamilyTreeScreen({ house, self, selfId, onSave, onInvite, onBack }: {
-  house: HouseView | null;
-  self: MemberView | null | undefined;
+export function FamilyTreeTab({ house, selfId, onEdit }: {
+  house: HouseView;
   selfId: string;
-  onSave: (link: FamilyLink) => Promise<string | null>;
-  onInvite: () => void;
-  onBack: () => void;
+  /** Applies the edits to the latest saved tree; resolves to an error message or null. */
+  onEdit: (edits: FamilyEdit[]) => Promise<string | null>;
 }) {
-  const members = useMemo(() => house?.members ?? (self ? [self] : []), [house, self]);
-  const me = members.find((m) => m.id === selfId) ?? self ?? null;
-  const others = members.filter((m) => m.id !== selfId);
-  const saved = me ? linkOf(me) : null;
-  const initial = saved ? relationOf(saved) : { relation: "alone" as Relation, target: null };
+  const members = house.members;
+  const ids = useMemo(() => members.map((m) => m.id), [members]);
+  const byId = Object.fromEntries(members.map((m) => [m.id, m]));
+  const tree = useMemo(() => treeFromMembers(members), [members]);
+  const layout = useMemo(() => layoutFamilyTree(members), [members]);
+  const labels = useMemo(() => relationLabels(members, selfId), [members, selfId]);
 
-  const [gender, setGender] = useState<FamilyGender | null>(saved?.gender ?? null);
-  const [relation, setRelation] = useState<Relation>(initial.relation);
-  const [target, setTarget] = useState<string | null>(initial.target);
+  const [selectedId, setSelectedId] = useState(selfId);
+  const selected = byId[selectedId] ? selectedId : selfId;
+  const person = byId[selected];
+  const link = familyLinkFor(tree, selected);
+  const [relation, setRelation] = useState<Relation | null>(null);
+  const [target, setTarget] = useState<string | null>(null);
+  const [withPartner, setWithPartner] = useState(true);
   const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
   const { language, t } = useI18n();
   // Role keys may carry a " · FATHER'S SIDE" detail for languages that name each side
   // differently; English (and any missing translation) falls back to the plain role.
@@ -136,43 +148,48 @@ export function FamilyTreeScreen({ house, self, selfId, onSave, onInvite, onBack
     const full = t(key);
     return full !== key ? full : t(roleBase(key));
   };
-  const [busy, setBusy] = useState(false);
 
-  // Partners as the rest of the house has them, so "child of Mum" also makes you Dad's.
-  const othersGraph = useMemo(
-    () => familyGraph(members.map((m) => (m.id === selfId ? { ...m, family: null } : m))),
-    [members, selfId],
-  );
-  const draft: FamilyLink = useMemo(() => {
-    const base: FamilyLink = { gender, parentIds: [], partnerId: null, childIds: [], friendIds: [] };
-    if (!target || relation === "alone") return base;
-    if (relation === "partner") return { ...base, partnerId: target };
-    if (relation === "parent") return { ...base, childIds: [target] };
-    if (relation === "friend") return { ...base, friendIds: [target] };
-    const partner = othersGraph.partnerOf.get(target);
-    return { ...base, parentIds: partner && partner !== selfId ? [target, partner] : [target] };
-  }, [gender, relation, target, othersGraph, selfId]);
-
-  const editing = members.map((m) => (m.id === selfId ? { ...m, family: draft } : m));
-  const shown = house ? members : editing;
-  const layout = useMemo(() => layoutFamilyTree(shown), [shown]);
-  // Everyone is named by what they are to you: Mum's husband is your SON-IN-LAW if Mum is your daughter.
-  const labels = useMemo(() => relationLabels(shown, selfId), [shown, selfId]);
-  // What you'll be to the person you're attaching to, e.g. "MUM'S DAUGHTER".
-  const previewLabel = target && relation !== "alone" ? relationLabels(editing, target).get(selfId) ?? "" : "";
-  const byId = Object.fromEntries(shown.map((m) => [m.id, m]));
-
-  const needsTarget = relation !== "alone";
-  const dirty = !saved || JSON.stringify(draft) !== JSON.stringify(saved);
-  const canSave = !!gender && (!needsTarget || !!target) && dirty && !busy;
-  const pickFromTree = needsTarget && !!house;
-
-  const save = async () => {
+  const select = (id: string) => { setSelectedId(id); setRelation(null); setTarget(null); setMsg(""); };
+  const run = async (edits: FamilyEdit[], after?: () => void) => {
     setBusy(true); setMsg("");
-    const error = await onSave(draft);
+    const error = await onEdit(edits);
     setBusy(false);
-    setMsg(error ?? "SAVED");
+    if (error) { setMsg(error); return; }
+    setMsg("SAVED");
+    after?.();
   };
+
+  // Would these edits still leave a tree that makes sense? (The server checks again.)
+  const sensible = (edits: FamilyEdit[]) => !familyProblem(edits.reduce(applyFamilyEdit, tree), ids);
+  const linked = (a: string, b: string) => {
+    const l = familyLinkFor(tree, a);
+    return l.parentIds.includes(b) || l.childIds.includes(b) || l.partnerId === b || l.friendIds.includes(b);
+  };
+
+  // "Child of X": X's partner usually becomes the other parent too.
+  const targetPartner = relation === "child" && target ? familyLinkFor(tree, target).partnerId : null;
+  const partnerEdit = targetPartner && targetPartner !== selected && !linked(selected, targetPartner)
+    ? relationEdit("add", "child", selected, targetPartner) : null;
+  const addEdits = (): FamilyEdit[] => {
+    if (!relation || !target) return [];
+    const main = relationEdit("add", relation, selected, target);
+    return partnerEdit && withPartner && sensible([main, partnerEdit]) ? [main, partnerEdit] : [main];
+  };
+  const preview = (() => {
+    if (!relation || !target) return "";
+    const next = withTree(members, addEdits().reduce(applyFamilyEdit, tree));
+    return relationLabels(next, target).get(selected) ?? "";
+  })();
+
+  const relationships: { relation: Relation; other: string }[] = [
+    ...link.parentIds.map((other) => ({ relation: "child" as Relation, other })),
+    ...link.childIds.map((other) => ({ relation: "parent" as Relation, other })),
+    ...(link.partnerId ? [{ relation: "partner" as Relation, other: link.partnerId }] : []),
+    ...link.friendIds.map((other) => ({ relation: "friend" as Relation, other })),
+  ];
+  const relationName = (r: Relation) => t(RELATIONS.find((x) => x.id === r)!.label);
+  const others = members.filter((m) => m.id !== selected);
+  const updatedBy = house.familyUpdatedBy ? byId[house.familyUpdatedBy]?.name : null;
 
   const label = (text: string) => (
     <div style={{ fontFamily: MONO, fontSize: "var(--text-label)", color: "#9bb0c8", margin: "14px 0 6px" }}>{text}</div>
@@ -183,120 +200,151 @@ export function FamilyTreeScreen({ house, self, selfId, onSave, onInvite, onBack
       <span style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: "#9bb0c8" }}>{text}</span>
     </div>
   );
+  const node = (id: string) => (
+    <MemberNode
+      member={byId[id]}
+      label={roleText(labels.get(id) ?? "")}
+      isSelf={id === selfId}
+      picked={id === selected}
+      onPick={() => select(id)}
+    />
+  );
 
   return (
-    <div className="flex flex-col h-full">
-      <SubPageHeader title={t("FAMILY TREE")} titleColor="#00d4ff" onBack={onBack} />
-      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4" style={{ scrollbarWidth: "none" }}>
-        <PixelPanel accent="#00ff88" className="w-full">
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-            <IconTree size={18} color="#00ff88" />
-            <div style={{ fontFamily: MONO, fontSize: "var(--text-label)", color: "#00ff88" }}>{house?.name ?? t("YOUR HOUSE")}</div>
-          </div>
-          {layout.nodes.length ? (
-            <div style={{ overflowX: "auto", scrollbarWidth: "thin" }}>
-              <div style={{ position: "relative", width: layout.width, height: layout.height, margin: "0 auto" }}>
-                <svg width={layout.width} height={layout.height} style={{ position: "absolute", inset: 0 }} aria-hidden>
-                  {layout.segments.map((s) => (
-                    <line key={s.key} x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2}
-                      stroke={s.dashed ? "#ffe66d" : "#6b8ba4"} strokeWidth={2}
-                      strokeDasharray={s.dashed ? "4 4" : undefined} strokeLinecap="square" />
-                  ))}
-                </svg>
-                {layout.nodes.map((n) => byId[n.id] && (
-                  <div key={n.id} style={{ position: "absolute", left: n.x - NODE_W / 2, top: n.y }}>
-                    <MemberNode
-                      member={byId[n.id]}
-                      label={roleText(labels.get(n.id) ?? "")}
-                      isSelf={n.id === selfId}
-                      picked={pickFromTree && dirty && target === n.id}
-                      onPick={pickFromTree && n.id !== selfId ? () => setTarget(n.id) : undefined}
-                    />
-                  </div>
+    <div className="flex flex-col gap-4">
+      <PixelPanel accent="#00ff88" className="w-full">
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <IconTree size={18} color="#00ff88" />
+          <div style={{ fontFamily: MONO, fontSize: "var(--text-label)", color: "#00ff88" }}>{house.name}</div>
+        </div>
+        {layout.nodes.length ? (
+          <div style={{ overflowX: "auto", scrollbarWidth: "thin" }}>
+            <div style={{ position: "relative", width: layout.width, height: layout.height, margin: "0 auto" }}>
+              <svg width={layout.width} height={layout.height} style={{ position: "absolute", inset: 0, overflow: "visible" }} aria-hidden>
+                {layout.segments.map((s) => (
+                  <line key={s.key} x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2}
+                    stroke={s.dashed ? "#ffe66d" : "#6b8ba4"} strokeWidth={2}
+                    strokeDasharray={s.dashed ? "4 4" : undefined} strokeLinecap="square" />
                 ))}
-              </div>
-            </div>
-          ) : (
-            <div style={{ fontFamily: MONO, fontSize: "var(--text-body)", color: "#9bb0c8", lineHeight: 1.5 }}>
-              {t("The tree is empty. Add your branch below to start it.")}
-            </div>
-          )}
-          {layout.unplaced.length > 0 && (
-            <>
-              {label(t("NOT ON THE TREE YET"))}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {layout.unplaced.map((id) => byId[id] && (
-                  <MemberNode key={id} member={byId[id]} label="" isSelf={id === selfId}
-                    picked={pickFromTree && dirty && target === id}
-                    onPick={pickFromTree && id !== selfId ? () => setTarget(id) : undefined} />
-                ))}
-              </div>
-            </>
-          )}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 12px", marginTop: 10 }}>
-            {GENDERS.map((g) => legend(<Shape gender={g.id} size={12} strokeWidth={2} stroke={SHAPE_COLOR[g.id]} fill="none" />, t(g.label)))}
-            {legend(<svg width={16} height={4} aria-hidden><line x1={0} y1={2} x2={16} y2={2} stroke="#ffe66d" strokeWidth={2} strokeDasharray="3 3" /></svg>, t("FRIEND"))}
-          </div>
-        </PixelPanel>
-
-        {me && !house && (
-          <PixelPanel accent="#4ecdc4" className="w-full">
-            <div style={{ fontFamily: MONO, fontSize: "var(--text-body)", color: "#9bb0c8", lineHeight: 1.5, marginBottom: 10 }}>
-              {t("Your family tree lives in your house. Create or join one, then add your branch.")}
-            </div>
-            <PixelButton onClick={onInvite} color="#4ecdc4" size="md" full>{t("PLAY WITH OTHERS")}</PixelButton>
-          </PixelPanel>
-        )}
-
-        {me && house && (
-          <PixelPanel accent="#c77dff" className="w-full">
-            <div style={{ fontFamily: MONO, fontSize: "var(--text-label)", color: "#c77dff" }}>{t("ADD YOUR BRANCH")}</div>
-            {label(t("YOU ARE"))}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {GENDERS.map((g) => (
-                <Chip key={g.id} label={t(g.label)} gender={g.id} color={SHAPE_COLOR[g.id]} active={gender === g.id} onClick={() => setGender(g.id)} />
+              </svg>
+              {layout.nodes.map((n) => byId[n.id] && (
+                <div key={n.id} style={{ position: "absolute", left: n.x - NODE_W / 2, top: n.y }}>{node(n.id)}</div>
               ))}
             </div>
-
-            {others.length > 0 && (
-              <>
-                {label(t("YOUR PLACE"))}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 6 }}>
-                  {RELATIONS.map((r) => (
-                    <Chip key={r.id} label={t(r.label)} color="#c77dff" active={relation === r.id}
-                      onClick={() => { setRelation(r.id); if (r.id === "alone") setTarget(null); }} />
-                  ))}
-                </div>
-                {needsTarget && (
-                  <>
-                    {label(t("WHO? (OR TAP THEM ON THE TREE)"))}
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                      {others.map((m) => (
-                        <Chip key={m.id} label={m.name} color="#ffe66d" active={target === m.id} onClick={() => setTarget(m.id)} />
-                      ))}
-                    </div>
-                  </>
-                )}
-              </>
-            )}
-
-            {gender && (!needsTarget || target) && (
-              <div style={{ fontFamily: MONO, fontSize: "var(--text-body)", color: "#e8f4f8", marginTop: 14 }}>
-                {needsTarget && target && byId[target] && previewLabel
-                  ? <span style={{ color: "#00ff88" }}>{t("YOU'LL BE {name}'S {role}", { name: byId[target].name, role: roleText(previewLabel) })}</span>
-                  : t("YOU'LL BE ON THE TREE ON YOUR OWN")}
-              </div>
-            )}
-            <div style={{ height: 14 }} />
-            <PixelButton onClick={() => { void save(); }} color="#00ff88" size="md" full disabled={!canSave}>
-              {busy ? t("SAVING…") : t("[ SAVE MY BRANCH ]")}
-            </PixelButton>
-            {msg && (
-              <div style={{ fontFamily: MONO, fontSize: "var(--text-body)", color: msg === "SAVED" ? "#00ff88" : "#ff6b35", textAlign: "center", marginTop: 10 }}>{t(msg)}</div>
-            )}
-          </PixelPanel>
+          </div>
+        ) : (
+          <div style={{ fontFamily: MONO, fontSize: "var(--text-body)", color: "#9bb0c8", lineHeight: 1.5 }}>
+            {t("The tree is empty. Tap someone below to start it.")}
+          </div>
         )}
-      </div>
+        {layout.unplaced.length > 0 && (
+          <>
+            {label(t("NOT ON THE TREE YET"))}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {layout.unplaced.map((id) => byId[id] && <div key={id}>{node(id)}</div>)}
+            </div>
+          </>
+        )}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 12px", marginTop: 10 }}>
+          {GENDERS.map((g) => legend(<Shape gender={g.id} size={12} strokeWidth={2} stroke={SHAPE_COLOR[g.id]} fill="none" />, t(g.label)))}
+          {legend(<svg width={16} height={4} aria-hidden><line x1={0} y1={2} x2={16} y2={2} stroke="#ffe66d" strokeWidth={2} strokeDasharray="3 3" /></svg>, t("FRIEND"))}
+        </div>
+        <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: "#6b8ba4", marginTop: 10, lineHeight: 1.5 }}>
+          {t("Everyone in the house can change the tree. Tap a person to edit them.")}
+          {updatedBy && house.familyUpdatedAt && (
+            <div>{t("LAST CHANGED BY {name} · {when}", { name: updatedBy, when: timeAgo(house.familyUpdatedAt, t) })}</div>
+          )}
+        </div>
+      </PixelPanel>
+
+      {person && (
+        <PixelPanel accent="#c77dff" className="w-full">
+          <div style={{ fontFamily: MONO, fontSize: "var(--text-label)", color: "#c77dff" }}>
+            {t("EDITING {name}", { name: person.name })}
+            {selected === selfId ? ` · ${t("YOU")}` : labels.get(selected) ? ` · ${roleText(labels.get(selected)!)}` : ""}
+          </div>
+
+          {label(t("GENDER"))}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {GENDERS.map((g) => (
+              <Chip key={g.id} label={t(g.label)} gender={g.id} color={SHAPE_COLOR[g.id]} active={link.gender === g.id}
+                onClick={() => { if (!busy && link.gender !== g.id) void run([{ kind: "gender", id: selected, gender: g.id }]); }} />
+            ))}
+          </div>
+
+          {label(t("RELATIONSHIPS"))}
+          {relationships.length ? relationships.map(({ relation: r, other }) => byId[other] && (
+            <div key={`${r}-${other}`} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderTop: "2px solid #2a3a5c" }}>
+              <div style={{ flex: 1, fontFamily: MONO, fontSize: "var(--text-body)", color: "#e8f4f8" }}>
+                {relationName(r)} <span style={{ color: "#ffe66d" }}>{byId[other].name}</span>
+              </div>
+              <button type="button" disabled={busy}
+                onClick={() => void run([relationEdit("remove", r, selected, other)])}
+                aria-label={t("Remove {relation} {name}", { relation: relationName(r), name: byId[other].name })}
+                style={{ minWidth: 40, minHeight: 36, background: "none", border: "2px solid #2a3a5c", color: "#ff6b35", fontFamily: MONO, cursor: "pointer" }}>✕</button>
+            </div>
+          )) : (
+            <div style={{ fontFamily: MONO, fontSize: "var(--text-body)", color: "#6b8ba4" }}>{t("No relationships yet.")}</div>
+          )}
+
+          {others.length > 0 && (
+            <>
+              {label(t("ADD A RELATIONSHIP"))}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 6 }}>
+                {RELATIONS.map((r) => (
+                  <Chip key={r.id} label={t(r.label)} color="#c77dff" active={relation === r.id}
+                    onClick={() => { setRelation(r.id); setTarget(null); setMsg(""); }} />
+                ))}
+              </div>
+              {relation && (
+                <>
+                  {label(t("WHO?"))}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {others.map((m) => {
+                      const ok = !linked(selected, m.id) && sensible([relationEdit("add", relation, selected, m.id)]);
+                      return (
+                        <button key={m.id} type="button" disabled={!ok} aria-pressed={target === m.id}
+                          onClick={() => setTarget(m.id)}
+                          style={{
+                            fontFamily: MONO, fontSize: "var(--text-caption)", padding: "8px 10px",
+                            backgroundColor: target === m.id ? "#ffe66d" : "#0a0e1a",
+                            color: target === m.id ? "#0a0e1a" : ok ? "#e8f4f8" : "#4a5a78",
+                            border: `2px solid ${target === m.id ? "#ffe66d" : "#2a3a5c"}`,
+                            textDecoration: ok ? "none" : "line-through", cursor: ok ? "pointer" : "not-allowed",
+                          }}>{m.name}</button>
+                      );
+                    })}
+                  </div>
+                  <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: "#6b8ba4", marginTop: 6, lineHeight: 1.5 }}>
+                    {t("Crossed-out names wouldn't make sense: a child is one generation below each parent, partners and friends are on the same generation, and two people have one relationship.")}
+                  </div>
+                  {partnerEdit && targetPartner && byId[targetPartner] && sensible([relationEdit("add", "child", selected, target!), partnerEdit]) && (
+                    <div style={{ marginTop: 8 }}>
+                      <Chip label={t("ALSO {name}'S CHILD", { name: byId[targetPartner].name })} color="#00ff88"
+                        active={withPartner} onClick={() => setWithPartner(!withPartner)} />
+                    </div>
+                  )}
+                  {target && byId[target] && (
+                    <div style={{ fontFamily: MONO, fontSize: "var(--text-body)", color: "#00ff88", marginTop: 12 }}>
+                      {preview
+                        ? t("{person} WILL BE {name}'S {role}", { person: person.name, name: byId[target].name, role: roleText(preview) })
+                        : `${person.name} · ${relationName(relation)} ${byId[target].name}`}
+                    </div>
+                  )}
+                  <div style={{ height: 12 }} />
+                  <PixelButton onClick={() => void run(addEdits(), () => { setRelation(null); setTarget(null); })}
+                    color="#00ff88" size="md" full disabled={!target || busy}>
+                    {busy ? t("SAVING…") : t("[ ADD ]")}
+                  </PixelButton>
+                </>
+              )}
+            </>
+          )}
+          {msg && (
+            <div role="status" style={{ fontFamily: MONO, fontSize: "var(--text-body)", color: msg === "SAVED" ? "#00ff88" : "#ff6b35", textAlign: "center", marginTop: 10, lineHeight: 1.5 }}>{t(msg)}</div>
+          )}
+        </PixelPanel>
+      )}
     </div>
   );
 }

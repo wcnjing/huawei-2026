@@ -78,6 +78,7 @@ import {
   removeMember,
   renameHouse,
   setFamilyLink,
+  editFamilyTree,
   switchHouse,
 } from './houses.js';
 import {
@@ -255,7 +256,13 @@ const HOUSE_ERRORS = {
   INVALID_FAMILY_LINK: [400, 'that family tree placement is not valid'],
   FAMILY_LINK_CONFLICT: [409, "someone can't be both your partner and your parent or child"],
   FAMILY_LINK_CYCLE: [409, "that would make someone their own ancestor"],
-  FAMILY_TOO_MANY_PARENTS: [409, 'someone in that choice already has two parents'],
+  FAMILY_TOO_MANY_PARENTS: [409, 'a person can have at most two parents'],
+  FAMILY_TOO_MANY_CHILDREN: [409, 'a person can have at most 8 children on the tree'],
+  FAMILY_PARTNER_TAKEN: [409, 'each person can have only one partner; remove the current one first'],
+  FAMILY_TOO_MANY_FRIENDS: [409, 'a person can have at most 5 friends on the tree'],
+  FAMILY_ALREADY_LINKED: [409, 'those two are already linked; remove that relationship first'],
+  FAMILY_SIBLINGS: [409, "brothers and sisters are already family, so they can't be partners or friends"],
+  FAMILY_LEVEL_CONFLICT: [409, "that doesn't fit the tree: a child sits one generation below each parent, and partners and friends sit on the same generation"],
 };
 
 const chatStatuses = {
@@ -662,6 +669,8 @@ api.post('/api/house/members/:memberId/remove', houseRoute((userId, req) =>
 api.post('/api/house/leave', houseRoute((userId) => leaveHouse(userId)));
 api.post('/api/house/switch', houseRoute((userId, req) => switchHouse(userId, req.body?.houseId)));
 api.post('/api/house/family', houseRoute((userId, req) => setFamilyLink(userId, req.body?.family)));
+// Any member edits the shared tree: { edits: [ {kind, ...}, ... ] } (see family-rules.js).
+api.post('/api/house/family/edit', houseRoute((userId, req) => editFamilyTree(userId, req.body?.edits)));
 
 api.get('/api/house/drill', async (req, res) => {
   const userId = await requireUserId(req, res);

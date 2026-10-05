@@ -2,6 +2,8 @@
 // GET /api/house fresh. It refetches when the house's doorbell rings (a content-free
 // Supabase Realtime broadcast), when the app regains focus, and every five minutes.
 import type { RoomLayout } from "../types/roomLayout";
+import type { FamilyEdit } from "../../../server/family-rules.js";
+export type { FamilyEdit };
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { apiPost, handleApiAuth, sessionToken } from "./api";
@@ -32,6 +34,8 @@ export type HouseView = {
   id: string; name: string; ownerId: string;
   inviteCode: string | null; inviteExpiresAt: string | null;
   doorbell: string; members: MemberView[];
+  /** When the shared family tree last changed and the member who changed it. */
+  familyUpdatedAt?: string | null; familyUpdatedBy?: string | null;
 };
 // `self` is undefined, not null, if a server ever answers with a house the caller is
 // not in — so every guard on it must be a truthiness check, never `!== null`.
@@ -48,6 +52,8 @@ export const renameHouse = (name: string) => apiPost<HouseState>("/api/house/nam
 export const removeMember = (id: string) =>
   apiPost<HouseState>(`/api/house/members/${encodeURIComponent(id)}/remove`);
 export const setFamilyLink = (family: FamilyLink) => apiPost<HouseState>("/api/house/family", { family });
+/** Any member edits the shared family tree; the edits apply to its latest version. */
+export const editFamily = (edits: FamilyEdit[]) => apiPost<HouseState>("/api/house/family/edit", { edits });
 export const leaveHouse = () => apiPost<HouseState>("/api/house/leave");
 export const saveAvatar = (avatar: Avatar) => apiPost<{ user: unknown }>("/api/me/avatar", { avatar });
 export const postHouseRun = (run: { clientKey: string } & WeekRun) =>

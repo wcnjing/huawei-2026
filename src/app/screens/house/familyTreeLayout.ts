@@ -4,6 +4,7 @@
 // tidy right-angled connectors: couple line → one drop → sibling bar → one drop per
 // child. Friends stand beside the person they're friends with, joined by a dashed line.
 import type { FamilyGender, FamilyLink, MemberView } from "../../services/house";
+import { emptyFamilyTree, familyLevels, familyLinkFor, type FamilyTree } from "../../../../server/family-rules.js";
 
 /** The shape (square, circle, triangle) is SHAPE px; name and label sit underneath. */
 export const SHAPE = 44;
@@ -24,6 +25,34 @@ export const linkOf = (m: MemberView): FamilyLink => {
   const link = { ...EMPTY, ...(m.family ?? {}) };
   return { ...link, friendIds: link.friendIds ?? [] };
 };
+
+/** The house's shared tree, rebuilt from each member's view of it. */
+export function treeFromMembers(members: MemberView[]): FamilyTree {
+  const tree = emptyFamilyTree();
+  const ids = new Set(members.map((m) => m.id));
+  const seen = new Set<string>();
+  const add = (list: [string, string][], a: string, b: string, ordered: boolean) => {
+    if (!ids.has(a) || !ids.has(b) || a === b) return;
+    const edge: [string, string] = ordered || a < b ? [a, b] : [b, a];
+    const key = `${list === tree.parents ? "p" : list === tree.partners ? "s" : "f"}:${edge.join("|")}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    list.push(edge);
+  };
+  for (const m of members) {
+    const link = linkOf(m);
+    if (link.gender) tree.genders[m.id] = link.gender;
+    for (const p of link.parentIds) add(tree.parents, p, m.id, true);
+    for (const c of link.childIds) add(tree.parents, m.id, c, true);
+    if (link.partnerId) add(tree.partners, m.id, link.partnerId, false);
+    for (const f of link.friendIds) add(tree.friends, m.id, f, false);
+  }
+  return tree;
+}
+
+/** The members as they'd look with `tree` as the house's family tree. */
+export const withTree = (members: MemberView[], tree: FamilyTree): MemberView[] =>
+  members.map((m) => ({ ...m, family: familyLinkFor(tree, m.id) }));
 
 /** Everyone's records merged: parent sets, (first-claim-wins) partners and friends. */
 export function familyGraph(members: MemberView[]) {
@@ -197,9 +226,11 @@ export function layoutFamilyTree(members: MemberView[]): TreeLayout {
     if (anchor) friendAnchor.set(id, anchor);
   }
 
-  // Generations: below every parent, level with your partner (and with the friend you stand by).
-  const gen = new Map(placed.map((id) => [id, 0]));
-  for (let pass = 0; pass < placed.length * 3 + 2; pass += 1) {
+  // Generations: exactly one below each parent, level with your partner and your
+  // friends (the server only accepts trees where that all holds at once).
+  const levels = familyLevels(treeFromMembers(members), placed);
+  const gen = new Map(placed.map((id) => [id, levels?.get(id) ?? 0]));
+  for (let pass = 0; !levels && pass < placed.length * 3 + 2; pass += 1) {
     let changed = false;
     for (const [c, ps] of parentsOf) for (const p of ps) {
       if ((gen.get(c) ?? 0) < (gen.get(p) ?? 0) + 1) { gen.set(c, (gen.get(p) ?? 0) + 1); changed = true; }
@@ -354,15 +385,24 @@ export function layoutFamilyTree(members: MemberView[]): TreeLayout {
     seg(`couple-${u.join("-")}`, l.x + half, l.y + SHAPE_MID, r.x - half, l.y + SHAPE_MID);
   }
 
-  // Friend lines (dashed).
+  // Friend lines (dashed), always between two people on the same row: straight across
+  // when they stand side by side, otherwise a bracket over the heads of whoever is between.
   const drawn = new Set<string>();
+  const bracketsOnRow = new Map<number, number>();
   for (const [a, fs] of friendsOf) for (const b of fs) {
     const key = [a, b].sort().join("~");
     if (drawn.has(key) || !pos.has(a) || !pos.has(b)) continue;
     drawn.add(key);
     const [l, r] = [at(a), at(b)].sort((p, q) => p.x - q.x);
-    if (l.y === r.y) seg(`friend-${key}`, l.x + half, l.y + SHAPE_MID, r.x - half, r.y + SHAPE_MID, true);
-    else seg(`friend-${key}`, l.x, l.y + SHAPE_MID, r.x, r.y + SHAPE_MID, true);
+    if (l.y !== r.y) { seg(`friend-${key}`, l.x, l.y + SHAPE_MID, r.x, r.y + SHAPE_MID, true); continue; }
+    const between = [...pos.values()].some((p) => p.y === l.y && p.x > l.x + 0.5 && p.x < r.x - 0.5);
+    if (!between) { seg(`friend-${key}`, l.x + half, l.y + SHAPE_MID, r.x - half, r.y + SHAPE_MID, true); continue; }
+    const n = bracketsOnRow.get(l.y) ?? 0;
+    bracketsOnRow.set(l.y, n + 1);
+    const top = l.y - 7 - n * 5;
+    seg(`friend-${key}-l`, l.x, l.y, l.x, top, true);
+    seg(`friend-${key}-t`, l.x, top, r.x, top, true);
+    seg(`friend-${key}-r`, r.x, top, r.x, r.y, true);
   }
 
   // One connector per family: drop from the parents, a bar over the children, a drop to each.

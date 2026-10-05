@@ -1,9 +1,10 @@
 import { useState } from "react";
-import type { HouseSummary, HouseView } from "../../services/house";
+import type { FamilyEdit, HouseSummary, HouseView } from "../../services/house";
 import { HOUSES_PER_USER } from "../../services/house";
 import { formatCodeInput } from "../../services/house";
 import { CharacterAvatar, normalizeAvatarConfig } from "../../components/avatars";
-import { IconHouse, IconTree } from "../../components/icons";
+import { IconHouse } from "../../components/icons";
+import { FamilyTreeTab } from "./FamilyTreeScreen";
 import { PixelButton, PixelPanel } from "../../components/ui";
 import { SubPageHeader } from "../../components/layout";
 import { useT, type Translate } from "../../i18n";
@@ -61,7 +62,9 @@ function inviteExpiryLabel(expiresAt: string | null, t: Translate): string {
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: HOUSE SETTINGS — the invite code, who is in the house, and the way out.
 // ─────────────────────────────────────────────────────────────────────────
-export function HouseSettingsScreen({ house, selfId, onRegenerate, onRename, onRemove, onLeave, onBack, onFamilyTree, houses = [], onSwitchHouse, onAddHouse }: {
+export type HouseTab = "settings" | "tree";
+
+export function HouseSettingsScreen({ house, selfId, onRegenerate, onRename, onRemove, onLeave, onBack, tab = "settings", onTab, onFamilyEdit, houses = [], onSwitchHouse, onAddHouse }: {
   house: HouseView;
   selfId: string;
   onRegenerate: () => Promise<string | null>;
@@ -69,7 +72,10 @@ export function HouseSettingsScreen({ house, selfId, onRegenerate, onRename, onR
   onRemove: (id: string) => Promise<string | null>;
   onLeave: () => Promise<string | null>;
   onBack: () => void;
-  onFamilyTree?: () => void;
+  /** Which tab is showing: house settings, or the shared family tree. */
+  tab?: HouseTab;
+  onTab?: (tab: HouseTab) => void;
+  onFamilyEdit?: (edits: FamilyEdit[]) => Promise<string | null>;
   /** Every house you're in (up to 3), to switch between or add another. */
   houses?: HouseSummary[];
   onSwitchHouse?: (houseId: string) => Promise<string | null>;
@@ -128,14 +134,21 @@ export function HouseSettingsScreen({ house, selfId, onRegenerate, onRename, onR
         title={t("YOUR HOUSE")}
         titleColor="#00ff88"
         onBack={onBack}
-        actions={onFamilyTree && (
-          <button type="button" onClick={onFamilyTree} aria-label={t("Family tree")} title={t("Family tree")}
-            style={{ width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", padding: 0, cursor: "pointer" }}>
-            <IconTree size={28} color="#00ff88" />
-          </button>
-        )}
       />
+      <div role="tablist" aria-label={t("House")} style={{ display: "flex", gap: 6, padding: "10px 16px 0" }}>
+        {([["settings", t("SETTINGS")], ["tree", t("FAMILY TREE")]] as [HouseTab, string][]).map(([id, text]) => (
+          <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => onTab?.(id)}
+            style={{
+              flex: 1, minHeight: 44, fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", letterSpacing: 1,
+              backgroundColor: tab === id ? "#00ff88" : "#0a0e1a", color: tab === id ? "#0a0e1a" : "#9bb0c8",
+              border: `3px solid ${tab === id ? "#00ff88" : "#2a3a5c"}`, cursor: "pointer",
+            }}>{text}</button>
+        ))}
+      </div>
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4" style={{ scrollbarWidth: "none" }}>
+        {tab === "tree" && onFamilyEdit ? (
+          <FamilyTreeTab house={house} selfId={selfId} onEdit={onFamilyEdit} />
+        ) : (<>
         {onSwitchHouse && (
           <PixelPanel accent="#4ecdc4" className="w-full">
             {sectionLabel(t("YOUR HOUSES ({n}/{max})", { n: houseList.length, max: HOUSES_PER_USER }), "#4ecdc4")}
@@ -224,6 +237,7 @@ export function HouseSettingsScreen({ house, selfId, onRegenerate, onRename, onR
         {msg && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: msg === "COPIED" ? "#00ff88" : "#ff6b35", textAlign: "center" }}>{t(msg)}</div>}
 
         <PixelButton onClick={leave} color="#1a2340" textColor="#ff2d55" size="md" full disabled={busy}>{t("[ LEAVE HOUSE ]")}</PixelButton>
+        </>)}
       </div>
     </div>
   );

@@ -12,7 +12,11 @@ import { query, transaction } from './db.js';
 import { userFromRow } from './rows.js';
 import { roomView } from './room-style.js';
 import { weekStart } from './week.js';
-import { cleanFamilyLinkInput, familyConflict, projectFamilyLink } from './family-tree.js';
+import { cleanFamilyLinkInput } from './family-tree.js';
+import {
+  FAMILY_LIMITS, applyFamilyEdit, cleanFamilyEdit, cleanFamilyTree, familyEditIds, familyLinkFor,
+  familyProblem, familyTreeFromLinks, replaceFamilyLink,
+} from './family-rules.js';
 import { announceDrillScammed } from './drill-announce.js';
 import {
   addXp,
@@ -311,33 +315,67 @@ export async function leaveHouse(userId) {
 }
 
 /**
- * Place the caller in their house's family tree. Only their own record changes; the
- * house row lock serialises placements so the whole-tree checks see a stable tree.
+ * The house's shared family tree, limited to its current members. A house saved before
+ * the tree was shared has none yet: it's built from the members' own old placements.
+ * `memberRows` is [{ id, family_link }].
  */
-export async function setFamilyLink(userId, input) {
+function houseFamilyTree(house, memberRows) {
+  const ids = new Set(memberRows.map((row) => row.id));
+  if (house.family_tree) return cleanFamilyTree(house.family_tree, ids);
+  return familyTreeFromLinks(memberRows.map((row) => ({ id: row.id, link: row.family_link })));
+}
+
+async function lockedFamilyTree(tx, userId) {
+  const { house, user } = await lockHouseMember(tx, userId);
+  const { rows } = await tx.query(
+    'select user_id as id, family_link from safespace.house_members where house_id = $1',
+    [house.id],
+  );
+  return { house, user, ids: rows.map((row) => row.id), tree: houseFamilyTree(house, rows) };
+}
+
+async function saveFamilyTree(tx, house, user, tree, ids, now) {
+  const problem = familyProblem(tree, ids);
+  if (problem) throw new HouseError(problem);
+  await tx.query(
+    'update safespace.houses set family_tree = $2::jsonb where id = $1',
+    [house.id, JSON.stringify({ ...tree, updatedAt: now.toISOString(), updatedBy: user.id })],
+  );
+  return { ring: [house.doorbell] };
+}
+
+/**
+ * Change the house's family tree. Any member may edit anyone's place: `input` is one
+ * edit or a list of up to four, applied in order to the LATEST stored tree (under the
+ * house lock), so edits made at the same time on different phones all land. The result
+ * must still make sense (family-rules.js) or nothing is saved.
+ */
+export async function editFamilyTree(userId, input, { now = new Date() } = {}) {
+  const list = Array.isArray(input) ? input : [input];
+  if (!list.length || list.length > FAMILY_LIMITS.editsPerRequest) throw new HouseError('INVALID_FAMILY_LINK');
+  const edits = list.map(cleanFamilyEdit);
+  if (edits.some((edit) => !edit)) throw new HouseError('INVALID_FAMILY_LINK');
+  return transaction(async (tx) => {
+    const { house, user, ids, tree } = await lockedFamilyTree(tx, userId);
+    const members = new Set(ids);
+    if (edits.some((edit) => familyEditIds(edit).some((id) => !members.has(id)))) throw new HouseError('NOT_A_MEMBER');
+    const next = edits.reduce(applyFamilyEdit, tree);
+    return saveFamilyTree(tx, house, user, next, ids, now);
+  }, 'editFamilyTree');
+}
+
+/**
+ * The older app's "save my branch": replaces everything about the caller on the shared
+ * tree with their placement.
+ */
+export async function setFamilyLink(userId, input, { now = new Date() } = {}) {
   const clean = cleanFamilyLinkInput(input);
   if (!clean) throw new HouseError('INVALID_FAMILY_LINK');
   return transaction(async (tx) => {
-    const { house, user } = await lockHouseMember(tx, userId);
-    const { rows: memberRows } = await tx.query(
-      'select user_id as id, family_link from safespace.house_members where house_id = $1',
-      [house.id],
-    );
-    const rows = memberRows;
-    const ids = new Set(rows.map((row) => row.id));
+    const { house, user, ids, tree } = await lockedFamilyTree(tx, userId);
     const referenced = [clean.partnerId, ...clean.parentIds, ...clean.childIds, ...clean.friendIds].filter(Boolean);
-    if (referenced.some((id) => id === user.id || !ids.has(id))) throw new HouseError('NOT_A_MEMBER');
-    const links = new Map(rows.map((row) => [
-      row.id,
-      row.id === user.id ? clean : projectFamilyLink(row.family_link, row.id, ids) ?? projectFamilyLink({}, row.id, ids),
-    ]));
-    const conflict = familyConflict(user.id, links);
-    if (conflict) throw new HouseError(conflict);
-    await tx.query(
-      'update safespace.house_members set family_link = $3::jsonb where house_id = $1 and user_id = $2',
-      [house.id, user.id, JSON.stringify(clean)],
-    );
-    return { ring: [house.doorbell] };
+    if (referenced.some((id) => id === user.id || !ids.includes(id))) throw new HouseError('NOT_A_MEMBER');
+    return saveFamilyTree(tx, house, user, replaceFamilyLink(tree, user.id, clean), ids, now);
   }, 'setFamilyLink');
 }
 
@@ -430,7 +468,7 @@ async function weeklyStats(userIds, since) {
 }
 
 // Explicit field list: never spread a user row, so private fields cannot leak.
-function memberView(user, stats, ownerId, memberIdSet = null, familyLink = null) {
+function memberView(user, stats, ownerId, family = null) {
   return {
     id: user.id,
     name: user.name,
@@ -448,7 +486,7 @@ function memberView(user, stats, ownerId, memberIdSet = null, familyLink = null)
     activeThisWeek: stats.active,
     safeThisWeek: !stats.lost,
     weekRun: stats.weekRun,
-    family: memberIdSet ? projectFamilyLink(familyLink, user.id, memberIdSet) : null,
+    family,
     room: roomView(user),
   };
 }
@@ -495,8 +533,8 @@ export async function getHouseView(userId, { now = new Date() } = {}) {
   );
   const members = memberRows.map((row) => ({ user: userFromRow(row), familyLink: row.membership_family_link }));
   const stats = await weeklyStats(members.map((m) => m.user.id), since);
-  const memberIdSet = new Set(members.map((m) => m.user.id));
-  const views = members.map((m) => memberView(m.user, stats.get(m.user.id), house.owner_id, memberIdSet, m.familyLink));
+  const tree = houseFamilyTree(house, members.map((m) => ({ id: m.user.id, family_link: m.familyLink })));
+  const views = members.map((m) => memberView(m.user, stats.get(m.user.id), house.owner_id, familyLinkFor(tree, m.user.id)));
   const selfInHouse = views.find((m) => m.id === self.id);
   if (!selfInHouse) return soloView(self, since, houses);
   const codeLive = house.invite_code && new Date(house.invite_expires_at).getTime() > now.getTime();
@@ -510,6 +548,9 @@ export async function getHouseView(userId, { now = new Date() } = {}) {
       inviteExpiresAt: codeLive ? new Date(house.invite_expires_at).toISOString() : null,
       doorbell: house.doorbell,
       members: views,
+      // Who last changed the shared family tree, and when (null until someone does).
+      familyUpdatedAt: house.family_tree?.updatedAt ?? null,
+      familyUpdatedBy: house.family_tree?.updatedBy ?? null,
     },
     houses,
   };

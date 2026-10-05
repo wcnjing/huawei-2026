@@ -43,7 +43,7 @@ import {
   setSessionToken, reportOutcome, updateVerifiedNameRequest, type ApiResult,
 } from "./services/api";
 import {
-  useHouse, createHouse, joinHouse, switchHouse, HOUSES_PER_USER, leaveHouse, regenerateCode, renameHouse, setFamilyLink,
+  useHouse, createHouse, joinHouse, switchHouse, HOUSES_PER_USER, leaveHouse, regenerateCode, renameHouse, editFamily,
   removeMember, saveAvatar, postHouseRun, formatCodeInput, captureInviteFromUrl,
   peekPendingInvite, takePendingInvite, type HouseState, type HouseView, type MemberView,
 } from "./services/house";
@@ -92,7 +92,6 @@ import {
   AccessibilitySettingsScreen, AboutSettingsScreen,
 } from "./screens/settings/SettingsScreens";
 import { HouseChoiceScreen, HouseSettingsScreen } from "./screens/house/HouseScreens";
-import { FamilyTreeScreen } from "./screens/house/FamilyTreeScreen";
 import { NotificationsScreen, NotificationDetailScreen } from "./screens/notifications/NotificationScreens";
 import { PaydayScreen } from "./screens/rewards/PaydayScreen";
 
@@ -1478,7 +1477,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
                 onBack={() => setScreen(registrationReturn)}
               />
             )}
-            {(screen === "house" || screen === "house-settings") && (
+            {(screen === "house" || screen === "house-settings" || screen === "family-tree") && (
               house.state.house ? (
                 <HouseSettingsScreen
                   key={house.state.house.id}
@@ -1489,7 +1488,9 @@ export default function App({ initialScreen = "title", devMode = false }: { init
                   onRemove={(id) => applyHouseResult(() => removeMember(id))}
                   onLeave={handleLeaveHouse}
                   onBack={goHome}
-                  onFamilyTree={() => setScreen("family-tree")}
+                  tab={screen === "family-tree" ? "tree" : "settings"}
+                  onTab={(tab) => setScreen(tab === "tree" ? "family-tree" : "house")}
+                  onFamilyEdit={(edits) => applyHouseResult(() => editFamily(edits))}
                   houses={house.state.houses ?? []}
                   onSwitchHouse={(id) => applyHouseResult(() => switchHouse(id))}
                   onAddHouse={() => setScreen("house-new")}
@@ -1511,17 +1512,6 @@ export default function App({ initialScreen = "title", devMode = false }: { init
                 onCreate={(n) => houseAction(() => createHouse(n))}
                 onJoin={(c) => houseAction(() => joinHouse(c))}
                 onBack={goHome}
-              />
-            )}
-
-            {screen === "family-tree" && signedIn && (
-              <FamilyTreeScreen
-                house={house.state.house}
-                self={house.state.self}
-                selfId={selfId}
-                onSave={(link) => applyHouseResult(() => setFamilyLink(link))}
-                onInvite={() => setScreen("house")}
-                onBack={() => setScreen("house")}
               />
             )}
 
