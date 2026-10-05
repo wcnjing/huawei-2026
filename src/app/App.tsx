@@ -1505,6 +1505,9 @@ export default function App({ initialScreen = "title", devMode = false }: { init
                 onSwitchHouse={(id) => applyHouseResult(() => switchHouse(id))}
                 onPlayWithOthers={() => setScreen("house")}
                 onRemoveMember={handleRemoveMember}
+                houseLoading={house.loading}
+                houseFailed={house.failed}
+                onRetryHouse={() => { void house.refresh(); }}
               />
             )}
             {screen === "leaderboard" && <LeaderboardScreen onPlayWithOthers={() => setScreen("house")} />}

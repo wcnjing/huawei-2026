@@ -174,6 +174,7 @@ export const world: LocaleTable = {
     "COLLECTED!": "已领取！",
     "[ COLLECT PAYDAY ]": "[ 领取薪水 ]",
     "LOADING YOUR HOUSE…": "正在加载你的家…",
+    "COULDN'T LOAD YOUR HOUSE. CHECK YOUR CONNECTION AND TRY AGAIN.": "无法加载你的家。请检查网络连接后重试。",
 
     "{count} purchased furniture items in room": "房间里有 {count} 件已购买的家具",
     "Arrange room": "摆放房间",
@@ -384,6 +385,7 @@ export const world: LocaleTable = {
     "COLLECTED!": "SUDAH DIKUTIP!",
     "[ COLLECT PAYDAY ]": "[ KUTIP GAJI ]",
     "LOADING YOUR HOUSE…": "MEMUATKAN RUMAH ANDA…",
+    "COULDN'T LOAD YOUR HOUSE. CHECK YOUR CONNECTION AND TRY AGAIN.": "RUMAH ANDA TIDAK DAPAT DIMUATKAN. SEMAK SAMBUNGAN ANDA DAN CUBA LAGI.",
 
     "{count} purchased furniture items in room": "{count} perabot yang dibeli dalam bilik",
     "Arrange room": "Susun bilik",
@@ -594,6 +596,7 @@ export const world: LocaleTable = {
     "COLLECTED!": "பெறப்பட்டது!",
     "[ COLLECT PAYDAY ]": "[ சம்பளம் பெறு ]",
     "LOADING YOUR HOUSE…": "உங்கள் வீட்டை ஏற்றுகிறது…",
+    "COULDN'T LOAD YOUR HOUSE. CHECK YOUR CONNECTION AND TRY AGAIN.": "உங்கள் வீட்டை ஏற்ற முடியவில்லை. இணைப்பைச் சரிபார்த்து மீண்டும் முயலவும்.",
 
     "{count} purchased furniture items in room": "அறையில் வாங்கிய {count} தளவாடங்கள்",
     "Arrange room": "அறையை அடுக்கு",

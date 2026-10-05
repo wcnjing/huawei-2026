@@ -97,6 +97,9 @@ export function useHouse(enabled: boolean, sessionIdentity = "") {
     state: EMPTY_HOUSE_STATE,
   }));
   const [loading, setLoading] = useState(enabled);
+  // True when the last /api/house fetch failed (server error or offline), so screens can
+  // offer a retry instead of rendering nothing. Cleared by the next successful fetch.
+  const [failed, setFailed] = useState(false);
   const epoch = useRef(0);
   const currentIdentity = useRef(sessionIdentity);
   currentIdentity.current = sessionIdentity;
@@ -120,13 +123,21 @@ export function useHouse(enabled: boolean, sessionIdentity = "") {
             signal: controller.signal,
           });
           if (sessionToken() === token) handleApiAuth(response);
-          if (!response.ok) return;
+          if (!response.ok) {
+            if (response.status !== 401 && epoch.current === requestEpoch) {
+              console.warn("[house] /api/house failed:", response.status);
+              setFailed(true);
+            }
+            return;
+          }
           const next = await response.json() as HouseState;
           if (epoch.current === requestEpoch && sessionToken() === token) {
             setOwnedState({ identity: sessionIdentity, state: next });
+            setFailed(false);
           }
         } catch (error) {
-          if (!(error instanceof Error && error.name === "AbortError")) return;
+          if (error instanceof Error && error.name === "AbortError") return;
+          if (epoch.current === requestEpoch) setFailed(true);
         } finally {
           if (epoch.current === requestEpoch) setLoading(false);
         }
@@ -145,6 +156,7 @@ export function useHouse(enabled: boolean, sessionIdentity = "") {
     inFlight.current = null;
     setOwnedState({ identity: sessionIdentity, state: EMPTY_HOUSE_STATE });
     setLoading(enabled);
+    setFailed(false);
   }, [enabled, sessionIdentity]);
 
   // Runs once per false→true transition of `enabled` (a stable `refresh` identity keeps this
@@ -190,8 +202,9 @@ export function useHouse(enabled: boolean, sessionIdentity = "") {
   const apply = useCallback((next: HouseState, targetIdentity = sessionIdentity) => {
     if (currentIdentity.current !== targetIdentity) return false;
     setOwnedState({ identity: targetIdentity, state: next });
+    setFailed(false);
     return true;
   }, [sessionIdentity]);
 
-  return { state, loading, changeRevision, refresh, apply };
+  return { state, loading, failed, changeRevision, refresh, apply };
 }

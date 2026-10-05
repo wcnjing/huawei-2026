@@ -5,13 +5,14 @@ import type { RoomLayouts } from "../../types/roomLayout";
 import type { HouseSummary, HouseView } from "../../services/house";
 import { useMembers } from "../../hooks/useMembers";
 import { useSelfId } from "../../hooks/useSelfId";
+import { PixelButton } from "../../components/ui";
 import { FamilySafetyBar } from "./FamilySafetyBar";
 import { HouseRoofButton } from "./HouseRoofButton";
 import { DollhouseRoom } from "./DollhouseRoom";
 import { MemberProfileOverlay } from "./MemberProfileOverlay";
 import { SoloRoom } from "./SoloRoom";
 
-export function FamilyHomeScreen({ onPayday, paydayClaimedThisWeek, onCustomize, onArrange, coins, soldItems, purchasedItems, roomLayouts, house, houses, onSwitchHouse, onPlayWithOthers, onRemoveMember }: {
+export function FamilyHomeScreen({ onPayday, paydayClaimedThisWeek, onCustomize, onArrange, coins, soldItems, purchasedItems, roomLayouts, house, houses, onSwitchHouse, onPlayWithOthers, onRemoveMember, houseLoading = false, houseFailed = false, onRetryHouse }: {
   onPayday: () => void;
   paydayClaimedThisWeek: boolean;
   onCustomize: (memberId: string) => void;
@@ -25,6 +26,11 @@ export function FamilyHomeScreen({ onPayday, paydayClaimedThisWeek, onCustomize,
   onSwitchHouse: (houseId: string) => Promise<string | null>;
   onPlayWithOthers: () => void;
   onRemoveMember: (id: string) => void;
+  /** The /api/house fetch is still in flight. */
+  houseLoading?: boolean;
+  /** The last /api/house fetch failed, so there is no player to draw. */
+  houseFailed?: boolean;
+  onRetryHouse?: () => void;
 }) {
   const t = useT();
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
@@ -77,7 +83,19 @@ export function FamilyHomeScreen({ onPayday, paydayClaimedThisWeek, onCustomize,
               />
             </div>
           </>
-        ) : null}
+        ) : (
+          // No player data yet: say so instead of rendering an empty screen.
+          <div role="status" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: "48px 24px", textAlign: "center" }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: houseFailed && !houseLoading ? "#ff6b35" : "#9bb0c8", lineHeight: 1.5 }}>
+              {houseFailed && !houseLoading
+                ? t("COULDN'T LOAD YOUR HOUSE. CHECK YOUR CONNECTION AND TRY AGAIN.")
+                : t("LOADING YOUR HOUSE…")}
+            </div>
+            {houseFailed && !houseLoading && onRetryHouse && (
+              <PixelButton onClick={onRetryHouse} color="#1a2340" textColor="#00ff88" size="sm">{t("[ RETRY ]")}</PixelButton>
+            )}
+          </div>
+        )}
         <div style={{ height: 24, backgroundColor: "#1a2340", borderTop: "4px solid #2a3a5c", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#2a3a5c", letterSpacing: 3 }}>████████████████████████████</div>
         </div>
