@@ -325,6 +325,7 @@ function toFamilyMember(m: MemberView, roomStyle = DEFAULT_ROOM_STYLE, language:
     safeThisWeek: m.safeThisWeek, recentDrillResult: m.recentDrillResult,
     primaryColor: avatar.color, roomName: roomStyle.name || translate(language, "{name}'S ROOM", { name: m.name }), roomStyle,
     roomBg: ROOM_BACKGROUNDS[avatar.color] ?? "#081420",
+    roomItems: m.room?.items ?? [], roomLayout: m.room?.layout ?? undefined,
     badgeCount: m.badgeCount, badgeTotal: m.badgeTotal, avatar,
   };
 }
@@ -590,7 +591,16 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   });
   const members = useMemo(() => {
     const views = house.state.house?.members ?? (house.state.self ? [house.state.self] : []);
-    return views.map(view => toFamilyMember(view, roomStyles[view.id] ?? DEFAULT_ROOM_STYLE, language));
+    // Everyone's room look comes from the server, so housemates see each other's rooms as
+    // decorated. This phone's own saved look wins for the player's own room, so an edit
+    // shows instantly (and survives) before the server round-trip lands.
+    const selfViewId = house.state.self?.id;
+    return views.map(view => {
+      const style = view.id === selfViewId && roomStyles[view.id]
+        ? roomStyles[view.id]
+        : view.room?.style ? normalizeRoomStyle(view.room.style) : DEFAULT_ROOM_STYLE;
+      return toFamilyMember(view, style, language);
+    });
   }, [house.state, roomStyles, language]);
   const memberMap = useMemo(() => Object.fromEntries(members.map((m) => [m.id, m])), [members]);
   const activeMemberId = selfId; // one player per phone now
@@ -626,6 +636,31 @@ export default function App({ initialScreen = "title", devMode = false }: { init
     if (!same) updateProfile({ avatar: merged });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverAvatarKey]);
+
+  // The account owns the room look too, so housemates see it and a second device shows it.
+  const pushRoomStyle = useCallback(async (style: RoomStyle) => {
+    if (!sessionToken()) return;
+    const result = await apiPost("/api/me/room-style", { roomStyle: style });
+    if (result.ok) void house.refresh();
+    else console.warn("[room-style] sync to account failed:", result.status, result.data?.error);
+  }, [house.refresh]);
+  const serverRoomStyleKey = selfView?.room?.style ? JSON.stringify(normalizeRoomStyle(selfView.room.style)) : "";
+  const localRoomStyle = selfView ? roomStyles[selfView.id] : undefined;
+  useEffect(() => {
+    if (!selfView) return;
+    if (serverRoomStyleKey) {
+      // Adopt the account's look when it changed elsewhere (another device).
+      if (JSON.stringify(localRoomStyle ?? null) === serverRoomStyleKey) return;
+      const next = { ...roomStyles, [selfView.id]: normalizeRoomStyle(JSON.parse(serverRoomStyleKey)) };
+      saveRoomStyles(next);
+      setRoomStyles(next);
+    } else if (localRoomStyle) {
+      // One-off: a look saved on this phone before rooms were shared goes up to the account.
+      void pushRoomStyle(localRoomStyle);
+    }
+    // Only when the server's copy changes; local edits push themselves (onStyleSave).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverRoomStyleKey, selfView?.id]);
 
   // Editing the avatar while signed in writes it back to the account; signed-out
   // players keep it locally until they verify (sign-up sends it with the code).
@@ -1571,9 +1606,11 @@ export default function App({ initialScreen = "title", devMode = false }: { init
                 layout={roomLayouts[selfId]}
                 onStyleSave={style => {
                   if (!selfView) return false;
-                  const next = { ...roomStyles, [selfId]: normalizeRoomStyle(style) };
+                  const clean = normalizeRoomStyle(style);
+                  const next = { ...roomStyles, [selfId]: clean };
                   if (!saveRoomStyles(next)) return false;
                   setRoomStyles(next);
+                  void pushRoomStyle(clean);
                   return true;
                 }}
                 onBack={goHome}

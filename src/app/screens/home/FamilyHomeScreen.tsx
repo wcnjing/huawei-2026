@@ -57,8 +57,8 @@ export function FamilyHomeScreen({ onPayday, paydayClaimedThisWeek, onCustomize,
                   member={member}
                   onTap={setSelectedMember}
                   soldItems={soldItems}
-                  purchasedItems={member.id === selfId ? purchasedItems[selfId] ?? [] : []}
-                  layout={member.id === selfId ? roomLayouts[selfId] : undefined}
+                  purchasedItems={member.id === selfId ? purchasedItems[selfId] ?? [] : member.roomItems}
+                  layout={member.id === selfId ? roomLayouts[selfId] : member.roomLayout}
                   onCustomize={member.id === selfId ? () => onCustomize(selfId) : undefined}
                   onArrange={member.id === selfId ? onArrange : undefined}
                 />

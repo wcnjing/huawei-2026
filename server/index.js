@@ -30,11 +30,13 @@ import {
   reservePhoneVerificationSend,
   setUserAvatar,
   setUserHomeInventory,
+  setUserRoomStyle,
   setUserName,
   setVerifiedUserEmail,
 } from './store.js';
 import { cleanAvatar } from './avatar.js';
 import { cleanHomeInventory } from './home-inventory.js';
+import { cleanRoomStyle, roomView } from './room-style.js';
 import {
   VapiDeliveryUnconfirmed,
   fireDrillCall,
@@ -614,15 +616,31 @@ api.post('/api/me/avatar', async (req, res) => {
   return res.json({ ok: true, user: accountView(user) });
 });
 
-// Coins and furniture are cosmetic and private to the player — nobody else's house view
-// includes them, so unlike name/avatar this never rings the house doorbell.
+// Coins stay private, but the player's own furniture and its layout show in their room
+// on every housemate's phone (see roomView). The client saves this record on every coin
+// change too, so ring the house only when the room itself changed.
 api.post('/api/me/home-inventory', async (req, res) => {
   const userId = await requireUserId(req, res);
   if (!userId) return;
   if (!cleanHomeInventory(req.body?.homeInventory)) {
     return res.status(400).json({ error: 'home inventory is invalid' });
   }
+  const before = await getUser(userId);
   const user = await setUserHomeInventory(userId, req.body.homeInventory);
+  const roomKey = (u) => JSON.stringify(u ? [roomView(u).items, roomView(u).layout] : null);
+  if (roomKey(before) !== roomKey(user)) await ringUser(userId);
+  return res.json({ ok: true, user: accountView(user) });
+});
+
+// The room's look (colours, wallpaper, floor, name) is shown to the whole house.
+api.post('/api/me/room-style', async (req, res) => {
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+  if (!cleanRoomStyle(req.body?.roomStyle)) {
+    return res.status(400).json({ error: 'room style is invalid' });
+  }
+  const user = await setUserRoomStyle(userId, req.body.roomStyle);
+  await ringUser(userId);
   return res.json({ ok: true, user: accountView(user) });
 });
 

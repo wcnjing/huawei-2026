@@ -709,6 +709,47 @@ test('/api/me/home-inventory requires a session and saves coins, furniture and l
   await freshStore();
 });
 
+test('housemates see each other\'s room look, furniture and layout, but never coins', async () => {
+  await freshStore();
+  const owner = await signedIn('Owner');
+  const guest = await signedIn('Guest');
+  const { house } = await (await post('/api/house', { name: 'The Tans' }, owner.auth)).json();
+  await post('/api/house/join', { code: house.inviteCode }, guest.auth);
+  const ownerRoom = async () => (await getJson('/api/house', guest.auth)).body.house.members
+    .find((m) => m.id === owner.user.id).room;
+  assert.deepEqual(await ownerRoom(), { style: null, items: [], layout: null });
+
+  const roomStyle = { name: 'Cosy den', wall: 'violet', pattern: 'stars', floor: 'oak', light: 'pink', glow: true };
+  assert.equal((await post('/api/me/room-style', { roomStyle })).status, 401);
+  assert.equal((await post('/api/me/room-style', { roomStyle: { ...roomStyle, wall: 'url(x)' } }, owner.auth)).status, 400);
+  doorbellRings.length = 0;
+  assert.equal((await post('/api/me/room-style', { roomStyle }, owner.auth)).status, 200);
+  assert.deepEqual(doorbellRings, [house.doorbell]);
+  assert.deepEqual((await ownerRoom()).style, roomStyle);
+
+  const homeInventory = {
+    coins: { [owner.user.id]: 300 },
+    soldItems: [],
+    purchasedItems: { [owner.user.id]: ['shop-rug'] },
+    roomLayouts: { [owner.user.id]: { 'shop-rug': { x: 30, y: 100 } } },
+  };
+  doorbellRings.length = 0;
+  assert.equal((await post('/api/me/home-inventory', { homeInventory }, owner.auth)).status, 200);
+  assert.deepEqual(doorbellRings, [house.doorbell]);
+  const room = await ownerRoom();
+  assert.deepEqual(room.items, ['shop-rug']);
+  assert.deepEqual(room.layout, { 'shop-rug': { x: 30, y: 100 } });
+  const ownerView = (await getJson('/api/house', guest.auth)).body.house.members.find((m) => m.id === owner.user.id);
+  assert.equal(JSON.stringify(ownerView).includes('coins'), false);
+
+  // A coins-only change doesn't touch the room, so it doesn't ring the house.
+  doorbellRings.length = 0;
+  const richer = { ...homeInventory, coins: { [owner.user.id]: 900 } };
+  assert.equal((await post('/api/me/home-inventory', { homeInventory: richer }, owner.auth)).status, 200);
+  assert.deepEqual(doorbellRings, []);
+  await freshStore();
+});
+
 // ─── Signed-in practice scoring (sessions required) ────────────────────────
 test('practice drills score against the signed-in account', async () => {
   await freshStore();

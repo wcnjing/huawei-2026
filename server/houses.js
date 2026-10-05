@@ -10,6 +10,7 @@
 import crypto from 'crypto';
 import { query, transaction } from './db.js';
 import { userFromRow } from './rows.js';
+import { roomView } from './room-style.js';
 import { weekStart } from './week.js';
 import { cleanFamilyLinkInput, familyConflict, projectFamilyLink } from './family-tree.js';
 import { announceDrillScammed } from './drill-announce.js';
@@ -448,6 +449,7 @@ function memberView(user, stats, ownerId, memberIdSet = null, familyLink = null)
     safeThisWeek: !stats.lost,
     weekRun: stats.weekRun,
     family: memberIdSet ? projectFamilyLink(familyLink, user.id, memberIdSet) : null,
+    room: roomView(user),
   };
 }
 

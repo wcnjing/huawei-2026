@@ -1,6 +1,7 @@
 // House data for the app: API calls plus useHouse(), which keeps one copy of
 // GET /api/house fresh. It refetches when the house's doorbell rings (a content-free
 // Supabase Realtime broadcast), when the app regains focus, and every five minutes.
+import type { RoomLayout } from "../types/roomLayout";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { apiPost, handleApiAuth, sessionToken } from "./api";
@@ -22,7 +23,11 @@ export type MemberView = {
   isOwner: boolean; activeThisWeek: boolean; safeThisWeek: boolean; weekRun: WeekRun | null;
   /** Null when solo, or when this member hasn't placed themself yet. */
   family?: FamilyLink | null;
+  /** How this member decorated their room, shown on every housemate's phone. */
+  room?: MemberRoom;
 };
+/** `style` is the raw stored look (normalise before use); null until they customise. */
+export type MemberRoom = { style: unknown; items: string[]; layout: RoomLayout | null };
 export type HouseView = {
   id: string; name: string; ownerId: string;
   inviteCode: string | null; inviteExpiresAt: string | null;

@@ -10,6 +10,7 @@ import { computeResult, KNOWN_OUTCOMES } from './xp.js';
 import { query, transaction } from './db.js';
 import { cleanAvatar } from './avatar.js';
 import { cleanHomeInventory } from './home-inventory.js';
+import { cleanRoomStyle } from './room-style.js';
 import { announceDrillScammed } from './drill-announce.js';
 // houses.js imports this module's locking helpers in turn. Neither module calls the
 // other while it is being evaluated, so the cycle resolves before any call happens.
@@ -112,6 +113,16 @@ async function writeAvatar(runner, userId, avatar) {
   const { rows } = await runner.query(
     'update safespace.users set avatar = $2::jsonb where id = $1 returning *',
     [String(userId), JSON.stringify(avatar)],
+  );
+  if (!rows[0]) throw new Error(`unknown user ${userId}`);
+  return userFromRow(rows[0]);
+}
+
+/** Write the room look to database. runner is anything with .query(sql, params). */
+async function writeRoomStyle(runner, userId, style) {
+  const { rows } = await runner.query(
+    'update safespace.users set room_style = $2::jsonb where id = $1 returning *',
+    [String(userId), JSON.stringify(style)],
   );
   if (!rows[0]) throw new Error(`unknown user ${userId}`);
   return userFromRow(rows[0]);
@@ -802,6 +813,16 @@ export async function setUserHomeInventory(userId, homeInventory) {
     query: (sql, params) => query(sql, params, 'setUserHomeInventory'),
   };
   return writeHomeInventory(runner, userId, clean);
+}
+
+// Same last-write-wins shape as setUserAvatar: the room look is cosmetic.
+export async function setUserRoomStyle(userId, style) {
+  const clean = cleanRoomStyle(style);
+  if (!clean) throw new Error('room style is invalid');
+  const runner = {
+    query: (sql, params) => query(sql, params, 'setUserRoomStyle'),
+  };
+  return writeRoomStyle(runner, userId, clean);
 }
 
 // Backward-compatible storage helper. Setting an address never marks it verified:
