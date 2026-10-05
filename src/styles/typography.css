@@ -42,7 +42,6 @@
 .room-heading-details { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; }
 .room-heading-details > span { display: inline-flex; align-items: center; gap: 5px; }
 .room-invite { position: relative; z-index: 2; align-self: flex-end; margin: 0 12px 8px; min-height: 44px; max-width: calc(100% - 24px); }
-.room-player { width: calc(100% - 32px); min-width: 0; }
 .room-player-name { font-size: var(--text-title); line-height: 1.4; text-align: center; max-width: 100%; }
 .room-tap-label { text-align: right; font-size: var(--text-caption); }
 .house-safety-members { flex-wrap: wrap; }

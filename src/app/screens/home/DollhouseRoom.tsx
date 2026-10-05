@@ -3,7 +3,7 @@ import type { FamilyMember } from "../../types/family";
 import type { RoomLayout } from "../../types/roomLayout";
 import { FurnitureIcon, PurchasedRoomFurniture } from "../../components/furniture";
 import { MemberChar } from "../../components/avatars";
-import { RoomBackdrop } from "../../components/room";
+import { RoomBackdrop, RoomWanderer } from "../../components/room";
 import { FURNITURE_STORE } from "../../data/furniture";
 import { RoomHeading } from "./RoomHeading";
 import { SafetyBadge } from "./SafetyBadge";
@@ -48,10 +48,11 @@ export function DollhouseRoom({ member, onTap, soldItems, purchasedItems, layout
         {/* purchasedItems is the ownership source of truth; selling a shop item removes
             it there, while buying it again adds it back and should render it again. */}
         <PurchasedRoomFurniture itemIds={purchasedItems} accent={member.primaryColor} layout={layout} topInset={16} />
-        <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", zIndex: 3, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-          <SafetyBadge safe={member.safeThisWeek} size={18} />
-          <MemberChar member={member} size={80} />
-        </div>
+        <RoomWanderer
+          back="34%" front="12px" minX={14} maxX={86}
+          above={<div style={{ marginBottom: 4 }}><SafetyBadge safe={member.safeThisWeek} size={18} /></div>}
+          character={<MemberChar member={member} size={80} />}
+        />
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 4, background: `linear-gradient(90deg,${member.primaryColor}22,${member.primaryColor}55,${member.primaryColor}22)`, borderTop: `2px solid ${member.primaryColor}44` }} />
         <div className="home-room-open-hint">{t("TAP TO VIEW")}</div>
       </div>
