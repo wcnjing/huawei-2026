@@ -3,7 +3,7 @@ import type { FamilyEdit, HouseSummary, HouseView } from "../../services/house";
 import { HOUSES_PER_USER } from "../../services/house";
 import { formatCodeInput } from "../../services/house";
 import { CharacterAvatar, normalizeAvatarConfig } from "../../components/avatars";
-import { IconHouse } from "../../components/icons";
+import { IconGear, IconHouse, IconTree } from "../../components/icons";
 import { FamilyTreeTab } from "./FamilyTreeScreen";
 import { PixelButton, PixelPanel } from "../../components/ui";
 import { SubPageHeader } from "../../components/layout";
@@ -135,15 +135,32 @@ export function HouseSettingsScreen({ house, selfId, onRegenerate, onRename, onR
         titleColor="#00ff88"
         onBack={onBack}
       />
-      <div role="tablist" aria-label={t("House")} style={{ display: "flex", gap: 6, padding: "10px 16px 0" }}>
-        {([["settings", t("SETTINGS")], ["tree", t("FAMILY TREE")]] as [HouseTab, string][]).map(([id, text]) => (
-          <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => onTab?.(id)}
-            style={{
-              flex: 1, minHeight: 44, fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", letterSpacing: 1,
-              backgroundColor: tab === id ? "#00ff88" : "#0a0e1a", color: tab === id ? "#0a0e1a" : "#9bb0c8",
-              border: `3px solid ${tab === id ? "#00ff88" : "#2a3a5c"}`, cursor: "pointer",
-            }}>{text}</button>
-        ))}
+      {/* Tab banner: sits between the header and the scrolling content, so it stays put. */}
+      <div role="tablist" aria-label={t("House")} style={{
+        display: "flex", gap: 8, padding: "10px 16px 12px", backgroundColor: "#111827",
+        borderBottom: "4px solid #2a3a5c", flexShrink: 0,
+      }}>
+        {([
+          ["settings", t("SETTINGS"), "#ffe66d", (c: string) => <IconGear size={18} color={c} />],
+          ["tree", t("FAMILY TREE"), "#c77dff", (c: string) => <IconTree size={18} color={c} />],
+        ] as [HouseTab, string, string, (c: string) => React.ReactNode][]).map(([id, text, accent, icon]) => {
+          const active = tab === id;
+          return (
+            <button key={id} type="button" role="tab" aria-selected={active} onClick={() => onTab?.(id)}
+              style={{
+                flex: 1, minHeight: 48, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", letterSpacing: 1,
+                backgroundColor: active ? accent : "#0a0e1a", color: active ? "#0a0e1a" : accent,
+                border: `3px solid ${active ? accent : "#2a3a5c"}`,
+                boxShadow: active ? "4px 4px 0 #0a0e1a" : "none",
+                transform: active ? "translate(-2px, -2px)" : "none",
+                cursor: active ? "default" : "pointer",
+              }}>
+              {icon(active ? "#0a0e1a" : accent)}
+              {text}
+            </button>
+          );
+        })}
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4" style={{ scrollbarWidth: "none" }}>
         {tab === "tree" && onFamilyEdit ? (
