@@ -210,6 +210,85 @@ test('after an answer everyone must tap Continue before the next turn starts', a
   assert.equal((await view(host.id)).status, 'finished', "b's last turn is skipped, ending the game");
 });
 
+async function startRace(players, perPlayer = 2, t0 = new Date()) {
+  const [host, ...others] = players;
+  const { drillId } = await drills.createHouseDrill(host.id, { perPlayer, mode: 'race' }, { now: t0 });
+  for (const p of others) await drills.respondToHouseDrill(p.id, drillId, true, { now: t0 });
+  await drills.startHouseDrill(host.id, drillId, ids(perPlayer, 21), { now: t0 });
+  return drillId;
+}
+const raceAnswer = (userId, drillId, turn, outcome, now) =>
+  drills.answerHouseDrill(userId, drillId, { turn, action: 'REPORT AS SCAM', outcome, foundClues: 0 }, { now });
+
+test('a race gives everyone the same questions, and only that many', async () => {
+  await resetDb();
+  const [host, a] = await houseWith(2);
+  await rejectsWith(() => drills.createHouseDrill(host.id, { perPlayer: 2, mode: 'battle' }), 'INVALID_DRILL_SETTINGS');
+  const { drillId } = await drills.createHouseDrill(host.id, { perPlayer: 3, mode: 'race' });
+  await drills.respondToHouseDrill(a.id, drillId, true);
+  await rejectsWith(() => drills.startHouseDrill(host.id, drillId, ids(6)), 'INVALID_DRILL_SETTINGS');
+  await drills.startHouseDrill(host.id, drillId, [7, 8, 9]);
+  const d = await view(a.id);
+  assert.equal(d.mode, 'race');
+  assert.deepEqual(d.turns.map((x) => x.scenarioId), [7, 8, 9]);
+});
+
+test('race players go at their own pace, in order, and cannot see each other\'s answers', async () => {
+  await resetDb();
+  const [host, a] = await houseWith(2);
+  const drillId = await startRace([host, a], 2);
+  await raceAnswer(a.id, drillId, 0, 'correct');
+  await rejectsWith(() => raceAnswer(a.id, drillId, 2, 'correct'), 'NOT_YOUR_TURN');
+  assert.deepEqual((await raceAnswer(a.id, drillId, 0, 'wrong')).ring, [], 'a retry changes nothing');
+  await raceAnswer(a.id, drillId, 1, 'correct');
+  const seenByHost = await view(host.id);
+  assert.equal(seenByHost.status, 'playing', 'still waiting for the host to finish');
+  assert.deepEqual(seenByHost.answers.map((x) => [x.playerId, x.turn, x.outcome, x.action]),
+    [[a.id, 0, null, null], [a.id, 1, null, null]], 'progress only, no answers to copy');
+  assert.equal((await view(a.id)).answers[0].outcome, 'correct', 'players see their own answers');
+  assert.equal(await drills.continueHouseDrill(host.id, drillId, 0).then((r) => r.ring.length), 0);
+  assert.equal(await drills.skipHouseDrillTurn(host.id, drillId, 0).then((r) => r.ring.length), 0);
+});
+
+test('the highest score wins a race, and a faster finish breaks a tie', async () => {
+  await resetDb();
+  const [host, a, b] = await houseWith(3);
+  const t0 = new Date(Date.now() - 60_000);
+  const at = (s) => new Date(t0.getTime() + s * 1000);
+  const drillId = await startRace([host, a, b], 2, t0);
+  // a and b both score 150; b finishes first. The host scores 100.
+  await raceAnswer(b.id, drillId, 0, 'correct', at(5));
+  await raceAnswer(b.id, drillId, 1, 'cautious', at(10));
+  await raceAnswer(a.id, drillId, 0, 'cautious', at(8));
+  await raceAnswer(a.id, drillId, 1, 'correct', at(20));
+  await raceAnswer(host.id, drillId, 0, 'correct', at(4));
+  await raceAnswer(host.id, drillId, 1, 'wrong', at(6));
+  const d = await view(host.id);
+  assert.equal(d.status, 'finished', 'the race ends when everyone is done');
+  assert.deepEqual(d.ranking.map((r) => [r.playerId, r.score, r.timeMs]),
+    [[b.id, 150, 10_000], [a.id, 150, 20_000], [host.id, 100, 6_000]]);
+  assert.equal(d.winnerId, b.id);
+  assert.equal(d.answers.find((x) => x.playerId === a.id).outcome, 'cautious', 'answers are revealed at the end');
+  assert.ok(d.xp[a.id] > 0 && d.xp[b.id] > 0);
+});
+
+test('the host can end a race early; unfinished players rank by score, then as slowest', async () => {
+  await resetDb();
+  const [host, a, b] = await houseWith(3);
+  const drillId = await startRace([host, a, b], 3);
+  await raceAnswer(a.id, drillId, 0, 'correct');
+  await raceAnswer(b.id, drillId, 0, 'correct');
+  await raceAnswer(b.id, drillId, 1, 'correct');
+  await drills.leaveHouseDrill(a.id, drillId);
+  assert.equal((await view(host.id)).status, 'playing', 'one player leaving does not end it');
+  await drills.leaveHouseDrill(host.id, drillId);
+  const d = await view(b.id);
+  assert.equal(d.status, 'finished');
+  assert.deepEqual(d.ranking.map((r) => [r.playerId, r.score, r.timeMs]),
+    [[b.id, 200, null], [a.id, 100, null], [host.id, 0, null]]);
+  assert.equal(d.winnerId, b.id);
+});
+
 test('the host leaving cancels a lobby and ends a game in play', async () => {
   await resetDb();
   const [host, a] = await houseWith(2);

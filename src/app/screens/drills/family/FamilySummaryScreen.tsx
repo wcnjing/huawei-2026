@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { FamilyOutcome } from "../../../types/drills";
 import { scenarioById } from "../../../data/drillPool";
 import { IconBadge } from "../../../components/icons";
@@ -7,13 +8,17 @@ import { useT } from "../../../i18n";
 export type SummaryAnswer = { scenarioId: number; outcome: FamilyOutcome; foundClues: number };
 export type SummaryPlayer = { id: string; name: string; correct: number; answered: number; xp: number | null; isSelf: boolean };
 
-export function FamilySummaryScreen({ mode, answers, total, coins, serverXp, players, onPlayAgain, onSwitchMode, onHome }: {
+export function FamilySummaryScreen({ mode, answers, total, coins, serverXp, players, headline, leaderboard, onPlayAgain, onSwitchMode, onHome }: {
   mode: "solo" | "family";
   answers: SummaryAnswer[];
   total: number;
   coins: number;
   serverXp: number | null | "pending";
   players?: SummaryPlayer[];
+  /** Replaces the score-based heading, e.g. "YOU WIN!" after a race. */
+  headline?: { text: string; color: string };
+  /** Shown first, e.g. a race's final standings. */
+  leaderboard?: ReactNode;
   onPlayAgain: () => void; onSwitchMode: () => void; onHome: () => void;
 }) {
   const t = useT();
@@ -24,8 +29,8 @@ export function FamilySummaryScreen({ mode, answers, total, coins, serverXp, pla
   // Thresholds scale with the game length; at 6 questions they match the original 5/3/8/4.
   const n = Math.max(total, 1);
   const safeAt = Math.ceil((n * 5) / 6);
-  const header = correctCount >= safeAt ? t("HOUSE SAFE!") : correctCount >= n / 2 ? t("GOOD TRAINING!") : t("MORE PRACTICE NEEDED!");
-  const headerColor = correctCount >= safeAt ? "#00ff88" : correctCount >= n / 2 ? "#ffe66d" : "#ff2d55";
+  const header = headline?.text ?? (correctCount >= safeAt ? t("HOUSE SAFE!") : correctCount >= n / 2 ? t("GOOD TRAINING!") : t("MORE PRACTICE NEEDED!"));
+  const headerColor = headline?.color ?? (correctCount >= safeAt ? "#00ff88" : correctCount >= n / 2 ? "#ffe66d" : "#ff2d55");
   const xpDisplay = serverXp === "pending" ? t("SAVING…") : serverXp === null ? t("NOT SAVED — CHECK YOUR CONNECTION") : serverXp > 0 ? `+${serverXp} XP` : t("XP ALREADY EARNED THIS WEEK");
 
   const badges = [
@@ -41,6 +46,7 @@ export function FamilySummaryScreen({ mode, answers, total, coins, serverXp, pla
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: headerColor }}>{header}</div>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
+        {leaderboard}
         <div style={{ backgroundColor: "#111827", border: `4px solid ${headerColor}`, boxShadow: `4px 4px 0 ${headerColor}`, padding: "14px", marginBottom: 14 }}>
           <div className="grid grid-cols-2 gap-3">
             {[

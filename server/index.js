@@ -695,7 +695,7 @@ function drillRoute(change) {
 }
 
 api.post('/api/house/drill', drillRoute((userId, req) =>
-  createHouseDrill(userId, { perPlayer: req.body?.perPlayer })));
+  createHouseDrill(userId, { perPlayer: req.body?.perPlayer, mode: req.body?.mode ?? 'turns' })));
 api.post('/api/house/drill/:drillId/respond', drillRoute((userId, req) =>
   respondToHouseDrill(userId, req.params.drillId, req.body?.accept === true)));
 api.post('/api/house/drill/:drillId/start', drillRoute((userId, req) =>

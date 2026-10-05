@@ -6,16 +6,19 @@ import { MemberChar, PixelMascot } from "../../../components/avatars";
 import { useMemberMap, useMembers } from "../../../hooks/useMembers";
 import { pickScenarios, scenarioById } from "../../../data/drillPool";
 import { FAMILY_COINS } from "../../../data/familyData";
+import { RACE_WIN_COINS } from "../../../data/economy";
 import { useT } from "../../../i18n";
 import {
   DEFAULT_PER_PLAYER, PER_PLAYER_OPTIONS, answerHouseDrill, continueHouseDrill, leaveHouseDrill,
   openHouseDrill, respondToHouseDrill, skipHouseDrillTurn, startHouseDrill,
-  type DrillPlayer, type HouseDrill,
+  type DrillMode, type DrillPlayer, type HouseDrill,
 } from "../../../services/houseDrill";
 import type { ApiResult } from "../../../services/api";
 import { CountPicker } from "./CountPicker";
 import { FamilyRoundScreen } from "./FamilyRoundScreen";
 import { FamilySummaryScreen } from "./FamilySummaryScreen";
+import { ModePicker } from "./ModePicker";
+import { RaceResults, formatRaceTime } from "./RaceResults";
 
 const MONO = "'Share Tech Mono', monospace";
 const OUTCOME_LABEL: Record<FamilyOutcome, [string, string]> = {
@@ -66,6 +69,7 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
   const members = useMembers();
   const memberMap = useMemberMap();
   const [perPlayer, setPerPlayer] = useState<number>(DEFAULT_PER_PLAYER);
+  const [mode, setMode] = useState<DrillMode>("turns");
   const [dismissedId, setDismissedId] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState<number | null>(null);
   const [send, setSend] = useState<Send | null>(null);
@@ -80,6 +84,7 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
   const shown = drill && drill.id !== dismissedId ? drill : null;
   const me = shown?.players.find((p) => p.id === selfId) ?? null;
   const isHost = !!shown && shown.hostId === selfId;
+  const race = shown?.mode === "race";
   const nameOf = (id: string | null | undefined) =>
     shown?.players.find((p) => p.id === id)?.name ?? memberMap[id ?? ""]?.name ?? t("A HOUSEMATE");
 
@@ -165,7 +170,12 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
   }
 
   // ── My turn (or reviewing the answer I just gave) ───────────────────────────
-  const turnToShow = reviewing ?? (shown?.status === "playing" && !shown.revealing && shown.turns[shown.currentTurn]?.playerId === selfId && me?.status === "accepted" ? shown.currentTurn : null);
+  // In a race each player works through every question in order at their own pace.
+  const raceNext = race ? shown!.answers.filter((a) => a.playerId === selfId).length : 0;
+  const liveTurn = shown?.status !== "playing" || me?.status !== "accepted" ? null
+    : race ? (raceNext < shown.turns.length ? raceNext : null)
+    : !shown.revealing && shown.turns[shown.currentTurn]?.playerId === selfId ? shown.currentTurn : null;
+  const turnToShow = reviewing ?? liveTurn;
   if (shown && turnToShow !== null && shown.turns[turnToShow]) {
     const scenario = scenarioById(shown.turns[turnToShow].scenarioId);
     if (scenario) {
@@ -190,7 +200,7 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
             if (send?.state === "failed") { void postAnswer(send); return; }
             if (send?.state === "sending") return;
             setReviewing(null);
-            void tapContinue(turnToShow);
+            if (!race) void tapContinue(turnToShow);
           }}
         />
       );
@@ -210,15 +220,24 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
           xp: shown.xp?.[p.id] ?? null,
         };
       });
-    const coins = answered.filter((a) => a.playerId === selfId).reduce((sum, a) => sum + FAMILY_COINS[a.outcome!], 0);
+    const mine = answered.filter((a) => a.playerId === selfId);
+    const coins = mine.reduce((sum, a) => sum + FAMILY_COINS[a.outcome!], 0);
+    // A race is scored per player, so the summary shows this player's own answers.
+    const shownAnswers = race ? mine : answered;
+    const headline = !race ? undefined
+      : shown.winnerId === selfId ? { text: t("YOU WIN!"), color: "#ffe66d" }
+      : shown.winnerId ? { text: t("{name} WINS!", { name: nameOf(shown.winnerId).toUpperCase() }), color: "#4ecdc4" }
+      : { text: t("RACE OVER"), color: "#9bb0c8" };
     return (
       <FamilySummaryScreen
         mode="family"
-        answers={answered.map((a) => ({ scenarioId: a.scenarioId, outcome: a.outcome!, foundClues: a.foundClues }))}
-        total={answered.length}
-        coins={coins}
+        answers={shownAnswers.map((a) => ({ scenarioId: a.scenarioId, outcome: a.outcome!, foundClues: a.foundClues }))}
+        total={race ? shown.turns.length : answered.length}
+        coins={coins + (race && shown.winnerId === selfId ? RACE_WIN_COINS : 0)}
         serverXp={shown.xp ? (shown.xp[selfId] ?? 0) : null}
-        players={players}
+        players={race ? undefined : players}
+        headline={headline}
+        leaderboard={race ? <RaceResults drill={shown} selfId={selfId} /> : undefined}
         onPlayAgain={() => setDismissedId(shown.id)}
         onSwitchMode={onIndividual}
         onHome={onExit}
@@ -228,13 +247,16 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
 
   const leaveButton = shown && (
     <PixelButton onClick={() => setConfirmLeave(true)} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>
-      {isHost ? t("[ END DRILL FOR EVERYONE ]") : t("[ LEAVE DRILL ]")}
+      {race ? (isHost ? t("[ END RACE FOR EVERYONE ]") : t("[ LEAVE RACE ]"))
+        : isHost ? t("[ END DRILL FOR EVERYONE ]") : t("[ LEAVE DRILL ]")}
     </PixelButton>
   );
   const leaveDialog = shown && confirmLeave && (
     <div role="dialog" aria-modal="true" style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.85)", zIndex: 80, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div style={{ backgroundColor: "#111827", border: "4px solid #ff6b35", width: "100%", padding: 16 }}>
-        <Body>{isHost ? t("End the drill for everyone? Answers so far still count.") : t("Leave the drill? Your remaining turns will be skipped.")}</Body>
+        <Body>{race
+          ? (isHost ? t("End the race for everyone? Anyone still playing is ranked on what they've answered so far.") : t("Leave the race? Your answers so far still count."))
+          : isHost ? t("End the drill for everyone? Answers so far still count.") : t("Leave the drill? Your remaining turns will be skipped.")}</Body>
         <div className="flex gap-3" style={{ marginTop: 14 }}>
           <div style={{ flex: 1 }}><PixelButton onClick={() => { setConfirmLeave(false); void run(() => leaveHouseDrill(shown.id)); }} color="#ff6b35" size="sm" full>{isHost ? t("END") : t("LEAVE")}</PixelButton></div>
           <div style={{ flex: 1 }}><PixelButton onClick={() => setConfirmLeave(false)} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>{t("STAY")}</PixelButton></div>
@@ -242,6 +264,50 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
       </div>
     </div>
   );
+
+  // ── Race: I've finished, waiting for the others ─────────────────────────────
+  if (shown?.status === "playing" && me?.status === "accepted" && race) {
+    const playing = shown.players.filter((p) => p.status === "accepted" || p.status === "left");
+    const total = shown.turns.length;
+    const myTime = shown.finishTimes[selfId];
+    return (
+      <div className="flex flex-col h-full" style={{ position: "relative" }}>
+        <Header title={t("HOUSE RACE")} right={t("{count} QUESTIONS", { count: total })} />
+        <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
+          <Panel color="#00ff88">
+            <div aria-live="polite" style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "var(--text-body)", color: "#00ff88", lineHeight: 1.6, marginBottom: 6 }}>{t("YOU'RE DONE!")}</div>
+            {myTime !== undefined && <Body>{t("Your time: {time}", { time: formatRaceTime(myTime) })}</Body>}
+            <Body color="#9bb0c8">{t("Scores are revealed when everyone finishes.")}</Body>
+          </Panel>
+          <Panel>
+            <Caption>{t("RACE PROGRESS")}</Caption>
+            {playing.map((p) => {
+              const member = memberMap[p.id];
+              const done = shown.answers.filter((a) => a.playerId === p.id).length;
+              const finished = shown.finishTimes[p.id] !== undefined;
+              return (
+                <div key={p.id} style={{ padding: "6px 0", borderTop: "1px solid #1a2340" }}>
+                  <div className="flex items-center gap-3">
+                    {member ? <MemberChar member={member} size={32} /> : <PixelMascot size={32} />}
+                    <div style={{ flex: 1, fontFamily: MONO, fontSize: "var(--text-body)", color: p.id === selfId ? "#00ff88" : "#e8f4f8" }}>{p.name.toUpperCase()}</div>
+                    <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: finished ? "#00ff88" : p.status === "left" ? "#6b8ba4" : "#ffe66d" }}>
+                      {finished ? `✓ ${t("FINISHED")}` : p.status === "left" ? t("LEFT") : `${done}/${total}`}
+                    </div>
+                  </div>
+                  <div style={{ height: 6, backgroundColor: "#0a0e1a", border: "1px solid #2a3a5c", marginTop: 6 }}>
+                    <div style={{ height: "100%", width: `${Math.round((done / Math.max(total, 1)) * 100)}%`, backgroundColor: finished ? "#00ff88" : "#ff6b35" }} />
+                  </div>
+                </div>
+              );
+            })}
+          </Panel>
+          {errorLine}
+          <div className="flex flex-col gap-3">{leaveButton}</div>
+        </div>
+        {leaveDialog}
+      </div>
+    );
+  }
 
   // ── Playing: an answer is on screen, waiting for everyone to continue ───────
   if (shown?.status === "playing" && me?.status === "accepted" && shown.revealing) {
@@ -393,7 +459,11 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
         <Header title={t("HOUSE DRILL")} right={t("{count} READY", { count: accepted.length })} />
         <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
           <Panel color="#00ff88">
-            <Caption color="#00ff88">{t("{count} QUESTIONS EACH", { count: shown.perPlayer })} · {t("{count} TOTAL", { count: accepted.length * shown.perPlayer })}</Caption>
+            <Caption color={race ? "#ff6b35" : "#00ff88"}>
+              {race
+                ? <>{t("RACE")} · {t("{count} QUESTIONS", { count: shown.perPlayer })}</>
+                : <>{t("{count} QUESTIONS EACH", { count: shown.perPlayer })} · {t("{count} TOTAL", { count: accepted.length * shown.perPlayer })}</>}
+            </Caption>
             <Body color="#9bb0c8">
               {secondsLeft > 0
                 ? t("Invites close in {time}", { time: `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}` })
@@ -421,7 +491,7 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
             {isHost ? (
               <>
                 <PixelButton
-                  onClick={() => run(() => startHouseDrill(shown.id, pickScenarios(accepted.length * shown.perPlayer).map((s) => s.id)))}
+                  onClick={() => run(() => startHouseDrill(shown.id, pickScenarios(race ? shown.perPlayer : accepted.length * shown.perPlayer).map((s) => s.id)))}
                   disabled={busy}
                   color="#00ff88" textColor="#0a0e1a" size="lg" full
                 >
@@ -485,22 +555,36 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
             </div>
           ))}
         </div>
+        <Panel>
+          <Caption>{t("GAME MODE")}</Caption>
+          <ModePicker value={mode} onChange={setMode} />
+        </Panel>
         <Panel color="#00ff88">
           <Caption color="#00ff88">{t("QUESTIONS PER PERSON")}</Caption>
           <CountPicker options={PER_PLAYER_OPTIONS} value={perPlayer} onChange={setPerPlayer} label={t("QUESTIONS PER PERSON")} />
           <div style={{ marginTop: 10 }}>
-            <Body color="#9bb0c8">{t("Up to {count} questions if everyone joins.", { count: members.length * perPlayer })}</Body>
+            <Body color="#9bb0c8">
+              {mode === "race"
+                ? t("Everyone answers the same {count} questions.", { count: perPlayer })
+                : t("Up to {count} questions if everyone joins.", { count: members.length * perPlayer })}
+            </Body>
           </div>
         </Panel>
         <Panel>
           <Caption>{t("HOW IT WORKS")}</Caption>
-          {[
+          {(mode === "race" ? [
+            "Everyone in your house gets an invite on their phone.",
+            "Everyone answers the same questions on their own phone, at their own pace.",
+            "Safe choice: 100 points. Cautious: 50. Wrong: 0.",
+            "Highest score wins. If scores are tied, the fastest finisher wins.",
+            "Scores stay hidden until everyone has finished.",
+          ] : [
             "Everyone in your house gets an invite on their phone.",
             "Players take turns — your question appears on your screen.",
             "While others play, you'll see whose turn it is.",
             "After each answer, everyone sees it and taps Continue to move on together.",
             "Start whenever you're ready; only those who join will play.",
-          ].map((line) => (
+          ]).map((line) => (
             <div key={line} className="flex items-start gap-2 mb-2">
               <div style={{ width: 6, height: 6, backgroundColor: "#00ff88", flexShrink: 0, marginTop: 6 }} />
               <Body>{t(line)}</Body>
@@ -514,7 +598,7 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
         )}
         {errorLine}
         <div className="flex flex-col gap-3">
-          <PixelButton onClick={() => run(() => openHouseDrill(perPlayer))} disabled={busy || others.length === 0} color="#00ff88" textColor="#0a0e1a" size="lg" full>
+          <PixelButton onClick={() => run(() => openHouseDrill(perPlayer, mode))} disabled={busy || others.length === 0} color="#00ff88" textColor="#0a0e1a" size="lg" full>
             {t("[ INVITE MY HOUSE ]")}
           </PixelButton>
           {others.length === 0 && (

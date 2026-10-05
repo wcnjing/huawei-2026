@@ -22,7 +22,7 @@ import { HALL_OF_FAME } from "./data/leaderboard";
 import { RED_FLAGS, LIVE_CALL_FLAGS, SMS_FLAGS, EMAIL_FLAGS, FLAG_MAP } from "./data/scamFlags";
 import { pickScenarios } from "./data/drillPool";
 import { loadDrillPreferences, saveDrillPreferences, setPreferenceUser, type DrillPreferences } from "./data/drillPreferences";
-import { DAILY_REWARD_AMOUNT, LEDGER_CAP } from "./data/economy";
+import { DAILY_REWARD_AMOUNT, LEDGER_CAP, RACE_WIN_COINS } from "./data/economy";
 import { NOTIFICATIONS_CAP } from "./data/notifications";
 import { FURNITURE_STORE } from "./data/furniture";
 import { SHOP_CATALOGUE } from "./data/shopCatalogue";
@@ -281,7 +281,7 @@ const REWARD_CLAIMS_KEY = "safespace_reward_claims_v1";
 
 
 function loadRewardClaims(): RewardClaims {
-  const fallback: RewardClaims = { dailyByMember: {}, paydayWeek: null };
+  const fallback: RewardClaims = { dailyByMember: {}, paydayWeek: null, raceWins: [] };
   try {
     const raw = localStorage.getItem(REWARD_CLAIMS_KEY);
     if (!raw) return fallback;
@@ -291,6 +291,7 @@ function loadRewardClaims(): RewardClaims {
         ? parsed.dailyByMember
         : {},
       paydayWeek: typeof parsed?.paydayWeek === "string" ? parsed.paydayWeek : null,
+      raceWins: Array.isArray(parsed?.raceWins) ? parsed.raceWins.filter((id: unknown) => typeof id === "string") : [],
     };
   } catch {
     return fallback;
@@ -1129,11 +1130,28 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   };
 
   const handleHouseDrillFinished = useCallback((drill: HouseDrill) => {
-    const answered = drill.answers.filter((a) => !a.skipped);
+    // A race is scored per player, so report this player's own tally.
+    const answered = drill.answers.filter((a) => !a.skipped && (drill.mode !== "race" || a.playerId === selfId));
     emitNotifFamilyDrill(answered.filter((a) => a.outcome === "correct").length, answered.length);
     void house.refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [house.refresh, language]);
+  }, [house.refresh, language, selfId]);
+
+  // The winner of a house race gets a one-off coin bonus, paid once per race on this device.
+  useEffect(() => {
+    const drill = houseDrill.drill;
+    if (!canEarn || drill?.status !== "finished" || drill.mode !== "race" || drill.winnerId !== selfId) return;
+    const claimKey = `race-win:${drill.id}`;
+    if (rewardClaims.raceWins.includes(drill.id) || rewardClaimInFlightRef.current.has(claimKey)) return;
+    rewardClaimInFlightRef.current.add(claimKey);
+    setRewardClaims(prev => {
+      const next = { ...prev, raceWins: [drill.id, ...prev.raceWins].slice(0, 20) };
+      saveRewardClaims(next);
+      return next;
+    });
+    addCoinTx(selfId, RACE_WIN_COINS, "race-win", translate(language, "HOUSE RACE WIN"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [houseDrill.drill, selfId, canEarn, rewardClaims.raceWins]);
 
   // Furniture sell — now routes through ledger
   const handleSellItem = (memberId: string, itemId: string, value: number) => {
