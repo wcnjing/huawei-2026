@@ -61,7 +61,10 @@ test('create makes the creator owner with a live 24h code', async () => {
   assert.equal(house.inviteExpiresAt, new Date(now.getTime() + DAY).toISOString());
   assert.deepEqual(created.ring, [house.doorbell]);
   assert.deepEqual(house.members.map((m) => [m.id, m.isOwner]), [[p.id, true]]);
-  await rejectsWith(() => houses.createHouse(p.id, 'Second'), 'ALREADY_IN_HOUSE');
+  // A second and third house are fine; a fourth is not.
+  await houses.createHouse(p.id, 'Second');
+  await houses.createHouse(p.id, 'Third');
+  await rejectsWith(() => houses.createHouse(p.id, 'Fourth'), 'HOUSE_LIMIT');
 });
 
 test('house names are validated', async () => {
@@ -161,7 +164,7 @@ test('removing a member rotates the doorbell and rings the old one', async () =>
   assert.notEqual(after.doorbell, before);
   assert.equal(after.members.length, 2);
   assert.equal((await houses.getHouseView(members[1].id)).house, null);
-  assert.equal(await houses.doorbellForUser(members[1].id), null);
+  assert.deepEqual(await houses.doorbellsForUser(members[1].id), []);
 });
 
 test('leaving rotates the doorbell and rings the old one', async () => {
@@ -173,7 +176,7 @@ test('leaving rotates the doorbell and rings the old one', async () => {
   const after = (await houses.getHouseView(owner.id)).house;
   assert.notEqual(after.doorbell, before, 'a voluntary leaver must stop hearing this house');
   assert.equal(after.members.length, 2);
-  assert.equal(await houses.doorbellForUser(members[1].id), null);
+  assert.deepEqual(await houses.doorbellsForUser(members[1].id), []);
 });
 
 test('an owner leaving hands the house to the earliest joiner', async () => {
@@ -281,4 +284,125 @@ test('the house view never carries phone, email or lookup hashes', async () => {
   const { owner } = await houseWith(3);
   const text = JSON.stringify(await houses.getHouseView(owner.id));
   for (const leak of ['phone', 'email', 'Hash', '+659']) assert.ok(!text.includes(leak), leak);
+});
+
+test('members place themselves in the family tree and everyone sees it', async () => {
+  await resetDb();
+  const { members: [mum, dad, kid] } = await houseWith(3);
+  await houses.setFamilyLink(mum.id, { gender: 'female', partnerId: dad.id, childIds: [kid.id] });
+  await houses.setFamilyLink(kid.id, { gender: 'male', parentIds: [mum.id, dad.id] });
+  const view = await houses.getHouseView(dad.id);
+  const byId = Object.fromEntries(view.house.members.map((m) => [m.id, m.family]));
+  assert.deepEqual(byId[mum.id], { gender: 'female', parentIds: [], partnerId: dad.id, childIds: [kid.id], friendIds: [] });
+  assert.deepEqual(byId[kid.id], { gender: 'male', parentIds: [mum.id, dad.id], partnerId: null, childIds: [], friendIds: [] });
+  assert.deepEqual(byId[dad.id], null);
+});
+
+test('family tree placements are validated against the whole house', async () => {
+  await resetDb();
+  const { members: [a, b, c, d] } = await houseWith(4);
+  const outsider = await player('Outsider');
+  await rejectsWith(() => houses.setFamilyLink(a.id, { gender: 'king' }), 'INVALID_FAMILY_LINK');
+  // Unknown keys are ignored.
+  await houses.setFamilyLink(a.id, { extra: 1 });
+  await rejectsWith(() => houses.setFamilyLink(a.id, { gender: 'robot' }), 'INVALID_FAMILY_LINK');
+  await rejectsWith(() => houses.setFamilyLink(a.id, { friendIds: [outsider.id] }), 'NOT_A_MEMBER');
+  // A friend can also be family.
+  await houses.setFamilyLink(a.id, { partnerId: b.id, friendIds: [b.id] });
+  await houses.setFamilyLink(a.id, {});
+  await rejectsWith(() => houses.setFamilyLink(a.id, { partnerId: outsider.id }), 'NOT_A_MEMBER');
+  await rejectsWith(() => houses.setFamilyLink(a.id, { parentIds: [a.id] }), 'NOT_A_MEMBER');
+  await rejectsWith(() => houses.setFamilyLink(a.id, { partnerId: b.id, parentIds: [b.id] }), 'FAMILY_LINK_CONFLICT');
+  await rejectsWith(() => houses.setFamilyLink(outsider.id, { gender: 'female' }), 'NOT_IN_HOUSE');
+  // a is b's parent, so b can't be a's parent.
+  await houses.setFamilyLink(b.id, { parentIds: [a.id] });
+  await rejectsWith(() => houses.setFamilyLink(a.id, { parentIds: [b.id] }), 'FAMILY_LINK_CYCLE');
+  await rejectsWith(() => houses.setFamilyLink(a.id, { partnerId: b.id }), 'FAMILY_LINK_CONFLICT');
+  // b already has a as a parent; c and d both claiming b as a child makes three.
+  await houses.setFamilyLink(c.id, { childIds: [b.id] });
+  await rejectsWith(() => houses.setFamilyLink(d.id, { childIds: [b.id] }), 'FAMILY_TOO_MANY_PARENTS');
+});
+
+test('family links to someone who left are dropped from the view', async () => {
+  await resetDb();
+  const { members: [owner, kid] } = await houseWith(2);
+  await houses.setFamilyLink(kid.id, { gender: 'female', parentIds: [owner.id] });
+  await houses.leaveHouse(owner.id);
+  const view = await houses.getHouseView(kid.id);
+  assert.deepEqual(view.self.family, { gender: 'female', parentIds: [], partnerId: null, childIds: [], friendIds: [] });
+});
+
+test('members of other genders and friends can be placed on the tree', async () => {
+  await resetDb();
+  const { members: [a, b] } = await houseWith(2);
+  await houses.setFamilyLink(a.id, { gender: 'other' });
+  await houses.setFamilyLink(b.id, { gender: 'male', friendIds: [a.id] });
+  const view = await houses.getHouseView(a.id);
+  const byId = Object.fromEntries(view.house.members.map((m) => [m.id, m.family]));
+  assert.equal(byId[a.id].gender, 'other');
+  assert.deepEqual(byId[b.id].friendIds, [a.id]);
+});
+
+test('a player can be in up to 3 houses and switch between them', async () => {
+  await resetDb();
+  const a = await houseWith(2);
+  const b = await houseWith(2);
+  const c = await houseWith(2);
+  const d = await houseWith(2);
+  const p = await player('Hopper');
+  await houses.joinHouse(p.id, a.code);
+  await rejectsWith(() => houses.joinHouse(p.id, a.code), 'ALREADY_IN_HOUSE');
+  await houses.joinHouse(p.id, b.code);
+  await houses.joinHouse(p.id, c.code);
+  await rejectsWith(() => houses.joinHouse(p.id, d.code), 'HOUSE_LIMIT');
+  let view = await houses.getHouseView(p.id);
+  assert.equal(view.houses.length, 3);
+  assert.equal(view.house.id, view.houses[2].id, 'the newest house is the one you look at');
+  assert.deepEqual(view.houses.map((h) => h.active), [false, false, true]);
+  await houses.switchHouse(p.id, view.houses[0].id);
+  view = await houses.getHouseView(p.id);
+  assert.equal(view.house.id, view.houses[0].id);
+  assert.deepEqual(view.house.members.map((m) => m.id), [a.owner.id, a.members[1].id, p.id]);
+  const houseD = (await houses.getHouseView(d.owner.id)).house.id;
+  await rejectsWith(() => houses.switchHouse(p.id, houseD), 'NOT_IN_HOUSE');
+  assert.equal((await houses.doorbellsForUser(p.id)).length, 3);
+});
+
+test('leaving or being removed from your current house moves you to your next one', async () => {
+  await resetDb();
+  const a = await houseWith(2);
+  const b = await houseWith(2);
+  const p = await player('Hopper');
+  await houses.joinHouse(p.id, a.code, { now: new Date(Date.now() - 1000) });
+  await houses.joinHouse(p.id, b.code);
+  const houseA = (await houses.getHouseView(a.owner.id)).house.id;
+  const houseB = (await houses.getHouseView(b.owner.id)).house.id;
+  assert.equal((await houses.getHouseView(p.id)).house.id, houseB);
+  await houses.leaveHouse(p.id);
+  let view = await houses.getHouseView(p.id);
+  assert.equal(view.house.id, houseA);
+  assert.equal(view.houses.length, 1);
+  await houses.removeMember(a.owner.id, p.id);
+  view = await houses.getHouseView(p.id);
+  assert.equal(view.house, null);
+  assert.deepEqual(view.houses, []);
+});
+
+test('family tree placements are per house', async () => {
+  await resetDb();
+  const a = await houseWith(2);
+  const b = await houseWith(2);
+  const p = await player('Both');
+  await houses.joinHouse(p.id, a.code, { now: new Date(Date.now() - 1000) });
+  await houses.joinHouse(p.id, b.code);
+  await houses.setFamilyLink(p.id, { gender: 'male', friendIds: [b.owner.id] });
+  const houseA = (await houses.getHouseView(a.owner.id)).house.id;
+  await houses.switchHouse(p.id, houseA);
+  await houses.setFamilyLink(p.id, { gender: 'male', parentIds: [a.owner.id] });
+  const inA = (await houses.getHouseView(a.owner.id)).house.members.find((m) => m.id === p.id).family;
+  const inB = (await houses.getHouseView(b.owner.id)).house.members.find((m) => m.id === p.id).family;
+  assert.deepEqual(inA.parentIds, [a.owner.id]);
+  assert.deepEqual(inA.friendIds, []);
+  assert.deepEqual(inB.friendIds, [b.owner.id]);
+  assert.deepEqual(inB.parentIds, []);
 });

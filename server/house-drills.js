@@ -69,7 +69,9 @@ export function drillView(row, now = new Date()) {
 
 async function houseMembers(tx, houseId) {
   const { rows } = await tx.query(
-    'select id, name, avatar from safespace.users where house_id = $1 order by joined_house_at, id',
+    `select u.id, u.name, u.avatar from safespace.house_members m
+       join safespace.users u on u.id = m.user_id
+      where m.house_id = $1 order by m.joined_at, u.id`,
     [houseId],
   );
   return rows;

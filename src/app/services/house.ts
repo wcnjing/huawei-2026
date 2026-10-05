@@ -8,12 +8,20 @@ import type { AvatarConfig } from "../components/avatars/character";
 
 export type Avatar = AvatarConfig;
 export type WeekRun = { correct: number; cautious: number; wrong: number };
+/** One member's own placement in the family tree. Ids are other members of the house. */
+export type FamilyGender = "male" | "female" | "other";
+export type FamilyLink = {
+  gender: FamilyGender | null;
+  parentIds: string[]; partnerId: string | null; childIds: string[]; friendIds: string[];
+};
 export type MemberView = {
   id: string; name: string; avatar: Avatar | null;
   level: number; xp: number; xpMax: number; streak: number;
   timesSafe: number; timesScammed: number; badgeCount: number; badgeTotal: number;
   recentDrillResult: "WON" | "LOST" | null;
   isOwner: boolean; activeThisWeek: boolean; safeThisWeek: boolean; weekRun: WeekRun | null;
+  /** Null when solo, or when this member hasn't placed themself yet. */
+  family?: FamilyLink | null;
 };
 export type HouseView = {
   id: string; name: string; ownerId: string;
@@ -22,14 +30,19 @@ export type HouseView = {
 };
 // `self` is undefined, not null, if a server ever answers with a house the caller is
 // not in — so every guard on it must be a truthiness check, never `!== null`.
-export type HouseState = { self: MemberView | null | undefined; house: HouseView | null };
+/** One of the (up to 3) houses the player is in, for the switcher on the roof. */
+export type HouseSummary = { id: string; name: string; memberCount: number; active: boolean };
+export const HOUSES_PER_USER = 3;
+export type HouseState = { self: MemberView | null | undefined; house: HouseView | null; houses?: HouseSummary[] };
 
 export const createHouse = (name: string) => apiPost<HouseState>("/api/house", { name });
 export const joinHouse = (code: string) => apiPost<HouseState>("/api/house/join", { code });
+export const switchHouse = (houseId: string) => apiPost<HouseState>("/api/house/switch", { houseId });
 export const regenerateCode = () => apiPost<HouseState>("/api/house/code");
 export const renameHouse = (name: string) => apiPost<HouseState>("/api/house/name", { name });
 export const removeMember = (id: string) =>
   apiPost<HouseState>(`/api/house/members/${encodeURIComponent(id)}/remove`);
+export const setFamilyLink = (family: FamilyLink) => apiPost<HouseState>("/api/house/family", { family });
 export const leaveHouse = () => apiPost<HouseState>("/api/house/leave");
 export const saveAvatar = (avatar: Avatar) => apiPost<{ user: unknown }>("/api/me/avatar", { avatar });
 export const postHouseRun = (run: { clientKey: string } & WeekRun) =>

@@ -18,9 +18,6 @@ export function FamilySafetyBar({ coins, onPayday, paydayClaimedThisWeek }: { co
       </div>
       <div style={{ flex: 1 }}>
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: allSafe ? "#00ff88" : "#ff6b35", marginBottom: 4 }}>{t("HOUSE SAFETY")}</div>
-        <div style={{ fontFamily: "'Share Tech Mono',monospace", fontSize: "var(--text-body)", color: "#9bb0c8", lineHeight: 1.4 }}>
-          {t("{safe}/{total} MEMBERS SAFE", { safe: safeCount, total: members.length })}
-        </div>
         <div className="house-safety-members" style={{ display: "flex", gap: 6, marginTop: 6 }}>
           {members.map((m) => (
             <div key={m.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>

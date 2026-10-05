@@ -115,13 +115,23 @@ async function raceHouse(size) {
 }
 async function houseInvariants() {
   const { rows } = await query(
-    `select h.id, h.owner_id, count(u.id) as n, bool_or(u.id = h.owner_id) as owner_is_member
-       from safespace.houses h left join safespace.users u on u.house_id = h.id
+    `select h.id, h.owner_id, count(m.user_id) as n, bool_or(m.user_id = h.owner_id) as owner_is_member
+       from safespace.houses h left join safespace.house_members m on m.house_id = h.id
       group by h.id, h.owner_id`,
   );
   for (const row of rows) {
     assert.ok(Number(row.n) >= 1 && Number(row.n) <= houses.HOUSE_MAX_MEMBERS, `house size ${row.n}`);
     assert.equal(row.owner_is_member, true, 'the owner must be a member');
+  }
+  const perUser = await query(
+    `select u.id, u.house_id, count(m.house_id) as n, bool_or(m.house_id = u.house_id) as active_is_member
+       from safespace.users u left join safespace.house_members m on m.user_id = u.id
+      group by u.id, u.house_id`,
+  );
+  for (const row of perUser.rows) {
+    assert.ok(Number(row.n) <= houses.HOUSES_PER_USER, `${row.id} is in ${row.n} houses`);
+    if (row.house_id) assert.equal(row.active_is_member, true, `${row.id}'s active house must be one of theirs`);
+    else assert.equal(Number(row.n), 0, `${row.id} has houses but none active`);
   }
   return rows;
 }
@@ -137,14 +147,17 @@ test('7 people joining a house of 5 at once: exactly one gets in', { skip }, asy
   await houseInvariants();
 });
 
-test('one person joining two houses at once ends up in one', { skip }, async () => {
+test('someone with 2 houses joining two more at once ends up in exactly 3', { skip }, async () => {
   await resetDb();
+  const p = await racer('Double');
+  await houses.createHouse(p.id, 'One');
+  await houses.createHouse(p.id, 'Two');
   const a = await raceHouse(1);
   const b = await raceHouse(1);
-  const p = await racer('Double');
   const results = await Promise.allSettled([houses.joinHouse(p.id, a.code), houses.joinHouse(p.id, b.code)]);
   assert.equal(fulfilled(results).length, 1);
-  assert.equal(rejected(results)[0].reason?.code, 'ALREADY_IN_HOUSE');
+  assert.equal(rejected(results)[0].reason?.code, 'HOUSE_LIMIT');
+  assert.equal((await houses.getHouseView(p.id)).houses.length, 3);
   await houseInvariants();
 });
 
@@ -178,21 +191,23 @@ test('the last member leaving while someone joins never strands the joiner', { s
   }
 });
 
-test('one person creating a house while joining another ends up in one', { skip }, async () => {
+test('someone with 2 houses creating one while joining another ends up in exactly 3', { skip }, async () => {
   await resetDb();
   // createHouse takes no rate-limit advisory lock, so only the user row lock keeps this
   // race honest; run several rounds so the window actually gets hit.
   for (let round = 0; round < 10; round += 1) {
     const { code } = await raceHouse(1);
     const p = await racer('Creator');
+    await houses.createHouse(p.id, 'One');
+    await houses.createHouse(p.id, 'Two');
     const results = await Promise.allSettled([
       houses.createHouse(p.id, 'Mine'),
       houses.joinHouse(p.id, code),
     ]);
     assert.equal(fulfilled(results).length, 1, `round ${round}`);
-    assert.equal(rejected(results)[0].reason?.code, 'ALREADY_IN_HOUSE', `round ${round}`);
-    const { rows } = await query('select house_id from safespace.users where id = $1', [p.id]);
-    assert.ok(rows[0].house_id, `round ${round}: p should end up with exactly one house`);
+    assert.equal(rejected(results)[0].reason?.code, 'HOUSE_LIMIT', `round ${round}`);
+    const { rows } = await query('select count(*) as n from safespace.house_members where user_id = $1', [p.id]);
+    assert.equal(Number(rows[0].n), 3, `round ${round}: p should end up with exactly 3 houses`);
   }
   await houseInvariants();
 });

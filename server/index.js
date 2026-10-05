@@ -67,7 +67,7 @@ import { renderTactic } from './intel/render.js';
 import {
   HouseError,
   createHouse,
-  doorbellForUser,
+  doorbellsForUser,
   getHouseView,
   joinHouse,
   leaveHouse,
@@ -75,6 +75,8 @@ import {
   regenerateInviteCode,
   removeMember,
   renameHouse,
+  setFamilyLink,
+  switchHouse,
 } from './houses.js';
 import {
   answerHouseDrill,
@@ -215,11 +217,11 @@ async function requireUserId(req, res) {
   return userId;
 }
 
-/** Ring the house of a user whose visible stats just changed. Never throws. */
+/** Ring every house of a user whose visible stats just changed. Never throws. */
 async function ringUser(userId) {
   try {
-    const topic = await doorbellForUser(userId);
-    if (topic) await ring([topic]);
+    const topics = await doorbellsForUser(userId);
+    if (topics.length) await ring(topics);
   } catch (error) {
     console.error('[doorbell] lookup failed:', error?.message || error);
   }
@@ -227,7 +229,8 @@ async function ringUser(userId) {
 
 const HOUSE_ERRORS = {
   NOT_IN_HOUSE: [404, "you're not in a house"],
-  ALREADY_IN_HOUSE: [409, 'leave your current house first'],
+  ALREADY_IN_HOUSE: [409, "you're already in that house"],
+  HOUSE_LIMIT: [409, 'you can be in up to 3 houses; leave one first'],
   CODE_INVALID: [400, "that code isn't valid; ask for a new one"],
   HOUSE_FULL: [409, 'that house is full (6 players)'],
   NOT_OWNER: [403, 'only the house owner can do that'],
@@ -247,6 +250,10 @@ const HOUSE_ERRORS = {
   NOT_INVITED: [403, "you're not in this house drill"],
   INVITE_EXPIRED: [410, 'that invite has expired'],
   NOT_YOUR_TURN: [409, "it's not your turn"],
+  INVALID_FAMILY_LINK: [400, 'that family tree placement is not valid'],
+  FAMILY_LINK_CONFLICT: [409, "someone can't be both your partner and your parent or child"],
+  FAMILY_LINK_CYCLE: [409, "that would make someone their own ancestor"],
+  FAMILY_TOO_MANY_PARENTS: [409, 'someone in that choice already has two parents'],
 };
 
 const chatStatuses = {
@@ -635,6 +642,8 @@ api.post('/api/house/name', houseRoute((userId, req) => renameHouse(userId, req.
 api.post('/api/house/members/:memberId/remove', houseRoute((userId, req) =>
   removeMember(userId, req.params.memberId)));
 api.post('/api/house/leave', houseRoute((userId) => leaveHouse(userId)));
+api.post('/api/house/switch', houseRoute((userId, req) => switchHouse(userId, req.body?.houseId)));
+api.post('/api/house/family', houseRoute((userId, req) => setFamilyLink(userId, req.body?.family)));
 
 api.get('/api/house/drill', async (req, res) => {
   const userId = await requireUserId(req, res);

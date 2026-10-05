@@ -13,7 +13,7 @@ import { cleanHomeInventory } from './home-inventory.js';
 import { announceDrillScammed } from './drill-announce.js';
 // houses.js imports this module's locking helpers in turn. Neither module calls the
 // other while it is being evaluated, so the cycle resolves before any call happens.
-import { lockHouseOf, releaseFromHouse } from './houses.js';
+import { lockHousesOf, releaseFromHouse } from './houses.js';
 import {
   INSERT_USER_SQL,
   UPDATE_USER_SQL,
@@ -1100,8 +1100,8 @@ export async function setVerifiedUserEmail(userId, verificationId) {
 export async function detachVerifiedPhone(userId) {
   const at = new Date().toISOString();
   return transaction(async (tx) => {
-    // Lock order is house then user (server/houses.js), so the house comes first.
-    const house = await lockHouseOf(tx, userId);
+    // Lock order is houses then user (server/houses.js), so the houses come first.
+    const houses = await lockHousesOf(tx, userId);
     const user = await requireLockedUser(tx, userId);
     if (!user.phone) {
       const error = new Error('no verified phone on file');
@@ -1117,7 +1117,8 @@ export async function detachVerifiedPhone(userId) {
     delete user.phone;
     user.consentToDrills = false;
     // `house_id` is not in USER_FIELDS, so the saveUser below cannot restore it.
-    const ring = house && user.houseId === house.id ? await releaseFromHouse(tx, house, user) : [];
+    const ring = [];
+    for (const house of houses) ring.push(...await releaseFromHouse(tx, house, user));
     const saved = await saveUser(tx, user);
     await tx.query('delete from safespace.sessions where user_id = $1', [user.id]);
     await logConsent(tx, { userId: user.id, type: 'withdrawn', channel: 'account', at });

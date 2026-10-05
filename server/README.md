@@ -64,13 +64,15 @@ identity.
 | POST | `/api/verify/check` | Verify OTP; name required only for a new account; optional avatar; `NO_ACCOUNT` for unknown numbers |
 | POST | `/api/me/name` | Update the name used by future drills |
 | POST | `/api/me/avatar` | Save the allowlisted layered character (skin, hair, outfit, accessories, profile colour/glow) |
-| GET | `/api/house` | `{ self, house }`: `self` is the caller's own member view (weekly flags even when solo); `house` is `null` when solo |
-| POST | `/api/house` | Create a house with `{name}`; the creator becomes owner with a fresh 24h code |
-| POST | `/api/house/join` | Join with `{code}`; the same message for a wrong or an expired code; refuses at 6 members |
+| GET | `/api/house` | `{ self, house, houses }`: `self` is the caller's own member view (weekly flags even when solo); `house` is the house they're currently looking at, `null` when solo; `houses` lists all of theirs (up to 3) for the switcher |
+| POST | `/api/house` | Create a house with `{name}`; the creator becomes owner with a fresh 24h code and it becomes their current house; refuses at 3 houses (`HOUSE_LIMIT`) |
+| POST | `/api/house/join` | Join with `{code}`; the same message for a wrong or an expired code; refuses at 6 members, at 3 houses, or a house you're already in; the joined house becomes current |
+| POST | `/api/house/switch` | Make `{houseId}` (one of yours) your current house |
 | POST | `/api/house/code` | Owner only: regenerate the invite code with a new 24h expiry |
 | POST | `/api/house/name` | Owner only: rename the house |
 | POST | `/api/house/members/:memberId/remove` | Owner only: remove a member (not themself); rotates the doorbell |
-| POST | `/api/house/leave` | Leave; an owner leaving hands ownership to the earliest joiner, the last member leaving deletes the house |
+| POST | `/api/house/leave` | Leave your current house (your next one becomes current); an owner leaving hands ownership to the earliest joiner, the last member leaving deletes the house |
+| POST | `/api/house/family` | Place yourself in the family tree with `{family: {gender, parentIds, partnerId, childIds, friendIds}}` (gender: male, female or other; the app works out each person's role relative to the viewer, e.g. Son-in-law); ids must be other members; rejects cycles, a third parent, or a partner who is also a parent/child |
 | GET | `/api/houses/:houseId/chat/messages` | Current members only: latest, older or newer message page |
 | POST | `/api/houses/:houseId/chat/messages` | Current members only: idempotently send one text message |
 | POST | `/api/drills/house-run` | Record a house drill run `{clientKey, correct, cautious, wrong}`; only the first run of the week earns XP; replaying a key returns the stored run |
@@ -147,15 +149,17 @@ PIXI messages.
 
 ## Houses and the doorbell
 
-A player belongs to at most one house (`server/houses.js`), of up to 6 members,
-created or joined at any time; solo play is the full game. Invite codes are 6
+A player belongs to up to 3 houses (`server/houses.js`, table `house_members`), each of
+up to 6 members, created or joined at any time; solo play is the full game.
+`users.house_id` is the house they're currently looking at, and is always one of their
+memberships or null. Family-tree placements live on the membership, so they're per house. Invite codes are 6
 characters from `23456789ABCDEFGHJKMNPQRSTUVWXYZ` (no 0/O/1/I/L), shown as `K7P-3QX`,
 and expire 24 hours after they're generated — regenerating a code replaces the old one
 outright, and a wrong or expired code gets the same error either way. Every mutation
 (create, join, leave, remove, rename, regenerate) runs in one transaction, and the lock
-order is always the house row, then user rows: a join can never push a house past 6
-members, and re-checking a user's `house_id` under their own row lock means nobody ends
-up owning or belonging to two houses at once.
+order is always house rows (by id when there are several), then user rows: a join can
+never push a house past 6 members, and counting a user's memberships under their own row
+lock means nobody ends up in more than 3 houses.
 
 After a transaction commits, `server/doorbell.js` rings a content-free Supabase
 Realtime broadcast on the house's `doorbell` topic — the message carries no house or

@@ -43,7 +43,7 @@ import {
   setSessionToken, reportOutcome, updateVerifiedNameRequest, type ApiResult,
 } from "./services/api";
 import {
-  useHouse, createHouse, joinHouse, leaveHouse, regenerateCode, renameHouse,
+  useHouse, createHouse, joinHouse, switchHouse, HOUSES_PER_USER, leaveHouse, regenerateCode, renameHouse, setFamilyLink,
   removeMember, saveAvatar, postHouseRun, formatCodeInput, captureInviteFromUrl,
   peekPendingInvite, takePendingInvite, type HouseState, type HouseView, type MemberView,
 } from "./services/house";
@@ -92,6 +92,7 @@ import {
   AccessibilitySettingsScreen, AboutSettingsScreen,
 } from "./screens/settings/SettingsScreens";
 import { HouseChoiceScreen, HouseSettingsScreen } from "./screens/house/HouseScreens";
+import { FamilyTreeScreen } from "./screens/house/FamilyTreeScreen";
 import { NotificationsScreen, NotificationDetailScreen } from "./screens/notifications/NotificationScreens";
 import { PaydayScreen } from "./screens/rewards/PaydayScreen";
 
@@ -1232,7 +1233,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   // player, so guard the route itself: every create/join from there would 401 with no
   // way back. Signed-out players get the returning sign-in instead of a dead end.
   useEffect(() => {
-    if (signedIn || (screen !== "house" && screen !== "house-settings")) return;
+    if (signedIn || (screen !== "house" && screen !== "house-settings" && screen !== "family-tree" && screen !== "house-new")) return;
     setSignInMode("returning");
     setScreen("sign-in");
   }, [screen, signedIn]);
@@ -1270,10 +1271,12 @@ export default function App({ initialScreen = "title", devMode = false }: { init
     goHome();
     if (!skipOnboarding && !hasSeenTutorial()) setTourOpen(true);
     if (!invite) return;
-    // One house per person: someone who already has one can never use this code, so spend
-    // it here. Left alone it would re-route every later sign-in and pre-fill a dead code.
-    if (state?.house) takePendingInvite();
-    else setScreen("house");
+    // Up to HOUSES_PER_USER houses: someone with room for another is taken to join it (the
+    // code is pre-filled); someone already at the limit can't use it, so spend it here —
+    // left alone it would re-route every later sign-in and pre-fill a dead code.
+    const count = state?.houses?.length ?? (state?.house ? 1 : 0);
+    if (count >= HOUSES_PER_USER) takePendingInvite();
+    else setScreen(state?.house ? "house-new" : "house");
   };
 
   const finishNewPlayerOnboarding = () => {
@@ -1443,6 +1446,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
             {(screen === "house" || screen === "house-settings") && (
               house.state.house ? (
                 <HouseSettingsScreen
+                  key={house.state.house.id}
                   house={house.state.house}
                   selfId={selfId}
                   onRegenerate={() => applyHouseResult(regenerateCode)}
@@ -1450,7 +1454,11 @@ export default function App({ initialScreen = "title", devMode = false }: { init
                   onRemove={(id) => applyHouseResult(() => removeMember(id))}
                   onLeave={handleLeaveHouse}
                   onBack={goHome}
-                />
+                  onFamilyTree={() => setScreen("family-tree")}
+                  houses={house.state.houses ?? []}
+                  onSwitchHouse={(id) => applyHouseResult(() => switchHouse(id))}
+                  onAddHouse={() => setScreen("house-new")}
+                  />
               ) : signedIn ? (
                 <HouseChoiceScreen
                   initialCode={peekPendingInvite() ?? ""}
@@ -1459,6 +1467,27 @@ export default function App({ initialScreen = "title", devMode = false }: { init
                   onBack={goHome}
                 />
               ) : null
+            )}
+
+            {screen === "house-new" && signedIn && (
+              <HouseChoiceScreen
+                title={t("ADD A HOUSE")}
+                initialCode={peekPendingInvite() ?? ""}
+                onCreate={(n) => houseAction(() => createHouse(n))}
+                onJoin={(c) => houseAction(() => joinHouse(c))}
+                onBack={goHome}
+              />
+            )}
+
+            {screen === "family-tree" && signedIn && (
+              <FamilyTreeScreen
+                house={house.state.house}
+                self={house.state.self}
+                selfId={selfId}
+                onSave={(link) => applyHouseResult(() => setFamilyLink(link))}
+                onInvite={() => setScreen("house")}
+                onBack={() => setScreen("house")}
+              />
             )}
 
             {screen === "home" && (
@@ -1472,6 +1501,8 @@ export default function App({ initialScreen = "title", devMode = false }: { init
                 soldItems={soldItems}
                 purchasedItems={purchasedItems}
                 house={house.state.house}
+                houses={house.state.houses ?? []}
+                onSwitchHouse={(id) => applyHouseResult(() => switchHouse(id))}
                 onPlayWithOthers={() => setScreen("house")}
                 onRemoveMember={handleRemoveMember}
               />

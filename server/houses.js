@@ -1,13 +1,17 @@
-// Houses: optional groups of up to six players who see each other's progress.
+// Houses: optional groups of up to six players who see each other's progress. A player
+// can be in up to HOUSES_PER_USER houses (safespace.house_members); users.house_id is
+// the one they are currently looking at, their "active" house, and is always one of
+// their memberships or null.
 //
 // Every write is one transaction. Lock order is always: rate-limit advisory locks, then
-// the house row, then user rows. A user's house_id is re-checked under their row lock,
-// so nobody can end up in two houses, and joins lock the house row before counting, so
-// a house can never pass HOUSE_MAX_MEMBERS.
+// house rows (by id when there are several), then user rows. Memberships are counted
+// under the user's row lock, so nobody can pass HOUSES_PER_USER, and joins lock the
+// house row before counting, so a house can never pass HOUSE_MAX_MEMBERS.
 import crypto from 'crypto';
 import { query, transaction } from './db.js';
 import { userFromRow } from './rows.js';
 import { weekStart } from './week.js';
+import { cleanFamilyLinkInput, familyConflict, projectFamilyLink } from './family-tree.js';
 import { announceDrillScammed } from './drill-announce.js';
 import {
   addXp,
@@ -19,6 +23,7 @@ import {
 } from './store.js';
 
 export const HOUSE_MAX_MEMBERS = 6;
+export const HOUSES_PER_USER = 3;
 export const INVITE_TTL_MS = 24 * 60 * 60 * 1000;
 export const HOUSE_RUN_XP = { correct: 100, cautious: 50, wrong: 25 };
 const CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
@@ -86,18 +91,33 @@ async function unlockedHouseId(tx, userId) {
   return rows[0]?.house_id ?? null;
 }
 
+async function isMember(tx, houseId, userId) {
+  const { rows } = await tx.query(
+    'select 1 from safespace.house_members where house_id = $1 and user_id = $2',
+    [houseId, String(userId)],
+  );
+  return rows.length > 0;
+}
+
+/** Ids of every house the user belongs to, earliest joined first. */
+async function membershipIds(tx, userId) {
+  const { rows } = await tx.query(
+    'select house_id from safespace.house_members where user_id = $1 order by joined_at, house_id',
+    [String(userId)],
+  );
+  return rows.map((row) => row.house_id);
+}
+
 /**
- * Lock the caller's house, then the caller, and confirm they are still a member.
- * Returns { house, user }.
+ * Lock a house the caller belongs to, then the caller, and confirm the membership.
+ * Without `expectedHouseId` that is their active house. Returns { house, user }.
  */
 export async function lockHouseMember(tx, userId, expectedHouseId) {
-  const houseId = await unlockedHouseId(tx, userId);
-  if (!houseId || (expectedHouseId !== undefined && houseId !== expectedHouseId)) {
-    throw new HouseError('NOT_IN_HOUSE');
-  }
-  const house = await lockHouse(tx, houseId);
+  const houseId = expectedHouseId ?? await unlockedHouseId(tx, userId);
+  if (!houseId) throw new HouseError('NOT_IN_HOUSE');
+  const house = await lockHouse(tx, String(houseId));
   const user = await lockUser(tx, userId);
-  if (!house || !user || user.houseId !== house.id) throw new HouseError('NOT_IN_HOUSE');
+  if (!house || !user || !(await isMember(tx, house.id, user.id))) throw new HouseError('NOT_IN_HOUSE');
   return { house, user };
 }
 
@@ -107,10 +127,33 @@ async function lockOwnHouse(tx, userId) {
 
 async function memberIds(tx, houseId) {
   const { rows } = await tx.query(
-    'select id from safespace.users where house_id = $1 order by joined_house_at, id',
+    'select user_id from safespace.house_members where house_id = $1 order by joined_at, user_id',
     [houseId],
   );
-  return rows.map((row) => row.id);
+  return rows.map((row) => row.user_id);
+}
+
+async function addMembership(tx, houseId, userId, now) {
+  await tx.query(
+    'insert into safespace.house_members (house_id, user_id, joined_at) values ($1, $2, $3)',
+    [houseId, userId, now.toISOString()],
+  );
+  // A new house becomes the one you're looking at.
+  await tx.query('update safespace.users set house_id = $2 where id = $1', [userId, houseId]);
+}
+
+/**
+ * Drop one membership. If it was the user's active house, their next-earliest house
+ * becomes active (or none). `user` must already be locked.
+ */
+async function dropMembership(tx, houseId, userId) {
+  await tx.query('delete from safespace.house_members where house_id = $1 and user_id = $2', [houseId, userId]);
+  await tx.query(
+    `update safespace.users set house_id = (
+        select house_id from safespace.house_members where user_id = $1 order by joined_at, house_id limit 1)
+      where id = $1 and (house_id = $2 or house_id is null)`,
+    [userId, houseId],
+  );
 }
 
 export async function createHouse(userId, name, { now = new Date() } = {}) {
@@ -118,7 +161,7 @@ export async function createHouse(userId, name, { now = new Date() } = {}) {
   return transaction(async (tx) => {
     const user = await lockUser(tx, userId);
     if (!user) throw new Error(`unknown user ${userId}`);
-    if (user.houseId) throw new HouseError('ALREADY_IN_HOUSE');
+    if ((await membershipIds(tx, user.id)).length >= HOUSES_PER_USER) throw new HouseError('HOUSE_LIMIT');
     const id = `house_${crypto.randomUUID()}`;
     const doorbell = newDoorbell();
     await tx.query(
@@ -127,10 +170,7 @@ export async function createHouse(userId, name, { now = new Date() } = {}) {
       [id, clean, user.id, await freshInviteCode(tx), new Date(now.getTime() + INVITE_TTL_MS).toISOString(),
         doorbell, now.toISOString()],
     );
-    await tx.query(
-      'update safespace.users set house_id = $2, joined_house_at = $3 where id = $1',
-      [user.id, id, now.toISOString()],
-    );
+    await addMembership(tx, id, user.id, now);
     return { houseId: id, ring: [doorbell] };
   }, 'createHouse');
 }
@@ -169,12 +209,11 @@ export async function joinHouse(userId, code, { requesterKey = null, now = new D
     }
     const user = await lockUser(tx, userId);
     if (!user) throw new Error(`unknown user ${userId}`);
-    if (user.houseId) return { error: 'ALREADY_IN_HOUSE' };
+    const mine = await membershipIds(tx, user.id);
+    if (mine.includes(house.id)) return { error: 'ALREADY_IN_HOUSE' };
+    if (mine.length >= HOUSES_PER_USER) return { error: 'HOUSE_LIMIT' };
     if ((await memberIds(tx, house.id)).length >= HOUSE_MAX_MEMBERS) return { error: 'HOUSE_FULL' };
-    await tx.query(
-      'update safespace.users set house_id = $2, joined_house_at = $3 where id = $1',
-      [user.id, house.id, now.toISOString()],
-    );
+    await addMembership(tx, house.id, user.id, now);
     return { houseId: house.id, ring: [house.doorbell] };
   }, 'joinHouse');
   if (outcome.error) throw new HouseError(outcome.error, { retryAfterMs: outcome.retryAfterMs });
@@ -209,11 +248,8 @@ export async function removeMember(userId, memberId) {
     if (house.owner_id !== user.id) throw new HouseError('NOT_OWNER');
     if (String(memberId) === user.id) throw new HouseError('CANNOT_REMOVE_SELF');
     const target = await lockUser(tx, memberId);
-    if (!target || target.houseId !== house.id) throw new HouseError('NOT_A_MEMBER');
-    await tx.query(
-      'update safespace.users set house_id = null, joined_house_at = null where id = $1',
-      [target.id],
-    );
+    if (!target || !(await isMember(tx, house.id, target.id))) throw new HouseError('NOT_A_MEMBER');
+    await dropMembership(tx, house.id, target.id);
     // A new topic, so the removed player's open app stops hearing this house.
     await tx.query('update safespace.houses set doorbell = $2 where id = $1', [house.id, newDoorbell()]);
     // Ring the old topic: everyone listening refetches, and the others pick up the new one.
@@ -222,12 +258,26 @@ export async function removeMember(userId, memberId) {
 }
 
 /**
- * Lock the house a user belongs to, before their own row, so callers outside this module
- * can keep the house-then-user lock order. Returns null when they are in no house.
+ * Lock every house a user belongs to (by id), before their own row, so callers outside
+ * this module keep the house-then-user lock order. Returns [] when they are in none.
  */
-export async function lockHouseOf(tx, userId) {
-  const houseId = await unlockedHouseId(tx, userId);
-  return houseId ? lockHouse(tx, houseId) : null;
+export async function lockHousesOf(tx, userId) {
+  const ids = (await membershipIds(tx, userId)).sort();
+  const houses = [];
+  for (const id of ids) {
+    const house = await lockHouse(tx, id);
+    if (house) houses.push(house);
+  }
+  return houses;
+}
+
+/** Make one of the user's houses the one they're looking at. */
+export async function switchHouse(userId, houseId) {
+  return transaction(async (tx) => {
+    const { house, user } = await lockHouseMember(tx, userId, String(houseId || ''));
+    await tx.query('update safespace.users set house_id = $2 where id = $1', [user.id, house.id]);
+    return { ring: [] };
+  }, 'switchHouse');
 }
 
 /**
@@ -239,10 +289,7 @@ export async function lockHouseOf(tx, userId) {
  * `house` and `user` must both already be locked, in that order.
  */
 export async function releaseFromHouse(tx, house, user) {
-  await tx.query(
-    'update safespace.users set house_id = null, joined_house_at = null where id = $1',
-    [user.id],
-  );
+  await dropMembership(tx, house.id, user.id);
   const remaining = await memberIds(tx, house.id);
   if (!remaining.length) {
     await tx.query('delete from safespace.houses where id = $1', [house.id]);
@@ -260,6 +307,37 @@ export async function leaveHouse(userId) {
     const { house, user } = await lockOwnHouse(tx, userId);
     return { ring: await releaseFromHouse(tx, house, user) };
   }, 'leaveHouse');
+}
+
+/**
+ * Place the caller in their house's family tree. Only their own record changes; the
+ * house row lock serialises placements so the whole-tree checks see a stable tree.
+ */
+export async function setFamilyLink(userId, input) {
+  const clean = cleanFamilyLinkInput(input);
+  if (!clean) throw new HouseError('INVALID_FAMILY_LINK');
+  return transaction(async (tx) => {
+    const { house, user } = await lockHouseMember(tx, userId);
+    const { rows: memberRows } = await tx.query(
+      'select user_id as id, family_link from safespace.house_members where house_id = $1',
+      [house.id],
+    );
+    const rows = memberRows;
+    const ids = new Set(rows.map((row) => row.id));
+    const referenced = [clean.partnerId, ...clean.parentIds, ...clean.childIds, ...clean.friendIds].filter(Boolean);
+    if (referenced.some((id) => id === user.id || !ids.has(id))) throw new HouseError('NOT_A_MEMBER');
+    const links = new Map(rows.map((row) => [
+      row.id,
+      row.id === user.id ? clean : projectFamilyLink(row.family_link, row.id, ids) ?? projectFamilyLink({}, row.id, ids),
+    ]));
+    const conflict = familyConflict(user.id, links);
+    if (conflict) throw new HouseError(conflict);
+    await tx.query(
+      'update safespace.house_members set family_link = $3::jsonb where house_id = $1 and user_id = $2',
+      [house.id, user.id, JSON.stringify(clean)],
+    );
+    return { ring: [house.doorbell] };
+  }, 'setFamilyLink');
 }
 
 function runFromRow(row) {
@@ -351,7 +429,7 @@ async function weeklyStats(userIds, since) {
 }
 
 // Explicit field list: never spread a user row, so private fields cannot leak.
-function memberView(user, stats, ownerId) {
+function memberView(user, stats, ownerId, memberIdSet = null, familyLink = null) {
   return {
     id: user.id,
     name: user.name,
@@ -369,12 +447,26 @@ function memberView(user, stats, ownerId) {
     activeThisWeek: stats.active,
     safeThisWeek: !stats.lost,
     weekRun: stats.weekRun,
+    family: memberIdSet ? projectFamilyLink(familyLink, user.id, memberIdSet) : null,
   };
 }
 
-async function soloView(self, since) {
+async function soloView(self, since, houses = []) {
   const stats = await weeklyStats([self.id], since);
-  return { self: memberView(self, stats.get(self.id), null), house: null };
+  return { self: memberView(self, stats.get(self.id), null), house: null, houses };
+}
+
+/** Every house the user is in, for the switcher: { id, name, memberCount, active }. */
+async function houseSummaries(userId, activeId) {
+  const { rows } = await query(
+    `select h.id, h.name, (select count(*) from safespace.house_members c where c.house_id = h.id) as member_count
+       from safespace.house_members m join safespace.houses h on h.id = m.house_id
+      where m.user_id = $1
+      order by m.joined_at, h.id`,
+    [String(userId)],
+    'houseSummaries',
+  );
+  return rows.map((row) => ({ id: row.id, name: row.name, memberCount: Number(row.member_count), active: row.id === activeId }));
 }
 
 // These four reads are not one transaction, so the house can change under them: it can
@@ -386,20 +478,25 @@ export async function getHouseView(userId, { now = new Date() } = {}) {
   const { rows: selfRows } = await query('select * from safespace.users where id = $1', [String(userId)], 'houseSelf');
   const self = userFromRow(selfRows[0]);
   if (!self) throw new Error(`unknown user ${userId}`);
-  if (!self.houseId) return soloView(self, since);
+  const houses = await houseSummaries(self.id, self.houseId ?? null);
+  if (!self.houseId) return soloView(self, since, houses);
   const { rows: houseRows } = await query('select * from safespace.houses where id = $1', [self.houseId], 'house');
   const house = houseRows[0];
-  if (!house) return soloView(self, since);
+  if (!house) return soloView(self, since, houses);
   const { rows: memberRows } = await query(
-    'select * from safespace.users where house_id = $1 order by joined_house_at, id',
+    `select u.*, m.family_link as membership_family_link
+       from safespace.house_members m join safespace.users u on u.id = m.user_id
+      where m.house_id = $1
+      order by m.joined_at, u.id`,
     [house.id],
     'houseMembers',
   );
-  const members = memberRows.map(userFromRow);
-  const stats = await weeklyStats(members.map((m) => m.id), since);
-  const views = members.map((m) => memberView(m, stats.get(m.id), house.owner_id));
+  const members = memberRows.map((row) => ({ user: userFromRow(row), familyLink: row.membership_family_link }));
+  const stats = await weeklyStats(members.map((m) => m.user.id), since);
+  const memberIdSet = new Set(members.map((m) => m.user.id));
+  const views = members.map((m) => memberView(m.user, stats.get(m.user.id), house.owner_id, memberIdSet, m.familyLink));
   const selfInHouse = views.find((m) => m.id === self.id);
-  if (!selfInHouse) return soloView(self, since);
+  if (!selfInHouse) return soloView(self, since, houses);
   const codeLive = house.invite_code && new Date(house.invite_expires_at).getTime() > now.getTime();
   return {
     self: selfInHouse,
@@ -412,16 +509,18 @@ export async function getHouseView(userId, { now = new Date() } = {}) {
       doorbell: house.doorbell,
       members: views,
     },
+    houses,
   };
 }
 
-export async function doorbellForUser(userId) {
+/** Doorbells of every house the user is in: their name, avatar or progress shows in all. */
+export async function doorbellsForUser(userId) {
   const { rows } = await query(
-    `select h.doorbell from safespace.users u
-       join safespace.houses h on h.id = u.house_id
-      where u.id = $1`,
+    `select h.doorbell from safespace.house_members m
+       join safespace.houses h on h.id = m.house_id
+      where m.user_id = $1`,
     [String(userId)],
-    'doorbellForUser',
+    'doorbellsForUser',
   );
-  return rows[0]?.doorbell ?? null;
+  return rows.map((row) => row.doorbell);
 }

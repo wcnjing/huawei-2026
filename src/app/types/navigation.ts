@@ -44,7 +44,9 @@ export type Screen =
   | "telegram-intro"
   | "realistic-email-intro"
   | "house"
-  | "house-settings";
+  | "house-settings"
+  | "family-tree"
+  | "house-new";
 
 export type Tab = 
   | "home" 

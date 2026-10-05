@@ -1,14 +1,17 @@
 import { useState } from "react";
-import type { HouseView } from "../../services/house";
+import type { HouseSummary, HouseView } from "../../services/house";
+import { HOUSES_PER_USER } from "../../services/house";
 import { formatCodeInput } from "../../services/house";
 import { CharacterAvatar, normalizeAvatarConfig } from "../../components/avatars";
-import { IconHouse } from "../../components/icons";
+import { IconHouse, IconTree } from "../../components/icons";
 import { PixelButton, PixelPanel } from "../../components/ui";
 import { SubPageHeader } from "../../components/layout";
 import { useT, type Translate } from "../../i18n";
 
-export function HouseChoiceScreen({ initialCode, onCreate, onJoin, onBack }: {
+export function HouseChoiceScreen({ initialCode, onCreate, onJoin, onBack, title }: {
   initialCode: string; onBack: () => void;
+  /** Header text; "ADD A HOUSE" when the player already has one. */
+  title?: string;
   onCreate: (name: string) => Promise<string | null>; onJoin: (code: string) => Promise<string | null>;
 }) {
   const t = useT();
@@ -25,7 +28,7 @@ export function HouseChoiceScreen({ initialCode, onCreate, onJoin, onBack }: {
   const input: React.CSSProperties = { width: "100%", padding: 12, backgroundColor: "#0a0e1a", border: "3px solid #2a3a5c", color: "#e8f4f8", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", outline: "none" };
   return (
     <div className="flex flex-col h-full">
-      <SubPageHeader title={t("PLAY WITH OTHERS")} titleColor="#4ecdc4" onBack={onBack} />
+      <SubPageHeader title={title ?? t("PLAY WITH OTHERS")} titleColor="#4ecdc4" onBack={onBack} />
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4" style={{ scrollbarWidth: "none" }}>
         <PixelPanel accent="#00ff88" className="w-full">
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#00ff88", marginBottom: 8 }}>{t("CREATE A HOUSE")}</div>
@@ -58,7 +61,7 @@ function inviteExpiryLabel(expiresAt: string | null, t: Translate): string {
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: HOUSE SETTINGS — the invite code, who is in the house, and the way out.
 // ─────────────────────────────────────────────────────────────────────────
-export function HouseSettingsScreen({ house, selfId, onRegenerate, onRename, onRemove, onLeave, onBack }: {
+export function HouseSettingsScreen({ house, selfId, onRegenerate, onRename, onRemove, onLeave, onBack, onFamilyTree, houses = [], onSwitchHouse, onAddHouse }: {
   house: HouseView;
   selfId: string;
   onRegenerate: () => Promise<string | null>;
@@ -66,9 +69,18 @@ export function HouseSettingsScreen({ house, selfId, onRegenerate, onRename, onR
   onRemove: (id: string) => Promise<string | null>;
   onLeave: () => Promise<string | null>;
   onBack: () => void;
+  onFamilyTree?: () => void;
+  /** Every house you're in (up to 3), to switch between or add another. */
+  houses?: HouseSummary[];
+  onSwitchHouse?: (houseId: string) => Promise<string | null>;
+  onAddHouse?: () => void;
 }) {
   const t = useT();
   const isOwner = house.ownerId === selfId;
+  // An older server doesn't send the list; still show the house you're in.
+  const houseList: HouseSummary[] = houses.length
+    ? houses
+    : [{ id: house.id, name: house.name, memberCount: house.members.length, active: true }];
   const [draftName, setDraftName] = useState(house.name);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
@@ -112,8 +124,49 @@ export function HouseSettingsScreen({ house, selfId, onRegenerate, onRename, onR
 
   return (
     <div className="flex flex-col h-full">
-      <SubPageHeader title={t("YOUR HOUSE")} titleColor="#00ff88" onBack={onBack} />
+      <SubPageHeader
+        title={t("YOUR HOUSE")}
+        titleColor="#00ff88"
+        onBack={onBack}
+        actions={onFamilyTree && (
+          <button type="button" onClick={onFamilyTree} aria-label={t("Family tree")} title={t("Family tree")}
+            style={{ width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", padding: 0, cursor: "pointer" }}>
+            <IconTree size={28} color="#00ff88" />
+          </button>
+        )}
+      />
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4" style={{ scrollbarWidth: "none" }}>
+        {onSwitchHouse && (
+          <PixelPanel accent="#4ecdc4" className="w-full">
+            {sectionLabel(t("YOUR HOUSES ({n}/{max})", { n: houseList.length, max: HOUSES_PER_USER }), "#4ecdc4")}
+            {houseList.map((h) => (
+              <button
+                key={h.id}
+                type="button"
+                aria-pressed={h.active}
+                disabled={busy}
+                onClick={() => { if (!h.active) void run(() => onSwitchHouse(h.id)); }}
+                style={{
+                  width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 4px",
+                  background: h.active ? "#0c1a10" : "none", border: "none", borderTop: "2px solid #2a3a5c",
+                  cursor: h.active ? "default" : "pointer", textAlign: "left",
+                  fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: h.active ? "#00ff88" : "#e8f4f8",
+                }}
+              >
+                <span style={{ width: 12 }}>{h.active ? "▶" : ""}</span>
+                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.name}</span>
+                <span style={{ fontSize: "var(--text-caption)", color: "#6b8ba4" }}>{t("{n} IN HOUSE", { n: h.memberCount })}</span>
+              </button>
+            ))}
+            {onAddHouse && houseList.length < HOUSES_PER_USER && (
+              <>
+                <div style={{ height: 10 }} />
+                <PixelButton onClick={onAddHouse} color="#1a2340" textColor="#4ecdc4" size="sm" full>{t("+ CREATE OR JOIN A HOUSE")}</PixelButton>
+              </>
+            )}
+          </PixelPanel>
+        )}
+
         <PixelPanel accent="#00ff88" className="w-full">
           {sectionLabel(t("HOUSE NAME"), "#00ff88")}
           {isOwner ? (
