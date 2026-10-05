@@ -75,16 +75,16 @@ test('house names are validated', async () => {
   await rejectsWith(() => houses.createHouse(p.id, '<b>hi</b>'), 'INVALID_HOUSE_NAME');
 });
 
-test('join accepts any case and dash, and caps the house at 6', async () => {
+test('join accepts any case and dash, and caps the house at 14', async () => {
   await resetDb();
-  const { code, members } = await houseWith(5);
-  const sixth = await player('Sixth');
-  await houses.joinHouse(sixth.id, code.toLowerCase().replace('-', ' '));
-  const view = await houses.getHouseView(sixth.id);
-  assert.equal(view.house.members.length, 6);
-  assert.deepEqual(view.house.members.map((m) => m.id), [...members.map((m) => m.id), sixth.id]);
-  const seventh = await player('Seventh');
-  await rejectsWith(() => houses.joinHouse(seventh.id, code), 'HOUSE_FULL');
+  const { code, members } = await houseWith(13);
+  const last = await player('Last');
+  await houses.joinHouse(last.id, code.toLowerCase().replace('-', ' '));
+  const view = await houses.getHouseView(last.id);
+  assert.equal(view.house.members.length, 14);
+  assert.deepEqual(view.house.members.map((m) => m.id), [...members.map((m) => m.id), last.id]);
+  const extra = await player('Extra');
+  await rejectsWith(() => houses.joinHouse(extra.id, code), 'HOUSE_FULL');
 });
 
 test('wrong, expired and replaced codes are all CODE_INVALID', async () => {

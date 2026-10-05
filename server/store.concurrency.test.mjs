@@ -136,14 +136,14 @@ async function houseInvariants() {
   return rows;
 }
 
-test('7 people joining a house of 5 at once: exactly one gets in', { skip }, async () => {
+test('7 people joining a house of 13 at once: exactly one gets in', { skip }, async () => {
   await resetDb();
-  const { owner, code } = await raceHouse(5);
+  const { owner, code } = await raceHouse(13);
   const joiners = await Promise.all(Array.from({ length: 7 }, (_, i) => racer(`J${i}`)));
   const results = await race(7, (i) => houses.joinHouse(joiners[i].id, code));
   assert.equal(fulfilled(results).length, 1);
   assert.ok(rejected(results).every((r) => r.reason?.code === 'HOUSE_FULL'));
-  assert.equal((await houses.getHouseView(owner.id)).house.members.length, 6);
+  assert.equal((await houses.getHouseView(owner.id)).house.members.length, 14);
   await houseInvariants();
 });
 

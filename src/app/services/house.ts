@@ -42,6 +42,8 @@ export type HouseView = {
 /** One of the (up to 3) houses the player is in, for the switcher on the roof. */
 export type HouseSummary = { id: string; name: string; memberCount: number; active: boolean };
 export const HOUSES_PER_USER = 3;
+/** Players per house (server/houses.js HOUSE_MAX_MEMBERS). */
+export const HOUSE_MAX_MEMBERS = 14;
 export type HouseState = { self: MemberView | null | undefined; house: HouseView | null; houses?: HouseSummary[] };
 
 export const createHouse = (name: string) => apiPost<HouseState>("/api/house", { name });

@@ -104,15 +104,6 @@ function Chip({ label, active, color, onClick, gender }: { label: string; active
   );
 }
 
-function timeAgo(iso: string, t: ReturnType<typeof useT>): string {
-  const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
-  if (minutes < 1) return t("JUST NOW");
-  if (minutes < 60) return t("{n} MIN AGO", { n: minutes });
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return t("{n} H AGO", { n: hours });
-  return t("{n} D AGO", { n: Math.round(hours / 24) });
-}
-
 // ─────────────────────────────────────────────────────────────────────────
 // TAB: FAMILY TREE — one shared tree for the house that every member can edit.
 // Tap anyone on the tree to change their gender or their relationships.
@@ -161,9 +152,23 @@ export function FamilyTreeTab({ house, selfId, onEdit }: {
 
   // Would these edits still leave a tree that makes sense? (The server checks again.)
   const sensible = (edits: FamilyEdit[]) => !familyProblem(edits.reduce(applyFamilyEdit, tree), ids);
+  /** What `selected` already is to `other`, if anything. */
+  const currentRelation = (other: string): Relation | null =>
+    link.parentIds.includes(other) ? "child"
+      : link.childIds.includes(other) ? "parent"
+      : link.partnerId === other ? "partner"
+      : link.friendIds.includes(other) ? "friend" : null;
   const linked = (a: string, b: string) => {
     const l = familyLinkFor(tree, a);
     return l.parentIds.includes(b) || l.childIds.includes(b) || l.partnerId === b || l.friendIds.includes(b);
+  };
+  /** Make `selected` the chosen relation of `other`, replacing whatever they were before. */
+  const setEdits = (r: Relation, other: string): FamilyEdit[] => {
+    const before = currentRelation(other);
+    return [
+      ...(before && before !== r ? [relationEdit("remove", before, selected, other)] : []),
+      relationEdit("add", r, selected, other),
+    ];
   };
 
   // "Child of X": X's partner usually becomes the other parent too.
@@ -172,9 +177,10 @@ export function FamilyTreeTab({ house, selfId, onEdit }: {
     ? relationEdit("add", "child", selected, targetPartner) : null;
   const addEdits = (): FamilyEdit[] => {
     if (!relation || !target) return [];
-    const main = relationEdit("add", relation, selected, target);
-    return partnerEdit && withPartner && sensible([main, partnerEdit]) ? [main, partnerEdit] : [main];
+    const main = setEdits(relation, target);
+    return partnerEdit && withPartner && sensible([...main, partnerEdit]) ? [...main, partnerEdit] : main;
   };
+  const replacing = target ? currentRelation(target) : null;
   const preview = (() => {
     if (!relation || !target) return "";
     const next = withTree(members, addEdits().reduce(applyFamilyEdit, tree));
@@ -189,7 +195,6 @@ export function FamilyTreeTab({ house, selfId, onEdit }: {
   ];
   const relationName = (r: Relation) => t(RELATIONS.find((x) => x.id === r)!.label);
   const others = members.filter((m) => m.id !== selected);
-  const updatedBy = house.familyUpdatedBy ? byId[house.familyUpdatedBy]?.name : null;
 
   const label = (text: string) => (
     <div style={{ fontFamily: MONO, fontSize: "var(--text-label)", color: "#9bb0c8", margin: "14px 0 6px" }}>{text}</div>
@@ -249,12 +254,6 @@ export function FamilyTreeTab({ house, selfId, onEdit }: {
           {GENDERS.map((g) => legend(<Shape gender={g.id} size={12} strokeWidth={2} stroke={SHAPE_COLOR[g.id]} fill="none" />, t(g.label)))}
           {legend(<svg width={16} height={4} aria-hidden><line x1={0} y1={2} x2={16} y2={2} stroke="#ffe66d" strokeWidth={2} strokeDasharray="3 3" /></svg>, t("FRIEND"))}
         </div>
-        <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: "#6b8ba4", marginTop: 10, lineHeight: 1.5 }}>
-          {t("Everyone in the house can change the tree. Tap a person to edit them.")}
-          {updatedBy && house.familyUpdatedAt && (
-            <div>{t("LAST CHANGED BY {name} · {when}", { name: updatedBy, when: timeAgo(house.familyUpdatedAt, t) })}</div>
-          )}
-        </div>
       </PixelPanel>
 
       {person && (
@@ -301,7 +300,8 @@ export function FamilyTreeTab({ house, selfId, onEdit }: {
                   {label(t("WHO?"))}
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                     {others.map((m) => {
-                      const ok = !linked(selected, m.id) && sensible([relationEdit("add", relation, selected, m.id)]);
+                      // Someone already linked can be tapped to change that relationship.
+                      const ok = currentRelation(m.id) !== relation && sensible(setEdits(relation, m.id));
                       return (
                         <button key={m.id} type="button" disabled={!ok} aria-pressed={target === m.id}
                           onClick={() => setTarget(m.id)}
@@ -315,10 +315,7 @@ export function FamilyTreeTab({ house, selfId, onEdit }: {
                       );
                     })}
                   </div>
-                  <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: "#6b8ba4", marginTop: 6, lineHeight: 1.5 }}>
-                    {t("Crossed-out names wouldn't make sense: a child is one generation below each parent, partners and friends are on the same generation, and two people have one relationship.")}
-                  </div>
-                  {partnerEdit && targetPartner && byId[targetPartner] && sensible([relationEdit("add", "child", selected, target!), partnerEdit]) && (
+                  {partnerEdit && targetPartner && byId[targetPartner] && sensible([...setEdits("child", target!), partnerEdit]) && (
                     <div style={{ marginTop: 8 }}>
                       <Chip label={t("ALSO {name}'S CHILD", { name: byId[targetPartner].name })} color="#00ff88"
                         active={withPartner} onClick={() => setWithPartner(!withPartner)} />
@@ -329,12 +326,17 @@ export function FamilyTreeTab({ house, selfId, onEdit }: {
                       {preview
                         ? t("{person} WILL BE {name}'S {role}", { person: person.name, name: byId[target].name, role: roleText(preview) })
                         : `${person.name} · ${relationName(relation)} ${byId[target].name}`}
+                      {replacing && (
+                        <div style={{ color: "#ffe66d", marginTop: 4 }}>
+                          {t("INSTEAD OF {relation} {name}", { relation: relationName(replacing), name: byId[target].name })}
+                        </div>
+                      )}
                     </div>
                   )}
                   <div style={{ height: 12 }} />
                   <PixelButton onClick={() => void run(addEdits(), () => { setRelation(null); setTarget(null); })}
                     color="#00ff88" size="md" full disabled={!target || busy}>
-                    {busy ? t("SAVING…") : t("[ ADD ]")}
+                    {busy ? t("SAVING…") : replacing ? t("[ CHANGE ]") : t("[ ADD ]")}
                   </PixelButton>
                 </>
               )}

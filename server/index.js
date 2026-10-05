@@ -235,7 +235,7 @@ const HOUSE_ERRORS = {
   ALREADY_IN_HOUSE: [409, "you're already in that house"],
   HOUSE_LIMIT: [409, 'you can be in up to 3 houses; leave one first'],
   CODE_INVALID: [400, "that code isn't valid; ask for a new one"],
-  HOUSE_FULL: [409, 'that house is full (6 players)'],
+  HOUSE_FULL: [409, 'that house is full (14 players)'],
   NOT_OWNER: [403, 'only the house owner can do that'],
   NOT_A_MEMBER: [404, "that player isn't in your house"],
   CANNOT_REMOVE_SELF: [400, 'use LEAVE HOUSE to leave your own house'],

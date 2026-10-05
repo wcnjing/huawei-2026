@@ -150,6 +150,8 @@ const rows: Row[] = [
   ["ALSO {name}'S CHILD", "也是{name}的孩子", "JUGA ANAK KEPADA {name}", "{name} அவர்களின் பிள்ளையும் கூட"],
   ["{person} WILL BE {name}'S {role}", "{person}将是{name}的{role}", "{person} AKAN MENJADI {role} KEPADA {name}", "{person} {name} அவர்களின் {role} ஆவார்"],
   ["[ ADD ]", "[ 添加 ]", "[ TAMBAH ]", "[ சேர் ]"],
+  ["[ CHANGE ]", "[ 更改 ]", "[ TUKAR ]", "[ மாற்று ]"],
+  ["INSTEAD OF {relation} {name}", "取代：{relation} {name}", "MENGGANTIKAN {relation} {name}", "{relation} {name} என்பதற்குப் பதிலாக"],
   ["House", "家", "Rumah", "வீடு"],
   ["a person can have at most two parents", "一个人最多只能有两位父母", "seseorang hanya boleh mempunyai dua ibu bapa", "ஒருவருக்கு அதிகபட்சம் இரண்டு பெற்றோர் மட்டுமே"],
   ["a person can have at most 8 children on the tree", "一个人在家谱上最多只能有 8 个孩子", "seseorang hanya boleh mempunyai 8 anak dalam salasilah", "மரத்தில் ஒருவருக்கு அதிகபட்சம் 8 பிள்ளைகள் மட்டுமே"],

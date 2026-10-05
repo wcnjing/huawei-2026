@@ -1,6 +1,6 @@
 import { Fragment, useState } from "react";
 import type { FamilyEdit, HouseSummary, HouseView } from "../../services/house";
-import { HOUSES_PER_USER } from "../../services/house";
+import { HOUSES_PER_USER, HOUSE_MAX_MEMBERS } from "../../services/house";
 import { formatCodeInput } from "../../services/house";
 import { CharacterAvatar, normalizeAvatarConfig } from "../../components/avatars";
 import { IconGear, IconHouse, IconTree } from "../../components/icons";
@@ -223,7 +223,7 @@ export function HouseSettingsScreen({ house, selfId, onRegenerate, onRename, onR
         </PixelPanel>
 
         <PixelPanel accent="#c77dff" className="w-full">
-          {sectionLabel(t("MEMBERS ({count}/6)", { count: house.members.length }), "#c77dff")}
+          {sectionLabel(t("MEMBERS ({count}/{max})", { count: house.members.length, max: HOUSE_MAX_MEMBERS }), "#c77dff")}
           {house.members.map((m) => (
             <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderTop: "2px solid #2a3a5c" }}>
               <CharacterAvatar size={40} config={normalizeAvatarConfig(m.avatar)} title={`${m.name}'s character`} />

@@ -1,4 +1,4 @@
-// Houses: optional groups of up to six players who see each other's progress. A player
+// Houses: optional groups of up to 14 players who see each other's progress. A player
 // can be in up to HOUSES_PER_USER houses (safespace.house_members); users.house_id is
 // the one they are currently looking at, their "active" house, and is always one of
 // their memberships or null.
@@ -27,7 +27,7 @@ import {
   saveUser,
 } from './store.js';
 
-export const HOUSE_MAX_MEMBERS = 6;
+export const HOUSE_MAX_MEMBERS = 14;
 export const HOUSES_PER_USER = 3;
 export const INVITE_TTL_MS = 24 * 60 * 60 * 1000;
 export const HOUSE_RUN_XP = { correct: 100, cautious: 50, wrong: 25 };

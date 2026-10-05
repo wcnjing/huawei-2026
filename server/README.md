@@ -66,7 +66,7 @@ identity.
 | POST | `/api/me/avatar` | Save the allowlisted layered character (skin, hair, outfit, accessories, profile colour/glow) |
 | GET | `/api/house` | `{ self, house, houses }`: `self` is the caller's own member view (weekly flags even when solo); `house` is the house they're currently looking at, `null` when solo; `houses` lists all of theirs (up to 3) for the switcher |
 | POST | `/api/house` | Create a house with `{name}`; the creator becomes owner with a fresh 24h code and it becomes their current house; refuses at 3 houses (`HOUSE_LIMIT`) |
-| POST | `/api/house/join` | Join with `{code}`; the same message for a wrong or an expired code; refuses at 6 members, at 3 houses, or a house you're already in; the joined house becomes current |
+| POST | `/api/house/join` | Join with `{code}`; the same message for a wrong or an expired code; refuses at 14 members, at 3 houses, or a house you're already in; the joined house becomes current |
 | POST | `/api/house/switch` | Make `{houseId}` (one of yours) your current house |
 | POST | `/api/house/code` | Owner only: regenerate the invite code with a new 24h expiry |
 | POST | `/api/house/name` | Owner only: rename the house |
@@ -150,7 +150,7 @@ PIXI messages.
 ## Houses and the doorbell
 
 A player belongs to up to 3 houses (`server/houses.js`, table `house_members`), each of
-up to 6 members, created or joined at any time; solo play is the full game.
+up to 14 members, created or joined at any time; solo play is the full game.
 `users.house_id` is the house they're currently looking at, and is always one of their
 memberships or null. Family-tree placements live on the membership, so they're per house. Invite codes are 6
 characters from `23456789ABCDEFGHJKMNPQRSTUVWXYZ` (no 0/O/1/I/L), shown as `K7P-3QX`,
@@ -158,7 +158,7 @@ and expire 24 hours after they're generated — regenerating a code replaces the
 outright, and a wrong or expired code gets the same error either way. Every mutation
 (create, join, leave, remove, rename, regenerate) runs in one transaction, and the lock
 order is always house rows (by id when there are several), then user rows: a join can
-never push a house past 6 members, and counting a user's memberships under their own row
+never push a house past 14 members, and counting a user's memberships under their own row
 lock means nobody ends up in more than 3 houses.
 
 After a transaction commits, `server/doorbell.js` rings a content-free Supabase
