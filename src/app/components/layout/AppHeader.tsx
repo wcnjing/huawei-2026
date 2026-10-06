@@ -5,6 +5,7 @@ export function AppHeader({
   title,
   titleColor,
   hasUnreadNotifications = false,
+  hasUnreadChatMessages = false,
   muted = false,
   onToggleMute,
   onChat,
@@ -15,6 +16,7 @@ export function AppHeader({
   title: string;
   titleColor: string;
   hasUnreadNotifications?: boolean;
+  hasUnreadChatMessages?: boolean;
   muted?: boolean;
   onToggleMute: () => void;
   onChat: () => void;
@@ -61,9 +63,23 @@ export function AppHeader({
         <button
           onClick={onChat}
           aria-label={t("Open house chat")}
-          style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }}
+          style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center", position: "relative" }}
         >
           <IconChat size={18} color="#4ecdc4" />
+          {hasUnreadChatMessages && (
+            <span
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                top: 2,
+                right: 2,
+                width: 6,
+                height: 6,
+                backgroundColor: "#ff2d55",
+                border: "1px solid #0a0e1a",
+              }}
+            />
+          )}
         </button>
         <button
           onClick={onNotifications}

@@ -92,6 +92,7 @@ import {
   startHouseDrill,
 } from './house-drills.js';
 import { ChatError, listMessages, sendMessage } from './chat.js';
+import { pixiChatReply, replyToHouseMessage } from './drill-announce.js';
 import { ring } from './doorbell.js';
 
 const E164 = /^\+[1-9]\d{6,14}$/;
@@ -728,7 +729,8 @@ api.post('/api/houses/:houseId/chat/messages', async (req, res) => {
   try {
     if (!validChatBody(req.body)) throw new ChatError('INVALID_MESSAGE');
     const result = await sendMessage(userId, req.params.houseId, req.body);
-    await ring([result.topic]);
+    const pixiTopic = await replyToHouseMessage(userId, result.message.id, pixiChatReply(result.message.text));
+    await ring([result.topic, pixiTopic]);
     return res.status(result.created ? 201 : 200).json({ message: result.message });
   } catch (error) {
     return chatFail(res, error);

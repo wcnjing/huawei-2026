@@ -103,6 +103,7 @@ import { useHouseChat } from "./hooks/useHouseChat";
 
 const TUTORIAL_KEY = "safespace_tutorial_seen";
 const ONBOARDING_STAGE_KEY = "safespace_onboarding_stage";
+const CHAT_READ_PREFIX = "safespace_chat_read_v1";
 function onboardingStage(): string | null {
   try { return localStorage.getItem(ONBOARDING_STAGE_KEY); } catch { return null; }
 }
@@ -118,6 +119,21 @@ function hasSeenTutorial(): boolean {
 
 function markTutorialSeen() {
   try { localStorage.setItem(TUTORIAL_KEY, "1"); } catch { /* private mode: show it again, harmless */ }
+}
+
+function chatReadKey(identity: string) {
+  return `${CHAT_READ_PREFIX}:${identity}`;
+}
+
+function readChatThrough(identity: string): string {
+  try {
+    const value = localStorage.getItem(chatReadKey(identity)) ?? "0";
+    return /^\d+$/.test(value) ? value : "0";
+  } catch { return "0"; }
+}
+
+function isChatMessageUnread(messageId: string, readThrough: string): boolean {
+  try { return BigInt(messageId) > BigInt(readThrough); } catch { return false; }
 }
 
 
@@ -591,9 +607,30 @@ export default function App({ initialScreen = "title", devMode = false }: { init
     selfId: selfView?.id ?? null,
     sessionKey: currentSession,
     active: screen === "family-chat",
+    observe: signedIn && !!house.state.house?.id,
     changeRevision: house.changeRevision,
     onAccessDenied: refreshHouseAfterChatDenied,
   });
+  const chatIdentity = house.state.house?.id && selfView?.id
+    ? `${house.state.house.id}:${selfView.id}`
+    : null;
+  const [chatReadMarker, setChatReadMarker] = useState<{ identity: string | null; id: string }>({ identity: null, id: "0" });
+  useEffect(() => {
+    if (!chatIdentity) {
+      setChatReadMarker({ identity: null, id: "0" });
+      return;
+    }
+    setChatReadMarker({ identity: chatIdentity, id: readChatThrough(chatIdentity) });
+  }, [chatIdentity]);
+  useEffect(() => {
+    if (screen !== "family-chat" || !chatIdentity) return;
+    const latestId = chat.messages.at(-1)?.id;
+    if (!latestId) return;
+    try { localStorage.setItem(chatReadKey(chatIdentity), latestId); } catch { /* badge remains session only */ }
+    setChatReadMarker({ identity: chatIdentity, id: latestId });
+  }, [screen, chatIdentity, chat.messages]);
+  const hasUnreadChatMessages = chatReadMarker.identity === chatIdentity
+    && chat.messages.some(message => message.senderId !== selfId && isChatMessageUnread(message.id, chatReadMarker.id));
   const houseDrill = useHouseDrill({
     enabled: signedIn && !!selfView,
     houseId: house.state.house?.id ?? null,
@@ -1433,6 +1470,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
               title={t(title)}
               titleColor={color}
               hasUnreadNotifications={hasUnreadNotifications}
+              hasUnreadChatMessages={hasUnreadChatMessages}
               muted={muted}
               onToggleMute={toggleMute}
               onChat={handleChatIcon}

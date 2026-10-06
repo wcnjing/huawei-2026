@@ -144,8 +144,9 @@ After commit, the existing Supabase Realtime doorbell sends only an empty `{}`
 notification; it never broadcasts message or sender content. Notification failure does
 not roll back a send. With realtime unconfigured, visible chat polls every five
 seconds. Draft and failed-send bodies live only in the current browser session's
-memory, never localStorage or a service-worker cache. The chat contains no automated
-PIXI messages.
+memory, never localStorage or a service-worker cache. After a member message is
+saved, Pixi adds one brief, supportive reply based on its content. The reply is
+idempotent and best effort, so a chat message still succeeds if Pixi cannot reply.
 
 ## Houses and the doorbell
 
