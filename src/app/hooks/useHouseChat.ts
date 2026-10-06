@@ -21,7 +21,9 @@ export { createChatController } from "../services/chatController";
 
 const REQUEST_TIMEOUT_MS = 15_000;
 const POLL_INTERVAL_MS = 5_000;
-const BACKGROUND_POLL_INTERVAL_MS = 60_000;
+// Keep the header unread badge dependable even when realtime broadcasts are
+// unavailable or a browser drops its subscription.
+const BACKGROUND_POLL_INTERVAL_MS = 15_000;
 
 const EMPTY_MESSAGES: ChatMessage[] = [];
 const EMPTY_PENDING: PendingMessage[] = [];

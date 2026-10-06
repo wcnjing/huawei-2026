@@ -104,6 +104,7 @@ import { useHouseChat } from "./hooks/useHouseChat";
 const TUTORIAL_KEY = "safespace_tutorial_seen";
 const ONBOARDING_STAGE_KEY = "safespace_onboarding_stage";
 const CHAT_READ_PREFIX = "safespace_chat_read_v1";
+const NOTIFICATIONS_KEY_PREFIX = "safespace_notifications_v1";
 function onboardingStage(): string | null {
   try { return localStorage.getItem(ONBOARDING_STAGE_KEY); } catch { return null; }
 }
@@ -134,6 +135,34 @@ function readChatThrough(identity: string): string {
 
 function isChatMessageUnread(messageId: string, readThrough: string): boolean {
   try { return BigInt(messageId) > BigInt(readThrough); } catch { return false; }
+}
+
+function notificationsKey(memberId: string) {
+  return `${NOTIFICATIONS_KEY_PREFIX}:${memberId}`;
+}
+
+function loadNotifications(memberId: string): Notification[] {
+  try {
+    const raw = localStorage.getItem(notificationsKey(memberId));
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is Notification =>
+      !!item && typeof item === "object"
+      && typeof item.id === "string"
+      && typeof item.kind === "string"
+      && typeof item.memberId === "string"
+      && typeof item.title === "string"
+      && typeof item.body === "string"
+      && typeof item.timestamp === "number"
+      && typeof item.read === "boolean")
+      .slice(0, NOTIFICATIONS_CAP);
+  } catch { return []; }
+}
+
+function saveNotifications(memberId: string, notifications: Notification[]) {
+  try { localStorage.setItem(notificationsKey(memberId), JSON.stringify(notifications)); }
+  catch { /* private mode or storage quota: keep notifications for this session */ }
 }
 
 
@@ -724,8 +753,12 @@ export default function App({ initialScreen = "title", devMode = false }: { init
 
   const [coinLedger, setCoinLedger] = useState<CoinTx[]>([]);
 
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>(() => loadNotifications(selfId));
   const [activeNotificationId, setActiveNotificationId] = useState<string | null>(null);
+  useEffect(() => {
+    setNotifications(loadNotifications(selfId));
+    setActiveNotificationId(null);
+  }, [selfId]);
 
   // Central helper: mutate coins + append to ledger (cap-enforced)
   const addCoinTx = (memberId: string, delta: number, reason: CoinTxReason, label: string) => {
@@ -743,15 +776,27 @@ export default function App({ initialScreen = "title", devMode = false }: { init
       timestamp: Date.now(),
       read: false,
     };
-    setNotifications(prev => [notif, ...prev].slice(0, NOTIFICATIONS_CAP));
+    setNotifications(prev => {
+      const next = [notif, ...prev].slice(0, NOTIFICATIONS_CAP);
+      saveNotifications(selfId, next);
+      return next;
+    });
   };
 
   const markNotificationRead = (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    setNotifications(prev => {
+      const next = prev.map(n => n.id === id ? { ...n, read: true } : n);
+      saveNotifications(selfId, next);
+      return next;
+    });
   };
 
   const markAllNotificationsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setNotifications(prev => {
+      const next = prev.map(n => ({ ...n, read: true }));
+      saveNotifications(selfId, next);
+      return next;
+    });
   };
 
   const emitNotifDrill = (memberId: string, drill: DrillType, outcome: "win" | "lose", displayName?: string) => {
