@@ -1020,6 +1020,7 @@ api.post('/api/drills/email', async (req, res) => {
     ok: true,
     drillId: attempt.id,
     scenarioId: output.scenarioId,
+    scenario: output.scenario,
     safetyFollowupAt: output.safetyFollowupAt,
   });
 });

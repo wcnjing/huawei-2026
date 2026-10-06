@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ContactInfo } from "../../../types/profile";
-import type { RealDrillCompletion } from "../../../types/drills";
+import type { RealDrillCompletion, RealEmailScenario } from "../../../types/drills";
 import type { ApiResult } from "../../../services/api";
 import { apiPost, authHeaders, handleApiAuth, sessionToken } from "../../../services/api";
 import { loadContact, saveContact } from "../../../services/storage";
@@ -382,7 +382,7 @@ export function RealisticSmsDrillIntroScreen({ onBack, onRegister, onOutcome }: 
 export function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, scheduleBlocked, scheduleNextLabel }: {
   onBack: () => void;
   onRegister: () => void;
-  onOutcome: (drillId: string, outcome: "reported" | "submitted_details") => Promise<RealDrillCompletion>;
+  onOutcome: (drillId: string, outcome: "reported" | "submitted_details", scenario: RealEmailScenario | null) => Promise<RealDrillCompletion>;
   scheduleBlocked: boolean;
   scheduleNextLabel: string;
 }) {
@@ -394,6 +394,7 @@ export function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, 
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [drillId, setDrillId] = useState<string | null>(null);
+  const [scenario, setScenario] = useState<RealEmailScenario | null>(null);
   const [deliveryUnconfirmed, setDeliveryUnconfirmed] = useState(false);
 
   const registered = !!sessionToken();
@@ -465,6 +466,11 @@ export function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, 
         setBusy(false); return;
       }
       const id = fd.drillId ?? fd.attemptId ?? fd.attempt?.id ?? fd.record?.id ?? fd.id;
+      const sentScenario = fd.scenario;
+      setScenario(sentScenario && typeof sentScenario.id === "string"
+        && typeof sentScenario.sender === "string" && typeof sentScenario.subject === "string"
+        ? { id: sentScenario.id, sender: sentScenario.sender, subject: sentScenario.subject }
+        : null);
       if (!id) {
         setMsg("The email request may have been accepted, but its drill ID was missing. Do not resend; refresh later to recover any result.");
         setDeliveryUnconfirmed(true);
@@ -491,7 +497,7 @@ export function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, 
     if (!drillId || busy) return;
     setBusy(true);
     setMsg("");
-    const result = await onOutcome(drillId, outcome);
+    const result = await onOutcome(drillId, outcome, scenario);
     if (!result.ok) setMsg(result.error || "Could not save this result. Please try again.");
     setBusy(false);
   };

@@ -5,7 +5,7 @@ import type { AvatarConfig, PlayerProfile, ContactInfo, NameUpdateResult } from 
 import type { AppSettings, AccessibilityPrefs } from "./types/settings";
 import type {
   CallOutcome, DrillFlag, DrillResultRecord, DrillType, EmailOutcome,
-  FamilyClue, FamilyOutcome, FamilyScenario, Highlight,
+  FamilyClue, FamilyOutcome, FamilyScenario, Highlight, RealEmailScenario,
   NeutralResultNotice, RealDrillCompletion, SmsOutcome,
 } from "./types/drills";
 import type { FamilyMember } from "./types/family";
@@ -387,6 +387,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   const [callOutcome, setCallOutcome] = useState<CallOutcome | null>(null);
   const [smsOutcome, setSmsOutcome] = useState<SmsOutcome | null>(null);
   const [emailOutcome, setEmailOutcome] = useState<EmailOutcome | null>(null);
+  const [realEmailScenario, setRealEmailScenario] = useState<RealEmailScenario | null>(null);
   const [resultXp, setResultXp] = useState<number | null>(null);
   const [tourOpen, setTourOpen] = useState(false);
   const [signInMode, setSignInMode] = useState<"new" | "returning">("new");
@@ -996,7 +997,9 @@ export default function App({ initialScreen = "title", devMode = false }: { init
     channel: "sms" | "email",
     drillId: string,
     outcome: "reported" | "clicked_link" | "submitted_details",
+    scenario: RealEmailScenario | null = null,
   ): Promise<RealDrillCompletion> => {
+    if (channel === "email") setRealEmailScenario(scenario);
     try {
       const response = await fetch(`/api/drills/${encodeURIComponent(drillId)}/complete`, {
         method: "POST",
@@ -1039,6 +1042,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   const leaveResultScreen = (destination: () => void) => {
     const recordId = pendingResultAckId;
     setPendingResultAckId(null);
+    setRealEmailScenario(null);
     destination();
     if (recordId) void acknowledgePendingResult(recordId);
   };
@@ -1715,7 +1719,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
               <RealisticEmailDrillIntroScreen
                 onBack={() => setScreen("drill-select")}
                 onRegister={() => openRegistration("realistic-email-intro")}
-                onOutcome={(drillId, outcome) => handleRealDrillOutcome("email", drillId, outcome)}
+                onOutcome={(drillId, outcome, scenario) => handleRealDrillOutcome("email", drillId, outcome, scenario)}
                 scheduleBlocked={realDrillBlocked}
                 scheduleNextLabel={drillWin.nextLabel}
               />
@@ -1835,6 +1839,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
                 drillType={drillType}
                 smsOutcome={smsOutcome}
                 emailOutcome={emailOutcome}
+                realEmailScenario={realEmailScenario}
                 callOutcome={callOutcome}
                 profileName={profile.name}
                 activeMemberId={activeMemberId}
