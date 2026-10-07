@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import { normalizeDraft, type useHouseChat } from "../../hooks/useHouseChat";
 import type { Avatar } from "../../services/house";
 import { useI18n } from "../../i18n";
-import { PixelMascot } from "../../components/avatars";
+import { PixiAvatar } from "../../components/avatars";
 
 type HouseChat = ReturnType<typeof useHouseChat>;
 
@@ -328,7 +328,7 @@ export function HouseChatScreen({
               <article className={`house-chat__message${own ? " house-chat__message--own" : ""}${row.kind === "message" && row.type === "pixi_message" ? " house-chat__message--pixi" : ""}`}>
                 <div className="house-chat__avatar" aria-hidden="true">
                   {row.kind === "message" && row.type === "pixi_message"
-                    ? <PixelMascot size={28} color="#00ff88" outfit="Standard" />
+                    ? <PixiAvatar size={28} />
                     : row.senderAvatar ? renderAvatar(row.senderAvatar) : <span>{selfName.slice(0, 1).toUpperCase()}</span>}
                 </div>
                 <div className="house-chat__bubble">
@@ -361,7 +361,7 @@ export function HouseChatScreen({
         {chat.pixiThinking && (
           <div className="house-chat__entry">
             <article className="house-chat__message house-chat__message--pixi">
-              <div className="house-chat__avatar" aria-hidden="true"><PixelMascot size={28} color="#00ff88" outfit="Standard" /></div>
+              <div className="house-chat__avatar" aria-hidden="true"><PixiAvatar size={28} /></div>
               <div className="house-chat__bubble">
                 <p className="house-chat__text house-chat__typing" role="status">{t("Pixi is typing")}</p>
               </div>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { PixelMascot } from "../avatars";
+import { PixiAvatar } from "../avatars";
 import { PixelButton } from "../ui";
 import { useT } from "../../i18n";
 
@@ -94,7 +94,7 @@ function SpeechBubble({ step, index, total, onNext, onSkip, onBack, style, inner
   return (
     <div ref={innerRef} style={{ position: "fixed", zIndex: 10001, width: 300, ...style }}>
       <div style={{ display: "flex", alignItems: "flex-end", gap: 8, marginBottom: -4 }}>
-        <PixelMascot size={step.target === "drill-page" ? 32 : 44} animate />
+        <PixiAvatar size={step.target === "drill-page" ? 32 : 44} animate />
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: step.accent, padding: "5px 8px", marginBottom: 8, backgroundColor: "#111827", boxShadow: "3px 3px 0 #0a0e1a" }}>
           {t(step.title)}
         </div>

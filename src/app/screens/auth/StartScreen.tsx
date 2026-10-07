@@ -1,5 +1,5 @@
 import { PixelButton } from "../../components/ui";
-import { PixelMascot } from "../../components/avatars";
+import { PixiAvatar } from "../../components/avatars";
 import { Stars } from "../../components/layout";
 import { useT } from "../../i18n";
 
@@ -9,7 +9,7 @@ export function StartScreen({ onNew, onReturning }: { onNew: () => void; onRetur
     <div className="relative flex flex-col items-center justify-center h-full px-6 gap-6">
       <Stars />
       <div className="relative z-10 flex flex-col items-center gap-6 w-full">
-        <PixelMascot size={96} animate />
+        <PixiAvatar size={96} animate />
         <PixelButton onClick={onNew} color="#00ff88" size="lg" full>{t("[ NEW PLAYER ]")}</PixelButton>
         <PixelButton onClick={onReturning} color="#1a2340" textColor="#4ecdc4" size="md" full>{t("I HAVE AN ACCOUNT")}</PixelButton>
       </div>

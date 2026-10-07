@@ -3,7 +3,7 @@ import { getResultContent } from "./getResultContent";
 import { Stars } from "../../../components/layout";
 import { PixelButton, PixelPanel, ScamReasonSection } from "../../../components/ui";
 import { IconBulb, IconCoin, IconFlame, IconStar } from "../../../components/icons";
-import { PixelMascot } from "../../../components/avatars";
+import { PixiAvatar } from "../../../components/avatars";
 import { useMemberMap } from "../../../hooks/useMembers";
 import type { CallOutcome, DrillType, EmailOutcome, RealEmailScenario, SmsOutcome } from "../../../types/drills";
 import { useT } from "../../../i18n";
@@ -77,7 +77,7 @@ export function ResultScreen({ win, drillType, smsOutcome, emailOutcome, callOut
           )}
         </div>
         <div style={{ position: "relative" }}>
-          <PixelMascot size={96} animate />
+          <PixiAvatar size={96} animate />
           {win && (
             <div style={{ position: "absolute", top: -20, right: -20, animation: "spin 2s linear infinite" }}>
               <IconStar size={24} color="#ffe66d" />
