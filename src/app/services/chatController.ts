@@ -36,7 +36,23 @@ const INITIAL_SNAPSHOT: ChatSnapshot = {
   error: null,
   olderError: null,
   accessDenied: false,
+  pixiThinking: false,
 };
+
+// Every message you send is offered to Pixi, and the server decides whether it answers.
+// "Pixi is typing" only shows when an answer is likely: Pixi was named, or it posted
+// within the last few messages (mirrors pixiShouldConsider() in server/pixi-writer.js).
+const PIXI_NAME_RE = /\bpixi\b/i;
+const PIXI_LOOKBACK = 6;
+const PIXI_ENGAGED_MS = 30 * 60 * 1000;
+
+function pixiLikelyReplies(sent: ChatMessage, messages: ChatMessage[], now: number): boolean {
+  if (PIXI_NAME_RE.test(sent.text)) return true;
+  return messages
+    .filter(message => message.id !== sent.id)
+    .slice(-PIXI_LOOKBACK)
+    .some(message => message.type === "pixi_message" && now - Date.parse(message.createdAt) <= PIXI_ENGAGED_MS);
+}
 
 function publicError(error: unknown): string {
   return error instanceof Error && error.message ? error.message : "Could not reach the server.";
@@ -218,6 +234,32 @@ export function createChatController(options: ChatControllerOptions): ChatContro
     return olderPromise;
   };
 
+  let pixiAsks = 0;
+  const askPixi = (sent: ChatMessage) => {
+    const ask = options.transport.askPixi;
+    if (!ask || disposed || authorizationLost || sent.type !== "message") return;
+    const visible = pixiLikelyReplies(sent, snapshot.messages, options.now());
+    const request = beginRequest();
+    if (visible) {
+      pixiAsks += 1;
+      publish({ pixiThinking: true });
+    }
+    void ask(options.houseId, sent.id, request.signal).then(result => {
+      if (disposed || authorizationLost || !result.message) return;
+      acceptMessages([result.message]);
+    }).catch(error => {
+      // Pixi is optional: a failed ask only clears the indicator.
+      if (disposed || authorizationLost || isAbort(error)) return;
+      if (!handleAuthorizationError(error)) console.warn("[pixi] reply request failed:", publicError(error));
+    }).finally(() => {
+      if (disposed) return;
+      finishRequest(request);
+      if (!visible) return;
+      pixiAsks -= 1;
+      if (pixiAsks === 0) publish({ pixiThinking: false });
+    });
+  };
+
   const postPending = (pending: PendingMessage) => {
     if (disposed || authorizationLost || postRequests.has(pending.clientKey)) return;
     const request = beginRequest();
@@ -229,6 +271,7 @@ export function createChatController(options: ChatControllerOptions): ChatContro
     ).then(result => {
       if (disposed || authorizationLost) return;
       acceptMessages([result.message]);
+      askPixi(result.message);
     }).catch(error => {
       if (disposed || authorizationLost || isAbort(error)) return;
       if (handleAuthorizationError(error)) return;

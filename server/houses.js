@@ -407,9 +407,11 @@ export async function recordHouseRun(userId, { clientKey, correct, cautious, wro
     return recordRunLocked(tx, user, key, { correct, cautious, wrong }, now);
   }, 'recordHouseRun');
   if (outcome.status === 'completed') {
+    // Only the individual (solo) drill posts here; house drills record runs elsewhere.
     await announcePixiDrillOutcome(userId, `run:${outcome.run.id}`, {
-      channel: 'house',
+      channel: 'solo',
       won: outcome.run.wrong === 0,
+      run: outcome.run,
     });
   }
   return outcome;

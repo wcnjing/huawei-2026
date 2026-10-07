@@ -4,7 +4,7 @@ import { IconBell, IconBulb, IconChat, IconGear, IconSpeaker } from "../icons";
 export function AppHeader({
   title,
   titleColor,
-  hasUnreadNotifications = false,
+  unreadNotificationCount = 0,
   hasUnreadChatMessages = false,
   muted = false,
   onToggleMute,
@@ -15,7 +15,7 @@ export function AppHeader({
 }: {
   title: string;
   titleColor: string;
-  hasUnreadNotifications?: boolean;
+  unreadNotificationCount?: number;
   hasUnreadChatMessages?: boolean;
   muted?: boolean;
   onToggleMute: () => void;
@@ -62,7 +62,7 @@ export function AppHeader({
         </button>
         <button
           onClick={onChat}
-          aria-label={t("Open house chat")}
+          aria-label={hasUnreadChatMessages ? t("Open house chat (new messages)") : t("Open house chat")}
           style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center", position: "relative" }}
         >
           <IconChat size={18} color="#4ecdc4" />
@@ -71,10 +71,10 @@ export function AppHeader({
               aria-hidden="true"
               style={{
                 position: "absolute",
-                top: 2,
-                right: 2,
-                width: 6,
-                height: 6,
+                top: 1,
+                right: 0,
+                width: 7,
+                height: 7,
                 backgroundColor: "#ff2d55",
                 border: "1px solid #0a0e1a",
               }}
@@ -83,22 +83,34 @@ export function AppHeader({
         </button>
         <button
           onClick={onNotifications}
-          aria-label={t("Open notifications")}
+          aria-label={unreadNotificationCount > 0
+            ? t("Open notifications ({count} unread)", { count: unreadNotificationCount })
+            : t("Open notifications")}
           style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center", position: "relative" }}
         >
           <IconBell size={18} color="#ffe66d" />
-          {hasUnreadNotifications && (
+          {unreadNotificationCount > 0 && (
             <span
+              aria-hidden="true"
               style={{
                 position: "absolute",
-                top: 2,
-                right: 2,
-                width: 6,
-                height: 6,
+                top: -2,
+                right: -4,
+                minWidth: 14,
+                height: 14,
+                padding: "0 2px",
+                boxSizing: "border-box",
                 backgroundColor: "#ff2d55",
                 border: "1px solid #0a0e1a",
+                color: "#ffffff",
+                fontFamily: "'Press Start 2P', monospace",
+                fontSize: 7,
+                lineHeight: "12px",
+                textAlign: "center",
               }}
-            />
+            >
+              {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
+            </span>
           )}
         </button>
         <button

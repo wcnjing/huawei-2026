@@ -39,6 +39,7 @@ const EMPTY_SNAPSHOT: ChatSnapshot = Object.freeze({
   error: null,
   olderError: null,
   accessDenied: false,
+  pixiThinking: false,
 });
 
 const EMPTY_ACTIONS = {
@@ -146,9 +147,29 @@ export function createChatTransport(capturedToken: string, now: () => number = D
     }
   };
 
+  const askPixi = async (houseId: string, messageId: string, signal: AbortSignal) => {
+    const linked = linkedRequest(signal);
+    try {
+      const response = await fetch(
+        `/api/houses/${encodeURIComponent(houseId)}/chat/messages/${encodeURIComponent(messageId)}/pixi-reply`,
+        {
+          method: "POST",
+          headers: { authorization: `Bearer ${capturedToken}` },
+          signal: linked.signal,
+          cache: "no-store",
+        },
+      );
+      if (!response.ok) throw new ChatRequestError(await errorMessage(response), response.status);
+      return await response.json() as { message: ChatMessage | null };
+    } finally {
+      linked.cleanup();
+    }
+  };
+
   return {
     get: (houseId, cursor, signal) => request<ChatPage>(houseId, cursor, undefined, signal),
     post: (houseId, input, signal) => request(houseId, undefined, input, signal),
+    askPixi,
   };
 }
 

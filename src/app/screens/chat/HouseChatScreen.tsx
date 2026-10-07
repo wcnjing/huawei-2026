@@ -358,6 +358,16 @@ export function HouseChatScreen({
             </div>
           );
         })}
+        {chat.pixiThinking && (
+          <div className="house-chat__entry">
+            <article className="house-chat__message house-chat__message--pixi">
+              <div className="house-chat__avatar" aria-hidden="true"><PixelMascot size={28} color="#00ff88" outfit="Standard" /></div>
+              <div className="house-chat__bubble">
+                <p className="house-chat__text house-chat__typing" role="status">{t("Pixi is typing")}</p>
+              </div>
+            </article>
+          </div>
+        )}
       </div>
 
       {newMessages && <button type="button" className="house-chat__new" onClick={scrollToLatest}>{t("New messages")}</button>}
@@ -376,6 +386,7 @@ export function HouseChatScreen({
             ref={composerRef}
             id="chat-message"
             rows={3}
+            placeholder={t("Message your house, or ask Pixi")}
             value={draft}
             onChange={event => setDraft(event.target.value)}
             onKeyDown={event => {

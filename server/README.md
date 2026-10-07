@@ -145,8 +145,10 @@ notification; it never broadcasts message or sender content. Notification failur
 not roll back a send. With realtime unconfigured, visible chat polls every five
 seconds. Draft and failed-send bodies live only in the current browser session's
 memory, never localStorage or a service-worker cache. After a member message is
-saved, Pixi adds one brief, supportive reply based on its content. The reply is
-idempotent and best effort, so a chat message still succeeds if Pixi cannot reply.
+saved, the sender's app calls `POST /api/houses/:houseId/chat/messages/:messageId/pixi-reply`
+and OpenAI may add one Pixi reply (server/pixi-chat.js, prompt in
+server/prompts/pixi-chat-reply.md). The reply is idempotent, capped per house per hour
+and best effort, so a chat message still succeeds if Pixi cannot reply.
 
 ## Houses and the doorbell
 

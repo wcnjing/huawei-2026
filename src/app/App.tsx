@@ -93,6 +93,7 @@ import {
 } from "./screens/settings/SettingsScreens";
 import { HouseChoiceScreen, HouseSettingsScreen } from "./screens/house/HouseScreens";
 import { NotificationsScreen, NotificationDetailScreen } from "./screens/notifications/NotificationScreens";
+import { NotificationToast } from "./screens/notifications/NotificationToast";
 import { PaydayScreen } from "./screens/rewards/PaydayScreen";
 
 import { useIdleFrame } from "./hooks/useIdleFrame";
@@ -755,6 +756,8 @@ export default function App({ initialScreen = "title", devMode = false }: { init
 
   const [notifications, setNotifications] = useState<Notification[]>(() => loadNotifications(selfId));
   const [activeNotificationId, setActiveNotificationId] = useState<string | null>(null);
+  // The newest notification, shown as a banner under the bell until it times out.
+  const [toastNotification, setToastNotification] = useState<Notification | null>(null);
   useEffect(() => {
     setNotifications(loadNotifications(selfId));
     setActiveNotificationId(null);
@@ -781,6 +784,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
       saveNotifications(selfId, next);
       return next;
     });
+    setToastNotification(notif);
   };
 
   const markNotificationRead = (id: string) => {
@@ -947,7 +951,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   const handleNav = (s: string) => setScreen(s as Screen);
 
   const handleChatIcon = () => setScreen("family-chat");
-  const handleBellIcon = () => setScreen("notifications");
+  const handleBellIcon = () => { setToastNotification(null); setScreen("notifications"); };
   const handleSettingsIcon = () => setScreen("settings");
 
   const getScreenTitle = (): { title: string; color: string } => {
@@ -1472,7 +1476,10 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   };
 
   const { title, color } = getScreenTitle();
-  const hasUnreadNotifications = notifications.some(n => !n.read);
+  const unreadNotificationCount = notifications.filter(n => !n.read).length;
+  // Not over the notification screens, which already list it, or mid-drill.
+  const showNotificationToast = toastNotification !== null && showAppChrome
+    && screen !== "notifications" && screen !== "notification-detail";
 
   // These buttons explicitly request a drill now. Automatic scheduling is not exposed
   // until a server-side scheduler exists, so a stale local preference must not block
@@ -1509,12 +1516,12 @@ export default function App({ initialScreen = "title", devMode = false }: { init
       `}</style>
       {!accessibility.disableScanlines && <Scanlines />}
       <PhoneFrame>
-        <div className="flex flex-col flex-1 overflow-hidden">
+        <div className="flex flex-col flex-1 overflow-hidden" style={{ position: "relative" }}>
           {showAppChrome && (
             <AppHeader
               title={t(title)}
               titleColor={color}
-              hasUnreadNotifications={hasUnreadNotifications}
+              unreadNotificationCount={unreadNotificationCount}
               hasUnreadChatMessages={hasUnreadChatMessages}
               muted={muted}
               onToggleMute={toggleMute}
@@ -1522,6 +1529,18 @@ export default function App({ initialScreen = "title", devMode = false }: { init
               onNotifications={handleBellIcon}
               onSettings={handleSettingsIcon}
               onTutorial={() => { setScreen("home"); setTourOpen(true); }}
+            />
+          )}
+          {showNotificationToast && (
+            <NotificationToast
+              notification={toastNotification}
+              onOpen={() => {
+                setActiveNotificationId(toastNotification.id);
+                markNotificationRead(toastNotification.id);
+                setToastNotification(null);
+                setScreen("notification-detail");
+              }}
+              onDismiss={() => setToastNotification(null)}
             />
           )}
 
