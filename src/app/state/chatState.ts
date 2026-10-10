@@ -39,6 +39,8 @@ export type ChatSnapshot = {
   error: string | null;
   olderError: string | null;
   accessDenied: boolean;
+  /** Waiting on Pixi's answer to one of your messages. */
+  pixiThinking: boolean;
 };
 
 export type ChatTransport = {
@@ -52,6 +54,12 @@ export type ChatTransport = {
     input: { text: string; clientKey: string },
     signal: AbortSignal,
   ): Promise<{ message: ChatMessage }>;
+  /** Ask Pixi to answer one of your own messages. Resolves to null when Pixi stays quiet. */
+  askPixi?(
+    houseId: string,
+    messageId: string,
+    signal: AbortSignal,
+  ): Promise<{ message: ChatMessage | null }>;
 };
 
 export function mergeMessages(existing: ChatMessage[], incoming: ChatMessage[]): ChatMessage[] {

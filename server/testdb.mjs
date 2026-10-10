@@ -15,6 +15,8 @@ const TABLES = [
 let throwaway = null;
 
 export async function setupTestDb() {
+  // Pixi's chat lines stay on the fixed templates so no test calls OpenAI.
+  process.env.PIXI_AI = 'off';
   const adminUrl = String(process.env.TEST_DATABASE_URL || '').trim();
   if (!adminUrl) {
     delete process.env.DATABASE_URL;

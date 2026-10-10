@@ -1,75 +1,16 @@
-// Persist Pixi's drill coaching and chat replies. These are best effort and separate
-// from scoring or member messages, so a chat problem cannot undo either action.
+// Persist Pixi's drill coaching in the house chat (its chat replies are pixi-chat.js).
+// Best effort and separate from scoring, so a chat problem cannot undo a result.
 // Idempotency keys make retries safe without adding lock-order risk.
 import { query } from './db.js';
+import { cleanFamilyTree, familyTreeFromLinks } from './family-rules.js';
+import { pixiWriterConfigured, writePixiMessages } from './pixi-writer.js';
 
 export const DRILL_SCAMMED_TEXT = 'got caught out by a drill';
 
-const CHANNEL_NAMES = { call: 'call', sms: 'text', email: 'email', house: 'house' };
+const CHANNEL_NAMES = { call: 'call', sms: 'text', email: 'email', solo: 'individual' };
 
-/** Choose one brief, supportive reply based on the member's message. */
-export function pixiChatReply(text) {
-  const message = String(text || '').toLocaleLowerCase();
-  if (/\b(help|scared|worried|afraid|nervous|anxious|unsafe|not safe)\b/.test(message)) {
-    return 'You are safe here, and it is always okay to pause. What part would you like help thinking through?';
-  }
-  if (/\b(thank you|thanks|thx)\b/.test(message)) {
-    return 'You are welcome. Keep sharing questions with your family so you can learn together.';
-  }
-  if (/\b(hello|hi|hey|good morning|good afternoon|good evening)\b/.test(message)) {
-    return 'Hi there. What would you like to practise or talk through today?';
-  }
-  if (/\b(otp|one time code|verification code|password|passcode)\b/.test(message)) {
-    return 'Good question. Never share a code or password with someone who contacts you. Did you expect the request?';
-  }
-  if (/\b(link|url|click|tap|attachment|file)\b/.test(message)) {
-    return 'Pause before opening it. Check who sent it, then visit the official app or website yourself. What looks unusual?';
-  }
-  if (/\b(call|caller|phone|voicemail)\b/.test(message)) {
-    return 'If a caller creates urgency, end the call and verify through a number you find yourself. What did they ask you to do?';
-  }
-  if (/\b(bank|payment|transfer|money|fee|parcel|delivery)\b/.test(message)) {
-    return 'Check payment or delivery claims in the official app or website. What detail can you verify independently?';
-  }
-  if (/\b(scam|scammer|phishing|suspicious|fake)\b/.test(message)) {
-    return 'Good instinct to check. Look for urgency, unexpected requests, and details you can verify independently. What stood out to you?';
-  }
-  if (/\b(won|safe|spotted|reported|caught)\b/.test(message)) {
-    return 'Great job sharing that with the family. What clue helped you decide what to do?';
-  }
-  if (message.includes('?')) {
-    return 'That is a good question. What detail would you like to check first? We can think it through together.';
-  }
-  return 'Thanks for sharing. What is one thing you would check before acting on a message like that?';
-}
-
-/** Store Pixi's idempotent reply to a member's chat message. */
-export async function replyToHouseMessage(userId, messageId, text) {
-  try {
-    const { rows } = await query(
-      `with posted as (
-         insert into safespace.chat_messages
-           (house_id, sender_id, sender_name, sender_avatar, client_key, body, type)
-         select original.house_id, null, 'PIXI', null,
-                'chat:' || original.id::text || ':pixi:reply', $3, 'pixi_message'
-           from safespace.chat_messages original
-          where original.id = $2::bigint and original.sender_id = $1
-         on conflict (client_key) where type = 'pixi_message' do nothing
-         returning house_id
-       )
-       select h.doorbell from posted join safespace.houses h on h.id = posted.house_id`,
-      [String(userId), String(messageId), String(text)],
-      'replyToHouseMessage',
-    );
-    return rows[0]?.doorbell ?? null;
-  } catch (error) {
-    console.error('[chat] could not post Pixi chat reply:', error?.message || error);
-    return null;
-  }
-}
-
-/** Persist Pixi's short announcement and coaching prompt after a scored drill. */
-export async function announcePixiDrillOutcome(userId, key, { channel, won } = {}) {
+/** The fixed lines, used when OpenAI is off or its reply can't be used. */
+export function templatePixiMessages({ channel, won } = {}) {
   const channelName = CHANNEL_NAMES[channel] ?? 'practice';
   const announcement = won
     ? `🎉 Great work spotting the scam in the ${channelName} drill. You paused before clicking or sharing.`
@@ -83,6 +24,92 @@ export async function announcePixiDrillOutcome(userId, key, { channel, won } = {
         : channel === 'email'
           ? 'Pixi tip: check the full sender address, and avoid unexpected links or files. What clue will you watch for next time?'
           : 'Pixi tip: pause, inspect the clues, and check with someone you trust. What clue will you remember next time?';
+  return [announcement, guidance];
+}
+
+/** A house's members ({ id, name }) and its family tree. `familyTree` is houses.family_tree. */
+export async function loadHouseFamily(houseId, familyTree) {
+  const { rows } = await query(
+    `select m.user_id as id, m.family_link, u.name
+       from safespace.house_members m join safespace.users u on u.id = m.user_id
+      where m.house_id = $1`,
+    [houseId],
+    'loadHouseFamily',
+  );
+  const ids = new Set(rows.map((row) => row.id));
+  const tree = familyTree
+    ? cleanFamilyTree(familyTree, ids)
+    : familyTreeFromLinks(rows.map((row) => ({ id: row.id, link: row.family_link })));
+  return { members: rows.map((row) => ({ id: row.id, name: row.name })), tree };
+}
+
+/** Everything Pixi's writer reads about the player's current house, or null. Read-only. */
+export async function loadPixiContext(userId) {
+  const { rows: [user] } = await query(
+    `select u.id, u.name, u.streak, u.times_safe, u.times_scammed, h.id as house_id, h.family_tree
+       from safespace.users u join safespace.houses h on h.id = u.house_id
+      where u.id = $1`,
+    [String(userId)],
+    'loadPixiContext.user',
+  );
+  if (!user) return null;
+  const { members, tree } = await loadHouseFamily(user.house_id, user.family_tree);
+  const { rows: chatRows } = await query(
+    `select sender_id, sender_name, body from safespace.chat_messages
+      where house_id = $1 and type in ('message', 'pixi_message')
+      order by id desc limit 8`,
+    [user.house_id],
+    'loadPixiContext.chat',
+  );
+  return {
+    userId: user.id,
+    userName: user.name,
+    streak: user.streak,
+    timesSafe: user.times_safe,
+    timesScammed: user.times_scammed,
+    members,
+    tree,
+    recentChat: chatRows.reverse().map((row) => ({ senderId: row.sender_id, from: row.sender_name, text: row.body })),
+  };
+}
+
+async function alreadyAnnounced(key) {
+  const { rows } = await query(
+    `select 1 from safespace.chat_messages where type = 'pixi_message' and client_key = $1`,
+    [`${key}:pixi:announce`],
+    'alreadyAnnounced',
+  );
+  return rows.length > 0;
+}
+
+/** Lines written by OpenAI for this drill, or null to use the templates. Never throws. */
+async function writtenMessages(userId, key, drill) {
+  if (!pixiWriterConfigured()) return null;
+  try {
+    // A replayed result must not pay for a second reply that the insert would drop.
+    if (await alreadyAnnounced(key)) return null;
+    const context = await loadPixiContext(userId);
+    return context ? await writePixiMessages(context, drill) : null;
+  } catch (error) {
+    console.error('[pixi] could not gather drill context:', error?.message || error);
+    return null;
+  }
+}
+
+/**
+ * Persist Pixi's announcement and follow-up after a scored drill. With OPENAI_API_KEY set,
+ * OpenAI writes them from the drill and the family (pixi-writer.js); otherwise, or when
+ * that fails, the fixed templates are posted. Awaited rather than backgrounded because a
+ * serverless function is frozen once it responds; the writer's timeout bounds the wait.
+ * `outcome` is the xp.js outcome and `run` the house quiz counts, both optional.
+ */
+export async function announcePixiDrillOutcome(userId, key, { channel, won, outcome = null, run = null } = {}) {
+  const written = await writtenMessages(userId, key, { channel, won, outcome, run });
+  // The insert runs both lines through format() for the template's %s, so a % the model
+  // wrote has to be escaped to survive it.
+  const [announcement, guidance] = written
+    ? written.map((line) => line.replace(/%/g, '%%'))
+    : templatePixiMessages({ channel, won });
 
   try {
     const { rows } = await query(
@@ -92,9 +119,9 @@ export async function announcePixiDrillOutcome(userId, key, { channel, won } = {
          select h.id, null, 'PIXI', null, messages.client_key, messages.body, 'pixi_message'
            from safespace.users u
            join safespace.houses h on h.id = u.house_id
-         cross join lateral (values
-             ($2 || ':pixi:announce', $3),
-             ($2 || ':pixi:guide', $4)
+           cross join lateral (values
+             ($2 || ':pixi:announce', format($3, u.name)),
+             ($2 || ':pixi:guide', format($4, u.name))
            ) as messages(client_key, body)
           where u.id = $1
          on conflict (client_key) where type = 'pixi_message' do nothing

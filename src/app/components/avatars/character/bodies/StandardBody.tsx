@@ -12,6 +12,12 @@ const BODY: PixelMap = [
   "......sms..sms......", "......sms..sms......", "......sms..sms......", "....................",
 ];
 
+const HEAD: PixelMap = BODY.map((row, index) => index < 14 ? row : ".".repeat(20));
+
 export function StandardBody({ palette }: { palette: PixelPalette }) {
   return <PixelLayer map={BODY} palette={palette} name="body-standard" />;
+}
+
+export function StandardHead({ palette }: { palette: PixelPalette }) {
+  return <PixelLayer map={HEAD} palette={palette} name="head-standard" />;
 }

@@ -92,7 +92,7 @@ import {
   startHouseDrill,
 } from './house-drills.js';
 import { ChatError, listMessages, sendMessage } from './chat.js';
-import { pixiChatReply, replyToHouseMessage } from './drill-announce.js';
+import { replyAsPixi } from './pixi-chat.js';
 import { ring } from './doorbell.js';
 
 const E164 = /^\+[1-9]\d{6,14}$/;
@@ -729,9 +729,22 @@ api.post('/api/houses/:houseId/chat/messages', async (req, res) => {
   try {
     if (!validChatBody(req.body)) throw new ChatError('INVALID_MESSAGE');
     const result = await sendMessage(userId, req.params.houseId, req.body);
-    const pixiTopic = await replyToHouseMessage(userId, result.message.id, pixiChatReply(result.message.text));
-    await ring([result.topic, pixiTopic]);
+    await ring([result.topic]);
     return res.status(result.created ? 201 : 200).json({ message: result.message });
+  } catch (error) {
+    return chatFail(res, error);
+  }
+});
+
+// Asked by the sender's app right after a message is saved, so sending never waits on
+// OpenAI. Answers with Pixi's reply, or { message: null } when Pixi stays quiet.
+api.post('/api/houses/:houseId/chat/messages/:messageId/pixi-reply', async (req, res) => {
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+  try {
+    const result = await replyAsPixi(userId, req.params.houseId, req.params.messageId);
+    if (result.message) await ring([result.topic]);
+    return res.json({ message: result.message });
   } catch (error) {
     return chatFail(res, error);
   }

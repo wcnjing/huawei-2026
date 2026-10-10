@@ -215,6 +215,7 @@ async function announceScored(record) {
   await announcePixiDrillOutcome(record.userId, `drill:${record.id}`, {
     channel: record.channel,
     won: record.result === 'WON',
+    outcome: record.outcome,
   });
 }
 

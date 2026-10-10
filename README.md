@@ -94,10 +94,14 @@ Failed sends remain in memory for Retry with the same idempotency key, so a resp
 lost after commit does not create a duplicate. Drafts and pending messages are
 session-only browser memory: they are not written to localStorage or a service-worker
 cache and disappear when the authenticated chat state is unmounted or replaced.
-After a scored call, text, email, or house drill, Pixi posts an announcement and a
-short question or practical tip in the house chat. Pixi also replies to member chat
-messages with a brief, supportive response based on what they wrote. Safe exits that
-are not scored do not post a result message.
+After a scored call, text, email, or individual drill, Pixi posts an announcement and a
+short question or practical tip in the house chat. Pixi also chats with members: after a
+message is sent, the app asks for a reply and OpenAI decides whether Pixi answers (always
+when named, not when family members are talking to each other). Both are written by
+OpenAI (`OPENAI_API_KEY`, model `PIXI_MODEL`, default `gpt-5-mini`) from the
+instructions in `server/prompts/*.md`; without a key, drill posts fall back to fixed
+lines and Pixi does not reply in chat. Safe exits that are not scored do not post a
+result message.
 
 Production rollout is migration-first: apply all pending migrations in
 `supabase/migrations/` through the existing database deployment process before

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { accessoryRegistry } from "./accessories/accessoryRegistry";
-import { StandardBody } from "./bodies/StandardBody";
+import { StandardBody, StandardHead } from "./bodies/StandardBody";
 import { hairRegistry } from "./hair/hairRegistry";
 import { outfitRegistry } from "./outfits/outfitRegistry";
 import { hairPalettes, skinPalettes } from "./palettes/palettes";
@@ -12,12 +12,15 @@ export function CharacterAvatar({
   size = 64,
   animate = false,
   title = "Customised character",
+  variant = "full",
 }: {
   config: CharacterConfig;
   /** Approximate rendered height, matching the old square avatar API. */
   size?: number;
   animate?: boolean;
   title?: string;
+  /** Use a square, head-and-hair crop for compact message avatars. */
+  variant?: "full" | "head";
 }) {
   const [frame, setFrame] = useState(0);
   useEffect(() => {
@@ -41,19 +44,19 @@ export function CharacterAvatar({
 
   return (
     <svg
-      width={size * 0.625}
+      width={variant === "head" ? size : size * 0.625}
       height={size}
-      viewBox="0 0 20 32"
+      viewBox={variant === "head" ? "0 0 20 20" : "0 0 20 32"}
       role="img"
       aria-label={title}
       shapeRendering="crispEdges"
-      style={{ display: "block", imageRendering: "pixelated", overflow: "visible", flexShrink: 0 }}
+      style={{ display: "block", imageRendering: "pixelated", overflow: variant === "head" ? "hidden" : "visible", flexShrink: 0 }}
     >
       <title>{title}</title>
       <g transform={animate && frame ? "translate(0 -1)" : undefined}>
-        <StandardBody palette={skin} />
-        <PixelLayer map={outfit.map} palette={outfit.palette} name={`outfit-${config.outfit}`} />
-        {renderAccessories("neck")}
+        {variant === "head" ? <StandardHead palette={skin} /> : <StandardBody palette={skin} />}
+        {variant === "full" && <PixelLayer map={outfit.map} palette={outfit.palette} name={`outfit-${config.outfit}`} />}
+        {variant === "full" && renderAccessories("neck")}
         {hairMap && <PixelLayer map={hairMap} palette={hair} name={`hair-${config.hairStyle}`} />}
         {renderAccessories("face")}
         {renderAccessories("head")}
