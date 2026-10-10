@@ -1756,7 +1756,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
                 onBack={goHome}
                 onJoinHouse={() => setScreen("house")}
                 renderAvatar={avatar => (
-                  <CharacterAvatar size={32} config={normalizeAvatarConfig(avatar)} title="Message sender character" />
+                  <CharacterAvatar size={32} variant="head" config={normalizeAvatarConfig(avatar)} title="Message sender character" />
                 )}
               />
             )}
