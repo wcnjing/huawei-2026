@@ -3,6 +3,7 @@ import { normalizeDraft, type useHouseChat } from "../../hooks/useHouseChat";
 import type { Avatar } from "../../services/house";
 import { useI18n } from "../../i18n";
 import { PixiAvatar } from "../../components/avatars";
+import { IconX } from "../../components/icons";
 
 type HouseChat = ReturnType<typeof useHouseChat>;
 
@@ -225,7 +226,9 @@ export function HouseChatScreen({
   return (
     <section className="house-chat" aria-label={houseName ? t("{house} chat", { house: houseName }) : t("House chat")}>
       <header className="house-chat__header">
-        <button type="button" className="house-chat__icon-button" onClick={onBack} aria-label={t("Close house chat")}>×</button>
+        <button type="button" className="house-chat__icon-button" onClick={onBack} aria-label={t("Close house chat")} style={{ background: "none", border: "none", cursor: "pointer", padding: 8 }}>
+          <IconX size={16} color="#6b8ba4" />
+        </button>
         <div>
           <h1>{t("HOUSE CHAT")}</h1>
           <p>{houseName || t("PRIVATE HOUSE CONVERSATION")}</p>
