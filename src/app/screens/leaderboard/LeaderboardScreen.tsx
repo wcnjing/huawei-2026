@@ -1,7 +1,7 @@
 import { useT } from "../../i18n";
 import { useState } from "react";
 import { SAFETY_TIPS } from "../../data/safetyTips";
-import { MemberChar, PixiAvatar } from "../../components/avatars";
+import { MemberChar, PixelMascot } from "../../components/avatars";
 import { IconBulb, IconMedal, IconSkull, IconTrophy, IconWarning } from "../../components/icons";
 import { PixelButton } from "../../components/ui";
 import { useMembers } from "../../hooks/useMembers";
@@ -48,7 +48,7 @@ function FameBoard({ onPlayWithOthers }: { onPlayWithOthers: () => void }) {
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       <div className="mx-4 mt-3 px-3 py-3 flex items-center gap-3" style={{ backgroundColor: "rgba(0,255,136,0.08)", border: "3px solid #00ff88" }}>
-        <PixiAvatar size={28} />
+        <PixelMascot size={28} />
         <div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#00ff88", marginBottom: 4 }}>{t("TRAINING PROGRESS")}</div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#8da4b8", lineHeight: 1.5 }}>{t("Ranks celebrate safe practice in your house.")}</div>
