@@ -1,0 +1,52 @@
+# systemd unit for the SafeSpace Telegram drill bot on a Huawei Cloud server.
+# Installed by deploy/setup_server.sh, which fills in the real code path.
+#
+# The bot only makes outgoing connections (it polls Telegram), so it needs no
+# open ports, domain or HTTPS certificate.
+
+[Unit]
+Description=SafeSpace Telegram drill bot
+After=network-online.target
+Wants=network-online.target
+# Stop retrying if it crashes 5 times in a minute, so a bad config is noticed.
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=safespace
+Group=safespace
+WorkingDirectory=/opt/safespace/drill-bot
+
+# Secrets (BOT_TOKEN, OPENAI_API_KEY) are read from drill-bot/.env by the bot
+# itself, so they never show up in `systemctl show`.
+Environment=BOT_DATA_DIR=/var/lib/safespace-bot
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/safespace/drill-bot/.venv/bin/python drill_bot.py
+
+# Restart after a crash or a server reboot. The bot is restart-safe: nobody
+# gets the welcome twice and Scam/Legit buttons keep working.
+Restart=always
+RestartSec=5
+
+# systemd creates /var/lib/safespace-bot owned by the bot user. It is the only
+# place the bot can write.
+StateDirectory=safespace-bot
+StateDirectoryMode=0750
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=safespace-bot
+
+[Install]
+WantedBy=multi-user.target

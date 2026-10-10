@@ -8,6 +8,10 @@
 Description=SafeSpace drill backend
 After=network-online.target
 Wants=network-online.target
+# Never let a crash loop spin forever unnoticed. (These belong in [Unit];
+# systemd ignores them under [Service].)
+StartLimitIntervalSec=60
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -21,10 +25,6 @@ ExecStart=/usr/bin/node --env-file-if-exists=.env server/index.js
 
 Restart=always
 RestartSec=3
-
-# Never let a crash loop spin forever unnoticed.
-StartLimitIntervalSec=60
-StartLimitBurst=5
 
 # Hardening. With DATABASE_URL set the app writes nothing to disk; the write path below
 # only matters for a PGlite fallback, which production refuses.

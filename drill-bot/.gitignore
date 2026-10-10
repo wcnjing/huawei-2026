@@ -2,3 +2,8 @@
 stats.json
 known_chats.json
 __pycache__/
+.venv/
+welcomed_chats.json
+active_drills.json
+schedule.json
+*.tmp

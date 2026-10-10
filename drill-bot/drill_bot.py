@@ -18,19 +18,27 @@ Setup:
   3. (Optional) Drop real scam/legit screenshots into images/scam and images/legit.
   4. python drill_bot.py
 
-Scheduled drills:
-  Anyone who has ever sent /start is remembered in known_chats.json and will
-  automatically receive a random drill every DRILL_INTERVAL_SECONDS (env-
-  configurable, default 6 hours), starting DRILL_FIRST_DELAY seconds after
-  the bot boots. No command needed from them after that first /start.
+Scheduled broadcasts (off by default):
+  Anyone who sends /start is remembered in known_chats.json. Set
+  ENABLE_SCHEDULED_DRILLS=1 to push a random drill to all of them every
+  DRILL_INTERVAL_SECONDS (default 6 hours), and ENABLE_TRENDING_ALERTS=1 for
+  the weekly trending-scams broadcast. The last run time is saved, so a
+  restart never triggers an extra broadcast.
+
+Running on a cloud server: see DEPLOY_BOT.md. Set BOT_DATA_DIR so stats and
+chat lists live outside the code folder and survive updates. The bot is safe
+to restart at any time: each chat is welcomed once, ever, and Scam/Legit
+buttons keep working across restarts.
 """
 
+import asyncio
 import json
 import logging
 import os
 import random
 import ssl
 import sys
+import time
 import urllib.request
 import uuid
 from html.parser import HTMLParser
@@ -38,6 +46,7 @@ from io import BytesIO
 from pathlib import Path
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.error import BadRequest, Forbidden
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -71,8 +80,34 @@ TRENDING_URL = os.getenv("TRENDING_URL", "https://www.scamalert.sg/stories")
 TRENDING_INTERVAL_SECONDS = int(os.getenv("TRENDING_INTERVAL_SECONDS", 7 * 24 * 60 * 60))
 TRENDING_FIRST_DELAY = int(os.getenv("TRENDING_FIRST_DELAY", 60))
 
-STATS_FILE = Path(__file__).with_name("stats.json")
-CHATS_FILE = Path(__file__).with_name("known_chats.json")
+
+
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None or not value.strip():
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+# Automatic broadcasts. Off unless switched on in .env.
+ENABLE_SCHEDULED_DRILLS = _env_flag("ENABLE_SCHEDULED_DRILLS")
+ENABLE_TRENDING_ALERTS = _env_flag("ENABLE_TRENDING_ALERTS")
+# On boot, greet anyone who /start'ed but never got the welcome. Each chat is
+# greeted at most once, ever, so restarts and redeploys never re-send it.
+WELCOME_ON_STARTUP = _env_flag("WELCOME_ON_STARTUP", default=True)
+# Pause between chats when broadcasting, to stay under Telegram's ~30 msg/s limit.
+BROADCAST_PAUSE_SECONDS = float(os.getenv("BROADCAST_PAUSE_SECONDS", 0.05))
+
+# Where the bot keeps its state. Defaults to this folder (handy on a laptop);
+# on a server point it somewhere outside the code, e.g. /var/lib/safespace-bot,
+# so `git pull` never touches it and it is easy to back up.
+DATA_DIR = Path(os.getenv("BOT_DATA_DIR") or Path(__file__).resolve().parent)
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+STATS_FILE = DATA_DIR / "stats.json"
+CHATS_FILE = DATA_DIR / "known_chats.json"
+WELCOMED_FILE = DATA_DIR / "welcomed_chats.json"
+DRILLS_FILE = DATA_DIR / "active_drills.json"
+SCHEDULE_FILE = DATA_DIR / "schedule.json"
 
 # Drop your own real scam / legit screenshots in here to use them as drills:
 #   images/scam/   -> pictures whose correct answer is "Scam"
@@ -80,7 +115,7 @@ CHATS_FILE = Path(__file__).with_name("known_chats.json")
 #   images/reasons.json -> optional {"filename.png": "why it's a scam/legit"}
 # Fed images look 100% real (they are real) and need no API. If this folder is
 # empty, the bot falls back to the built-in rendered posters.
-IMAGES_DIR = Path(__file__).with_name("images")
+IMAGES_DIR = Path(os.getenv("BOT_IMAGES_DIR") or Path(__file__).with_name("images"))
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
 
 logging.basicConfig(
@@ -96,6 +131,27 @@ log = logging.getLogger("drill_bot")
 # ---------------------------------------------------------------------------
 
 
+def _write_json_atomic(path: Path, data) -> None:
+    """Write to a temp file, then rename over the real one. If the bot is
+    stopped or crashes mid-write, the old file stays intact instead of being
+    left half-written and unreadable."""
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def _read_json(path: Path, default):
+    """Return the parsed file, `default` if it doesn't exist, or None if it
+    exists but can't be read (so callers can choose a safe fallback)."""
+    if not path.exists():
+        return default
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        log.warning("Could not read %s", path)
+        return None
+
+
 def load_stats() -> dict:
     if STATS_FILE.exists():
         try:
@@ -107,9 +163,7 @@ def load_stats() -> dict:
 
 def save_stats() -> None:
     try:
-        STATS_FILE.write_text(
-            json.dumps(stats, indent=2, ensure_ascii=False), encoding="utf-8"
-        )
+        _write_json_atomic(STATS_FILE, stats)
     except OSError:
         log.exception("Could not save stats")
 
@@ -128,9 +182,7 @@ def load_known_chats() -> set:
 
 def save_known_chats() -> None:
     try:
-        CHATS_FILE.write_text(
-            json.dumps(sorted(known_chats), indent=2), encoding="utf-8"
-        )
+        _write_json_atomic(CHATS_FILE, sorted(known_chats))
     except OSError:
         log.exception("Could not save known chats")
 
@@ -139,6 +191,66 @@ def save_known_chats() -> None:
 # allowed to proactively message (Telegram won't let a bot message anyone
 # who hasn't opened a chat with it first).
 known_chats: set = load_known_chats()
+
+
+def load_welcomed_chats() -> set:
+    data = _read_json(WELCOMED_FILE, [])
+    if data is None:
+        # Unreadable: assume everyone was already greeted rather than risk
+        # messaging every user again.
+        return set(known_chats)
+    return set(data)
+
+
+def save_welcomed_chats() -> None:
+    try:
+        _write_json_atomic(WELCOMED_FILE, sorted(welcomed_chats))
+    except OSError:
+        log.exception("Could not save welcomed chats")
+
+
+# Chats that have already received WELCOME_TEXT.
+welcomed_chats: set = load_welcomed_chats()
+
+
+def load_schedule() -> dict:
+    data = _read_json(SCHEDULE_FILE, {})
+    return data if isinstance(data, dict) else {}
+
+
+# {"job name": unix time of last run} for the automatic broadcasts.
+schedule: dict = load_schedule()
+
+
+def mark_job_ran(name: str) -> None:
+    schedule[name] = time.time()
+    try:
+        _write_json_atomic(SCHEDULE_FILE, schedule)
+    except OSError:
+        log.exception("Could not save schedule")
+
+
+def first_run_delay(name: str, interval: float, default_first: float) -> float:
+    """Seconds until a repeating job should next fire, counted from its last
+    real run, so restarting the bot doesn't trigger an extra broadcast."""
+    last = schedule.get(name)
+    if last is None:
+        return default_first
+    return max(60.0, last + interval - time.time())
+
+
+def drop_chat_if_gone(chat_id, exc: Exception) -> None:
+    """Forget a chat only if Telegram says it is gone for good (user blocked
+    the bot or deleted the chat). Network blips and rate limits keep it."""
+    gone = isinstance(exc, Forbidden) or (
+        isinstance(exc, BadRequest) and "chat not found" in str(exc).lower()
+    )
+    if gone:
+        log.info("Chat %s blocked the bot or no longer exists, dropping it", chat_id)
+        known_chats.discard(chat_id)
+        save_known_chats()
+    else:
+        log.warning("Could not message chat %s, will try again next time: %s", chat_id, exc)
 
 
 def get_entry(user) -> dict:
@@ -393,8 +505,23 @@ SCENARIOS = [
 # Live drills awaiting an answer: {drill_id: {"is_scam", "reason"}}. Fed-image
 # drills aren't in SCENARIOS, so their verdict + reason are kept here and the
 # short id rides along in the callback data (capped at 64 bytes by Telegram).
-active_drills: dict = {}
-MAX_ACTIVE_DRILLS = 500
+# Saved to disk so buttons on drills sent before a restart still work.
+MAX_ACTIVE_DRILLS = int(os.getenv("MAX_ACTIVE_DRILLS", 2000))
+
+
+def load_active_drills() -> dict:
+    data = _read_json(DRILLS_FILE, {})
+    return data if isinstance(data, dict) else {}
+
+
+def save_active_drills() -> None:
+    try:
+        _write_json_atomic(DRILLS_FILE, active_drills)
+    except OSError:
+        log.exception("Could not save active drills")
+
+
+active_drills: dict = load_active_drills()
 
 
 def register_drill(scenario: dict) -> tuple:
@@ -407,6 +534,7 @@ def register_drill(scenario: dict) -> tuple:
     }
     while len(active_drills) > MAX_ACTIVE_DRILLS:
         active_drills.pop(next(iter(active_drills)))
+    save_active_drills()
     keyboard = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("🚩 Scam", callback_data=f"scam:{drill_id}"),
@@ -689,6 +817,7 @@ def trending_drill_scenario(shown: list) -> dict:
 
 async def send_trending_alert(context: ContextTypes.DEFAULT_TYPE):
     """Broadcast this week's trending scams to everyone, then a matching drill."""
+    mark_job_ran("trending_alert")
     if not known_chats:
         return
     scams = trending_real_scams(3)
@@ -717,10 +846,9 @@ async def send_trending_alert(context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(
                 chat_id=chat_id, text=drill["text"], reply_markup=keyboard
             )
-        except Exception:
-            log.warning("Could not send trending alert to %s", chat_id, exc_info=True)
-            known_chats.discard(chat_id)
-            save_known_chats()
+        except Exception as exc:
+            drop_chat_if_gone(chat_id, exc)
+        await asyncio.sleep(BROADCAST_PAUSE_SECONDS)
 
 
 # ---------------------------------------------------------------------------
@@ -751,19 +879,27 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         known_chats.add(chat_id)
         save_known_chats()
     await update.message.reply_text(WELCOME_TEXT)
+    if chat_id not in welcomed_chats:
+        welcomed_chats.add(chat_id)
+        save_welcomed_chats()
 
 
 async def send_welcome_on_startup(context: ContextTypes.DEFAULT_TYPE):
-    """Fired once shortly after the bot boots — sends the welcome message to
-    everyone who has started the bot before (Telegram won't let a bot message
-    anyone who hasn't opened a chat with it first)."""
-    for chat_id in list(known_chats):
+    """Fired once shortly after the bot boots. Sends the welcome message only
+    to chats that have never received it, so restarts don't spam anyone."""
+    pending = [c for c in known_chats if c not in welcomed_chats]
+    if not pending:
+        return
+    log.info("Sending the welcome to %d chat(s) that haven't had it", len(pending))
+    for chat_id in pending:
         try:
             await context.bot.send_message(chat_id=chat_id, text=WELCOME_TEXT)
-        except Exception:
-            log.warning("Could not send welcome to %s, dropping", chat_id, exc_info=True)
-            known_chats.discard(chat_id)
-            save_known_chats()
+        except Exception as exc:
+            drop_chat_if_gone(chat_id, exc)
+        else:
+            welcomed_chats.add(chat_id)
+            save_welcomed_chats()
+        await asyncio.sleep(BROADCAST_PAUSE_SECONDS)
 
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -808,6 +944,7 @@ async def send_scheduled_drill(context: ContextTypes.DEFAULT_TYPE):
     """Fired automatically by the JobQueue - pushes a drill to every chat
     that has ever said /start, with no command needed from them. One drill
     is generated per run and shared across all chats (one set of API calls)."""
+    mark_job_ran("scheduled_drill")
     if not known_chats:
         return
 
@@ -834,10 +971,9 @@ async def send_scheduled_drill(context: ContextTypes.DEFAULT_TYPE):
                     text=scenario["text"],
                     reply_markup=keyboard,
                 )
-        except Exception:
-            log.warning("Could not message chat %s, dropping from known_chats", chat_id, exc_info=True)
-            known_chats.discard(chat_id)
-            save_known_chats()
+        except Exception as exc:
+            drop_chat_if_gone(chat_id, exc)
+        await asyncio.sleep(BROADCAST_PAUSE_SECONDS)
 
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -852,7 +988,11 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except (ValueError, KeyError):
         # Unknown id: bot restarted since the drill was sent, or the entry
         # was evicted. (Also catches old "report:"/"fall:" callbacks.)
-        await query.edit_message_text("⚠️ This drill expired — send /drill for a new one.")
+        expired = "⚠️ This drill expired — send /drill for a new one."
+        if query.message and query.message.photo:
+            await query.edit_message_caption(caption=expired)
+        else:
+            await query.edit_message_text(expired)
         return
 
     entry = get_entry(query.from_user)
@@ -1000,11 +1140,27 @@ def main():
 
     app.add_error_handler(on_error)
 
-    # On startup, send the welcome message once to everyone who has started the
-    # bot before. Otherwise the bot is command-driven — nothing else is auto-
-    # pushed. (To re-enable automatic drills or a weekly trending broadcast, add
-    # app.job_queue.run_repeating(...) for send_scheduled_drill / send_trending_alert.)
-    app.job_queue.run_once(send_welcome_on_startup, when=3)
+    # Greet anyone who hasn't had the welcome yet (never repeats per chat).
+    if WELCOME_ON_STARTUP:
+        app.job_queue.run_once(send_welcome_on_startup, when=3)
+
+    # Optional automatic broadcasts, timed from their last real run.
+    if ENABLE_SCHEDULED_DRILLS:
+        first = first_run_delay("scheduled_drill", DRILL_INTERVAL_SECONDS, DRILL_FIRST_DELAY)
+        app.job_queue.run_repeating(
+            send_scheduled_drill, interval=DRILL_INTERVAL_SECONDS, first=first,
+            name="scheduled_drill",
+        )
+        log.info("Scheduled drills on: every %ds, next in %ds", DRILL_INTERVAL_SECONDS, first)
+    if ENABLE_TRENDING_ALERTS:
+        first = first_run_delay("trending_alert", TRENDING_INTERVAL_SECONDS, TRENDING_FIRST_DELAY)
+        app.job_queue.run_repeating(
+            send_trending_alert, interval=TRENDING_INTERVAL_SECONDS, first=first,
+            name="trending_alert",
+        )
+        log.info("Trending alerts on: every %ds, next in %ds", TRENDING_INTERVAL_SECONDS, first)
+
+    log.info("Data folder: %s", DATA_DIR)
 
     fed = list_user_images()
     if fed:

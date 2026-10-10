@@ -23,6 +23,7 @@ Notes:
 
 import argparse
 import json
+import os
 import re
 import ssl
 import sys
@@ -33,7 +34,8 @@ from pathlib import Path
 
 BASE = "https://www.police.gov.sg"
 LISTING_URL = f"{BASE}/Advisories/Scams"
-IMAGES_DIR = Path(__file__).with_name("images")
+# Same folder the bot reads from (BOT_IMAGES_DIR on a server, else ./images).
+IMAGES_DIR = Path(os.getenv("BOT_IMAGES_DIR") or Path(__file__).with_name("images"))
 SCAM_DIR = IMAGES_DIR / "scam"
 REASONS_FILE = IMAGES_DIR / "reasons.json"
 

@@ -1,0 +1,11 @@
+# Scheduled jobs for the SafeSpace web app on a Huawei Cloud ECS instance.
+# These replace the "crons" in vercel.json, which only run on Vercel.
+#
+#   sudo cp deploy/safespace.cron /etc/cron.d/safespace
+#
+# Times follow the server clock (check with `timedatectl`). On a UTC clock
+# these match vercel.json: 03:00 and 19:00 UTC (11:00 and 03:00 Singapore time).
+# Output goes to the system log: journalctl -t safespace-cron
+SHELL=/bin/bash
+0 3 * * *   safespace  bash /opt/safespace/deploy/run-job.sh health-db 2>&1 | logger -t safespace-cron
+0 19 * * *  safespace  bash /opt/safespace/deploy/run-job.sh intel-refresh 2>&1 | logger -t safespace-cron

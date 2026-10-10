@@ -203,6 +203,25 @@ curl localhost:3000/api/health      # {"ok":true,...}
 
 Logs: `journalctl -u safespace -f`
 
+### Scheduled jobs
+
+Vercel runs two daily jobs from `vercel.json`. On ECS, cron runs them instead:
+
+```sh
+cp deploy/safespace.cron /etc/cron.d/safespace
+bash deploy/run-job.sh health-db        # test: expect "health-db ok"
+```
+
+- `health-db` pings the database daily so a free Supabase project doesn't pause.
+- `intel-refresh` updates scam intel. It needs `CRON_SECRET` (32+ random characters,
+  `openssl rand -hex 32`) in `.env`, and skips with a message if that's missing.
+
+Output: `journalctl -t safespace-cron`.
+
+### Telegram drill bot
+
+The bot can run on the same server. See [`drill-bot/DEPLOY_BOT.md`](drill-bot/DEPLOY_BOT.md).
+
 ## 5. TLS + nginx
 
 **Certificate first, config second.** `deploy/nginx.conf` references
