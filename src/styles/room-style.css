@@ -67,3 +67,17 @@
 .room-style-editor :focus-visible { outline: 3px solid #ffe66d; outline-offset: 3px; }
 .room-save-message { min-height: 24px; margin: 10px 0 16px; color: #4ecdc4; font-size: var(--text-label); }
 .room-style-error { color: #ffb58a; }
+
+/* RoomWanderer: a character walking around its room. */
+.room-wanderer {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform-origin: bottom center;
+  pointer-events: none;
+}
+.room-wanderer-walking { animation: room-wanderer-step 320ms steps(2) infinite; }
+@keyframes room-wanderer-step { 50% { transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .room-wanderer-walking { animation: none; } }

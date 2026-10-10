@@ -50,7 +50,7 @@ export function parseCursors({ before, after } = {}) {
   return before !== undefined ? { before: value } : { after: value };
 }
 
-function messageFromRow(row) {
+export function messageFromRow(row) {
   return {
     id: String(row.id),
     houseId: row.house_id,

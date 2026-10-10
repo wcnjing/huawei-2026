@@ -32,6 +32,8 @@ export type EmailOutcome =
     | "opened-attachment" 
     | "cancelled-download";
 
+export type RealEmailScenario = { id: string; sender: string; subject: string };
+
 export type CallOutcome =
     | "hung_up"
     | "disengaged"

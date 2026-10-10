@@ -21,6 +21,9 @@ export { createChatController } from "../services/chatController";
 
 const REQUEST_TIMEOUT_MS = 15_000;
 const POLL_INTERVAL_MS = 5_000;
+// Keep the header unread badge dependable even when realtime broadcasts are
+// unavailable or a browser drops its subscription.
+const BACKGROUND_POLL_INTERVAL_MS = 15_000;
 
 const EMPTY_MESSAGES: ChatMessage[] = [];
 const EMPTY_PENDING: PendingMessage[] = [];
@@ -36,6 +39,7 @@ const EMPTY_SNAPSHOT: ChatSnapshot = Object.freeze({
   error: null,
   olderError: null,
   accessDenied: false,
+  pixiThinking: false,
 });
 
 const EMPTY_ACTIONS = {
@@ -143,9 +147,29 @@ export function createChatTransport(capturedToken: string, now: () => number = D
     }
   };
 
+  const askPixi = async (houseId: string, messageId: string, signal: AbortSignal) => {
+    const linked = linkedRequest(signal);
+    try {
+      const response = await fetch(
+        `/api/houses/${encodeURIComponent(houseId)}/chat/messages/${encodeURIComponent(messageId)}/pixi-reply`,
+        {
+          method: "POST",
+          headers: { authorization: `Bearer ${capturedToken}` },
+          signal: linked.signal,
+          cache: "no-store",
+        },
+      );
+      if (!response.ok) throw new ChatRequestError(await errorMessage(response), response.status);
+      return await response.json() as { message: ChatMessage | null };
+    } finally {
+      linked.cleanup();
+    }
+  };
+
   return {
     get: (houseId, cursor, signal) => request<ChatPage>(houseId, cursor, undefined, signal),
     post: (houseId, input, signal) => request(houseId, undefined, input, signal),
+    askPixi,
   };
 }
 
@@ -181,6 +205,7 @@ export function useHouseChat(options: {
   selfId: string | null;
   sessionKey: string | null;
   active: boolean;
+  observe?: boolean;
   changeRevision: number;
   onAccessDenied(): void;
 }): ChatSnapshot & {
@@ -243,7 +268,7 @@ export function useHouseChat(options: {
   });
 
   useEffect(() => {
-    if (!controller || !options.active) return;
+    if (!controller || (!options.active && !options.observe)) return;
     let timer: number | null = null;
     const stopTimer = () => {
       if (timer !== null) window.clearInterval(timer);
@@ -256,7 +281,10 @@ export function useHouseChat(options: {
         return;
       }
       void controller.refresh();
-      timer = window.setInterval(() => void controller.refresh(), POLL_INTERVAL_MS);
+      timer = window.setInterval(
+        () => void controller.refresh(),
+        options.active ? POLL_INTERVAL_MS : BACKGROUND_POLL_INTERVAL_MS,
+      );
     };
     const onFocus = () => {
       if (document.visibilityState === "visible") void controller.refresh();
@@ -270,7 +298,7 @@ export function useHouseChat(options: {
       stopTimer();
       controller.pause();
     };
-  }, [controller, options.active]);
+  }, [controller, options.active, options.observe]);
 
   useEffect(() => {
     if (revisionOwner.current !== controller) {
@@ -280,10 +308,10 @@ export function useHouseChat(options: {
     }
     if (handledRevision.current === options.changeRevision) return;
     handledRevision.current = options.changeRevision;
-    if (controller && options.active && document.visibilityState === "visible") {
+    if (controller && (options.active || options.observe) && document.visibilityState === "visible") {
       void controller.refresh();
     }
-  }, [controller, options.active, options.changeRevision]);
+  }, [controller, options.active, options.observe, options.changeRevision]);
 
   if (!controller) return EMPTY_RESULT;
   return {

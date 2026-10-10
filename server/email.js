@@ -274,6 +274,7 @@ export async function sendDrillEmail({
     throw new EmailLinkInvalid('revealUrl and reportUrl must be different signed action URLs');
   }
   const scenario = pickEmailScenario(scenarioId);
+  const publicScenario = { id: scenario.id, sender: scenario.sender, subject: scenario.subject };
   const delay = resolveEmailFollowupDelay(safetyFollowupAfterMs);
   const safetyFollowupAt = new Date(Date.now() + delay).toISOString();
   const lang = normalizeLanguage(language);
@@ -286,7 +287,7 @@ export async function sendDrillEmail({
   });
 
   try {
-    await relay({
+    const delivery = await relay({
       kind: 'drill',
       email: target,
       recipientName: safeName,
@@ -295,6 +296,8 @@ export async function sendDrillEmail({
       reportUrl: safeReportUrl,
       language: lang,
     });
+    if (typeof delivery?.sender === 'string') publicScenario.sender = delivery.sender;
+    if (typeof delivery?.subject === 'string') publicScenario.subject = delivery.subject;
   } catch (baitError) {
     if (baitError?.code === 'EMAIL_PROVIDER_REJECTED') {
       // A structured provider rejection confirms that no bait was accepted, so the
@@ -311,7 +314,7 @@ export async function sendDrillEmail({
     // unrevealed. The caller treats this as delivery-unknown, not as a safe retry.
     throw new EmailDeliveryUnconfirmed(
       'email delivery could not be confirmed; safety follow-up remains scheduled',
-      { scenarioId: scenario.id, safetyFollowupAt, safetyJobId: scheduled.jobId },
+      { scenarioId: scenario.id, scenario: publicScenario, safetyFollowupAt, safetyJobId: scheduled.jobId },
       baitError,
     );
   }
@@ -319,6 +322,7 @@ export async function sendDrillEmail({
   return {
     ok: true,
     scenarioId: scenario.id,
+    scenario: publicScenario,
     safetyFollowupAt,
     safetyJobId: scheduled.jobId,
   };

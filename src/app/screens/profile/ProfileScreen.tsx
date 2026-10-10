@@ -56,15 +56,17 @@ export function ProfileScreen({
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
-        <div className="profile-summary mx-4 mt-4 p-4" style={{ backgroundColor: "#111827", border: "4px solid #4ecdc4", boxShadow: "4px 4px 0 #4ecdc4" }}>
-          <button onClick={onEditProfile} style={{ gridColumn: "1 / -1", justifySelf: "end", minHeight: 44, background: "none", border: "2px solid #4ecdc4", cursor: "pointer", padding: "4px 8px" }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#4ecdc4" }}>{t("EDIT")}</div>
-          </button>
-          <div style={{ minWidth: 68, display: "flex", justifyContent: "center", filter: `drop-shadow(0 0 8px ${profile.avatar.glow})` }}>
+        <div className="profile-summary mx-4 mt-4" style={{ backgroundColor: "#111827", border: "4px solid #4ecdc4", boxShadow: "4px 4px 0 #4ecdc4", alignItems: "start", padding: "0 14px 16px" }}>
+          <div style={{ minWidth: 68, display: "flex", justifyContent: "center", filter: `drop-shadow(0 0 8px ${profile.avatar.glow})`, paddingTop: 16 }}>
             <CharacterAvatar size={104} animate config={profile.avatar} title={`${profile.name}'s character`} />
           </div>
-          <div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-title)", color: "#ffffff" }}>{profile.name}</div>
+          <div style={{ minWidth: 0, paddingTop: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <div style={{ minWidth: 0, overflowWrap: "anywhere", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-title)", color: "#ffffff" }}>{profile.name}</div>
+              <button onClick={onEditProfile} style={{ flexShrink: 0, minHeight: 36, background: "none", border: "2px solid #4ecdc4", cursor: "pointer", padding: "4px 8px" }}>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#4ecdc4" }}>{t("EDIT")}</div>
+              </button>
+            </div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#4ecdc4", marginTop: 4 }}>{t("LVL {level} — {title}", { level: 7, title: t("WATCHER") })}</div>
             <div className="mt-3">
               <XPBar current={2340} max={3000} color="#4ecdc4" />

@@ -5,7 +5,8 @@ export type CoinTxReason =
     | "sell-furniture" | "buy-furniture"
     | "daily-reward"
     | "payday-base" 
-    | "payday-bonus";
+    | "payday-bonus"
+    | "race-win";
 
 export interface CoinTx {
     id: string;
@@ -26,4 +27,6 @@ export interface HomeInventory {
 export interface RewardClaims {
     dailyByMember: Record<string, string>;
     paydayWeek: string | null;
+    /** House races this device already paid the winner's bonus for. */
+    raceWins: string[];
 };

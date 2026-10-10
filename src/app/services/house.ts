@@ -1,6 +1,9 @@
 // House data for the app: API calls plus useHouse(), which keeps one copy of
 // GET /api/house fresh. It refetches when the house's doorbell rings (a content-free
 // Supabase Realtime broadcast), when the app regains focus, and every five minutes.
+import type { RoomLayout } from "../types/roomLayout";
+import type { FamilyEdit } from "../../../server/family-rules.js";
+export type { FamilyEdit };
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { apiPost, handleApiAuth, sessionToken } from "./api";
@@ -8,28 +11,51 @@ import type { AvatarConfig } from "../components/avatars/character";
 
 export type Avatar = AvatarConfig;
 export type WeekRun = { correct: number; cautious: number; wrong: number };
+/** One member's own placement in the family tree. Ids are other members of the house. */
+export type FamilyGender = "male" | "female" | "other";
+export type FamilyLink = {
+  gender: FamilyGender | null;
+  parentIds: string[]; partnerId: string | null; childIds: string[]; friendIds: string[];
+};
 export type MemberView = {
   id: string; name: string; avatar: Avatar | null;
   level: number; xp: number; xpMax: number; streak: number;
   timesSafe: number; timesScammed: number; badgeCount: number; badgeTotal: number;
   recentDrillResult: "WON" | "LOST" | null;
   isOwner: boolean; activeThisWeek: boolean; safeThisWeek: boolean; weekRun: WeekRun | null;
+  /** Null when solo, or when this member hasn't placed themself yet. */
+  family?: FamilyLink | null;
+  /** How this member decorated their room, shown on every housemate's phone. */
+  room?: MemberRoom;
 };
+/** `style` is the raw stored look (normalise before use); null until they customise. */
+export type MemberRoom = { style: unknown; items: string[]; layout: RoomLayout | null; coins: number };
 export type HouseView = {
   id: string; name: string; ownerId: string;
   inviteCode: string | null; inviteExpiresAt: string | null;
   doorbell: string; members: MemberView[];
+  /** When the shared family tree last changed and the member who changed it. */
+  familyUpdatedAt?: string | null; familyUpdatedBy?: string | null;
 };
 // `self` is undefined, not null, if a server ever answers with a house the caller is
 // not in — so every guard on it must be a truthiness check, never `!== null`.
-export type HouseState = { self: MemberView | null | undefined; house: HouseView | null };
+/** One of the (up to 3) houses the player is in, for the switcher on the roof. */
+export type HouseSummary = { id: string; name: string; memberCount: number; active: boolean };
+export const HOUSES_PER_USER = 3;
+/** Players per house (server/houses.js HOUSE_MAX_MEMBERS). */
+export const HOUSE_MAX_MEMBERS = 14;
+export type HouseState = { self: MemberView | null | undefined; house: HouseView | null; houses?: HouseSummary[] };
 
 export const createHouse = (name: string) => apiPost<HouseState>("/api/house", { name });
 export const joinHouse = (code: string) => apiPost<HouseState>("/api/house/join", { code });
+export const switchHouse = (houseId: string) => apiPost<HouseState>("/api/house/switch", { houseId });
 export const regenerateCode = () => apiPost<HouseState>("/api/house/code");
 export const renameHouse = (name: string) => apiPost<HouseState>("/api/house/name", { name });
 export const removeMember = (id: string) =>
   apiPost<HouseState>(`/api/house/members/${encodeURIComponent(id)}/remove`);
+export const setFamilyLink = (family: FamilyLink) => apiPost<HouseState>("/api/house/family", { family });
+/** Any member edits the shared family tree; the edits apply to its latest version. */
+export const editFamily = (edits: FamilyEdit[]) => apiPost<HouseState>("/api/house/family/edit", { edits });
 export const leaveHouse = () => apiPost<HouseState>("/api/house/leave");
 export const saveAvatar = (avatar: Avatar) => apiPost<{ user: unknown }>("/api/me/avatar", { avatar });
 export const postHouseRun = (run: { clientKey: string } & WeekRun) =>
@@ -84,6 +110,9 @@ export function useHouse(enabled: boolean, sessionIdentity = "") {
     state: EMPTY_HOUSE_STATE,
   }));
   const [loading, setLoading] = useState(enabled);
+  // True when the last /api/house fetch failed (server error or offline), so screens can
+  // offer a retry instead of rendering nothing. Cleared by the next successful fetch.
+  const [failed, setFailed] = useState(false);
   const epoch = useRef(0);
   const currentIdentity = useRef(sessionIdentity);
   currentIdentity.current = sessionIdentity;
@@ -107,13 +136,21 @@ export function useHouse(enabled: boolean, sessionIdentity = "") {
             signal: controller.signal,
           });
           if (sessionToken() === token) handleApiAuth(response);
-          if (!response.ok) return;
+          if (!response.ok) {
+            if (response.status !== 401 && epoch.current === requestEpoch) {
+              console.warn("[house] /api/house failed:", response.status);
+              setFailed(true);
+            }
+            return;
+          }
           const next = await response.json() as HouseState;
           if (epoch.current === requestEpoch && sessionToken() === token) {
             setOwnedState({ identity: sessionIdentity, state: next });
+            setFailed(false);
           }
         } catch (error) {
-          if (!(error instanceof Error && error.name === "AbortError")) return;
+          if (error instanceof Error && error.name === "AbortError") return;
+          if (epoch.current === requestEpoch) setFailed(true);
         } finally {
           if (epoch.current === requestEpoch) setLoading(false);
         }
@@ -132,6 +169,7 @@ export function useHouse(enabled: boolean, sessionIdentity = "") {
     inFlight.current = null;
     setOwnedState({ identity: sessionIdentity, state: EMPTY_HOUSE_STATE });
     setLoading(enabled);
+    setFailed(false);
   }, [enabled, sessionIdentity]);
 
   // Runs once per false→true transition of `enabled` (a stable `refresh` identity keeps this
@@ -177,8 +215,9 @@ export function useHouse(enabled: boolean, sessionIdentity = "") {
   const apply = useCallback((next: HouseState, targetIdentity = sessionIdentity) => {
     if (currentIdentity.current !== targetIdentity) return false;
     setOwnedState({ identity: targetIdentity, state: next });
+    setFailed(false);
     return true;
   }, [sessionIdentity]);
 
-  return { state, loading, changeRevision, refresh, apply };
+  return { state, loading, failed, changeRevision, refresh, apply };
 }

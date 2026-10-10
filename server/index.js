@@ -30,11 +30,13 @@ import {
   reservePhoneVerificationSend,
   setUserAvatar,
   setUserHomeInventory,
+  setUserRoomStyle,
   setUserName,
   setVerifiedUserEmail,
 } from './store.js';
 import { cleanAvatar } from './avatar.js';
 import { cleanHomeInventory } from './home-inventory.js';
+import { cleanRoomStyle, roomView } from './room-style.js';
 import {
   VapiDeliveryUnconfirmed,
   fireDrillCall,
@@ -67,7 +69,7 @@ import { renderTactic } from './intel/render.js';
 import {
   HouseError,
   createHouse,
-  doorbellForUser,
+  doorbellsForUser,
   getHouseView,
   joinHouse,
   leaveHouse,
@@ -75,9 +77,13 @@ import {
   regenerateInviteCode,
   removeMember,
   renameHouse,
+  setFamilyLink,
+  editFamilyTree,
+  switchHouse,
 } from './houses.js';
 import {
   answerHouseDrill,
+  continueHouseDrill,
   createHouseDrill,
   getHouseDrill,
   leaveHouseDrill,
@@ -86,6 +92,7 @@ import {
   startHouseDrill,
 } from './house-drills.js';
 import { ChatError, listMessages, sendMessage } from './chat.js';
+import { replyAsPixi } from './pixi-chat.js';
 import { ring } from './doorbell.js';
 
 const E164 = /^\+[1-9]\d{6,14}$/;
@@ -215,11 +222,11 @@ async function requireUserId(req, res) {
   return userId;
 }
 
-/** Ring the house of a user whose visible stats just changed. Never throws. */
+/** Ring every house of a user whose visible stats just changed. Never throws. */
 async function ringUser(userId) {
   try {
-    const topic = await doorbellForUser(userId);
-    if (topic) await ring([topic]);
+    const topics = await doorbellsForUser(userId);
+    if (topics.length) await ring(topics);
   } catch (error) {
     console.error('[doorbell] lookup failed:', error?.message || error);
   }
@@ -227,9 +234,10 @@ async function ringUser(userId) {
 
 const HOUSE_ERRORS = {
   NOT_IN_HOUSE: [404, "you're not in a house"],
-  ALREADY_IN_HOUSE: [409, 'leave your current house first'],
+  ALREADY_IN_HOUSE: [409, "you're already in that house"],
+  HOUSE_LIMIT: [409, 'you can be in up to 3 houses; leave one first'],
   CODE_INVALID: [400, "that code isn't valid; ask for a new one"],
-  HOUSE_FULL: [409, 'that house is full (6 players)'],
+  HOUSE_FULL: [409, 'that house is full (14 players)'],
   NOT_OWNER: [403, 'only the house owner can do that'],
   NOT_A_MEMBER: [404, "that player isn't in your house"],
   CANNOT_REMOVE_SELF: [400, 'use LEAVE HOUSE to leave your own house'],
@@ -247,6 +255,16 @@ const HOUSE_ERRORS = {
   NOT_INVITED: [403, "you're not in this house drill"],
   INVITE_EXPIRED: [410, 'that invite has expired'],
   NOT_YOUR_TURN: [409, "it's not your turn"],
+  INVALID_FAMILY_LINK: [400, 'that family tree placement is not valid'],
+  FAMILY_LINK_CONFLICT: [409, "someone can't be both your partner and your parent or child"],
+  FAMILY_LINK_CYCLE: [409, "that would make someone their own ancestor"],
+  FAMILY_TOO_MANY_PARENTS: [409, 'a person can have at most two parents'],
+  FAMILY_TOO_MANY_CHILDREN: [409, 'a person can have at most 8 children on the tree'],
+  FAMILY_PARTNER_TAKEN: [409, 'each person can have only one partner; remove the current one first'],
+  FAMILY_TOO_MANY_FRIENDS: [409, 'a person can have at most 5 friends on the tree'],
+  FAMILY_ALREADY_LINKED: [409, 'those two are already linked; remove that relationship first'],
+  FAMILY_SIBLINGS: [409, "brothers and sisters are already family, so they can't be partners or friends"],
+  FAMILY_LEVEL_CONFLICT: [409, "that doesn't fit the tree: a child sits one generation below each parent, and partners and friends sit on the same generation"],
 };
 
 const chatStatuses = {
@@ -607,15 +625,30 @@ api.post('/api/me/avatar', async (req, res) => {
   return res.json({ ok: true, user: accountView(user) });
 });
 
-// Coins and furniture are cosmetic and private to the player — nobody else's house view
-// includes them, so unlike name/avatar this never rings the house doorbell.
+// A member's coin balance, furniture and layout are shared in their room view. Ring the
+// house when any of those visible room details change; other inventory fields stay private.
 api.post('/api/me/home-inventory', async (req, res) => {
   const userId = await requireUserId(req, res);
   if (!userId) return;
   if (!cleanHomeInventory(req.body?.homeInventory)) {
     return res.status(400).json({ error: 'home inventory is invalid' });
   }
+  const before = await getUser(userId);
   const user = await setUserHomeInventory(userId, req.body.homeInventory);
+  const roomKey = (u) => JSON.stringify(u ? [roomView(u).items, roomView(u).layout, roomView(u).coins] : null);
+  if (roomKey(before) !== roomKey(user)) await ringUser(userId);
+  return res.json({ ok: true, user: accountView(user) });
+});
+
+// The room's look (colours, wallpaper, floor, name) is shown to the whole house.
+api.post('/api/me/room-style', async (req, res) => {
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+  if (!cleanRoomStyle(req.body?.roomStyle)) {
+    return res.status(400).json({ error: 'room style is invalid' });
+  }
+  const user = await setUserRoomStyle(userId, req.body.roomStyle);
+  await ringUser(userId);
   return res.json({ ok: true, user: accountView(user) });
 });
 
@@ -635,6 +668,10 @@ api.post('/api/house/name', houseRoute((userId, req) => renameHouse(userId, req.
 api.post('/api/house/members/:memberId/remove', houseRoute((userId, req) =>
   removeMember(userId, req.params.memberId)));
 api.post('/api/house/leave', houseRoute((userId) => leaveHouse(userId)));
+api.post('/api/house/switch', houseRoute((userId, req) => switchHouse(userId, req.body?.houseId)));
+api.post('/api/house/family', houseRoute((userId, req) => setFamilyLink(userId, req.body?.family)));
+// Any member edits the shared tree: { edits: [ {kind, ...}, ... ] } (see family-rules.js).
+api.post('/api/house/family/edit', houseRoute((userId, req) => editFamilyTree(userId, req.body?.edits)));
 
 api.get('/api/house/drill', async (req, res) => {
   const userId = await requireUserId(req, res);
@@ -658,7 +695,7 @@ function drillRoute(change) {
 }
 
 api.post('/api/house/drill', drillRoute((userId, req) =>
-  createHouseDrill(userId, { perPlayer: req.body?.perPlayer })));
+  createHouseDrill(userId, { perPlayer: req.body?.perPlayer, mode: req.body?.mode ?? 'turns' })));
 api.post('/api/house/drill/:drillId/respond', drillRoute((userId, req) =>
   respondToHouseDrill(userId, req.params.drillId, req.body?.accept === true)));
 api.post('/api/house/drill/:drillId/start', drillRoute((userId, req) =>
@@ -667,6 +704,8 @@ api.post('/api/house/drill/:drillId/answer', drillRoute((userId, req) =>
   answerHouseDrill(userId, req.params.drillId, req.body)));
 api.post('/api/house/drill/:drillId/skip', drillRoute((userId, req) =>
   skipHouseDrillTurn(userId, req.params.drillId, req.body?.turn)));
+api.post('/api/house/drill/:drillId/continue', drillRoute((userId, req) =>
+  continueHouseDrill(userId, req.params.drillId, req.body?.turn, { force: req.body?.force === true })));
 api.post('/api/house/drill/:drillId/leave', drillRoute((userId, req) =>
   leaveHouseDrill(userId, req.params.drillId)));
 
@@ -692,6 +731,20 @@ api.post('/api/houses/:houseId/chat/messages', async (req, res) => {
     const result = await sendMessage(userId, req.params.houseId, req.body);
     await ring([result.topic]);
     return res.status(result.created ? 201 : 200).json({ message: result.message });
+  } catch (error) {
+    return chatFail(res, error);
+  }
+});
+
+// Asked by the sender's app right after a message is saved, so sending never waits on
+// OpenAI. Answers with Pixi's reply, or { message: null } when Pixi stays quiet.
+api.post('/api/houses/:houseId/chat/messages/:messageId/pixi-reply', async (req, res) => {
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+  try {
+    const result = await replyAsPixi(userId, req.params.houseId, req.params.messageId);
+    if (result.message) await ring([result.topic]);
+    return res.json({ message: result.message });
   } catch (error) {
     return chatFail(res, error);
   }
@@ -982,6 +1035,7 @@ api.post('/api/drills/email', async (req, res) => {
     ok: true,
     drillId: attempt.id,
     scenarioId: output.scenarioId,
+    scenario: output.scenario,
     safetyFollowupAt: output.safetyFollowupAt,
   });
 });

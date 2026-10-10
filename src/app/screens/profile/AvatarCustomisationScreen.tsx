@@ -96,7 +96,7 @@ export function AvatarCustomisationScreen({ avatar, onSave, onBack, onChange, on
     <div className="flex flex-col h-full">
       <SubPageHeader title={onboardingFinish ? t("DESIGN YOUR CHARACTER") : t("AVATAR")} titleColor="#c77dff" onBack={save} />
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
-        <div style={{ minHeight: 174, display: "flex", alignItems: "center", justifyContent: "center", background: `radial-gradient(circle, ${draft.color}2e, transparent 68%), #111827`, border: `3px solid ${draft.color}`, boxShadow: `0 0 18px ${draft.glow}`, overflow: "hidden" }}>
+        <div style={{ position: "sticky", top: 0, zIndex: 5, flexShrink: 0, minHeight: 174, display: "flex", alignItems: "center", justifyContent: "center", background: `radial-gradient(circle, ${draft.color}2e, transparent 68%), #111827`, border: `3px solid ${draft.color}`, boxShadow: `0 0 18px ${draft.glow}`, overflow: "hidden" }}>
           <CharacterAvatar config={draft} size={148} animate title="Character preview" />
         </div>
         <div role="tablist" aria-label="Character customisation categories" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", margin: "12px 0", border: "3px solid #2a3a5c", background: "#0a0e1a" }}>

@@ -3,17 +3,24 @@ import { getResultContent } from "./getResultContent";
 import { Stars } from "../../../components/layout";
 import { PixelButton, PixelPanel, ScamReasonSection } from "../../../components/ui";
 import { IconBulb, IconCoin, IconFlame, IconStar } from "../../../components/icons";
-import { PixelMascot } from "../../../components/avatars";
+import { PixiAvatar } from "../../../components/avatars";
 import { useMemberMap } from "../../../hooks/useMembers";
-import type { CallOutcome, DrillType, EmailOutcome, SmsOutcome } from "../../../types/drills";
+import type { CallOutcome, DrillType, EmailOutcome, RealEmailScenario, SmsOutcome } from "../../../types/drills";
 import { useT } from "../../../i18n";
+import { realEmailDebriefFlags } from "../../../data/realEmailDebrief";
 
-export function ResultScreen({ win, drillType, smsOutcome, emailOutcome, callOutcome, profileName, activeMemberId, onPlayAgain, onGoHome, xpOverride }: { win: boolean; drillType: DrillType; smsOutcome: SmsOutcome | null; emailOutcome: EmailOutcome | null; callOutcome: CallOutcome | null; profileName: string; activeMemberId: string; onPlayAgain: () => void; onGoHome: () => void; xpOverride?: number | null }) {
+export function ResultScreen({ win, drillType, smsOutcome, emailOutcome, callOutcome, realEmailScenario, profileName, activeMemberId, onPlayAgain, onGoHome, xpOverride }: { win: boolean; drillType: DrillType; smsOutcome: SmsOutcome | null; emailOutcome: EmailOutcome | null; callOutcome: CallOutcome | null; realEmailScenario?: RealEmailScenario | null; profileName: string; activeMemberId: string; onPlayAgain: () => void; onGoHome: () => void; xpOverride?: number | null }) {
   const t = useT();
   const [showDetails, setShowDetails] = useState(false);
   useEffect(() => { const t = setTimeout(() => setShowDetails(true), 700); return () => clearTimeout(t); }, []);
 
   const { header, xp, feedback, flags } = getResultContent(t, win, drillType, smsOutcome, emailOutcome, callOutcome);
+  const debriefFlags = realEmailScenario ? realEmailDebriefFlags(realEmailScenario.id) ?? flags : flags;
+  const resultFeedback = drillType === "email" && realEmailScenario && emailOutcome
+    ? emailOutcome === "reported"
+      ? t("You reported the email from {sender}: {subject}.", { sender: realEmailScenario.sender, subject: realEmailScenario.subject })
+      : t("You submitted details after opening the email from {sender}: {subject}.", { sender: realEmailScenario.sender, subject: realEmailScenario.subject })
+    : feedback;
   const drillLabel = drillType === "call" ? t("CALL") : drillType === "sms" ? "SMS" : t("EMAIL");
   const member = useMemberMap()[activeMemberId];
   const resultName = drillType === "call" && callOutcome ? profileName : member?.name;
@@ -24,6 +31,29 @@ export function ResultScreen({ win, drillType, smsOutcome, emailOutcome, callOut
     ? (drillType === "call" ? 50 : drillType === "sms" ? 40 : 60)
     : (drillType === "call" ? -25 : drillType === "sms" ? -20 : -30);
   const displayedXp = xpOverride ?? xp;
+  // Only show information recorded for this attempt; don't infer extra actions or
+  // prescribe a generic next step when the result record doesn't contain that detail.
+  const responseDetail = drillType === "call" && callOutcome
+    ? ({
+        hung_up: t("Hung up"),
+        disengaged: t("Ended the call and verified independently"),
+        caught_flag: t("Identified a red flag"),
+        complied: t("Followed the caller's instruction"),
+        shared_data: t("Shared sensitive information or payment details"),
+        distress_offramp: t("Stopped the drill"),
+        no_answer: t("Did not answer"),
+        voicemail: t("Call reached voicemail"),
+        unscored: t("Not scored"),
+      } satisfies Record<CallOutcome, string>)[callOutcome]
+    : drillType === "email" && emailOutcome
+      ? ({
+          reported: t("Reported the email"),
+          "asked-family": t("Asked someone you trust"),
+          "submitted-details": t("Entered details on the page"),
+          "opened-attachment": t("Opened the attachment"),
+          "cancelled-download": t("Cancelled the download"),
+        } satisfies Record<EmailOutcome, string>)[emailOutcome]
+      : null;
 
   return (
     <div style={{ position: "relative", height: "100%", overflowY: "auto", scrollbarWidth: "none" }}>
@@ -47,7 +77,7 @@ export function ResultScreen({ win, drillType, smsOutcome, emailOutcome, callOut
           )}
         </div>
         <div style={{ position: "relative" }}>
-          <PixelMascot size={96} animate />
+          <PixiAvatar size={96} animate />
           {win && (
             <div style={{ position: "absolute", top: -20, right: -20, animation: "spin 2s linear infinite" }}>
               <IconStar size={24} color="#ffe66d" />
@@ -83,12 +113,25 @@ export function ResultScreen({ win, drillType, smsOutcome, emailOutcome, callOut
                 </div>
               </div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: win ? "#00ff88" : "#ff6b35", backgroundColor: win ? "rgba(0,255,136,0.08)" : "rgba(255,45,85,0.08)", border: `2px solid ${win ? "#00ff88" : "#ff2d55"}`, padding: "8px 10px", lineHeight: 1.6 }}>
-                {feedback}
+                {resultFeedback}
               </div>
             </PixelPanel>
           </div>
         )}
-        {showDetails && <ScamReasonSection flags={flags} />}
+        {showDetails && drillType === "email" && realEmailScenario && (
+          <div style={{ width: "100%", backgroundColor: "#111827", border: "2px solid #c77dff", padding: "8px 10px" }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#c77dff", marginBottom: 5 }}>{t("EMAIL RECEIVED")}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8" }}>{realEmailScenario.sender}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8", marginTop: 3 }}>{realEmailScenario.subject}</div>
+          </div>
+        )}
+        {showDetails && responseDetail && (
+          <div style={{ width: "100%", backgroundColor: "#111827", border: "2px solid #4ecdc4", padding: "8px 10px", display: "flex", gap: 8, alignItems: "baseline" }}>
+            <span style={{ flexShrink: 0, fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#4ecdc4" }}>{t("YOUR ACTION")}</span>
+            <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.5 }}>{responseDetail}</span>
+          </div>
+        )}
+        {showDetails && <ScamReasonSection flags={debriefFlags} />}
         <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 12 }}>
           <PixelButton onClick={onPlayAgain} color={win ? "#00ff88" : "#ff6b35"} size="lg" full>{t("[ PLAY ANOTHER DRILL ]")}</PixelButton>
           <PixelButton onClick={onGoHome} color="#1a2340" textColor="#6b8ba4" size="md" full>{t("BACK TO HOME")}</PixelButton>

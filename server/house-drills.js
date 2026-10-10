@@ -2,8 +2,14 @@
 //
 // The host opens a lobby, which invites everyone else in the house. The host starts
 // whenever they like; only players who accepted take part. Turns rotate through the
-// players (A, B, C, A, B, C…) until each has had `perPlayer` turns. Phones learn about
-// changes from the house doorbell and poll as a fallback.
+// players (A, B, C, A, B, C…) until each has had `perPlayer` turns. After each answer the
+// game pauses on a shared reveal until every player taps Continue (or the host moves on),
+// so the whole house goes at the same pace.
+//
+// A `race` is the competitive mode: everyone answers the same `perPlayer` questions at
+// their own pace. Highest score wins; a faster finish breaks ties. Other players' answers
+// stay hidden until the race ends, so nobody can copy. Phones learn about changes from
+// the house doorbell and poll as a fallback.
 //
 // Scenario content lives in the client, so the server stores only scenario ids and the
 // outcome the answering phone reports — the same trust model as POST /api/drills/house-run.
@@ -24,6 +30,8 @@ const MAX_SCENARIO_ID = 10_000;
 const MAX_ACTION_LENGTH = 80;
 const MAX_CLUES = 10;
 const LIVE = new Set(['lobby', 'playing']);
+export const MODES = new Set(['turns', 'race']);
+export const RACE_POINTS = { correct: 100, cautious: 50, wrong: 0 };
 
 function isoNow(now) {
   return now.toISOString();
@@ -41,13 +49,25 @@ function inviteExpired(state, now) {
   return now.getTime() > new Date(state.inviteExpiresAt).getTime();
 }
 
-export function drillView(row, now = new Date()) {
+function isRace(state) {
+  return state.mode === 'race';
+}
+
+/** During a race a player sees their own answers in full, and only the progress of others. */
+function visibleAnswers(state, status, viewerId) {
+  if (!isRace(state) || status === 'finished') return state.answers;
+  return state.answers.map((a) => (a.playerId === viewerId ? a : { ...a, action: null, outcome: null, foundClues: 0 }));
+}
+
+export function drillView(row, now = new Date(), viewerId = null) {
   const state = row.state;
   const expired = inviteExpired(state, now);
+  const status = effectiveStatus(row, now);
   return {
     id: row.id,
     hostId: row.host_id,
-    status: effectiveStatus(row, now),
+    mode: isRace(state) ? 'race' : 'turns',
+    status,
     perPlayer: state.perPlayer,
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
@@ -62,14 +82,21 @@ export function drillView(row, now = new Date()) {
     })),
     turns: state.turns,
     currentTurn: state.currentTurn,
-    answers: state.answers,
+    revealing: state.revealing === true,
+    ready: state.ready ?? [],
+    answers: visibleAnswers(state, status, viewerId),
+    finishTimes: state.finishTimes ?? {},
+    ranking: state.ranking ?? null,
+    winnerId: state.winnerId ?? null,
     xp: state.xp ?? null,
   };
 }
 
 async function houseMembers(tx, houseId) {
   const { rows } = await tx.query(
-    'select id, name, avatar from safespace.users where house_id = $1 order by joined_house_at, id',
+    `select u.id, u.name, u.avatar from safespace.house_members m
+       join safespace.users u on u.id = m.user_id
+      where m.house_id = $1 order by m.joined_at, u.id`,
     [houseId],
   );
   return rows;
@@ -82,8 +109,9 @@ async function saveDrill(tx, id, status, state, now) {
   );
 }
 
-export async function createHouseDrill(userId, { perPlayer } = {}, { now = new Date() } = {}) {
-  if (!Number.isInteger(perPlayer) || perPlayer < PER_PLAYER.min || perPlayer > PER_PLAYER.max) {
+export async function createHouseDrill(userId, { perPlayer, mode = 'turns' } = {}, { now = new Date() } = {}) {
+  if (!Number.isInteger(perPlayer) || perPlayer < PER_PLAYER.min || perPlayer > PER_PLAYER.max
+    || !MODES.has(mode)) {
     throw new HouseError('INVALID_DRILL_SETTINGS');
   }
   return transaction(async (tx) => {
@@ -101,6 +129,7 @@ export async function createHouseDrill(userId, { perPlayer } = {}, { now = new D
     const host = members.find((m) => m.id === user.id);
     const others = members.filter((m) => m.id !== user.id);
     const state = {
+      mode,
       perPlayer,
       inviteExpiresAt: new Date(now.getTime() + INVITE_WINDOW_MS).toISOString(),
       players: [host, ...others].map((m) => ({
@@ -176,15 +205,22 @@ export async function startHouseDrill(userId, drillId, scenarioIds, { now = new 
     if (!isHost) throw new HouseError('NOT_DRILL_HOST');
     if (row.status !== 'lobby') throw new HouseError('DRILL_ALREADY_STARTED');
     const playing = state.players.filter((p) => p.status === 'accepted');
-    if (!validScenarioIds(scenarioIds, playing.length * state.perPlayer)) {
+    const questions = isRace(state) ? state.perPlayer : playing.length * state.perPlayer;
+    if (!validScenarioIds(scenarioIds, questions)) {
       throw new HouseError('INVALID_DRILL_SETTINGS');
     }
     for (const p of state.players) if (p.status === 'invited') p.status = 'expired';
     state.turns = [];
-    for (let round = 0; round < state.perPlayer; round += 1) {
-      playing.forEach((p, i) => {
-        state.turns.push({ playerId: p.id, scenarioId: scenarioIds[round * playing.length + i] });
-      });
+    if (isRace(state)) {
+      // Everyone answers every question; `playerId` is null because no one owns a turn.
+      state.turns = scenarioIds.map((scenarioId) => ({ playerId: null, scenarioId }));
+      state.finishTimes = {};
+    } else {
+      for (let round = 0; round < state.perPlayer; round += 1) {
+        playing.forEach((p, i) => {
+          state.turns.push({ playerId: p.id, scenarioId: scenarioIds[round * playing.length + i] });
+        });
+      }
     }
     state.currentTurn = 0;
     state.startedAt = isoNow(now);
@@ -199,6 +235,8 @@ function skippedAnswer(state, turn) {
 
 /** Move past the current turn, skipping anyone who left. Returns true when the game is over. */
 function advance(state) {
+  state.revealing = false;
+  state.ready = [];
   state.currentTurn += 1;
   while (state.currentTurn < state.turns.length) {
     const player = playerOf(state, state.turns[state.currentTurn].playerId);
@@ -224,7 +262,40 @@ async function finish(tx, row, state, now) {
     xp[id] = result.run.xpGained;
   }
   state.xp = xp;
+  if (isRace(state)) {
+    state.ranking = rankRace(state);
+    const top = state.ranking[0];
+    state.winnerId = top && top.answered > 0 ? top.playerId : null;
+  }
   return { status: 'finished' };
+}
+
+/**
+ * Highest score first; on equal scores whoever finished faster (anyone still going when
+ * the race ended counts as slowest), then whoever answered more.
+ */
+function rankRace(state) {
+  return state.players
+    .filter((p) => p.status === 'accepted' || p.status === 'left')
+    .map((p) => {
+      const mine = state.answers.filter((a) => a.playerId === p.id && !a.skipped);
+      return {
+        playerId: p.id,
+        score: mine.reduce((sum, a) => sum + RACE_POINTS[a.outcome], 0),
+        correct: mine.filter((a) => a.outcome === 'correct').length,
+        answered: mine.length,
+        timeMs: state.finishTimes?.[p.id] ?? null,
+      };
+    })
+    .sort((a, b) => b.score - a.score
+      || (a.timeMs ?? Infinity) - (b.timeMs ?? Infinity)
+      || b.answered - a.answered);
+}
+
+function raceOver(state) {
+  return state.players
+    .filter((p) => p.status === 'accepted')
+    .every((p) => state.finishTimes[p.id] !== undefined);
 }
 
 function validAnswer(body) {
@@ -239,16 +310,40 @@ function validAnswer(body) {
     && body.foundClues <= MAX_CLUES;
 }
 
+/** A race answer: each player works through the questions in order, at their own pace. */
+function answerRace(tx, row, state, user, body, now) {
+  const player = playerOf(state, user.id);
+  if (!player || player.status !== 'accepted') throw new HouseError('NOT_INVITED');
+  const mine = state.answers.filter((a) => a.playerId === user.id);
+  if (mine.some((a) => a.turn === body.turn)) return { unchanged: true };
+  if (body.turn !== mine.length || body.turn >= state.turns.length) throw new HouseError('NOT_YOUR_TURN');
+  state.answers.push({
+    turn: body.turn,
+    playerId: user.id,
+    scenarioId: state.turns[body.turn].scenarioId,
+    action: body.action.trim(),
+    outcome: body.outcome,
+    foundClues: body.foundClues,
+    skipped: false,
+  });
+  if (body.turn === state.turns.length - 1) {
+    // Server time, so a phone's clock can't make anyone look faster.
+    state.finishTimes[user.id] = now.getTime() - new Date(state.startedAt).getTime();
+  }
+  return raceOver(state) ? finish(tx, row, state, now) : { status: 'playing' };
+}
+
 export async function answerHouseDrill(userId, drillId, body, { now = new Date() } = {}) {
   if (!validAnswer(body)) throw new HouseError('INVALID_DRILL_ANSWER');
   return changeDrill(userId, drillId, now, 'answerHouseDrill', async ({ tx, row, state, user }) => {
     if (row.status !== 'playing') throw new HouseError('DRILL_NOT_STARTED');
+    if (isRace(state)) return answerRace(tx, row, state, user, body, now);
     // A retried request for a turn this player already answered changes nothing.
     if (state.answers.some((a) => a.turn === body.turn && a.playerId === user.id && !a.skipped)) {
       return { unchanged: true };
     }
     const turn = state.turns[state.currentTurn];
-    if (body.turn !== state.currentTurn || !turn || turn.playerId !== user.id) {
+    if (state.revealing || body.turn !== state.currentTurn || !turn || turn.playerId !== user.id) {
       throw new HouseError('NOT_YOUR_TURN');
     }
     state.answers.push({
@@ -260,6 +355,36 @@ export async function answerHouseDrill(userId, drillId, body, { now = new Date()
       foundClues: body.foundClues,
       skipped: false,
     });
+    // Hold here until everyone has seen the answer and tapped Continue.
+    state.revealing = true;
+    state.ready = [];
+    return { status: 'playing' };
+  });
+}
+
+function everyoneReady(state) {
+  return state.players
+    .filter((p) => p.status === 'accepted')
+    .every((p) => state.ready.includes(p.id));
+}
+
+/**
+ * A player has seen the current answer and is ready to move on. When every remaining
+ * player is ready the next turn starts. The host may `force` it for players who wandered off.
+ * A stale or repeated request (the game already moved on) changes nothing.
+ */
+export async function continueHouseDrill(userId, drillId, turn, { force = false, now = new Date() } = {}) {
+  return changeDrill(userId, drillId, now, 'continueHouseDrill', async ({ tx, row, state, user, isHost }) => {
+    if (row.status !== 'playing') throw new HouseError('DRILL_NOT_STARTED');
+    const player = playerOf(state, user.id);
+    if (!player || player.status !== 'accepted') throw new HouseError('NOT_INVITED');
+    if (force && !isHost) throw new HouseError('NOT_DRILL_HOST');
+    if (isRace(state) || !state.revealing || turn !== state.currentTurn) return { unchanged: true };
+    if (!force) {
+      if (state.ready.includes(user.id)) return { unchanged: true };
+      state.ready.push(user.id);
+      if (!everyoneReady(state)) return { status: 'playing' };
+    }
     return advance(state) ? finish(tx, row, state, now) : { status: 'playing' };
   });
 }
@@ -269,7 +394,9 @@ export async function skipHouseDrillTurn(userId, drillId, turn, { now = new Date
   return changeDrill(userId, drillId, now, 'skipHouseDrillTurn', async ({ tx, row, state, isHost }) => {
     if (!isHost) throw new HouseError('NOT_DRILL_HOST');
     if (row.status !== 'playing') throw new HouseError('DRILL_NOT_STARTED');
-    if (turn !== state.currentTurn) return { unchanged: true };
+    // An answered turn is moved on with continueHouseDrill's `force` instead; a race has
+    // no turns to skip (the host ends it instead).
+    if (isRace(state) || turn !== state.currentTurn || state.revealing) return { unchanged: true };
     state.answers.push(skippedAnswer(state, state.currentTurn));
     return advance(state) ? finish(tx, row, state, now) : { status: 'playing' };
   });
@@ -292,12 +419,20 @@ export async function leaveHouseDrill(userId, drillId, { now = new Date() } = {}
     if (isHost) return finish(tx, row, state, now);
     if (player.status !== 'accepted') return { unchanged: true };
     player.status = 'left';
+    if (!state.players.some((p) => p.status === 'accepted')) return finish(tx, row, state, now);
+    // Their answers so far still count towards the ranking.
+    if (isRace(state)) return raceOver(state) ? finish(tx, row, state, now) : { status: 'playing' };
+    if (state.revealing) {
+      // Their answer (if this was their turn) stands; stop waiting for them.
+      state.ready = state.ready.filter((id) => id !== user.id);
+      if (everyoneReady(state) && advance(state)) return finish(tx, row, state, now);
+      return { status: 'playing' };
+    }
     const current = state.turns[state.currentTurn];
     if (current?.playerId === user.id) {
       state.answers.push(skippedAnswer(state, state.currentTurn));
       if (advance(state)) return finish(tx, row, state, now);
     }
-    if (!state.players.some((p) => p.status === 'accepted')) return finish(tx, row, state, now);
     return { status: 'playing' };
   });
 }
@@ -328,7 +463,7 @@ export async function getHouseDrill(userId, { now = new Date(), drillId = null }
     );
   const row = rows[0];
   if (!row) return { drill: null };
-  const view = drillView(row, now);
+  const view = drillView(row, now, String(userId));
   const me = view.players.find((p) => p.id === String(userId));
   // Everyone invited sees the lobby; once it starts, only those who took part.
   if (!me || (view.startedAt && me.status !== 'accepted' && me.status !== 'left')) return { drill: null };

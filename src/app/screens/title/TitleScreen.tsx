@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 
 import { Blink, PixelButton } from "../../components/ui";
-import { PixelMascot } from "../../components/avatars";
+import { PixiAvatar } from "../../components/avatars";
 import { Stars } from "../../components/layout";
 import { useT } from "../../i18n";
 
@@ -46,7 +46,7 @@ export function TitleScreen({ onNext }: { onNext: () => void }) {
       </div>
 
       <div className="relative z-10 flex flex-col items-center gap-4">
-        <PixelMascot size={128} animate />
+        <PixiAvatar size={128} animate />
         <div style={{ fontFamily: "'VT323', monospace", fontSize: "var(--text-title)", color: "#ffe66d", textAlign: "center" }}>
           {t("DEFEND YOUR MIND.")}<br />{t("DEFEAT THE SCAMMERS.")}
         </div>

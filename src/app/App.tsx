@@ -5,7 +5,7 @@ import type { AvatarConfig, PlayerProfile, ContactInfo, NameUpdateResult } from 
 import type { AppSettings, AccessibilityPrefs } from "./types/settings";
 import type {
   CallOutcome, DrillFlag, DrillResultRecord, DrillType, EmailOutcome,
-  FamilyClue, FamilyOutcome, FamilyScenario, Highlight,
+  FamilyClue, FamilyOutcome, FamilyScenario, Highlight, RealEmailScenario,
   NeutralResultNotice, RealDrillCompletion, SmsOutcome,
 } from "./types/drills";
 import type { FamilyMember } from "./types/family";
@@ -22,7 +22,7 @@ import { HALL_OF_FAME } from "./data/leaderboard";
 import { RED_FLAGS, LIVE_CALL_FLAGS, SMS_FLAGS, EMAIL_FLAGS, FLAG_MAP } from "./data/scamFlags";
 import { pickScenarios } from "./data/drillPool";
 import { loadDrillPreferences, saveDrillPreferences, setPreferenceUser, type DrillPreferences } from "./data/drillPreferences";
-import { DAILY_REWARD_AMOUNT, LEDGER_CAP } from "./data/economy";
+import { DAILY_REWARD_AMOUNT, LEDGER_CAP, RACE_WIN_COINS } from "./data/economy";
 import { NOTIFICATIONS_CAP } from "./data/notifications";
 import { FURNITURE_STORE } from "./data/furniture";
 import { SHOP_CATALOGUE } from "./data/shopCatalogue";
@@ -43,7 +43,7 @@ import {
   setSessionToken, reportOutcome, updateVerifiedNameRequest, type ApiResult,
 } from "./services/api";
 import {
-  useHouse, createHouse, joinHouse, leaveHouse, regenerateCode, renameHouse,
+  useHouse, createHouse, joinHouse, switchHouse, HOUSES_PER_USER, leaveHouse, regenerateCode, renameHouse, editFamily,
   removeMember, saveAvatar, postHouseRun, formatCodeInput, captureInviteFromUrl,
   peekPendingInvite, takePendingInvite, type HouseState, type HouseView, type MemberView,
 } from "./services/house";
@@ -93,6 +93,7 @@ import {
 } from "./screens/settings/SettingsScreens";
 import { HouseChoiceScreen, HouseSettingsScreen } from "./screens/house/HouseScreens";
 import { NotificationsScreen, NotificationDetailScreen } from "./screens/notifications/NotificationScreens";
+import { NotificationToast } from "./screens/notifications/NotificationToast";
 import { PaydayScreen } from "./screens/rewards/PaydayScreen";
 
 import { useIdleFrame } from "./hooks/useIdleFrame";
@@ -103,6 +104,8 @@ import { useHouseChat } from "./hooks/useHouseChat";
 
 const TUTORIAL_KEY = "safespace_tutorial_seen";
 const ONBOARDING_STAGE_KEY = "safespace_onboarding_stage";
+const CHAT_READ_PREFIX = "safespace_chat_read_v1";
+const NOTIFICATIONS_KEY_PREFIX = "safespace_notifications_v1";
 function onboardingStage(): string | null {
   try { return localStorage.getItem(ONBOARDING_STAGE_KEY); } catch { return null; }
 }
@@ -118,6 +121,49 @@ function hasSeenTutorial(): boolean {
 
 function markTutorialSeen() {
   try { localStorage.setItem(TUTORIAL_KEY, "1"); } catch { /* private mode: show it again, harmless */ }
+}
+
+function chatReadKey(identity: string) {
+  return `${CHAT_READ_PREFIX}:${identity}`;
+}
+
+function readChatThrough(identity: string): string {
+  try {
+    const value = localStorage.getItem(chatReadKey(identity)) ?? "0";
+    return /^\d+$/.test(value) ? value : "0";
+  } catch { return "0"; }
+}
+
+function isChatMessageUnread(messageId: string, readThrough: string): boolean {
+  try { return BigInt(messageId) > BigInt(readThrough); } catch { return false; }
+}
+
+function notificationsKey(memberId: string) {
+  return `${NOTIFICATIONS_KEY_PREFIX}:${memberId}`;
+}
+
+function loadNotifications(memberId: string): Notification[] {
+  try {
+    const raw = localStorage.getItem(notificationsKey(memberId));
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is Notification =>
+      !!item && typeof item === "object"
+      && typeof item.id === "string"
+      && typeof item.kind === "string"
+      && typeof item.memberId === "string"
+      && typeof item.title === "string"
+      && typeof item.body === "string"
+      && typeof item.timestamp === "number"
+      && typeof item.read === "boolean")
+      .slice(0, NOTIFICATIONS_CAP);
+  } catch { return []; }
+}
+
+function saveNotifications(memberId: string, notifications: Notification[]) {
+  try { localStorage.setItem(notificationsKey(memberId), JSON.stringify(notifications)); }
+  catch { /* private mode or storage quota: keep notifications for this session */ }
 }
 
 
@@ -281,7 +327,7 @@ const REWARD_CLAIMS_KEY = "safespace_reward_claims_v1";
 
 
 function loadRewardClaims(): RewardClaims {
-  const fallback: RewardClaims = { dailyByMember: {}, paydayWeek: null };
+  const fallback: RewardClaims = { dailyByMember: {}, paydayWeek: null, raceWins: [] };
   try {
     const raw = localStorage.getItem(REWARD_CLAIMS_KEY);
     if (!raw) return fallback;
@@ -291,6 +337,7 @@ function loadRewardClaims(): RewardClaims {
         ? parsed.dailyByMember
         : {},
       paydayWeek: typeof parsed?.paydayWeek === "string" ? parsed.paydayWeek : null,
+      raceWins: Array.isArray(parsed?.raceWins) ? parsed.raceWins.filter((id: unknown) => typeof id === "string") : [],
     };
   } catch {
     return fallback;
@@ -319,11 +366,13 @@ function toFamilyMember(m: MemberView, roomStyle = DEFAULT_ROOM_STYLE, language:
   const avatar = normalizeAvatarConfig(m.avatar ?? DEFAULT_AVATAR);
   return {
     id: m.id, name: m.name, role: m.isOwner ? translate(language, "HOUSE OWNER") : translate(language, "HOUSEMATE"),
+    coins: m.room?.coins ?? 0,
     level: m.level, xp: m.xp, xpMax: m.xpMax, streak: m.streak,
     timesSafe: m.timesSafe, timesScammed: m.timesScammed,
     safeThisWeek: m.safeThisWeek, recentDrillResult: m.recentDrillResult,
     primaryColor: avatar.color, roomName: roomStyle.name || translate(language, "{name}'S ROOM", { name: m.name }), roomStyle,
     roomBg: ROOM_BACKGROUNDS[avatar.color] ?? "#081420",
+    roomItems: m.room?.items ?? [], roomLayout: m.room?.layout ?? undefined,
     badgeCount: m.badgeCount, badgeTotal: m.badgeTotal, avatar,
   };
 }
@@ -384,6 +433,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   const [callOutcome, setCallOutcome] = useState<CallOutcome | null>(null);
   const [smsOutcome, setSmsOutcome] = useState<SmsOutcome | null>(null);
   const [emailOutcome, setEmailOutcome] = useState<EmailOutcome | null>(null);
+  const [realEmailScenario, setRealEmailScenario] = useState<RealEmailScenario | null>(null);
   const [resultXp, setResultXp] = useState<number | null>(null);
   const [tourOpen, setTourOpen] = useState(false);
   const [signInMode, setSignInMode] = useState<"new" | "returning">("new");
@@ -469,7 +519,15 @@ export default function App({ initialScreen = "title", devMode = false }: { init
       }
       const serverInventory = data?.homeInventory ?? data?.user?.homeInventory;
       if (serverInventory && typeof serverInventory === "object") {
-        setCoins(serverInventory.coins ?? {});
+        const serverCoins = serverInventory.coins ?? {};
+        // A drill can finish while this initial account fetch is still in flight.
+        // Keep any balances already changed in this session instead of replacing them
+        // with the older server snapshot returned by the request.
+        setCoins((current) => ({
+          ...serverCoins,
+          ...Object.fromEntries([...coinMutationsSinceInventoryLoadRef.current]
+            .map((memberId) => [memberId, current[memberId] ?? 0])),
+        }));
         setSoldItems(serverInventory.soldItems ?? []);
         setPurchasedItems(serverInventory.purchasedItems ?? {});
         setRoomLayouts(serverInventory.roomLayouts ?? {});
@@ -534,6 +592,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   // apart after refresh.
   const initialHomeInventory = useMemo(loadHomeInventory, []);
   const [coins, setCoins] = useState<Record<string, number>>(initialHomeInventory.coins);
+  const coinMutationsSinceInventoryLoadRef = useRef(new Set<string>());
   const [soldItems, setSoldItems] = useState<string[]>(initialHomeInventory.soldItems);
   const [purchasedItems, setPurchasedItems] = useState<Record<string, string[]>>(
     initialHomeInventory.purchasedItems
@@ -578,9 +637,30 @@ export default function App({ initialScreen = "title", devMode = false }: { init
     selfId: selfView?.id ?? null,
     sessionKey: currentSession,
     active: screen === "family-chat",
+    observe: signedIn && !!house.state.house?.id,
     changeRevision: house.changeRevision,
     onAccessDenied: refreshHouseAfterChatDenied,
   });
+  const chatIdentity = house.state.house?.id && selfView?.id
+    ? `${house.state.house.id}:${selfView.id}`
+    : null;
+  const [chatReadMarker, setChatReadMarker] = useState<{ identity: string | null; id: string }>({ identity: null, id: "0" });
+  useEffect(() => {
+    if (!chatIdentity) {
+      setChatReadMarker({ identity: null, id: "0" });
+      return;
+    }
+    setChatReadMarker({ identity: chatIdentity, id: readChatThrough(chatIdentity) });
+  }, [chatIdentity]);
+  useEffect(() => {
+    if (screen !== "family-chat" || !chatIdentity) return;
+    const latestId = chat.messages.at(-1)?.id;
+    if (!latestId) return;
+    try { localStorage.setItem(chatReadKey(chatIdentity), latestId); } catch { /* badge remains session only */ }
+    setChatReadMarker({ identity: chatIdentity, id: latestId });
+  }, [screen, chatIdentity, chat.messages]);
+  const hasUnreadChatMessages = chatReadMarker.identity === chatIdentity
+    && chat.messages.some(message => message.senderId !== selfId && isChatMessageUnread(message.id, chatReadMarker.id));
   const houseDrill = useHouseDrill({
     enabled: signedIn && !!selfView,
     houseId: house.state.house?.id ?? null,
@@ -589,7 +669,16 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   });
   const members = useMemo(() => {
     const views = house.state.house?.members ?? (house.state.self ? [house.state.self] : []);
-    return views.map(view => toFamilyMember(view, roomStyles[view.id] ?? DEFAULT_ROOM_STYLE, language));
+    // Everyone's room look comes from the server, so housemates see each other's rooms as
+    // decorated. This phone's own saved look wins for the player's own room, so an edit
+    // shows instantly (and survives) before the server round-trip lands.
+    const selfViewId = house.state.self?.id;
+    return views.map(view => {
+      const style = view.id === selfViewId && roomStyles[view.id]
+        ? roomStyles[view.id]
+        : view.room?.style ? normalizeRoomStyle(view.room.style) : DEFAULT_ROOM_STYLE;
+      return toFamilyMember(view, style, language);
+    });
   }, [house.state, roomStyles, language]);
   const memberMap = useMemo(() => Object.fromEntries(members.map((m) => [m.id, m])), [members]);
   const activeMemberId = selfId; // one player per phone now
@@ -626,6 +715,31 @@ export default function App({ initialScreen = "title", devMode = false }: { init
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverAvatarKey]);
 
+  // The account owns the room look too, so housemates see it and a second device shows it.
+  const pushRoomStyle = useCallback(async (style: RoomStyle) => {
+    if (!sessionToken()) return;
+    const result = await apiPost("/api/me/room-style", { roomStyle: style });
+    if (result.ok) void house.refresh();
+    else console.warn("[room-style] sync to account failed:", result.status, result.data?.error);
+  }, [house.refresh]);
+  const serverRoomStyleKey = selfView?.room?.style ? JSON.stringify(normalizeRoomStyle(selfView.room.style)) : "";
+  const localRoomStyle = selfView ? roomStyles[selfView.id] : undefined;
+  useEffect(() => {
+    if (!selfView) return;
+    if (serverRoomStyleKey) {
+      // Adopt the account's look when it changed elsewhere (another device).
+      if (JSON.stringify(localRoomStyle ?? null) === serverRoomStyleKey) return;
+      const next = { ...roomStyles, [selfView.id]: normalizeRoomStyle(JSON.parse(serverRoomStyleKey)) };
+      saveRoomStyles(next);
+      setRoomStyles(next);
+    } else if (localRoomStyle) {
+      // One-off: a look saved on this phone before rooms were shared goes up to the account.
+      void pushRoomStyle(localRoomStyle);
+    }
+    // Only when the server's copy changes; local edits push themselves (onStyleSave).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverRoomStyleKey, selfView?.id]);
+
   // Editing the avatar while signed in writes it back to the account; signed-out
   // players keep it locally until they verify (sign-up sends it with the code).
   const persistAvatar = (avatar: AvatarConfig) => {
@@ -640,12 +754,19 @@ export default function App({ initialScreen = "title", devMode = false }: { init
 
   const [coinLedger, setCoinLedger] = useState<CoinTx[]>([]);
 
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>(() => loadNotifications(selfId));
   const [activeNotificationId, setActiveNotificationId] = useState<string | null>(null);
+  // The newest notification, shown as a banner under the bell until it times out.
+  const [toastNotification, setToastNotification] = useState<Notification | null>(null);
+  useEffect(() => {
+    setNotifications(loadNotifications(selfId));
+    setActiveNotificationId(null);
+  }, [selfId]);
 
   // Central helper: mutate coins + append to ledger (cap-enforced)
   const addCoinTx = (memberId: string, delta: number, reason: CoinTxReason, label: string) => {
     if (!canEarn) return;
+    coinMutationsSinceInventoryLoadRef.current.add(memberId);
     const tx: CoinTx = { id: makeTxId(), memberId, delta, reason, label, timestamp: Date.now() };
     setCoins(prev => ({ ...prev, [memberId]: (prev[memberId] ?? 0) + delta }));
     setCoinLedger(prev => [tx, ...prev].slice(0, LEDGER_CAP));
@@ -658,15 +779,28 @@ export default function App({ initialScreen = "title", devMode = false }: { init
       timestamp: Date.now(),
       read: false,
     };
-    setNotifications(prev => [notif, ...prev].slice(0, NOTIFICATIONS_CAP));
+    setNotifications(prev => {
+      const next = [notif, ...prev].slice(0, NOTIFICATIONS_CAP);
+      saveNotifications(selfId, next);
+      return next;
+    });
+    setToastNotification(notif);
   };
 
   const markNotificationRead = (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    setNotifications(prev => {
+      const next = prev.map(n => n.id === id ? { ...n, read: true } : n);
+      saveNotifications(selfId, next);
+      return next;
+    });
   };
 
   const markAllNotificationsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setNotifications(prev => {
+      const next = prev.map(n => ({ ...n, read: true }));
+      saveNotifications(selfId, next);
+      return next;
+    });
   };
 
   const emitNotifDrill = (memberId: string, drill: DrillType, outcome: "win" | "lose", displayName?: string) => {
@@ -817,7 +951,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   const handleNav = (s: string) => setScreen(s as Screen);
 
   const handleChatIcon = () => setScreen("family-chat");
-  const handleBellIcon = () => setScreen("notifications");
+  const handleBellIcon = () => { setToastNotification(null); setScreen("notifications"); };
   const handleSettingsIcon = () => setScreen("settings");
 
   const getScreenTitle = (): { title: string; color: string } => {
@@ -949,7 +1083,9 @@ export default function App({ initialScreen = "title", devMode = false }: { init
     channel: "sms" | "email",
     drillId: string,
     outcome: "reported" | "clicked_link" | "submitted_details",
+    scenario: RealEmailScenario | null = null,
   ): Promise<RealDrillCompletion> => {
+    if (channel === "email") setRealEmailScenario(scenario);
     try {
       const response = await fetch(`/api/drills/${encodeURIComponent(drillId)}/complete`, {
         method: "POST",
@@ -992,6 +1128,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   const leaveResultScreen = (destination: () => void) => {
     const recordId = pendingResultAckId;
     setPendingResultAckId(null);
+    setRealEmailScenario(null);
     destination();
     if (recordId) void acknowledgePendingResult(recordId);
   };
@@ -1094,11 +1231,28 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   };
 
   const handleHouseDrillFinished = useCallback((drill: HouseDrill) => {
-    const answered = drill.answers.filter((a) => !a.skipped);
+    // A race is scored per player, so report this player's own tally.
+    const answered = drill.answers.filter((a) => !a.skipped && (drill.mode !== "race" || a.playerId === selfId));
     emitNotifFamilyDrill(answered.filter((a) => a.outcome === "correct").length, answered.length);
     void house.refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [house.refresh, language]);
+  }, [house.refresh, language, selfId]);
+
+  // The winner of a house race gets a one-off coin bonus, paid once per race on this device.
+  useEffect(() => {
+    const drill = houseDrill.drill;
+    if (!canEarn || drill?.status !== "finished" || drill.mode !== "race" || drill.winnerId !== selfId) return;
+    const claimKey = `race-win:${drill.id}`;
+    if (rewardClaims.raceWins.includes(drill.id) || rewardClaimInFlightRef.current.has(claimKey)) return;
+    rewardClaimInFlightRef.current.add(claimKey);
+    setRewardClaims(prev => {
+      const next = { ...prev, raceWins: [drill.id, ...prev.raceWins].slice(0, 20) };
+      saveRewardClaims(next);
+      return next;
+    });
+    addCoinTx(selfId, RACE_WIN_COINS, "race-win", translate(language, "HOUSE RACE WIN"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [houseDrill.drill, selfId, canEarn, rewardClaims.raceWins]);
 
   // Furniture sell — now routes through ledger
   const handleSellItem = (memberId: string, itemId: string, value: number) => {
@@ -1232,7 +1386,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   // player, so guard the route itself: every create/join from there would 401 with no
   // way back. Signed-out players get the returning sign-in instead of a dead end.
   useEffect(() => {
-    if (signedIn || (screen !== "house" && screen !== "house-settings")) return;
+    if (signedIn || (screen !== "house" && screen !== "house-settings" && screen !== "family-tree" && screen !== "house-new")) return;
     setSignInMode("returning");
     setScreen("sign-in");
   }, [screen, signedIn]);
@@ -1270,10 +1424,12 @@ export default function App({ initialScreen = "title", devMode = false }: { init
     goHome();
     if (!skipOnboarding && !hasSeenTutorial()) setTourOpen(true);
     if (!invite) return;
-    // One house per person: someone who already has one can never use this code, so spend
-    // it here. Left alone it would re-route every later sign-in and pre-fill a dead code.
-    if (state?.house) takePendingInvite();
-    else setScreen("house");
+    // Up to HOUSES_PER_USER houses: someone with room for another is taken to join it (the
+    // code is pre-filled); someone already at the limit can't use it, so spend it here —
+    // left alone it would re-route every later sign-in and pre-fill a dead code.
+    const count = state?.houses?.length ?? (state?.house ? 1 : 0);
+    if (count >= HOUSES_PER_USER) takePendingInvite();
+    else setScreen(state?.house ? "house-new" : "house");
   };
 
   const finishNewPlayerOnboarding = () => {
@@ -1320,7 +1476,10 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   };
 
   const { title, color } = getScreenTitle();
-  const hasUnreadNotifications = notifications.some(n => !n.read);
+  const unreadNotificationCount = notifications.filter(n => !n.read).length;
+  // Not over the notification screens, which already list it, or mid-drill.
+  const showNotificationToast = toastNotification !== null && showAppChrome
+    && screen !== "notifications" && screen !== "notification-detail";
 
   // These buttons explicitly request a drill now. Automatic scheduling is not exposed
   // until a server-side scheduler exists, so a stale local preference must not block
@@ -1357,18 +1516,31 @@ export default function App({ initialScreen = "title", devMode = false }: { init
       `}</style>
       {!accessibility.disableScanlines && <Scanlines />}
       <PhoneFrame>
-        <div className="flex flex-col flex-1 overflow-hidden">
+        <div className="flex flex-col flex-1 overflow-hidden" style={{ position: "relative" }}>
           {showAppChrome && (
             <AppHeader
               title={t(title)}
               titleColor={color}
-              hasUnreadNotifications={hasUnreadNotifications}
+              unreadNotificationCount={unreadNotificationCount}
+              hasUnreadChatMessages={hasUnreadChatMessages}
               muted={muted}
               onToggleMute={toggleMute}
               onChat={handleChatIcon}
               onNotifications={handleBellIcon}
               onSettings={handleSettingsIcon}
               onTutorial={() => { setScreen("home"); setTourOpen(true); }}
+            />
+          )}
+          {showNotificationToast && (
+            <NotificationToast
+              notification={toastNotification}
+              onOpen={() => {
+                setActiveNotificationId(toastNotification.id);
+                markNotificationRead(toastNotification.id);
+                setToastNotification(null);
+                setScreen("notification-detail");
+              }}
+              onDismiss={() => setToastNotification(null)}
             />
           )}
 
@@ -1440,9 +1612,10 @@ export default function App({ initialScreen = "title", devMode = false }: { init
                 onBack={() => setScreen(registrationReturn)}
               />
             )}
-            {(screen === "house" || screen === "house-settings") && (
+            {(screen === "house" || screen === "house-settings" || screen === "family-tree") && (
               house.state.house ? (
                 <HouseSettingsScreen
+                  key={house.state.house.id}
                   house={house.state.house}
                   selfId={selfId}
                   onRegenerate={() => applyHouseResult(regenerateCode)}
@@ -1450,7 +1623,13 @@ export default function App({ initialScreen = "title", devMode = false }: { init
                   onRemove={(id) => applyHouseResult(() => removeMember(id))}
                   onLeave={handleLeaveHouse}
                   onBack={goHome}
-                />
+                  tab={screen === "family-tree" ? "tree" : "settings"}
+                  onTab={(tab) => setScreen(tab === "tree" ? "family-tree" : "house")}
+                  onFamilyEdit={(edits) => applyHouseResult(() => editFamily(edits))}
+                  houses={house.state.houses ?? []}
+                  onSwitchHouse={(id) => applyHouseResult(() => switchHouse(id))}
+                  onAddHouse={() => setScreen("house-new")}
+                  />
               ) : signedIn ? (
                 <HouseChoiceScreen
                   initialCode={peekPendingInvite() ?? ""}
@@ -1459,6 +1638,16 @@ export default function App({ initialScreen = "title", devMode = false }: { init
                   onBack={goHome}
                 />
               ) : null
+            )}
+
+            {screen === "house-new" && signedIn && (
+              <HouseChoiceScreen
+                title={t("ADD A HOUSE")}
+                initialCode={peekPendingInvite() ?? ""}
+                onCreate={(n) => houseAction(() => createHouse(n))}
+                onJoin={(c) => houseAction(() => joinHouse(c))}
+                onBack={goHome}
+              />
             )}
 
             {screen === "home" && (
@@ -1472,8 +1661,13 @@ export default function App({ initialScreen = "title", devMode = false }: { init
                 soldItems={soldItems}
                 purchasedItems={purchasedItems}
                 house={house.state.house}
+                houses={house.state.houses ?? []}
+                onSwitchHouse={(id) => applyHouseResult(() => switchHouse(id))}
                 onPlayWithOthers={() => setScreen("house")}
                 onRemoveMember={handleRemoveMember}
+                houseLoading={house.loading}
+                houseFailed={house.failed}
+                onRetryHouse={() => { void house.refresh(); }}
               />
             )}
             {screen === "leaderboard" && <LeaderboardScreen onPlayWithOthers={() => setScreen("house")} />}
@@ -1537,9 +1731,11 @@ export default function App({ initialScreen = "title", devMode = false }: { init
                 layout={roomLayouts[selfId]}
                 onStyleSave={style => {
                   if (!selfView) return false;
-                  const next = { ...roomStyles, [selfId]: normalizeRoomStyle(style) };
+                  const clean = normalizeRoomStyle(style);
+                  const next = { ...roomStyles, [selfId]: clean };
                   if (!saveRoomStyles(next)) return false;
                   setRoomStyles(next);
+                  void pushRoomStyle(clean);
                   return true;
                 }}
                 onBack={goHome}
@@ -1625,7 +1821,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
               <RealisticEmailDrillIntroScreen
                 onBack={() => setScreen("drill-select")}
                 onRegister={() => openRegistration("realistic-email-intro")}
-                onOutcome={(drillId, outcome) => handleRealDrillOutcome("email", drillId, outcome)}
+                onOutcome={(drillId, outcome, scenario) => handleRealDrillOutcome("email", drillId, outcome, scenario)}
                 scheduleBlocked={realDrillBlocked}
                 scheduleNextLabel={drillWin.nextLabel}
               />
@@ -1745,6 +1941,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
                 drillType={drillType}
                 smsOutcome={smsOutcome}
                 emailOutcome={emailOutcome}
+                realEmailScenario={realEmailScenario}
                 callOutcome={callOutcome}
                 profileName={profile.name}
                 activeMemberId={activeMemberId}

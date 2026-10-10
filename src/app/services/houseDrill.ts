@@ -9,27 +9,37 @@ import type { FamilyOutcome } from "../types/drills";
 
 export type DrillPlayerStatus = "accepted" | "invited" | "declined" | "expired" | "left";
 export type DrillPlayer = { id: string; name: string; avatar: Avatar | null; status: DrillPlayerStatus };
-export type DrillTurn = { playerId: string; scenarioId: number };
+/** In a race every player answers every question, so no one owns a turn (`playerId` is null). */
+export type DrillTurn = { playerId: string | null; scenarioId: number };
+export type DrillMode = "turns" | "race";
+export type RaceRank = { playerId: string; score: number; correct: number; answered: number; timeMs: number | null };
 export type DrillAnswer = {
   turn: number; playerId: string; scenarioId: number;
   action: string | null; outcome: FamilyOutcome | null; foundClues: number; skipped: boolean;
 };
 export type HouseDrill = {
   id: string; hostId: string | null;
+  mode: DrillMode;
   status: "lobby" | "playing" | "finished" | "cancelled";
   perPlayer: number;
   createdAt: string; updatedAt: string; inviteExpiresAt: string;
   startedAt: string | null; finishedAt: string | null;
   players: DrillPlayer[]; turns: DrillTurn[]; currentTurn: number;
+  /** The current turn was answered; the game waits until everyone in `ready` continues. */
+  revealing: boolean; ready: string[];
+  /** In a race, other players' answers keep `outcome`/`action` null until it finishes. */
   answers: DrillAnswer[]; xp: Record<string, number> | null;
+  /** Race only: ms from the start until each player answered their last question. */
+  finishTimes: Record<string, number>;
+  ranking: RaceRank[] | null; winnerId: string | null;
 };
 type DrillResponse = { drill: HouseDrill | null };
 
 export const PER_PLAYER_OPTIONS = [2, 3, 4, 5] as const;
 export const DEFAULT_PER_PLAYER = 3;
 
-export const openHouseDrill = (perPlayer: number) =>
-  apiPost<DrillResponse>("/api/house/drill", { perPlayer });
+export const openHouseDrill = (perPlayer: number, mode: DrillMode) =>
+  apiPost<DrillResponse>("/api/house/drill", { perPlayer, mode });
 const drillPath = (id: string, action: string) => `/api/house/drill/${encodeURIComponent(id)}/${action}`;
 export const respondToHouseDrill = (id: string, accept: boolean) =>
   apiPost<DrillResponse>(drillPath(id, "respond"), { accept });
@@ -37,6 +47,9 @@ export const startHouseDrill = (id: string, scenarioIds: number[]) =>
   apiPost<DrillResponse>(drillPath(id, "start"), { scenarioIds });
 export const answerHouseDrill = (id: string, answer: { turn: number; action: string; outcome: FamilyOutcome; foundClues: number }) =>
   apiPost<DrillResponse>(drillPath(id, "answer"), answer);
+/** Ready for the next turn. The host's `force` moves on without waiting for everyone. */
+export const continueHouseDrill = (id: string, turn: number, force = false) =>
+  apiPost<DrillResponse>(drillPath(id, "continue"), { turn, force });
 export const skipHouseDrillTurn = (id: string, turn: number) =>
   apiPost<DrillResponse>(drillPath(id, "skip"), { turn });
 export const leaveHouseDrill = (id: string) =>

@@ -439,7 +439,12 @@ function _sendDrill(data, properties) {
     + '\n\n' + report + ': ' + reportUrl;
 
   _sendMail(email, copy.subject, body, html, scenario.sender);
-  return _json({ success: true, scenarioId: String(data.scenarioId) });
+  return _json({
+    success: true,
+    scenarioId: String(data.scenarioId),
+    sender: scenario.sender,
+    subject: copy.subject
+  });
 }
 
 function _sendVerification(data, properties) {

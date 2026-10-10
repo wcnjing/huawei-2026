@@ -10,10 +10,11 @@ import { computeResult, KNOWN_OUTCOMES } from './xp.js';
 import { query, transaction } from './db.js';
 import { cleanAvatar } from './avatar.js';
 import { cleanHomeInventory } from './home-inventory.js';
-import { announceDrillScammed } from './drill-announce.js';
+import { cleanRoomStyle } from './room-style.js';
+import { announcePixiDrillOutcome } from './drill-announce.js';
 // houses.js imports this module's locking helpers in turn. Neither module calls the
 // other while it is being evaluated, so the cycle resolves before any call happens.
-import { lockHouseOf, releaseFromHouse } from './houses.js';
+import { lockHousesOf, releaseFromHouse } from './houses.js';
 import {
   INSERT_USER_SQL,
   UPDATE_USER_SQL,
@@ -117,6 +118,16 @@ async function writeAvatar(runner, userId, avatar) {
   return userFromRow(rows[0]);
 }
 
+/** Write the room look to database. runner is anything with .query(sql, params). */
+async function writeRoomStyle(runner, userId, style) {
+  const { rows } = await runner.query(
+    'update safespace.users set room_style = $2::jsonb where id = $1 returning *',
+    [String(userId), JSON.stringify(style)],
+  );
+  if (!rows[0]) throw new Error(`unknown user ${userId}`);
+  return userFromRow(rows[0]);
+}
+
 /** Write coins + furniture to database. runner is anything with .query(sql, params). */
 async function writeHomeInventory(runner, userId, inventory) {
   const { rows } = await runner.query(
@@ -197,11 +208,15 @@ async function readResult(tx, id) {
   return resultFromRow(rows[0]);
 }
 
-/** After a scored result commits, tell the house only if the player got scammed (LOST).
- * Wins, distress off-ramps (SAFE) and unscored results are not announced. */
+/** After a scored result commits, let Pixi celebrate a win or guide the house after a
+ * loss. Distress off-ramps (SAFE) and unscored results are not announced. */
 async function announceScored(record) {
-  if (record?.result !== 'LOST') return;
-  await announceDrillScammed(record.userId, `drill:${record.id}`);
+  if (!['WON', 'LOST'].includes(record?.result)) return;
+  await announcePixiDrillOutcome(record.userId, `drill:${record.id}`, {
+    channel: record.channel,
+    won: record.result === 'WON',
+    outcome: record.outcome,
+  });
 }
 
 // Every real (non-practice) result stays pending until the client explicitly ACKs it,
@@ -804,6 +819,16 @@ export async function setUserHomeInventory(userId, homeInventory) {
   return writeHomeInventory(runner, userId, clean);
 }
 
+// Same last-write-wins shape as setUserAvatar: the room look is cosmetic.
+export async function setUserRoomStyle(userId, style) {
+  const clean = cleanRoomStyle(style);
+  if (!clean) throw new Error('room style is invalid');
+  const runner = {
+    query: (sql, params) => query(sql, params, 'setUserRoomStyle'),
+  };
+  return writeRoomStyle(runner, userId, clean);
+}
+
 // Backward-compatible storage helper. Setting an address never marks it verified:
 // controlling the account's phone is not proof that the caller owns this inbox.
 export async function setUserEmail(userId, email) {
@@ -1100,8 +1125,8 @@ export async function setVerifiedUserEmail(userId, verificationId) {
 export async function detachVerifiedPhone(userId) {
   const at = new Date().toISOString();
   return transaction(async (tx) => {
-    // Lock order is house then user (server/houses.js), so the house comes first.
-    const house = await lockHouseOf(tx, userId);
+    // Lock order is houses then user (server/houses.js), so the houses come first.
+    const houses = await lockHousesOf(tx, userId);
     const user = await requireLockedUser(tx, userId);
     if (!user.phone) {
       const error = new Error('no verified phone on file');
@@ -1117,7 +1142,8 @@ export async function detachVerifiedPhone(userId) {
     delete user.phone;
     user.consentToDrills = false;
     // `house_id` is not in USER_FIELDS, so the saveUser below cannot restore it.
-    const ring = house && user.houseId === house.id ? await releaseFromHouse(tx, house, user) : [];
+    const ring = [];
+    for (const house of houses) ring.push(...await releaseFromHouse(tx, house, user));
     const saved = await saveUser(tx, user);
     await tx.query('delete from safespace.sessions where user_id = $1', [user.id]);
     await logConsent(tx, { userId: user.id, type: 'withdrawn', channel: 'account', at });

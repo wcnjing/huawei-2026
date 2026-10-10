@@ -188,7 +188,7 @@ export function ShopScreen({
                   <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                     <IconCoin size={10} color={isOwned ? "#6b8ba4" : "#ffe66d"} />
                     <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: isOwned ? "#6b8ba4" : "#ffe66d" }}>
-                      {item.cost}
+                      {item.cost.toLocaleString()}
                     </div>
                   </div>
                   {isOwned ? (

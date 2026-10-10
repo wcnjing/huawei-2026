@@ -65,3 +65,21 @@ test('invalid storage and storage failures do not crash or report a successful s
   assert.deepEqual(loadRoomStyles().alice, { ...DEFAULT_ROOM_STYLE, wall: 'lagoon' });
   assert.equal(saveRoomStyles({ alice: DEFAULT_ROOM_STYLE }), false);
 });
+
+test('the server room-style allowlist matches every option the client offers', async () => {
+  const { ROOM_STYLE_OPTIONS, cleanRoomStyle } = await import('./room-style.js');
+  const client = withStorage();
+  const ids = (list) => list.map((option) => option.id);
+  assert.deepEqual(ROOM_STYLE_OPTIONS, {
+    wall: ids(client.WALL_COLORS), pattern: ids(client.WALL_PATTERNS),
+    floor: ids(client.FLOORS), light: ids(client.ROOM_LIGHTS),
+  });
+  // Whatever the client normalises and sends is accepted unchanged.
+  for (const preset of client.ROOM_PRESETS) {
+    const style = client.normalizeRoomStyle({ ...preset.style, name: ' My room ' });
+    assert.deepEqual(cleanRoomStyle(style), style);
+  }
+  assert.equal(cleanRoomStyle({ ...client.DEFAULT_ROOM_STYLE, floor: 'lava' }), null);
+  assert.equal(cleanRoomStyle({ ...client.DEFAULT_ROOM_STYLE, glow: 'yes' }), null);
+  assert.equal(cleanRoomStyle([]), null);
+});

@@ -94,16 +94,26 @@ Failed sends remain in memory for Retry with the same idempotency key, so a resp
 lost after commit does not create a duplicate. Drafts and pending messages are
 session-only browser memory: they are not written to localStorage or a service-worker
 cache and disappear when the authenticated chat state is unmounted or replaced.
-House chat contains member messages only; drills, rewards and other events do not add
-PIXI messages.
+After a scored call, text, email, or individual drill, Pixi posts an announcement and a
+short question or practical tip in the house chat. Pixi also chats with members: after a
+message is sent, the app asks for a reply and OpenAI decides whether Pixi answers (always
+when named, not when family members are talking to each other). Both are written by
+OpenAI (`OPENAI_API_KEY`, model `PIXI_MODEL`, default `gpt-5-mini`) from the
+instructions in `server/prompts/*.md`; without a key, drill posts fall back to fixed
+lines and Pixi does not reply in chat. Safe exits that are not scored do not post a
+result message.
 
-Production rollout is migration-first: apply
-`supabase/migrations/20260921000001_house_chat.sql` through the existing database
-deployment process before deploying the application. The feature reuses the existing
-Postgres and Supabase Realtime configuration and needs no new service or credentials.
-Without realtime configuration, visible chat still refreshes by polling every five
-seconds. Messages from the retired in-memory chat were never persisted, so they
-cannot be recovered or migrated into the new history.
+Production rollout is migration-first: apply all pending migrations in
+`supabase/migrations/` through the existing database deployment process before
+deploying the application. In particular,
+`20261007000001_pixi_chat_messages.sql` enables Pixi messages and makes retries
+idempotent. If this migration is missing in production, the best-effort chat insert
+fails while the drill result and its separate notification can still succeed; check
+the server logs for `[chat] could not post Pixi drill guidance`. The feature reuses
+the existing Postgres and Supabase Realtime configuration and needs no new service or
+credentials. Without realtime configuration, visible chat still refreshes by polling
+every five seconds. Messages from the retired in-memory chat were never persisted, so
+they cannot be recovered or migrated into the new history.
 
 ## Room customization
 

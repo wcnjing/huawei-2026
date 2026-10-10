@@ -635,7 +635,7 @@ const rows: Row[] = [
   ["you're not in a house", "你还没有加入任何家庭", "anda tidak berada dalam mana-mana rumah", "நீங்கள் எந்த வீட்டிலும் இல்லை"],
   ["leave your current house first", "请先离开你现在的家庭", "tinggalkan rumah semasa anda dahulu", "முதலில் உங்கள் தற்போதைய வீட்டை விட்டு வெளியேறுங்கள்"],
   ["that code isn't valid; ask for a new one", "这个邀请码无效，请索取新的邀请码", "kod itu tidak sah; minta kod baharu", "அந்தக் குறியீடு செல்லாது; புதிய குறியீட்டைக் கேளுங்கள்"],
-  ["that house is full (6 players)", "这个家庭已满（6名玩家）", "rumah itu sudah penuh (6 pemain)", "அந்த வீடு நிரம்பிவிட்டது (6 பேர்)"],
+  ["that house is full (14 players)", "这个家庭已满（14名玩家）", "rumah itu sudah penuh (14 pemain)", "அந்த வீடு நிரம்பிவிட்டது (14 பேர்)"],
   ["only the house owner can do that", "只有家庭创建者才能这样做", "hanya pemilik rumah boleh melakukannya", "வீட்டு உரிமையாளர் மட்டுமே இதைச் செய்ய முடியும்"],
   ["that player isn't in your house", "这名玩家不在你的家庭里", "pemain itu tiada dalam rumah anda", "அந்த நபர் உங்கள் வீட்டில் இல்லை"],
   ["use LEAVE HOUSE to leave your own house", "请用“离开家庭”来离开你自己的家庭", "gunakan TINGGALKAN RUMAH untuk meninggalkan rumah anda sendiri", "உங்கள் வீட்டை விட்டு வெளியேற 'வீட்டை விட்டு வெளியேறு' என்பதைப் பயன்படுத்துங்கள்"],

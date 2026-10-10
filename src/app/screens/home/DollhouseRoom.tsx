@@ -3,14 +3,14 @@ import type { FamilyMember } from "../../types/family";
 import type { RoomLayout } from "../../types/roomLayout";
 import { FurnitureIcon, PurchasedRoomFurniture } from "../../components/furniture";
 import { MemberChar } from "../../components/avatars";
-import { RoomBackdrop } from "../../components/room";
+import { RoomBackdrop, RoomWanderer } from "../../components/room";
 import { FURNITURE_STORE } from "../../data/furniture";
 import { RoomHeading } from "./RoomHeading";
 import { SafetyBadge } from "./SafetyBadge";
 import { roomColors } from "../../types/roomStyle";
 import { PixelButton } from "../../components/ui";
 
-export function DollhouseRoom({ member, onTap, soldItems, purchasedItems, layout, onCustomize, onArrange }: { member: FamilyMember; onTap: (m: FamilyMember) => void; soldItems: string[]; purchasedItems: string[]; layout?: RoomLayout; onCustomize?: () => void; onArrange?: () => void }) {
+export function DollhouseRoom({ member, coins, onTap, soldItems, purchasedItems, layout, onCustomize, onArrange }: { member: FamilyMember; coins: number; onTap: (m: FamilyMember) => void; soldItems: string[]; purchasedItems: string[]; layout?: RoomLayout; onCustomize?: () => void; onArrange?: () => void }) {
   const t = useT();
   const colors = roomColors(member.roomStyle, member.roomBg, member.primaryColor);
   return (
@@ -18,6 +18,7 @@ export function DollhouseRoom({ member, onTap, soldItems, purchasedItems, layout
       <div className="home-room-header" style={{ backgroundColor: colors.wall }}>
         <RoomHeading
           member={member}
+          coins={coins}
           actions={onCustomize && <div className="home-room-tools">
             <PixelButton onClick={onCustomize} color="#1a2340" textColor="#c77dff" size="sm">{t("CUSTOMIZE")}</PixelButton>
             {onArrange && purchasedItems.length > 0 && <PixelButton onClick={onArrange} color="#1a2340" textColor="#4ecdc4" size="sm">{t("ARRANGE")}</PixelButton>}
@@ -48,10 +49,11 @@ export function DollhouseRoom({ member, onTap, soldItems, purchasedItems, layout
         {/* purchasedItems is the ownership source of truth; selling a shop item removes
             it there, while buying it again adds it back and should render it again. */}
         <PurchasedRoomFurniture itemIds={purchasedItems} accent={member.primaryColor} layout={layout} topInset={16} />
-        <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", zIndex: 3, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-          <SafetyBadge safe={member.safeThisWeek} size={18} />
-          <MemberChar member={member} size={80} />
-        </div>
+        <RoomWanderer
+          back="34%" front="12px" minX={14} maxX={86}
+          above={<div style={{ marginBottom: 4 }}><SafetyBadge safe={member.safeThisWeek} size={18} /></div>}
+          character={<MemberChar member={member} size={80} />}
+        />
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 4, background: `linear-gradient(90deg,${member.primaryColor}22,${member.primaryColor}55,${member.primaryColor}22)`, borderTop: `2px solid ${member.primaryColor}44` }} />
         <div className="home-room-open-hint">{t("TAP TO VIEW")}</div>
       </div>

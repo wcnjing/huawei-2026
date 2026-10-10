@@ -9,7 +9,7 @@ import { useI18n, useT } from "../../i18n";
 
 const DATE_LOCALES = { en: "en-SG", zh: "zh-SG", ms: "ms-SG", ta: "ta-SG" } as const;
 
-function iconForNotifKind(kind: NotificationKind): { icon: React.ReactNode; accent: string } {
+export function iconForNotifKind(kind: NotificationKind): { icon: React.ReactNode; accent: string } {
   if (kind.startsWith("drill-win")) {
     return { icon: <IconCheck size={14} color="#00ff88" />, accent: "#00ff88" };
   }
