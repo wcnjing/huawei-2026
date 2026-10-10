@@ -146,7 +146,7 @@ export function RegisterScreen({ mode, name, devMode = false, onDone, onDevSkip,
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {mode === "new" && <div>{label(t("WHAT SHOULD WE CALL YOU?"))}<input style={inputStyle} value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t("YOUR NAME")} maxLength={30} autoComplete="name" /></div>}
               <div>{label(t("PHONE NUMBER"))}<input style={inputStyle} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+6591234567" inputMode="tel" /></div>
-              <div>{label(t("EMAIL (OPTIONAL — FOR EMAIL DRILLS)"))}<input style={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" inputMode="email" type="email" autoCapitalize="none" /></div>
+              <div>{label(t("EMAIL (OPTIONAL)"))}<input style={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" inputMode="email" type="email" autoCapitalize="none" /></div>
               {mode === "new" && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#8da4b8", lineHeight: 1.5 }}>{t("Email drills will ask you to verify your inbox separately.")}</div>}
               <PixelButton onClick={sendCode} color="#4ecdc4" size="lg" full disabled={busy}>{busy ? t("SENDING...") : t("[ SEND CODE ]")}</PixelButton>
               <PixelButton onClick={handleSave} color="#1a2340" textColor="#4ecdc4" size="sm" full disabled={busy}>{t("[ SAVE DETAILS ]")}</PixelButton>
