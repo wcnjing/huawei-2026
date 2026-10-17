@@ -17,6 +17,7 @@ Write two chat messages:
   - A question: ask the player about the clue they spotted or what made it convincing, or ask another family member (by their "callThem") about their own experience ("Mum, have you ever had a call like this?").
   - A tip: one practical tip tied to exactly what happened (the channel and what they did), ending on a statement.
 - The announcement itself never ends with a question.
+- When "drill.realScam" is present, the drill was modelled on a real scam from Singapore's police bulletins. Ground the followUp in it: mention one of its "redFlags", or turn its "advice" or "howToCheck" into a tip. Put it in your own words and keep it short. Never name the organisation being impersonated.
 
 Rules:
 - Write in the language the family mostly uses in recentChat (English, Chinese, Malay or Tamil). If that is unclear, write in English. 

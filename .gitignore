@@ -13,3 +13,4 @@ server/.pglite-dev-mode/
 src/.DS_Store
 # Local PGlite databases and any copies/backups of them (never commit these)
 server/.pglite*/
+scripts/.scam-lesson-preview/

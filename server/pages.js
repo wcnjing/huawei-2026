@@ -9,6 +9,41 @@
 
 import { htmlLang, pageText } from './language.js';
 
+export function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * The real scam variant behind a drill (scam-variants.js). Its text comes from
+ * AI-extracted bulletins, so every value is escaped here; the labels are translated but
+ * the bulletin text stays in English.
+ */
+function lessonSection(lesson, language) {
+  if (!lesson) return '';
+  const label = (text) => escapeHtml(pageText(language, text));
+  const title = [lesson.scamName, lesson.variantName].filter(Boolean).map(escapeHtml).join(' · ');
+  const flags = lesson.redFlags?.length
+    ? `<h2>${label('Red flags to watch for')}</h2>
+    <ul>${lesson.redFlags.map((flag) => `<li>${escapeHtml(flag)}</li>`).join('')}</ul>`
+    : '';
+  const check = lesson.verificationMethod
+    ? `<h2>${label('How to check')}</h2><p>${escapeHtml(lesson.verificationMethod)}</p>`
+    : '';
+  const advice = lesson.preventionAdvice
+    ? `<h2>${label('What to do instead')}</h2><p>${escapeHtml(lesson.preventionAdvice)}</p>`
+    : '';
+  return `<section class="lesson">
+    <div class="tag">${label('The real scam behind this drill')}</div>
+    ${title ? `<p class="scam">${title}</p>` : ''}
+    ${flags}${check}${advice}
+  </section>`;
+}
+
 export const PAGE_VARIANTS = {
   win: { bg: '#07130d', panel: '#0d2117', edge: '#00ff88', shadow: '#031a0e', accent: '#00ff88', ink: '#eafff2', mark: '✔', tag: 'DRILL PASSED' },
   lose: { bg: '#170a0d', panel: '#210f11', edge: '#ff2d55', shadow: '#1a0509', accent: '#ff6b35', ink: '#ffeef1', mark: '✖', tag: 'GOTCHA' },
@@ -24,6 +59,7 @@ export function educationalPage({
   confirmLabel = null,
   variant = 'neutral',
   language = 'en',
+  lesson = null,
 }) {
   const v = PAGE_VARIANTS[variant] || PAGE_VARIANTS.neutral;
   const html = `<!doctype html>
@@ -49,7 +85,12 @@ export function educationalPage({
       box-shadow:5px 5px 0 ${v.shadow}}
     button:active{transform:translate(3px,3px);box-shadow:2px 2px 0 ${v.shadow}}
     a{color:${v.accent}}
-    .home{display:inline-block;margin-top:1.5rem;font-size:.8rem;letter-spacing:.1em;text-transform:uppercase}
+    .lesson{margin-top:1.5rem;padding-top:1.25rem;border-top:2px dashed ${v.edge}}
+    .lesson .tag{margin-bottom:.5rem}
+    .lesson .scam{font-weight:700}
+    h2{margin:1rem 0 .35rem;font-size:.85rem;letter-spacing:.12em;text-transform:uppercase;color:${v.accent}}
+    ul{margin:.4rem 0;padding-left:1.25rem}
+    li{margin:.3rem 0}
   </style>
 </head>
 <body><main>
@@ -60,7 +101,7 @@ export function educationalPage({
   ${confirmAction && confirmLabel
     ? `<form method="post" action="${confirmAction}"><button type="submit">${confirmLabel}</button></form>`
     : ''}
-  <a class="home" href="/">${pageText(language, '▸ Return to SafeSpace')}</a>
+  ${lessonSection(lesson, language)}
 </main></body></html>`;
   return { html, status };
 }

@@ -1,9 +1,11 @@
 /**
  * SafeSpace — constrained email sender and durable safety-follow-up scheduler.
  *
- * The endpoint accepts structured message kinds, never caller-provided HTML. Drill HTML
- * is rendered from the allow-listed fictional scenarios below, and every dynamic value
- * is escaped. Action links must be signed first-party URLs.
+ * The endpoint accepts structured message kinds, never caller-provided HTML or links.
+ * Drill HTML is rendered from plain-text copy the backend generated from a real scam
+ * variant (scenarioId 'generated', re-checked by _cleanContent) or from the allow-listed
+ * fictional scenarios below, and every dynamic value is escaped. Action links must be
+ * signed first-party URLs.
  *
  * SETUP
  *  1. script.google.com → New project → paste this file in.
@@ -324,7 +326,10 @@ var _TEXT = {
     verifyIgnore: 'If you did not request this, you can ignore this message.',
     followupSubject: 'SafeSpace drill follow-up: you are safe',
     followupBody: 'The earlier message was a consented SafeSpace safety drill. '
-      + 'It was fictional, no account action is required, and you are safe.'
+      + 'It was fictional, no account action is required, and you are safe.',
+    lessonIntro: 'That drill was modelled on a real scam reported in Singapore:',
+    lessonFlags: 'Red flags to watch for:',
+    lessonAdvice: 'What to do instead:'
   },
   zh: {
     greetingNamed: '{name}，您好：',
@@ -335,7 +340,10 @@ var _TEXT = {
     verifyButton: '验证我的电子邮件',
     verifyIgnore: '如果这不是您申请的，可以忽略此邮件。',
     followupSubject: 'SafeSpace 演练跟进：您是安全的',
-    followupBody: '之前那封邮件是您已同意的 SafeSpace 安全演练。内容是虚构的，您的账户无需任何操作，您是安全的。'
+    followupBody: '之前那封邮件是您已同意的 SafeSpace 安全演练。内容是虚构的，您的账户无需任何操作，您是安全的。',
+    lessonIntro: '这次演练参考了新加坡真实通报过的骗局：',
+    lessonFlags: '需要留意的危险信号：',
+    lessonAdvice: '正确的做法：'
   },
   ms: {
     greetingNamed: 'Hai {name},',
@@ -347,7 +355,10 @@ var _TEXT = {
     verifyIgnore: 'Jika anda tidak memintanya, anda boleh abaikan mesej ini.',
     followupSubject: 'Susulan latihan SafeSpace: anda selamat',
     followupBody: 'Mesej tadi ialah latihan keselamatan SafeSpace yang anda persetujui. '
-      + 'Ia rekaan semata-mata, tiada tindakan akaun diperlukan, dan anda selamat.'
+      + 'Ia rekaan semata-mata, tiada tindakan akaun diperlukan, dan anda selamat.',
+    lessonIntro: 'Latihan itu berdasarkan penipuan sebenar yang dilaporkan di Singapura:',
+    lessonFlags: 'Tanda amaran yang perlu diberi perhatian:',
+    lessonAdvice: 'Apa yang patut dilakukan:'
   },
   ta: {
     greetingNamed: 'வணக்கம் {name},',
@@ -359,7 +370,10 @@ var _TEXT = {
     verifyIgnore: 'நீங்கள் இதைக் கோரவில்லை என்றால், இந்தச் செய்தியைப் புறக்கணிக்கலாம்.',
     followupSubject: 'SafeSpace பயிற்சி பின்தொடர்வு: நீங்கள் பாதுகாப்பாக இருக்கிறீர்கள்',
     followupBody: 'முந்தைய செய்தி நீங்கள் ஒப்புக்கொண்ட SafeSpace பாதுகாப்புப் பயிற்சி. '
-      + 'அது கற்பனையானது, கணக்கில் எந்த நடவடிக்கையும் தேவையில்லை, நீங்கள் பாதுகாப்பாக இருக்கிறீர்கள்.'
+      + 'அது கற்பனையானது, கணக்கில் எந்த நடவடிக்கையும் தேவையில்லை, நீங்கள் பாதுகாப்பாக இருக்கிறீர்கள்.',
+    lessonIntro: 'இந்தப் பயிற்சி சிங்கப்பூரில் புகாரளிக்கப்பட்ட ஓர் உண்மையான மோசடியை அடிப்படையாகக் கொண்டது:',
+    lessonFlags: 'கவனிக்க வேண்டிய எச்சரிக்கை அறிகுறிகள்:',
+    lessonAdvice: 'அதற்குப் பதிலாக என்ன செய்வது:'
   }
 };
 
@@ -413,9 +427,17 @@ function doPost(e) {
 }
 
 function _sendDrill(data, properties) {
-  var scenario = Object.prototype.hasOwnProperty.call(_DRILL_SCENARIOS, String(data.scenarioId || ''))
-    ? _DRILL_SCENARIOS[String(data.scenarioId)]
-    : null;
+  var scenario = null;
+  if (String(data.scenarioId || '') === 'generated') {
+    var content = _cleanContent(data.content);
+    if (content) {
+      scenario = { sender: content.sender };
+      scenario[_lang(data.language)] = content;
+      scenario.en = content;
+    }
+  } else if (Object.prototype.hasOwnProperty.call(_DRILL_SCENARIOS, String(data.scenarioId || ''))) {
+    scenario = _DRILL_SCENARIOS[String(data.scenarioId)];
+  }
   var lang = _lang(data.language);
   var email = _validEmail(data.email);
   var name = _cleanName(data.recipientName);
@@ -475,9 +497,17 @@ function _scheduleSafetyFollowup(data) {
     return _json({ success: false, error: 'invalid safety follow-up schedule' });
   }
 
+  // The lock keeps _cleanupSpentTriggers (here or in a due run) from deleting this new
+  // trigger in the moment before its job is written.
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) {
+    return _json({ success: false, error: 'could not schedule safety follow-up' });
+  }
   var jobId = Utilities.getUuid();
   var trigger;
   try {
+    // Apps Script allows 20 triggers per script; fired one-off triggers still count.
+    _cleanupSpentTriggers();
     trigger = ScriptApp.newTrigger('_sendDueSafetyFollowups').timeBased().at(sendAt).create();
     PropertiesService.getScriptProperties().setProperty(
       _FOLLOWUP_PREFIX + jobId,
@@ -485,6 +515,7 @@ function _scheduleSafetyFollowup(data) {
         email: email,
         recipientName: name,
         language: _lang(data.language),
+        lesson: _cleanLesson(data.lesson),
         sendAt: sendAt.toISOString(),
         attempts: 0,
         triggerId: trigger.getUniqueId()
@@ -495,6 +526,8 @@ function _scheduleSafetyFollowup(data) {
     PropertiesService.getScriptProperties().deleteProperty(_FOLLOWUP_PREFIX + jobId);
     console.error('follow-up schedule failed: ' + err);
     return _json({ success: false, error: 'could not schedule safety follow-up' });
+  } finally {
+    lock.releaseLock();
   }
   return _json({ success: true, scheduled: true, jobId: jobId, sendAt: sendAt.toISOString() });
 }
@@ -542,7 +575,7 @@ function _sendDueSafetyFollowups() {
       try {
         var job = JSON.parse(all[key]);
         if (new Date(job.sendAt).getTime() > now) continue;
-        _sendSafetyFollowup(job.email, job.recipientName, job.language);
+        _sendSafetyFollowup(job.email, job.recipientName, job.language, job.lesson);
         properties.deleteProperty(key);
       } catch (err) {
         console.error('safety follow-up attempt failed: ' + err);
@@ -560,18 +593,105 @@ function _sendDueSafetyFollowups() {
         }
       }
     }
+    _cleanupSpentTriggers();
   } finally {
     lock.releaseLock();
   }
 }
 
-function _sendSafetyFollowup(email, name, language) {
+/**
+ * Deletes follow-up triggers no pending job points at: ones that already fired, and
+ * leftovers from failed schedules. A time-based trigger stays in the project after it
+ * runs, and Apps Script refuses new triggers past 20, which would block every drill.
+ * Call with the script lock held. Also safe to run by hand from the editor.
+ */
+function _cleanupSpentTriggers() {
+  var all = PropertiesService.getScriptProperties().getProperties();
+  var live = {};
+  for (var key in all) {
+    if (key.indexOf(_FOLLOWUP_PREFIX) !== 0) continue;
+    try {
+      var triggerId = JSON.parse(all[key]).triggerId;
+      if (triggerId) live[triggerId] = true;
+    } catch (err) {
+      // An unreadable job keeps nothing alive; it is left for operator recovery.
+    }
+  }
+  var triggers = ScriptApp.getProjectTriggers();
+  var removed = 0;
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() !== '_sendDueSafetyFollowups') continue;
+    if (live[triggers[i].getUniqueId()]) continue;
+    ScriptApp.deleteTrigger(triggers[i]);
+    removed++;
+  }
+  return removed;
+}
+
+function _sendSafetyFollowup(email, name, language, lesson) {
   var lang = _lang(language);
   var text = _text(lang);
   var greeting = _greeting(lang, name);
   var body = greeting + '\n\n' + text.followupBody;
   var html = '<p>' + _escapeHtml(greeting) + '</p><p>' + _escapeHtml(text.followupBody) + '</p>';
+  lesson = _cleanLesson(lesson);
+  if (lesson) {
+    body += '\n\n' + text.lessonIntro + (lesson.scamName ? ' ' + lesson.scamName : '');
+    html += '<p>' + _escapeHtml(text.lessonIntro)
+      + (lesson.scamName ? ' <strong>' + _escapeHtml(lesson.scamName) + '</strong>' : '') + '</p>';
+    if (lesson.redFlags.length) {
+      body += '\n\n' + text.lessonFlags + '\n- ' + lesson.redFlags.join('\n- ');
+      html += '<p>' + _escapeHtml(text.lessonFlags) + '</p><ul>'
+        + lesson.redFlags.map(function (flag) { return '<li>' + _escapeHtml(flag) + '</li>'; }).join('')
+        + '</ul>';
+    }
+    if (lesson.advice) {
+      body += '\n\n' + text.lessonAdvice + ' ' + lesson.advice;
+      html += '<p>' + _escapeHtml(text.lessonAdvice) + ' ' + _escapeHtml(lesson.advice) + '</p>';
+    }
+  }
   _sendMail(email, text.followupSubject, body, html, 'SafeSpace');
+}
+
+/**
+ * Generated drill copy (server/email-writer.js): plain text only, re-checked here.
+ * Anything with markup, a link, an email address or a phone number is refused.
+ */
+function _cleanContent(value) {
+  if (!value || typeof value !== 'object') return null;
+  var bad = /[<>]|https?:\/\/|www\.|[^\s@]+@[^\s@]+\.[^\s@]+|\+?\d[\d\s-]{6,}\d|safespace/i;
+  var field = function (v, max) {
+    var s = typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : '';
+    return s && s.length <= max && !bad.test(s) ? s : '';
+  };
+  var paragraphs = Array.isArray(value.paragraphs) && value.paragraphs.length === 2
+    ? value.paragraphs.map(function (p) { return field(p, 400); })
+    : [];
+  var content = {
+    sender: field(value.sender, 40),
+    subject: field(value.subject, 100),
+    paragraphs: paragraphs,
+    action: field(value.action, 30)
+  };
+  if (!content.sender || !content.subject || !content.action
+    || paragraphs.length !== 2 || !paragraphs[0] || !paragraphs[1]) return null;
+  return content;
+}
+
+/**
+ * The real scam behind a drill (server/scam-variants.js): plain text only, re-checked
+ * here because it originates in AI-extracted bulletins. Lines with links are dropped.
+ */
+function _cleanLesson(value) {
+  if (!value || typeof value !== 'object') return null;
+  var line = function (v) {
+    var s = typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, 240) : '';
+    return s && !/https?:\/\/|www\./i.test(s) ? s : '';
+  };
+  var flags = Array.isArray(value.redFlags) ? value.redFlags.map(line).filter(Boolean).slice(0, 4) : [];
+  var advice = line(value.advice);
+  if (!flags.length && !advice) return null;
+  return { scamName: line(value.scamName), redFlags: flags, advice: advice };
 }
 
 function _sendMail(to, subject, body, html, fromName) {

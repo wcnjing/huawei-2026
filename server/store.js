@@ -210,12 +210,13 @@ async function readResult(tx, id) {
 
 /** After a scored result commits, let Pixi celebrate a win or guide the house after a
  * loss. Distress off-ramps (SAFE) and unscored results are not announced. */
-async function announceScored(record) {
+async function announceScored(record, { scamVariantId = null } = {}) {
   if (!['WON', 'LOST'].includes(record?.result)) return;
   await announcePixiDrillOutcome(record.userId, `drill:${record.id}`, {
     channel: record.channel,
     won: record.result === 'WON',
     outcome: record.outcome,
+    scamVariantId,
   });
 }
 
@@ -504,9 +505,13 @@ export async function getRecentDrillAttempt({ userId, channel = 'call', since = 
   return publicAttempt(attemptFromRow(rows[0]));
 }
 
-export async function markDrillAttemptSent(attemptId, { providerId = null } = {}) {
+export async function markDrillAttemptSent(attemptId, {
+  providerId = null, scenarioId = null, scamVariantId = null,
+} = {}) {
   if (!attemptId) throw new Error('attemptId is required');
   const cleanProviderId = String(providerId || '').trim() || null;
+  const cleanScenarioId = String(scenarioId || '').trim().slice(0, 40) || null;
+  const cleanVariantId = String(scamVariantId || '').trim().slice(0, 64) || null;
   const sentAt = new Date().toISOString();
   return transaction(async (tx) => {
     const attempt = await lockAttempt(tx, attemptId);
@@ -526,10 +531,11 @@ export async function markDrillAttemptSent(attemptId, { providerId = null } = {}
     }
     const { rows } = await tx.query(
       `update safespace.drill_attempts
-          set status = 'sent', provider_id = coalesce($2, provider_id), sent_at = coalesce(sent_at, $3)
+          set status = 'sent', provider_id = coalesce($2, provider_id), sent_at = coalesce(sent_at, $3),
+              scenario_id = coalesce(scenario_id, $4), scam_variant_id = coalesce(scam_variant_id, $5)
         where id = $1
         returning *`,
-      [attempt.id, cleanProviderId, sentAt],
+      [attempt.id, cleanProviderId, sentAt, cleanScenarioId, cleanVariantId],
     );
     return publicAttempt(attemptFromRow(rows[0]));
   }, 'markDrillAttemptSent');
@@ -666,7 +672,9 @@ export async function completeDrillAttempt({
       user,
     };
   }, 'completeDrillAttempt');
-  if (finished.status === 'completed') await announceScored(finished.record);
+  if (finished.status === 'completed') {
+    await announceScored(finished.record, { scamVariantId: finished.attempt?.scamVariantId });
+  }
   return finished;
 }
 

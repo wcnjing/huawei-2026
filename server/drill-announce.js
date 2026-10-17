@@ -4,17 +4,25 @@
 import { query } from './db.js';
 import { cleanFamilyTree, familyTreeFromLinks } from './family-rules.js';
 import { pixiWriterConfigured, writePixiMessages } from './pixi-writer.js';
+import { getLessonByVariantId } from './scam-variants.js';
 
 export const DRILL_SCAMMED_TEXT = 'got caught out by a drill';
 
 const CHANNEL_NAMES = { call: 'call', sms: 'text', email: 'email', solo: 'individual' };
 
 /** The fixed lines, used when OpenAI is off or its reply can't be used. */
-export function templatePixiMessages({ channel, won } = {}) {
+export function templatePixiMessages({ channel, won, lesson = null } = {}) {
   const channelName = CHANNEL_NAMES[channel] ?? 'practice';
   const announcement = won
     ? `🎉 Great work spotting the scam in the ${channelName} drill. You paused before clicking or sharing.`
     : `💛 You got caught by the ${channelName} drill. That's what practice is for. There is no shame. We learn together.`;
+  const redFlag = lesson?.redFlags?.[0];
+  if (redFlag) {
+    const guidance = won
+      ? `Pixi asks: did you spot this one? Real scams like it often show this sign: ${redFlag}`
+      : `Pixi tip: real scams like this one often show this sign: ${redFlag}`;
+    return [announcement, guidance];
+  }
   const guidance = won
     ? 'Pixi asks: what clue helped you spot it? Share one with the family so we can all stay sharp.'
     : channel === 'call'
@@ -103,13 +111,16 @@ async function writtenMessages(userId, key, drill) {
  * serverless function is frozen once it responds; the writer's timeout bounds the wait.
  * `outcome` is the xp.js outcome and `run` the house quiz counts, both optional.
  */
-export async function announcePixiDrillOutcome(userId, key, { channel, won, outcome = null, run = null } = {}) {
-  const written = await writtenMessages(userId, key, { channel, won, outcome, run });
+export async function announcePixiDrillOutcome(userId, key, {
+  channel, won, outcome = null, run = null, scamVariantId = null,
+} = {}) {
+  // The real scam variant the drill email was written from (scam-variants.js), or null.
+  const lesson = scamVariantId ? await getLessonByVariantId(scamVariantId) : null;
+  const written = await writtenMessages(userId, key, { channel, won, outcome, run, lesson });
   // The insert runs both lines through format() for the template's %s, so a % the model
-  // wrote has to be escaped to survive it.
-  const [announcement, guidance] = written
-    ? written.map((line) => line.replace(/%/g, '%%'))
-    : templatePixiMessages({ channel, won });
+  // wrote, or a bulletin's red flag, has to be escaped to survive it.
+  const [announcement, guidance] = (written ?? templatePixiMessages({ channel, won, lesson }))
+    .map((line) => line.replace(/%/g, '%%'));
 
   try {
     const { rows } = await query(
