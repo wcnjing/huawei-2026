@@ -1,6 +1,10 @@
 HOW TO ADD YOUR OWN DRILL IMAGES
 ================================
 
+RULE: only use images that show FICTIONAL organisations. Screenshots with a
+real bank, company or government agency's name or logo must not be used
+(images/_removed/ holds one that was taken out for this reason).
+
 1. Put pictures whose correct answer is "Scam"  into  images/scam/
 2. Put pictures whose correct answer is "Legit" into  images/legit/
    (Accepted types: .png .jpg .jpeg .webp)

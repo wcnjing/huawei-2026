@@ -14,6 +14,9 @@ Usage:
     python fetch_scam_images.py --max 8    # limit how many advisories to scan
 
 Notes:
+  - WARNING: these are real screenshots, so they usually show REAL bank, courier
+    or agency names. SafeSpace drills must only use fictional organisations, so
+    do not put downloaded images in images/scam/ unless the real names are removed.
   - Run this on your own machine (it needs normal internet access).
   - It only downloads from police.gov.sg. Review images/scam/ afterwards and
     delete anything that isn't actually a scam screenshot (advisory pages

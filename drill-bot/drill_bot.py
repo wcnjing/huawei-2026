@@ -10,7 +10,8 @@ or Legit; the bot then explains the tell.
   - Flags a real message -> counted as a false alarm.
 
 No real personal data is ever requested or stored, and no scam content is
-AI-generated — drills come from a curated real-scam list and your own images.
+AI-generated — drills come from content/drills.json (modelled on real Singapore
+scams, with fictional organisation names) and your own images.
 
 Setup:
   1. pip install -r requirements.txt
@@ -36,16 +37,19 @@ import json
 import logging
 import os
 import random
+import re
 import ssl
 import sys
 import time
 import urllib.request
 import uuid
+from html import escape
 from html.parser import HTMLParser
 from io import BytesIO
 from pathlib import Path
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.constants import ParseMode
 from telegram.error import BadRequest, Forbidden
 from telegram.ext import (
     Application,
@@ -108,6 +112,12 @@ CHATS_FILE = DATA_DIR / "known_chats.json"
 WELCOMED_FILE = DATA_DIR / "welcomed_chats.json"
 DRILLS_FILE = DATA_DIR / "active_drills.json"
 SCHEDULE_FILE = DATA_DIR / "schedule.json"
+
+# Scam intelligence (SPF bulletins) read from the SafeSpace Supabase project.
+# Optional: without SUPABASE_URL/SUPABASE_KEY the bot behaves exactly as before.
+import scam_intel  # noqa: E402  (imported after .env is loaded)
+
+scam_intel.configure(DATA_DIR)
 
 # Drop your own real scam / legit screenshots in here to use them as drills:
 #   images/scam/   -> pictures whose correct answer is "Scam"
@@ -264,243 +274,85 @@ def get_entry(user) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Drill scenarios — modelled on REAL scams documented by the Singapore Police
-# Force, ScamShield and scamalert.sg (fake links replaced with harmless
-# *.example.* placeholders). Each has "is_scam": True/False; "reason" explains
-# the tell and cites what the real organisation says it will never do.
+# Drill content lives in content/drills.json - edit it there, not here. Drills
+# are modelled on real Singapore scams, but every organisation in them is
+# FICTIONAL (run check_content.py after editing). Links are .example placeholders.
 # ---------------------------------------------------------------------------
-SCENARIOS = [
-    # ---- REAL SCAMS ----
-    {
-        # OCBC SMS-spoofing smishing wave (SPF/OCBC, 2021–): 790+ victims, ~$13.7m.
-        "is_scam": True,
-        "text": (
-            "OCBC Bank: Dear Customer, an unrecognised device has accessed your "
-            "account. For your security it will be frozen within 12 hours. Kindly "
-            "re-verify immediately to keep it active: "
-            "https://ocbc.com-verify-sg.example.net"
-        ),
-        "reason": (
-            "Based on the real OCBC smishing wave. OCBC has stated it will NEVER "
-            "SMS you a link to reactivate an account — account issues are sent by "
-            "physical letter. Spoofing makes it appear under the 'OCBC' sender ID."
-        ),
-    },
-    {
-        # SingPost parcel phishing (SPF advisories 2023–2026): $1m+ lost.
-        "is_scam": True,
-        "text": (
-            "[SingPost] Your parcel (SP83941SG) is on hold due to an invalid "
-            "postal code. Kindly update your address within 24 hours or it will "
-            "be returned to sender: https://singpost.redelivery-sg.example.net"
-        ),
-        "reason": (
-            "The real SingPost parcel scam. SingPost SMSes come from the sender "
-            "ID 'SingPost' and NEVER contain clickable links or ask for payment/"
-            "bank details. The link leads to a page harvesting your OTP."
-        ),
-    },
-    {
-        # Government-official impersonation (scamalert.sg / SPF): the top scam type.
-        "is_scam": True,
-        "text": (
-            "[Automated Call] This is the Monetary Authority of Singapore. Your "
-            "bank account has been flagged for involvement in money laundering. "
-            "To avoid immediate arrest, press 1 now to speak to our officer and "
-            "transfer your funds to a secured account for verification."
-        ),
-        "reason": (
-            "Classic government-official impersonation. Real authorities (MAS, "
-            "police, IRAS) NEVER call to demand transfers to a 'safety account' "
-            "or ask for banking details. No agency handles cases this way."
-        ),
-    },
-    {
-        # 'Fake friend / relative' call (scamalert.sg): "new number, send money".
-        "is_scam": True,
-        "text": (
-            "Hi, I've changed my number, pls save this as my new contact 🙂 "
-            "Are you free now? I need a small favour but I can't call, I'm in a "
-            "meeting. Can you help me PayNow $800 first? I'll return it to you "
-            "tonight, thanks so much!"
-        ),
-        "reason": (
-            "The real 'fake friend/relative' scam. The tells: a 'new number', "
-            "urgency, and a money request they can't discuss by call. Always "
-            "verify by calling the person's known number first."
-        ),
-    },
-    {
-        # Fake lucky-draw / prize (scamalert.sg: +966 'Starhub' $50k draw).
-        "is_scam": True,
-        "text": (
-            "CONGRATULATIONS!! 🎉 Your mobile number has been selected as a "
-            "winner in the StarHub 25th Anniversary Lucky Draw — S$50,000 CASH! "
-            "To claim your prize, WhatsApp our agent at +60 11-2xxx xxxx and quote "
-            "reference no: SH2026-7788."
-        ),
-        "reason": (
-            "A real reported prize scam. You can't win a draw you never entered, "
-            "and no legitimate prize needs an upfront 'processing fee' or your "
-            "bank details. Foreign (+xx) numbers claiming local brands are a flag."
-        ),
-    },
-    {
-        # Bulk-purchase-order / business impersonation (scamalert.sg: 'Hwa Chong').
-        "is_scam": True,
-        "text": (
-            "Good day, I am Mr Tan, a teacher from Hwa Chong Institution. Our "
-            "school is doing a bulk purchase and your company was recommended to "
-            "us. Kindly help to order the items from our appointed supplier first "
-            "— we will reimburse you together with the school's purchase order "
-            "after delivery."
-        ),
-        "reason": (
-            "The real bulk-purchase-order scam hitting SME suppliers. The tell: a "
-            "'staff member' asks you to pay a third-party supplier upfront for "
-            "reimbursement later. Verify by calling the institution directly."
-        ),
-    },
-    {
-        # Job / task scam (SPF: among top scam types by volume).
-        "is_scam": True,
-        "text": (
-            "Hi, I'm Jamie from HR Recruitment 🌟 We are hiring part-timers! "
-            "Just like & follow merchants on YouTube/Shopee from your phone. Earn "
-            "$80–$300 daily, paid same day, no experience needed. Interested? Add "
-            "my WhatsApp to start: wa.me/6591xxxxxx"
-        ),
-        "reason": (
-            "The real job/task scam. 'Top up to unlock commissions' is the hook — "
-            "early small payouts build trust, then larger 'top-ups' vanish. Real "
-            "employers pay you and never ask you to deposit first."
-        ),
-    },
-    {
-        # Real fake GSTV voucher post (Telegram, 2026) — debunked by MOF/gov.sg.
-        "is_scam": True,
-        "text": (
-            "📢 PSA: GST Voucher (GSTV) for Singaporeans\n\n"
-            "GSTV – Cash payments of $850 up to $1,000 will be disbursed "
-            "starting 14 July 2026 to help with daily living expenses.\n\n"
-            "🔍 Check your eligibility and find out more at: dub.sh/gstv-claim"
-        ),
-        "reason": (
-            "The real fake-GSTV post that circulated on Telegram. Red flags: the "
-            "amount is inflated (actual GSTV–Cash is up to $850, credited Aug "
-            "2026), and gov.sg NEVER sends a link to 'claim' — the 'dub.sh' link "
-            "is not a government domain. As the saying goes: the Govt doesn't "
-            "Telegram you. Verify only at govbenefits.gov.sg with Singpass."
-        ),
-    },
-    # ---- CURRENTLY TRENDING (SPF / ScamShield advisories, July 2026) ----
-    {
-        # SPF advisory 15 Jul 2026: courier-impersonation phishing (43+ cases).
-        "is_scam": True,
-        "text": (
-            "[J&T Express] Your parcel SG20260716 could not be delivered due to "
-            "an incomplete address. Update your details within 24h to reschedule: "
-            "jnt-redelivery.example.top"
-        ),
-        "reason": (
-            "SPF's current courier-phishing wave. Real couriers don't send links "
-            "asking you to 'confirm' an address and card details, and the domain "
-            "isn't the official one. Track parcels only in the courier's own app."
-        ),
-    },
-    {
-        # SPF advisory 1 Jul 2026: crypto 'permit signature' wallet-drain scam.
-        "is_scam": True,
-        "text": (
-            "🎁 Congratulations! You're eligible for a 5,000 USDT airdrop. "
-            "Connect your wallet and sign to claim before it expires: "
-            "usdt-airdrop-claim.example.app"
-        ),
-        "reason": (
-            "SPF's current crypto scam. The 'signature' is a permit that pre-"
-            "authorises the scammer to move funds from your wallet later. Never "
-            "sign a wallet request you didn't start; unsolicited airdrops are bait."
-        ),
-    },
-    {
-        # SPF advisory 2 Jul 2026: tech-support scam (Microsoft / Crypto.com).
-        "is_scam": True,
-        "text": (
-            "⚠️ MICROSOFT SECURITY ALERT\n\n"
-            "Your PC is infected with a trojan and your data is at risk. Do NOT "
-            "shut down. Call Microsoft Support now: +65 8000 0000 (Error 0x8007)."
-        ),
-        "reason": (
-            "SPF's current tech-support scam. Microsoft and Crypto.com never put "
-            "a phone number in a pop-up or ask to remote into your device. Any "
-            "unsolicited 'support' contact is a scam — close the page."
-        ),
-    },
-    {
-        # Government-official impersonation via Google Meet (2026 variant).
-        "is_scam": True,
-        "text": (
-            "This is Officer Tan from the Singapore Police Force. Your bank "
-            "account is linked to a money-laundering investigation. Join this "
-            "Google Meet to verify your identity, and do not tell anyone."
-        ),
-        "reason": (
-            "The current police-impersonation variant. Real officers never "
-            "investigate over Google Meet/WhatsApp, never swear you to secrecy, "
-            "and never ask you to move money to a 'safety account'. Hang up and "
-            "call 1799 to check."
-        ),
-    },
-    # ---- LEGIT (should be trusted) ----
-    {
-        "is_scam": False,
-        "text": (
-            "OCBC: A login to OCBC Digital was made from a new device at 9:14pm. "
-            "If this wasn't you, call the number on the back of your card. We "
-            "will never ask for your PIN, OTP or password."
-        ),
-        "reason": (
-            "How a genuine bank alert reads: it asks for NOTHING, tells you to "
-            "use the number on your card (not a link), and states it will never "
-            "request your PIN/OTP. Matches OCBC's real security guidance. Safe."
-        ),
-    },
-    {
-        "is_scam": False,
-        "text": (
-            "SingPost: Your parcel SG123456789SG is out for delivery today, "
-            "arriving 2–6pm. No action required. Track it in the SingPost app."
-        ),
-        "reason": (
-            "A real SingPost update: it comes with no clickable link, asks for no "
-            "payment or details, and points to the official app — exactly what "
-            "SingPost says its genuine messages look like. Safe."
-        ),
-    },
-    {
-        "is_scam": False,
-        "text": (
-            "Reminder from your dentist: appointment on Fri 24 Jul at 3:30pm. "
-            "Reply Y to confirm or call 6123 4567 to reschedule."
-        ),
-        "reason": (
-            "An ordinary appointment reminder — no money, no credentials, a "
-            "normal callback number. Safe, legitimate message."
-        ),
-    },
-    {
-        "is_scam": False,
-        "text": (
-            "gov.sg: GST Voucher 2026 has been credited to eligible Singaporeans. "
-            "Check your eligibility at the official portal go.gov.sg/gstv using "
-            "Singpass. We never ask for your bank OTP."
-        ),
-        "reason": (
-            "A genuine government payout notice: an official gov.sg address, "
-            "Singpass login, automatic credit, no urgency and no OTP request. Safe."
-        ),
-    },
+CONTENT_FILE = Path(
+    os.getenv("BOT_CONTENT_FILE") or Path(__file__).with_name("content") / "drills.json"
+)
+
+
+def load_drill_content(path: Path) -> dict:
+    """Read and sanity-check drills.json. Exits with a clear message if broken."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        sys.exit(f"Could not read drill content from {path}: {e}")
+    scenarios = data.get("scenarios") if isinstance(data, dict) else None
+    if not isinstance(scenarios, list) or not scenarios:
+        sys.exit(f"{path} needs a non-empty 'scenarios' list")
+    for i, s in enumerate(scenarios, 1):
+        if not (
+            isinstance(s, dict)
+            and isinstance(s.get("is_scam"), bool)
+            and str(s.get("text", "")).strip()
+            and str(s.get("reason", "")).strip()
+        ):
+            sys.exit(f"{path}: scenario {i} needs is_scam (true/false), text and reason")
+    if not any(s["is_scam"] for s in scenarios):
+        sys.exit(f"{path}: add at least one scenario with is_scam: true")
+    return data
+
+
+_CONTENT = load_drill_content(CONTENT_FILE)
+SCENARIOS = _CONTENT["scenarios"]
+# Ordered (theme, keywords): the first theme whose keyword appears in a trending
+# headline picks the follow-up drill.
+THEME_KEYWORDS = [
+    (theme, tuple(k.lower() for k in keywords))
+    for theme, keywords in _CONTENT.get("theme_keywords", [])
 ]
+# Heading above each practice example in /trending.
+THEME_LABELS = _CONTENT.get("theme_labels") or {}
+# Used only to choose drills when Supabase and the live feed are unavailable.
+FALLBACK_TRENDING = _CONTENT.get("trending_fallback") or [
+    s["text"][:80] for s in SCENARIOS if s["is_scam"]
+]
+scam_intel.set_generic_names(_CONTENT.get("generic_names", []))
+
+# ---------------------------------------------------------------------------
+# Message formatting. Every message the bot writes uses Telegram HTML, and any
+# text from content files, Supabase or users goes through h() first.
+# ---------------------------------------------------------------------------
+HTML = ParseMode.HTML
+
+
+def h(text) -> str:
+    """Escape text for Telegram HTML."""
+    return escape(str(text or ""), quote=False)
+
+
+def format_drill(text: str, header: str = "📩 <b>New message</b>",
+                 footer: str = "<i>Scam or legit? Tap a button below.</i>") -> str:
+    """A drill shown as a quoted incoming message."""
+    parts = [header, f"<blockquote>{h(text)}</blockquote>"]
+    if footer:
+        parts.append(footer)
+    return "\n".join(parts)
+
+
+DRILL_PHOTO_CAPTION = "📢 <b>Scam or legit?</b> Tap a button below."
+
+
+def short_tip(scenario: dict) -> str:
+    """One-line takeaway for a drill: its 'tip', else the reason's first sentence."""
+    tip = str(scenario.get("tip") or "").strip()
+    if tip:
+        return tip
+    reason = " ".join(str(scenario.get("reason", "")).split())
+    return re.split(r"(?<=[.!?])\s+", reason)[0]
+
 
 # Live drills awaiting an answer: {drill_id: {"is_scam", "reason"}}. Fed-image
 # drills aren't in SCENARIOS, so their verdict + reason are kept here and the
@@ -531,6 +383,7 @@ def register_drill(scenario: dict) -> tuple:
     active_drills[drill_id] = {
         "is_scam": bool(scenario.get("is_scam", True)),
         "reason": scenario["reason"],
+        "text": scenario.get("text"),  # None for image drills
     }
     while len(active_drills) > MAX_ACTIVE_DRILLS:
         active_drills.pop(next(iter(active_drills)))
@@ -561,7 +414,7 @@ DEFAULT_SCAM_REASON = (
 )
 DEFAULT_LEGIT_REASON = (
     "This one was legitimate: no pressure, no request for sensitive details, "
-    "and it comes from an official source (e.g. a real .gov.sg site or app)."
+    "and it points you to an official website or app you can check yourself."
 )
 
 
@@ -627,21 +480,8 @@ async def generate_poster() -> dict | None:
 # ---------------------------------------------------------------------------
 # Trending scams — pulled live from a public advisory feed (e.g. scamalert.sg)
 # ---------------------------------------------------------------------------
-# If the live feed can't be reached or parsed, we still send CONCRETE, real
-# recent examples (documented by SPF / scamalert.sg). A random handful is shown
-# each time so the alert isn't repetitive.
-FALLBACK_TRENDING = [
-    "Bank “account frozen / verify now” SMS (OCBC, DBS, UOB lookalikes)",
-    "Parcel “update your address” phishing (SingPost, J&T, DHL)",
-    "Police / MAS impersonation — “your account is in a money-laundering case”",
-    "Fake friend / family — “I changed my number, PayNow me first”",
-    "“You’ve won” lucky-draw prizes (StarHub, Singtel, Shopee)",
-    "Job “like & earn” task scams — top up to unlock commissions",
-    "Fake GST Voucher / govt-payout posts with a “claim” link",
-    "Crypto “airdrop — sign to claim” wallet-drain scams",
-    "Fake tech-support pop-ups — Microsoft / Crypto.com “virus” warning",
-    "Investment groups promising guaranteed daily returns",
-]
+# If the live feed can't be reached or parsed, FALLBACK_TRENDING (from
+# content/drills.json) is used to choose which drills to show.
 
 
 class _StoryExtractor(HTMLParser):
@@ -723,43 +563,14 @@ def fetch_trending_scams(limit: int = 5) -> list:
     return random.sample(FALLBACK_TRENDING, min(limit, len(FALLBACK_TRENDING)))
 
 
-# Map keywords in a trending headline to a drill that replicates that pattern.
-# (headline trigger keywords, unique phrases identifying the matching drill).
-# Target phrases are chosen to appear in exactly one scenario for precise mapping.
-_THEME_KEYWORDS = [
-    (("impersonat", "official", "police", "govern", "iras", "cpf", "mas",
-      "ocbc", "dbs", "uob", "bank", "laundering", "arrest", "google meet"),
-     ("has been frozen", "money laundering", "safety account", "google meet")),
-    (("won", "win", "lucky", "prize", "gift", "draw", "reward"),
-     ("you've won", "lucky draw")),
-    (("friend", "relative", "cousin", "family", "mum", "mother", "kidnap", "son"),
-     ("changed my number", "lost my phone")),
-    (("job", "task", "part-time", "commission", "recruit", "hiring"),
-     ("app-rating", "top up to unlock")),
-    (("gstv", "gst voucher", "voucher", "payout", "cdc", "cost of living",
-      "handout", "rebate"),
-     ("gst voucher", "gstv", "dub.sh")),
-    (("bulk", "supplier", "purchase order", "quotation", "business order"),
-     ("hwa chong", "appointed supplier", "quotation")),
-    (("parcel", "delivery", "package", "courier", "shipment", "j&t", "jnt"),
-     ("could not be delivered", "singpost", "reschedule")),
-    # Tech-support BEFORE crypto: a tech-support line may mention "Crypto.com".
-    (("tech support", "technical support", "microsoft", "crypto.com",
-      "virus", "trojan", "malware", "pop-up", "pop up"),
-     ("microsoft security alert", "trojan")),
-    (("crypto ", "bitcoin", "usdt", "airdrop", "wallet", "permit", "web3", "token"),
-     ("usdt airdrop", "connect your wallet")),
-]
-
-
 def pick_drill_for_theme(headline: str) -> dict:
     """Return a scam scenario that best matches a trending headline, so the
     follow-up drill replicates the scam users were just warned about."""
     scams = [s for s in SCENARIOS if s.get("is_scam")]
-    low = headline.lower()
-    for triggers, targets in _THEME_KEYWORDS:
-        if any(t in low for t in triggers):
-            matches = [s for s in scams if any(t in s["text"].lower() for t in targets)]
+    low = f" {headline.lower()} "
+    for theme, keywords in THEME_KEYWORDS:
+        if any(k in low for k in keywords):
+            matches = [s for s in scams if s.get("theme") == theme]
             if matches:
                 return random.choice(matches)
     return random.choice(scams)
@@ -769,7 +580,12 @@ def trending_real_scams(n: int = 3) -> list:
     """Map the current trending headlines to their ACTUAL scam messages, so the
     alert shows the real thing (deduped). Returns up to n scenario dicts."""
     picked, seen = [], set()
-    for h in fetch_trending_scams(limit=8):
+    # Prefer what the latest official SPF bulletin (from Supabase) warns about;
+    # top up from the scamalert.sg headlines if the bulletin has too few scams.
+    headlines = scam_intel.trending_headlines()
+    if len(headlines) < n:
+        headlines += fetch_trending_scams(limit=8)
+    for h in headlines:
         s = pick_drill_for_theme(h)
         key = s["text"][:50]
         if key not in seen:
@@ -780,17 +596,25 @@ def trending_real_scams(n: int = 3) -> list:
     return picked
 
 
+def bulletin_summary() -> str | None:
+    """'What the latest SPF Scam Bulletin warns about', or None without data."""
+    b = scam_intel.latest_bulletin()
+    return scam_intel.format_bulletin_summary(b) if b else None
+
+
 def format_trending_scams(scams: list) -> str:
-    """Build the alert text: real scam messages, each with its tell."""
+    """Practice copies of the scams going around, each with a one-line tip (HTML)."""
     parts = [
-        "🚨 Scam messages going around Singapore right now",
-        "(these are simulated copies for practice — the links are fake, "
-        "never tap them)",
+        "🎯 <b>What these scams look like</b>\n"
+        "<i>Practice copies. The links are fake, so don't tap them.</i>"
     ]
-    for s in scams:
-        parts.append("━━━━━━━━━━━━━━")
-        parts.append(s["text"])
-        parts.append(f"🔎 {s['reason']}")
+    for i, s in enumerate(scams, 1):
+        label = THEME_LABELS.get(s.get("theme"), "Example")
+        parts.append(f"<b>{i}. {h(label)}</b>\n<blockquote>{h(s['text'])}</blockquote>\n🔎 {h(short_tip(s))}")
+    parts.append(
+        "🛡 <i>Rule of thumb: no real bank, agency or boss rushes you to pay, "
+        "share an OTP or move money. Pause and check.</i>"
+    )
     return "\n\n".join(parts)
 
 
@@ -820,15 +644,11 @@ async def send_trending_alert(context: ContextTypes.DEFAULT_TYPE):
     mark_job_ran("trending_alert")
     if not known_chats:
         return
-    scams = trending_real_scams(3)
+    summary = await asyncio.to_thread(bulletin_summary)
+    scams = await asyncio.to_thread(trending_real_scams, 3)
     if not scams:
         return
     alert = format_trending_scams(scams)
-    tip = (
-        "🛡 Rule of thumb: no real bank, agency or boss rushes you to pay, share "
-        "an OTP, or move money. Pause and check.\n\n"
-        "👇 Now try one yourself — is this a scam?"
-    )
     images = scam_images(2)
     drill = trending_drill_scenario(scams)
     drill.setdefault("is_scam", True)
@@ -836,15 +656,18 @@ async def send_trending_alert(context: ContextTypes.DEFAULT_TYPE):
 
     for chat_id in list(known_chats):
         try:
-            await context.bot.send_message(chat_id=chat_id, text=alert)
+            if summary:
+                await context.bot.send_message(chat_id=chat_id, text=summary, parse_mode=HTML)
+            await context.bot.send_message(chat_id=chat_id, text=alert, parse_mode=HTML)
             for img in images:
                 await context.bot.send_photo(
-                    chat_id=chat_id, photo=BytesIO(img),
-                    caption="📸 A real scam screenshot circulating now.",
+                    chat_id=chat_id, photo=BytesIO(img), caption="📸 Example scam screenshot",
                 )
-            await context.bot.send_message(chat_id=chat_id, text=tip)
             await context.bot.send_message(
-                chat_id=chat_id, text=drill["text"], reply_markup=keyboard
+                chat_id=chat_id,
+                text=format_drill(drill["text"], header="🧪 <b>Your turn: scam or legit?</b>",
+                                  footer=""),
+                parse_mode=HTML, reply_markup=keyboard,
             )
         except Exception as exc:
             drop_chat_if_gone(chat_id, exc)
@@ -857,19 +680,32 @@ async def send_trending_alert(context: ContextTypes.DEFAULT_TYPE):
 
 
 WELCOME_TEXT = (
-    "👋 Welcome to SafeSpace Drill Mode!\n\n"
-    "I'll send you realistic (but harmless) messages and posters — some are "
-    "scams, some are perfectly genuine. Your job: tell them apart. Nothing "
-    "here is real, and I never ask for real personal info. Use the commands "
-    "below whenever you want to practice.\n\n"
-    "Commands:\n"
-    "/drill - get a random drill right now\n"
-    "/simulate - live scam role-play (I play the scammer)\n"
-    "/end - stop the current simulation and get your debrief\n"
-    "/trending - this week's real trending scams\n"
-    "/stats - see your accuracy and streak\n"
-    "/leaderboard - see who's sharpest\n"
-    "/help - how it works"
+    "👋 <b>Welcome to SafeSpace Drill Mode!</b>\n\n"
+    "I'll send you realistic but harmless messages. Some are scams, some are "
+    "genuine, and your job is to tell them apart. Nothing here is real, and I'll "
+    "never ask for your personal info.\n\n"
+    "<b>Practise</b>\n"
+    "/drill · Scam or legit?\n"
+    "/simulate · Chat with a pretend scammer (/end to stop)\n\n"
+    "<b>Learn</b>\n"
+    "/trending · Scams going around now\n"
+    "/learn · How a real scam works\n\n"
+    "<b>Your progress</b>\n"
+    "/stats · Your accuracy and streak\n"
+    "/leaderboard · Who's sharpest\n"
+    "/help · How it works"
+)
+
+HELP_TEXT = (
+    "🛡 <b>How Drill Mode works</b>\n\n"
+    "<b>1.</b> Send /drill and I'll show you a message. It might be a scam, or it "
+    "might be genuine.\n"
+    "<b>2.</b> Tap 🚩 <b>Scam</b> or ✅ <b>Legit</b>.\n"
+    "<b>3.</b> I'll tell you if you were right and what gave it away.\n\n"
+    "💬 <b>Want a live chat?</b> Send /simulate and I'll play a scammer. Reply as "
+    "you would for real, and send /end anytime for your debrief.\n\n"
+    "⚖️ <i>Missing a scam is costly, but flagging a genuine message counts against "
+    "you too. Everything is simulated: no real links, payments or data.</i>"
 )
 
 
@@ -878,7 +714,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if chat_id not in known_chats:
         known_chats.add(chat_id)
         save_known_chats()
-    await update.message.reply_text(WELCOME_TEXT)
+    await update.message.reply_text(WELCOME_TEXT, parse_mode=HTML)
     if chat_id not in welcomed_chats:
         welcomed_chats.add(chat_id)
         save_welcomed_chats()
@@ -893,7 +729,7 @@ async def send_welcome_on_startup(context: ContextTypes.DEFAULT_TYPE):
     log.info("Sending the welcome to %d chat(s) that haven't had it", len(pending))
     for chat_id in pending:
         try:
-            await context.bot.send_message(chat_id=chat_id, text=WELCOME_TEXT)
+            await context.bot.send_message(chat_id=chat_id, text=WELCOME_TEXT, parse_mode=HTML)
         except Exception as exc:
             drop_chat_if_gone(chat_id, exc)
         else:
@@ -903,19 +739,7 @@ async def send_welcome_on_startup(context: ContextTypes.DEFAULT_TYPE):
 
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "🛡 How Drill Mode works:\n\n"
-        "1. Send /drill and I'll show you a message or poster — it might be a "
-        "scam, or it might be genuine.\n"
-        "2. Decide: tap 🚩 Scam or ✅ Legit.\n"
-        "3. I'll tell you if you're right and explain the tell-tale signs.\n\n"
-        "Prefer a live back-and-forth? Send /simulate and I'll role-play a "
-        "scammer — reply as you would for real, then send /end anytime to stop "
-        "and get a debrief.\n\n"
-        "Watch both ways: missing a scam is costly, but flagging a real message "
-        "(a false alarm) counts against you too. Everything is simulated — no "
-        "real links, payments or data."
-    )
+    await update.message.reply_text(HELP_TEXT, parse_mode=HTML)
 
 
 def want_poster() -> bool:
@@ -930,14 +754,16 @@ async def drill(update: Update, context: ContextTypes.DEFAULT_TYPE):
             _, keyboard = register_drill(poster)
             await update.message.reply_photo(
                 photo=BytesIO(poster["image"]),
-                caption="📢 Scam or legit? Decide below.",
+                caption=DRILL_PHOTO_CAPTION, parse_mode=HTML,
                 reply_markup=keyboard,
             )
             return
     # text drill (also the fallback if no fed images exist)
     scenario = get_scenario()
     _, keyboard = register_drill(scenario)
-    await update.message.reply_text(scenario["text"], reply_markup=keyboard)
+    await update.message.reply_text(
+        format_drill(scenario["text"]), parse_mode=HTML, reply_markup=keyboard
+    )
 
 
 async def send_scheduled_drill(context: ContextTypes.DEFAULT_TYPE):
@@ -962,13 +788,14 @@ async def send_scheduled_drill(context: ContextTypes.DEFAULT_TYPE):
                 await context.bot.send_photo(
                     chat_id=chat_id,
                     photo=BytesIO(image_bytes),
-                    caption="📢 Scam or legit? Decide below.",
+                    caption=DRILL_PHOTO_CAPTION, parse_mode=HTML,
                     reply_markup=keyboard,
                 )
             else:
                 await context.bot.send_message(
                     chat_id=chat_id,
-                    text=scenario["text"],
+                    text=format_drill(scenario["text"], header="⏰ <b>Surprise drill!</b>"),
+                    parse_mode=HTML,
                     reply_markup=keyboard,
                 )
         except Exception as exc:
@@ -996,58 +823,48 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     entry = get_entry(query.from_user)
-
-    # Poster drills are photos (caption, no text); text drills have .text.
     is_photo = bool(query.message.photo)
-    original = query.message.caption if is_photo else query.message.text
-    said_scam = action == "scam"
-    correct = said_scam == is_scam
-
-    streak_line = (
-        f"\n\n🔥 Safe streak: {entry['streak']}"
-        + (f" (best: {entry['best_streak']})" if entry["best_streak"] > entry["streak"] else "")
-    )
+    correct = (action == "scam") == is_scam
 
     if correct:
         entry["safe"] += 1
         entry["streak"] += 1
         entry["best_streak"] = max(entry["best_streak"], entry["streak"])
-        if is_scam:
-            verdict = "✅ CORRECT — this was a SIMULATED scam (nothing real)."
-        else:
-            verdict = "✅ CORRECT — this one was genuinely safe."
-        result = f"{original}\n\n{verdict}\n{reason}{streak_line}"
+        verdict = ("✅ <b>Correct!</b> This was a scam." if is_scam
+                   else "✅ <b>Correct!</b> This one was genuine.")
+        streak = f"🔥 Streak: <b>{entry['streak']}</b>"
+        if entry["best_streak"] > entry["streak"]:
+            streak += f"  ·  Best: {entry['best_streak']}"
         show_app = False
     elif is_scam:
         # Missed a scam — the costly mistake.
         entry["scammed"] += 1
         entry["streak"] = 0
-        result = (
-            f"{original}\n\n"
-            f"⚠️ You'd have been SCAMMED. This was a simulated scam — nothing "
-            f"was sent anywhere. Here's what gave it away:\n{reason}"
-        )
+        verdict = "⚠️ <b>You'd have been scammed.</b> It was only a drill, so nothing was sent."
+        streak = "🔁 Streak reset. Send /drill to try another."
         show_app = True
     else:
         # False alarm — flagged a legitimate message.
         entry["false_alarm"] += 1
         entry["streak"] = 0
-        result = (
-            f"{original}\n\n"
-            f"🟡 FALSE ALARM — this one was actually legitimate.\n{reason}\n\n"
-            f"Flagging everything means missing real messages too — the goal is "
-            f"telling them apart."
-        )
+        verdict = "🟡 <b>False alarm.</b> This one was genuine."
+        streak = "🔁 Streak reset. Flagging everything means missing real messages too."
         show_app = False
 
+    if is_photo and len(reason) > 700:  # captions max out at 1024 characters
+        reason = reason[:699].rsplit(" ", 1)[0] + "…"
+    result = f"{verdict}\n\n{h(reason)}\n\n{streak}"
     if is_photo:
-        await query.edit_message_caption(caption=result)
+        await query.edit_message_caption(caption=result, parse_mode=HTML)
     else:
-        await query.edit_message_text(result)
+        original = info.get("text") or query.message.text or ""
+        await query.edit_message_text(
+            format_drill(original, footer="") + "\n\n" + result, parse_mode=HTML
+        )
 
     if show_app:
         await query.message.reply_text(
-            "Tap below to review this drill in the SafeSpace app:",
+            "📲 Review this drill in the SafeSpace app:",
             reply_markup=InlineKeyboardMarkup(
                 [[InlineKeyboardButton("Open SafeSpace to review", url=APP_URL)]]
             ),
@@ -1065,12 +882,12 @@ async def stats_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     total = entry["safe"] + entry["scammed"] + false_alarm
     accuracy = round(100 * entry["safe"] / total) if total else 0
     await update.message.reply_text(
-        f"📊 Your drill record:\n"
-        f"✅ Correct: {entry['safe']}\n"
-        f"⚠️ Scammed (missed a scam): {entry['scammed']}\n"
-        f"🟡 False alarms (flagged a real one): {false_alarm}\n"
-        f"🎯 Accuracy: {accuracy}%\n"
-        f"🔥 Best streak: {entry['best_streak']}"
+        "📊 <b>Your drill record</b>\n\n"
+        f"✅ Correct: <b>{entry['safe']}</b>\n"
+        f"⚠️ Missed scams: <b>{entry['scammed']}</b>\n"
+        f"🟡 False alarms: <b>{false_alarm}</b>\n\n"
+        f"🎯 Accuracy: <b>{accuracy}%</b>  ·  🔥 Best streak: <b>{entry['best_streak']}</b>",
+        parse_mode=HTML,
     )
 
 
@@ -1082,30 +899,73 @@ async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     fame = sorted(stats.values(), key=lambda e: e["safe"], reverse=True)[:5]
     shame = sorted(stats.values(), key=lambda e: e["scammed"], reverse=True)[:5]
 
+    medals = ["🥇", "🥈", "🥉", "4.", "5."]
     fame_lines = "\n".join(
-        f"{i + 1}. {e['name']} — {e['safe']} safe" for i, e in enumerate(fame)
+        f"{medals[i]} {h(e['name'])} · <b>{e['safe']}</b> safe" for i, e in enumerate(fame)
     )
     shame_lines = "\n".join(
-        f"{i + 1}. {e['name']} — {e['scammed']} scammed" for i, e in enumerate(shame)
-    )
+        f"{i + 1}. {h(e['name'])} · <b>{e['scammed']}</b> scammed"
+        for i, e in enumerate(shame) if e["scammed"]
+    ) or "<i>Nobody yet. Keep it that way!</i>"
 
     await update.message.reply_text(
-        f"🏆 HALL OF FAME\n{fame_lines}\n\n💀 HALL OF SHAME\n{shame_lines}"
+        f"🏆 <b>Hall of fame</b>\n{fame_lines}\n\n💀 <b>Hall of shame</b>\n{shame_lines}",
+        parse_mode=HTML,
     )
 
 
 async def trending_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """On-demand: show the actual trending scam messages (+ images). No drill."""
-    scams = trending_real_scams(3)
+    """On-demand: the latest bulletin's scams, then practice copies (+ images)."""
+    summary = await asyncio.to_thread(bulletin_summary)
+    scams = await asyncio.to_thread(trending_real_scams, 3)
+    if summary:
+        await update.message.reply_text(summary, parse_mode=HTML)
     if not scams:
-        await update.message.reply_text("Couldn't load trending scams right now — try again shortly.")
+        if not summary:
+            await update.message.reply_text("Couldn't load trending scams right now. Try again shortly.")
         return
-    await update.message.reply_text(format_trending_scams(scams))
+    await update.message.reply_text(format_trending_scams(scams), parse_mode=HTML)
     for img in scam_images(2):
-        await update.message.reply_photo(
-            photo=BytesIO(img),
-            caption="📸 A real scam screenshot circulating now.",
+        await update.message.reply_photo(photo=BytesIO(img), caption="📸 Example scam screenshot")
+
+
+LEARN_KEYBOARD = InlineKeyboardMarkup([[
+    InlineKeyboardButton("📚 Another scam", callback_data="learn:next"),
+    InlineKeyboardButton("🎯 Try a drill", callback_data="learn:drill"),
+]])
+NO_LEARN_DATA = "No scam bulletin data is available right now. Try /trending instead."
+
+
+async def learn_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """A deep-dive card on one real scam variant from the official bulletins."""
+    card = await asyncio.to_thread(scam_intel.random_variant_card)
+    if not card:
+        await update.message.reply_text(NO_LEARN_DATA)
+        return
+    await update.message.reply_text(card, parse_mode=HTML, reply_markup=LEARN_KEYBOARD)
+
+
+async def learn_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Buttons under a /learn card: show another scam, or start a drill."""
+    query = update.callback_query
+    await query.answer()
+    # Take the buttons off the old card so the chat stays tidy.
+    try:
+        await query.edit_message_reply_markup(reply_markup=None)
+    except BadRequest:
+        pass
+    if query.data == "learn:drill":
+        scenario = get_scenario()
+        _, keyboard = register_drill(scenario)
+        await query.message.reply_text(
+            format_drill(scenario["text"]), parse_mode=HTML, reply_markup=keyboard
         )
+        return
+    card = await asyncio.to_thread(scam_intel.random_variant_card)
+    if not card:
+        await query.message.reply_text(NO_LEARN_DATA)
+        return
+    await query.message.reply_text(card, parse_mode=HTML, reply_markup=LEARN_KEYBOARD)
 
 
 async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE):
@@ -1127,6 +987,9 @@ def main():
     app.add_handler(CommandHandler("stats", stats_cmd))
     app.add_handler(CommandHandler("leaderboard", leaderboard))
     app.add_handler(CommandHandler("trending", trending_cmd))
+    app.add_handler(CommandHandler("learn", learn_cmd))
+    # /learn buttons first: the drill-answer handler below accepts any callback.
+    app.add_handler(CallbackQueryHandler(learn_button, pattern=r"^learn:"))
     app.add_handler(CallbackQueryHandler(button))
 
     # Live LLM-powered scam simulation (/simulate, /end). Optional — only active
@@ -1161,6 +1024,13 @@ def main():
         log.info("Trending alerts on: every %ds, next in %ds", TRENDING_INTERVAL_SECONDS, first)
 
     log.info("Data folder: %s", DATA_DIR)
+    n_scam = sum(1 for s in SCENARIOS if s["is_scam"])
+    log.info("Loaded %d drills (%d scam) from %s", len(SCENARIOS), n_scam, CONTENT_FILE)
+    if scam_intel.enabled():
+        log.info("Scam intel: reading SPF bulletins from Supabase (%s)", scam_intel.SUPABASE_URL)
+    else:
+        log.info("Scam intel: SUPABASE_URL/SUPABASE_KEY not set — /learn has no data, "
+                 "/trending uses scamalert.sg")
 
     fed = list_user_images()
     if fed:

@@ -1,0 +1,230 @@
+{
+  "_readme": [
+    "Content for the SafeSpace Telegram drill bot. Edit this file instead of drill_bot.py.",
+    "RULE: every organisation in a drill is FICTIONAL. Never name a real bank, company,",
+    "app, school or government agency - the same rule as the main SafeSpace app",
+    "(Meridian Bank, ParcelLink, Office of Public Trust, SkyRewards, CloudMail).",
+    "Run `python check_content.py` after editing; it fails if a real name slips in.",
+    "Each scenario: is_scam (true/false), theme (see theme_keywords), text, reason,",
+    "and for scams a short one-line tip (shown under the example in /trending).",
+    "Links must use harmless .example placeholder domains."
+  ],
+
+  "scenarios": [
+    {
+      "is_scam": true,
+      "theme": "bank",
+      "text": "Meridian Bank: Dear Customer, an unrecognised device has accessed your account. For your security it will be frozen within 12 hours. Kindly re-verify immediately to keep it active: https://meridian-verify-sg.example.net",
+      "reason": "Modelled on a real bank SMS-spoofing wave in Singapore. Banks say they will NEVER SMS you a link to reactivate an account - account problems come by letter or inside the bank's own app. Spoofed SMSes can even land in the same thread as the bank's genuine messages.",
+      "tip": "Banks never SMS you a link to unfreeze or re-verify your account."
+    },
+    {
+      "is_scam": true,
+      "theme": "parcel",
+      "text": "[ParcelLink] Your parcel (PL83941SG) is on hold due to an invalid postal code. Kindly update your address within 24 hours or it will be returned to sender: https://parcellink-redelivery.example.net",
+      "reason": "Modelled on real postal-service phishing. Genuine delivery SMSes don't contain links asking you to pay or enter card details. The link leads to a page that harvests your card number and OTP. Track parcels only in the courier's official app.",
+      "tip": "Real couriers never ask you to pay or enter card details through an SMS link."
+    },
+    {
+      "is_scam": true,
+      "theme": "government",
+      "text": "[Automated Call] This is the National Financial Authority. Your bank account has been flagged for involvement in money laundering. To avoid immediate arrest, press 1 now to speak to our officer and transfer your funds to a secured account for verification.",
+      "reason": "Classic government-official impersonation, the top scam type in Singapore. Real authorities NEVER call to demand transfers to a 'safety account' or ask for your banking details. Hang up and call the National Anti-Scam Helpline at 1799 to check.",
+      "tip": "No real authority asks you to move money to a 'safety account'."
+    },
+    {
+      "is_scam": true,
+      "theme": "friend",
+      "text": "Hi, I've changed my number, pls save this as my new contact 🙂 Are you free now? I need a small favour but I can't call, I'm in a meeting. Can you help me transfer $800 first? I'll return it to you tonight, thanks so much!",
+      "reason": "The real 'fake friend/relative' scam. The tells: a 'new number', urgency, and a money request they can't discuss by call. Always verify by calling the person's known number first.",
+      "tip": "New number + urgent money request? Call their old number first."
+    },
+    {
+      "is_scam": true,
+      "theme": "prize",
+      "text": "CONGRATULATIONS!! 🎉 Your mobile number has been selected as a winner in the SkyRewards 25th Anniversary Lucky Draw - S$50,000 CASH! To claim your prize, message our agent at +60 11-2xxx xxxx and quote reference no: SR2026-7788.",
+      "reason": "Modelled on a real reported prize scam. You can't win a draw you never entered, and no genuine prize needs an upfront 'processing fee' or your bank details. A foreign (+xx) number claiming to be a local company is another red flag.",
+      "tip": "You can't win a draw you never entered, and real prizes never charge a fee."
+    },
+    {
+      "is_scam": true,
+      "theme": "business",
+      "text": "Good day, I am Mr Tan, a teacher from Northbridge Secondary School. Our school is doing a bulk purchase and your company was recommended to us. Kindly help to order the items from our appointed supplier first - we will reimburse you together with the school's purchase order after delivery.",
+      "reason": "Modelled on the real bulk-purchase-order scam targeting small businesses. The tell: a 'staff member' asks you to pay a third-party supplier upfront and promises reimbursement later. Verify by calling the organisation on a number you look up yourself.",
+      "tip": "Paying a supplier upfront for 'reimbursement later' is the scam."
+    },
+    {
+      "is_scam": true,
+      "theme": "job",
+      "text": "Hi, I'm Jamie from HR Recruitment 🌟 We are hiring part-timers! Just like & follow merchants on shopping apps from your phone. Earn $80-$300 daily, paid same day, no experience needed. Interested? Add me on chat to start: +65 91xx xxxx",
+      "reason": "Modelled on the real job/task scam. Small early payouts build trust, then you're asked to 'top up' to unlock bigger commissions - and that money vanishes. Real employers pay you; they never ask you to deposit first.",
+      "tip": "Real jobs pay you. They never ask you to top up or deposit first."
+    },
+    {
+      "is_scam": true,
+      "theme": "payout",
+      "text": "📢 PSA: Household Support Payout for Singaporeans\n\nCash payments of $850 up to $1,000 will be disbursed starting 14 July to help with daily living expenses.\n\n🔍 Check your eligibility and find out more at: short.example/payout-claim",
+      "reason": "Modelled on a real fake government-payout post that spread on messaging apps. Red flags: an inflated amount, and a shortened link that isn't a government website. Agencies don't send links to 'claim' payouts - check only on the official government portal you look up yourself.",
+      "tip": "Government payouts are credited automatically, never claimed through a link."
+    },
+    {
+      "is_scam": true,
+      "theme": "parcel",
+      "text": "[SwiftShip Express] Your parcel SG20260716 could not be delivered due to an incomplete address. Update your details within 24h to reschedule: swiftship-redelivery.example.top",
+      "reason": "Modelled on a current courier-phishing wave. Real couriers don't send links asking you to 'confirm' your address and card details, and the domain isn't the courier's official one. Track parcels only in the courier's own app.",
+      "tip": "Not the courier's real website. Track parcels only in the official app."
+    },
+    {
+      "is_scam": true,
+      "theme": "crypto",
+      "text": "🎁 Congratulations! You're eligible for a 5,000-token airdrop. Connect your wallet and sign to claim before it expires: token-airdrop-claim.example.app",
+      "reason": "Modelled on a current crypto scam. The 'signature' is a permit that lets the scammer move funds out of your wallet later. Never sign a wallet request you didn't start; unsolicited airdrops are bait.",
+      "tip": "Never sign a wallet request you didn't start. Free airdrops are bait."
+    },
+    {
+      "is_scam": true,
+      "theme": "tech_support",
+      "text": "⚠️ SECURITY ALERT\n\nYour PC is infected with a trojan and your data is at risk. Do NOT shut down. Call Technical Support now: +65 8000 0000 (Error 0x8007).",
+      "reason": "Modelled on a current tech-support scam. Real software companies never put a phone number in a pop-up or ask to remote into your device. Any unsolicited 'support' contact is a scam - close the page.",
+      "tip": "Real tech support never puts a phone number in a pop-up."
+    },
+    {
+      "is_scam": true,
+      "theme": "government",
+      "text": "This is Inspector Tan from the Central Crime Bureau. Your bank account is linked to a money-laundering investigation. Join this video call to verify your identity, and do not tell anyone.",
+      "reason": "Modelled on the current police-impersonation variant. Real officers never investigate over video calls or chat apps, never swear you to secrecy, and never ask you to move money to a 'safety account'. Hang up and call 1799 to check.",
+      "tip": "Real officers never investigate over video call or swear you to secrecy."
+    },
+    {
+      "is_scam": false,
+      "theme": "bank",
+      "text": "Meridian Bank: A login to Meridian Digital was made from a new device at 9:14pm. If this wasn't you, call the number on the back of your card. We will never ask for your PIN, OTP or password.",
+      "reason": "How a genuine bank alert reads: it asks for NOTHING, tells you to use the number on your card (not a link), and states it will never request your PIN or OTP. Safe."
+    },
+    {
+      "is_scam": false,
+      "theme": "parcel",
+      "text": "ParcelLink: Your parcel PL123456789SG is out for delivery today, arriving 2-6pm. No action required. Track it in the ParcelLink app.",
+      "reason": "A genuine delivery update: no clickable link, no payment or details requested, and it points you to the official app. Safe."
+    },
+    {
+      "is_scam": false,
+      "theme": "other",
+      "text": "Reminder from your dentist: appointment on Fri 24 Jul at 3:30pm. Reply Y to confirm or call 6123 4567 to reschedule.",
+      "reason": "An ordinary appointment reminder - no money, no credentials, a normal callback number. Safe, legitimate message."
+    },
+    {
+      "is_scam": false,
+      "theme": "payout",
+      "text": "Office of Public Trust: The Household Support Payout has been credited to eligible households. Check your eligibility on the official government portal using your government login. We never ask for your bank OTP.",
+      "reason": "A genuine government payout notice: it points you to the official portal you log into yourself, the money is credited automatically, there's no urgency and no OTP request. Safe."
+    }
+  ],
+
+  "_theme_labels": "Short heading shown above each practice example in /trending.",
+  "theme_labels": {
+    "government": "Fake authority call",
+    "bank": "Fake bank alert",
+    "parcel": "Fake delivery SMS",
+    "friend": "Fake friend in need",
+    "prize": "Fake prize win",
+    "business": "Fake bulk order",
+    "job": "Fake job offer",
+    "payout": "Fake government payout",
+    "crypto": "Crypto airdrop",
+    "tech_support": "Fake tech support"
+  },
+
+  "_trending_fallback": "Used only to pick drills when Supabase and the live feed are both unavailable. Not shown to users.",
+  "trending_fallback": [
+    "Bank 'account frozen / verify now' SMS",
+    "Parcel 'update your address' phishing",
+    "Police / financial-authority impersonation - 'your account is in a money-laundering case'",
+    "Fake friend / family - 'I changed my number, transfer me money first'",
+    "'You've won' lucky-draw prizes",
+    "Job 'like & earn' task scams - top up to unlock commissions",
+    "Fake government-payout posts with a 'claim' link",
+    "Crypto 'airdrop - sign to claim' wallet-drain scams",
+    "Fake tech-support pop-up 'virus' warnings",
+    "Bulk purchase order from a 'school' asking you to pay a supplier first"
+  ],
+
+  "_theme_keywords": "Checked in order: the first theme whose keyword appears in a trending headline picks the follow-up drill. Matching only - never shown to users.",
+  "theme_keywords": [
+    ["government", ["impersonat", "official", "police", "govern", "authority", "laundering", "arrest", "officer", "video call"]],
+    ["prize", ["won", "win ", "lucky", "prize", "gift", "draw", "reward"]],
+    ["friend", ["friend", "relative", "cousin", "family", "mum", "mother", "kidnap", " son "]],
+    ["job", ["job", "task", "part-time", "commission", "recruit", "hiring"]],
+    ["payout", ["voucher", "payout", "cost of living", "handout", "rebate", "cash payment"]],
+    ["business", ["bulk", "supplier", "purchase order", "quotation", "business order"]],
+    ["parcel", ["parcel", "delivery", "package", "courier", "shipment"]],
+    ["tech_support", ["tech support", "technical support", "virus", "trojan", "malware", "pop-up", "pop up", "remote access"]],
+    ["crypto", ["crypto", "bitcoin", "airdrop", "wallet", "web3", "token"]],
+    ["bank", ["bank", "account frozen", "otp", "card"]]
+  ],
+
+  "_generic_names": "Real names in text that comes from outside the bot (Supabase bulletin data) are swapped for these generic terms before it reaches users. check_content.py also uses this list to keep real names out of the drills above. Each pattern is a case-sensitive regular expression matched as whole words.",
+  "generic_names": [
+    ["Monetary Authority of Singapore", "a financial regulator"],
+    ["Singapore Police Force", "the police"],
+    ["Inland Revenue Authority of Singapore", "the tax authority"],
+    ["Immigration and Checkpoints Authority", "the immigration authority"],
+    ["Ministry of [A-Z][a-z]+(?: (?:and|&) [A-Z][a-z]+)?", "a government ministry"],
+    ["CPF Board", "a government agency"],
+    ["MAS", "a financial regulator"],
+    ["SPF", "the police"],
+    ["IRAS", "the tax authority"],
+    ["ICA", "the immigration authority"],
+    ["CPF", "a government agency"],
+    ["MOM", "a government ministry"],
+    ["MOH", "a government ministry"],
+    ["MOF", "a government ministry"],
+    ["gov\\.sg", "an official government channel"],
+    ["Singpass", "a government login"],
+    ["(?:DBS |POSB )?digibank", "a bank"],
+    ["(?:UOB )?TMRW", "a bank"],
+    ["Standard Chartered", "a bank"],
+    ["DBS", "a bank"],
+    ["POSB", "a bank"],
+    ["OCBC", "a bank"],
+    ["UOB", "a bank"],
+    ["HSBC", "a bank"],
+    ["Maybank", "a bank"],
+    ["Citibank", "a bank"],
+    ["Trust Bank", "a bank"],
+    ["GXS", "a bank"],
+    ["PayNow(?= (?:a|an|the|me|you|him|her|them|someone|anyone|money)\\b)", "transfer money to"],
+    ["PayNow", "a payment app"],
+    ["PayLah!?", "a payment app"],
+    ["Singtel", "a telco"],
+    ["StarHub", "a telco"],
+    ["SingPost", "a postal service"],
+    ["Ninja ?Van", "a courier"],
+    ["J&T(?: Express)?", "a courier"],
+    ["DHL", "a courier"],
+    ["FedEx", "a courier"],
+    ["Qxpress", "a courier"],
+    ["Shopee", "an online shop"],
+    ["Lazada", "an online shop"],
+    ["Carousell", "an online marketplace"],
+    ["Amazon", "an online shop"],
+    ["Grab", "a ride-hailing app"],
+    ["Gojek", "a ride-hailing app"],
+    ["WhatsApp", "a messaging app"],
+    ["Telegram", "a messaging app"],
+    ["WeChat", "a messaging app"],
+    ["Facebook", "social media"],
+    ["Instagram", "social media"],
+    ["TikTok", "social media"],
+    ["YouTube", "a video site"],
+    ["Google Meet", "a video call"],
+    ["Zoom", "a video call"],
+    ["Microsoft", "a software company"],
+    ["Apple ID", "an account login"],
+    ["Apple(?= (?:Pay|Support|account))", "a tech company"],
+    ["Netflix", "a streaming service"],
+    ["Crypto\\.com", "a crypto exchange"],
+    ["Binance", "a crypto exchange"],
+    ["Hwa Chong(?: Institution)?", "a school"]
+  ]
+}

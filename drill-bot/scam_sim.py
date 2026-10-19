@@ -18,9 +18,11 @@ Everything is consensual role-play for anti-scam training. The scammer persona
 never uses real links, real numbers, or real payment details.
 """
 
+import json
 import logging
 import os
 import re
+from pathlib import Path
 
 from telegram import Update
 from telegram.ext import (
@@ -74,46 +76,26 @@ async def ask_llm(system: str, convo: list) -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# Scammer personas — opening line is scripted; the LLM improvises from there.
+# Scammer personas live in content/personas.json (edit them there). The opening
+# line is scripted; the LLM improvises from there. Organisations are fictional.
 # ---------------------------------------------------------------------------
-PERSONAS = [
-    {
-        "name": "Bank officer (OCBC)",
-        "goal": "get the victim to click a fake link and reveal their OTP / online-banking login.",
-        "opening": (
-            "OCBC Bank: Dear Customer, an unrecognised device has accessed your "
-            "account. It will be frozen within 12 hours. Reply here to verify and "
-            "keep it active. May I confirm — did you just log in from a new phone?"
-        ),
-    },
-    {
-        "name": "Parcel courier (SingPost)",
-        "goal": "get the victim to pay a small 'customs/redelivery fee' and enter card details on a fake page.",
-        "opening": (
-            "[SingPost] Hi, your parcel SP83941SG is on hold — the delivery "
-            "address is incomplete and there's a $2.99 redelivery fee outstanding. "
-            "Shall I send you the link to update your address and settle it?"
-        ),
-    },
-    {
-        "name": "Police / MAS officer",
-        "goal": "frighten the victim into transferring money to a 'safety account' for 'verification'.",
-        "opening": (
-            "Good afternoon, this is Officer Lim from the Anti-Money-Laundering "
-            "unit. Your bank account has been linked to a criminal case. This is "
-            "very serious. Are you alone and able to talk right now?"
-        ),
-    },
-    {
-        "name": "Job recruiter",
-        "goal": "hook the victim into a task job, then get them to 'top up' money to unlock commissions.",
-        "opening": (
-            "Hi! I'm Jamie from HR Recruitment 🌟 We saw your profile — we have a "
-            "part-time online job, $80–$300/day just liking merchants on Shopee. "
-            "Very easy, paid daily. Would you like to try a few free tasks first?"
-        ),
-    },
-]
+PERSONAS_FILE = Path(__file__).with_name("content") / "personas.json"
+
+
+def load_personas() -> list:
+    try:
+        data = json.loads(PERSONAS_FILE.read_text(encoding="utf-8"))
+        personas = [p for p in data.get("personas", [])
+                    if all(str(p.get(k, "")).strip() for k in ("name", "goal", "opening"))]
+    except (OSError, ValueError, AttributeError) as e:
+        log.warning("Could not read %s (%s) - /simulate is unavailable", PERSONAS_FILE, e)
+        return []
+    if not personas:
+        log.warning("%s has no complete personas - /simulate is unavailable", PERSONAS_FILE)
+    return personas
+
+
+PERSONAS = load_personas()
 
 SCAMMER_SYSTEM = (
     "You are role-playing a SCAMMER inside a CONSENSUAL anti-scam TRAINING drill "
@@ -122,10 +104,13 @@ SCAMMER_SYSTEM = (
     "Behave like a real scammer: be friendly then urgent, invoke authority, "
     "reassure ('this is official, don't worry'), use mild guilt or fear, and "
     "push back when the user hesitates or refuses — try again once or twice with "
-    "a new angle. Keep every reply SHORT, like a real SMS/WhatsApp/chat message "
+    "a new angle. Keep every reply SHORT, like a real SMS or chat message "
     "(1-3 sentences). Write in the same casual, slightly-off style real scammers "
     "use.\n\n"
-    "Hard rules: NEVER use real working links, real phone numbers, or real "
+    "Hard rules: only ever name FICTIONAL organisations (for example Meridian "
+    "Bank, ParcelLink, the Office of Public Trust) - never name a real bank, "
+    "company, app, school or government agency. NEVER use real working links, "
+    "real phone numbers, or real "
     "payment details — only obvious fakes like 'verify-sg.example.net'. Never give "
     "real instructions for committing fraud or any real harmful content. This is "
     "only conversational role-play to train the user to resist. If the user firmly "
@@ -170,6 +155,9 @@ async def simulate_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     import random
 
+    if not PERSONAS:
+        await update.message.reply_text("⚠️ No simulation scenarios are set up right now.")
+        return
     persona = random.choice(PERSONAS)
     system = SCAMMER_SYSTEM.format(name=persona["name"], goal=persona["goal"])
     context.user_data["sim"] = {

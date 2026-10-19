@@ -7,3 +7,6 @@ welcomed_chats.json
 active_drills.json
 schedule.json
 *.tmp
+
+# Supabase scam-intel cache (runtime data)
+scam_intel_cache.json
