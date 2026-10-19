@@ -189,7 +189,7 @@ const clip = (text, max) => {
 
 /**
  * The user message for the model. `context` comes from loadPixiContext() in
- * drill-announce.js; `drill` is { channel, won, outcome, run }.
+ * drill-announce.js; `drill` is { channel, won, outcome, run, lesson }.
  */
 export function buildPixiInput(context, drill) {
   const callThem = familyCallNames(context);
@@ -203,6 +203,18 @@ export function buildPixiInput(context, drill) {
       whatTheyDid: OUTCOME_WORDS[drill.outcome] ?? null,
       quizRounds: drill.run
         ? { correct: drill.run.correct, cautious: drill.run.cautious, wrong: drill.run.wrong }
+        : null,
+      // The real scam this drill was modelled on, from the police bulletins. The
+      // impersonated organisation is left out: Pixi never names real companies.
+      realScam: drill.lesson
+        ? {
+          scamType: drill.lesson.scamName,
+          variant: drill.lesson.variantName,
+          redFlags: drill.lesson.redFlags,
+          tactics: drill.lesson.tactics,
+          howToCheck: drill.lesson.verificationMethod,
+          advice: drill.lesson.preventionAdvice,
+        }
         : null,
     },
     player: {

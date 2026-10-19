@@ -1,11 +1,14 @@
-// Email drills use a deliberately small, curated scenario library. No generated HTML
-// reaches the mail provider: the Apps Script relay receives a scenario id plus validated
-// action URLs and renders an allow-listed template itself.
+// Email drills are written by email-writer.js from a real scam variant, or fall back to a
+// small, curated scenario library. No generated HTML or link reaches the mail provider:
+// the Apps Script relay receives plain-text copy (or a template id) plus validated action
+// URLs, escapes everything and renders the email itself.
 //
 // FAILS CLOSED:
 //   * an absolute first-party origin and signed action URLs are required;
 //   * a durable safety follow-up must be accepted by Apps Script before bait is sent;
-//   * arbitrary subject/body/html fields are never sent to the relay.
+//   * HTML and links are never sent to the relay. Dynamic copy is plain text only: the
+//     generated drill copy (checked by email-writer.js) and the safety follow-up's
+//     lesson (cleaned by scam-variants.js); Apps Script re-validates and escapes both.
 
 import { normalizeLanguage } from './language.js';
 
@@ -51,6 +54,9 @@ export const EMAIL_SCENARIOS = [
   { id: 'refund', sender: 'NovaCart', subject: 'Refund could not be processed' },
   { id: 'account', sender: 'CloudMail', subject: 'Account suspension warning' },
 ];
+
+// The scenario id for copy written by email-writer.js; Code.gs renders `content` for it.
+export const GENERATED_SCENARIO_ID = 'generated';
 
 function relayConfigured() {
   return Boolean(process.env.GOOGLE_SCRIPT_URL && process.env.GOOGLE_SCRIPT_SECRET);
@@ -204,12 +210,28 @@ export async function sendEmailOwnershipVerification({ to, name, verificationUrl
   return { ok: true };
 }
 
+const LESSON_MAX_FLAGS = 4;
+const LESSON_MAX_CHARS = 240;
+
+/** The follow-up's slice of a scam-variants.js lesson, or null. Plain text only. */
+export function followupLesson(lesson) {
+  if (!lesson || typeof lesson !== 'object') return null;
+  const text = (value) => (typeof value === 'string' && value.trim()
+    ? Array.from(value.trim()).slice(0, LESSON_MAX_CHARS).join('')
+    : null);
+  const redFlags = (Array.isArray(lesson.redFlags) ? lesson.redFlags : [])
+    .map(text).filter(Boolean).slice(0, LESSON_MAX_FLAGS);
+  const scamName = text(lesson.scamName);
+  const advice = text(lesson.preventionAdvice);
+  return redFlags.length || advice ? { scamName, redFlags, advice } : null;
+}
+
 /**
  * Ask Apps Script to persist a follow-up job and create a provider-side time trigger.
  * This is intentionally a separate request so sendDrillEmail can confirm scheduling
  * before it sends any bait.
  */
-export async function scheduleEmailSafetyFollowup({ to, name, sendAt, language }) {
+export async function scheduleEmailSafetyFollowup({ to, name, sendAt, language, lesson = null }) {
   const parsedSendAt = new Date(sendAt);
   if (!Number.isFinite(parsedSendAt.getTime())) {
     throw new EmailUnavailable('a valid safety follow-up sendAt time is required');
@@ -220,6 +242,7 @@ export async function scheduleEmailSafetyFollowup({ to, name, sendAt, language }
     recipientName: recipientName(name),
     sendAt: parsedSendAt.toISOString(),
     language: normalizeLanguage(language),
+    ...(followupLesson(lesson) ? { lesson: followupLesson(lesson) } : {}),
   });
   if (data?.scheduled !== true || !data?.jobId) {
     throw new EmailUnavailable('mail relay did not confirm the safety follow-up schedule');
@@ -246,8 +269,12 @@ export async function sendEmailSafetyFollowup({ to, name, language }) {
 
 /**
  * Send one drill email. Both action URLs must be generated and supplied by the caller.
+ * `content` is generated copy from email-writer.js ({ sender, subject, paragraphs,
+ * action }); without it the template `scenarioId` is sent. `lesson` is the real scam
+ * variant from scam-variants.js, or null; it goes into the safety follow-up.
  * @param {{to: string, name: string, scenarioId?: string, revealUrl: string,
- *   reportUrl: string, safetyFollowupAfterMs?: number, language?: string}} opts
+ *   reportUrl: string, safetyFollowupAfterMs?: number, language?: string,
+ *   content?: object|null, lesson?: object|null}} opts
  */
 export async function sendDrillEmail({
   to,
@@ -257,6 +284,8 @@ export async function sendDrillEmail({
   reportUrl,
   safetyFollowupAfterMs,
   language,
+  content = null,
+  lesson = null,
 }) {
   if (!emailConfigured()) {
     throw new EmailUnavailable(
@@ -273,7 +302,9 @@ export async function sendDrillEmail({
   if (safeRevealUrl === safeReportUrl) {
     throw new EmailLinkInvalid('revealUrl and reportUrl must be different signed action URLs');
   }
-  const scenario = pickEmailScenario(scenarioId);
+  const scenario = content
+    ? { id: GENERATED_SCENARIO_ID, sender: content.sender, subject: content.subject }
+    : pickEmailScenario(scenarioId);
   const publicScenario = { id: scenario.id, sender: scenario.sender, subject: scenario.subject };
   const delay = resolveEmailFollowupDelay(safetyFollowupAfterMs);
   const safetyFollowupAt = new Date(Date.now() + delay).toISOString();
@@ -284,6 +315,7 @@ export async function sendDrillEmail({
     name: safeName,
     sendAt: safetyFollowupAt,
     language: lang,
+    lesson,
   });
 
   try {
@@ -292,6 +324,14 @@ export async function sendDrillEmail({
       email: target,
       recipientName: safeName,
       scenarioId: scenario.id,
+      ...(content ? {
+        content: {
+          sender: content.sender,
+          subject: content.subject,
+          paragraphs: content.paragraphs,
+          action: content.action,
+        },
+      } : {}),
       revealUrl: safeRevealUrl,
       reportUrl: safeReportUrl,
       language: lang,

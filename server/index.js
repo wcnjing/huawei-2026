@@ -46,10 +46,14 @@ import { startVerification, checkVerification, verifyMode } from './verify.js';
 import {
   emailConfigured,
   emailVerificationConfigured,
+  GENERATED_SCENARIO_ID,
+  pickEmailScenario,
   resolveEmailFollowupDelay,
   sendDrillEmail,
   sendEmailOwnershipVerification,
 } from './email.js';
+import { getLessonByVariantId, getRandomLesson } from './scam-variants.js';
+import { writeDrillEmail } from './email-writer.js';
 import {
   resolveRevealDelay,
   sendDrillSms,
@@ -990,22 +994,31 @@ api.post('/api/drills/email', async (req, res) => {
     throw error;
   }
 
+  // A random real scam variant from the bulletins, written up as the drill email by
+  // OpenAI. Its id is kept on the attempt so the reveal page and Pixi teach the same
+  // scam. Asking for a template scenario, or any failure, sends a fixed template.
+  const language = normalizeLanguage(req.body?.language);
+  const lesson = req.body?.scenario ? null : await getRandomLesson();
+  const content = lesson ? await writeDrillEmail(lesson, { language }) : null;
+  const scamVariantId = content ? lesson.variantId : null;
+  const scenarioId = content ? GENERATED_SCENARIO_ID : pickEmailScenario(req.body?.scenario).id;
   let output;
   try {
-    const language = normalizeLanguage(req.body?.language);
     const links = createEmailDrillLinks(attempt.id);
     output = await sendDrillEmail({
       to: user.email,
       name: user.name,
-      scenarioId: req.body?.scenario,
+      scenarioId,
       revealUrl: withLanguage(links.revealUrl, language),
       reportUrl: withLanguage(links.reportUrl, language),
       language,
+      content,
+      lesson: content ? lesson : null,
     });
   } catch (error) {
     if (error?.code === 'EMAIL_DELIVERY_UNCONFIRMED') {
       try {
-        await markDrillAttemptSent(attempt.id);
+        await markDrillAttemptSent(attempt.id, { scenarioId, scamVariantId });
       } catch (storeError) {
         console.error('[api] unconfirmed email state could not be persisted:', storeError?.message || storeError);
       }
@@ -1025,7 +1038,7 @@ api.post('/api/drills/email', async (req, res) => {
     return fail(res, 502, 'could not send the drill email', error);
   }
   try {
-    await markDrillAttemptSent(attempt.id);
+    await markDrillAttemptSent(attempt.id, { scenarioId: output.scenarioId, scamVariantId });
   } catch (error) {
     // Both the bait and its durable reveal are already accepted. Preserve the live
     // attempt so either signed action can still complete it; a retry could double-send.
@@ -1129,6 +1142,15 @@ api.post('/api/drills/:drillId/complete', async (req, res) => {
   });
 });
 
+function sendDrillEndedPage(res) {
+  return sendEducationalPage(res, {
+    title: 'Drill ended',
+    heading: 'This drill has ended',
+    message: 'This drill is already over, so its links no longer work and nothing was recorded. Open SafeSpace to see your result or start a new drill.',
+    status: 410,
+  });
+}
+
 async function signedDrillAction(req, res, action, outcome, shouldComplete) {
   const token = String(req.query?.token || '');
   const verified = verifyDrillActionToken(token, action);
@@ -1148,6 +1170,11 @@ async function signedDrillAction(req, res, action, outcome, shouldComplete) {
       message: 'No action was recorded.',
       status: 404,
     });
+  }
+  // Once a drill is over (completed, or failed/unscored) its email and SMS links stop
+  // working: no confirm button, no second result, no replayed lesson.
+  if (attempt.status === 'completed' || attempt.status === 'failed') {
+    return sendDrillEndedPage(res);
   }
   if (!shouldComplete) {
     const isReport = action === 'report';
@@ -1169,31 +1196,26 @@ async function signedDrillAction(req, res, action, outcome, shouldComplete) {
     });
   }
   if (completion.applied) await ringUser(completion.record.userId);
-  if (completion.status === 'duplicate' && completion.record?.outcome !== outcome) {
-    return sendEducationalPage(res, {
-      title: 'Drill already completed',
-      heading: 'This drill already has a result',
-      message: 'SafeSpace kept the first confirmed action and did not replace it with this one.',
-    });
-  }
-  const duplicate = completion.status === 'duplicate';
+  // Another click finished the drill between the check above and this one.
+  if (completion.status !== 'completed') return sendDrillEndedPage(res);
+  const lesson = await getLessonByVariantId(attempt.scamVariantId);
   if (action === 'report') {
     // Reported it → SUCCESS.
     return sendEducationalPage(res, {
       variant: 'win',
       title: 'Drill passed — you reported it',
-      heading: duplicate ? 'Already reported — nice work' : 'Good catch. This was a SafeSpace drill.',
-      message: duplicate
-        ? 'You spotted this one and reported it. That instinct — report, then verify through an official channel — is exactly what keeps scammers out.'
-        : 'That message was fake, and you did the right thing. Reporting it and checking through an official app or number you find yourself is the reflex that beats real scams.',
+      heading: 'Good catch. This was a SafeSpace drill.',
+      message: 'That message was fake, and you did the right thing. Reporting it and checking through an official app or number you find yourself is the reflex that beats real scams.',
+      lesson,
     });
   }
   // Clicked the link → FAILURE. This is the teaching moment.
   return sendEducationalPage(res, {
     variant: 'lose',
     title: 'Gotcha — this was a SafeSpace drill',
-    heading: duplicate ? 'You already opened this drill link' : 'Gotcha — this was a SafeSpace drill',
+    heading: 'Gotcha — this was a SafeSpace drill',
     message: 'The message and the organisation were fictional, so you are completely safe. But in a real scam, that click is the moment you would have handed over your details or money. Next time: stop, and check through an official app, number, or website you find yourself — never the link in the message.',
+    lesson,
   });
 }
 

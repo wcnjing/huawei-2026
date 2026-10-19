@@ -45,7 +45,7 @@ test('landing-page chrome follows the link language and ignores unknown values',
   const zh = educationalPage({ title: 't', heading: 'h', message: 'm', variant: 'win', language: 'zh' }).html;
   assert.match(zh, /<html lang="zh-Hans">/);
   assert.ok(zh.includes('演练通过'));
-  assert.ok(zh.includes('返回 SafeSpace'));
+  assert.ok(!zh.includes('返回 SafeSpace'), 'the pages have no return link');
 
   assert.equal(normalizeLanguage('"><script>'), 'en');
   assert.equal(withLanguage('/drill-reveal?token=x', 'ta'), '/drill-reveal?token=x&lang=ta');

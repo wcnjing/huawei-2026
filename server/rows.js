@@ -116,6 +116,8 @@ export function attemptFromRow(row) {
   setIfPresent(attempt, 'failureReason', row.failure_reason);
   setIfPresent(attempt, 'completedAt', iso(row.completed_at));
   setIfPresent(attempt, 'resultRecordId', row.result_record_id);
+  setIfPresent(attempt, 'scenarioId', row.scenario_id);
+  setIfPresent(attempt, 'scamVariantId', row.scam_variant_id);
   return attempt;
 }
 

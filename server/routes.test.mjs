@@ -913,9 +913,21 @@ test('signed drill action links reject the wrong action and score only once', as
   const afterFirst = await getUser('you');
   assert.equal(afterFirst.timesScammed, before.timesScammed + 1);
 
+  // Once the drill is over, its links stop working: no confirm button, no second
+  // result, and the other action's link is dead too.
   const replay = await post(revealPath);
-  assert.equal(replay.status, 200);
+  assert.equal(replay.status, 410);
+  const replayHtml = await replay.text();
+  assert.match(replayHtml, /This drill has ended/);
+  assert.doesNotMatch(replayHtml, /Return to SafeSpace/);
+  const reopened = await fetch(base + revealPath);
+  assert.equal(reopened.status, 410);
+  assert.doesNotMatch(await reopened.text(), /<form/);
+  const reportToken = createDrillActionToken({ attemptId: attempt.id, action: 'report' });
+  const lateReport = await post(`/drill-report?token=${encodeURIComponent(reportToken)}`);
+  assert.equal(lateReport.status, 410);
   assert.equal((await getUser('you')).timesScammed, afterFirst.timesScammed);
+  assert.equal((await getUser('you')).timesSafe, afterFirst.timesSafe);
   assert.equal((await listPendingResults('you')).length, 1);
   await freshStore();
 });
