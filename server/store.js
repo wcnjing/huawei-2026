@@ -944,7 +944,7 @@ export async function beginEmailVerification({
   userId,
   email,
   verificationId,
-  cooldownMs = 10,
+  cooldownMs = 30_000,
   now = Date.now(),
   rateWindowMs = ONE_HOUR_MS,
   maxAccountSends = EMAIL_VERIFICATION_ACCOUNT_MAX,
