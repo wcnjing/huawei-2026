@@ -36,9 +36,19 @@ const VARIANTS = [BANK, JOB, EMPTY];
 
 const GOOD_EMAIL = {
   sender: 'Harbourline Bank',
-  subject: 'Unusual sign-in detected',
-  paragraphs: ['We noticed a sign-in from a new device.', 'Verify your account within 24 hours or it will be locked.'],
+  subject: 'Unusual sign-in detected on your account',
+  paragraphs: [
+    'We noticed a sign-in to your online banking from a new device on 20 October, which our system flagged for review under case REF-SG7K2Q.',
+    'As a precaution, outgoing transfers above S$500 have been paused until the sign-in is confirmed by the account holder.',
+    'Please verify your account within 24 hours. If we do not hear from you, the account will be locked and you will need to visit a branch in person.',
+    'Regards, Daniel Ong, Fraud Prevention Team, Harbourline Bank',
+  ],
   action: 'Verify account',
+  lesson: {
+    scamName: 'Phishing scam',
+    redFlags: ['An unexpected sign-in warning', 'A 24-hour deadline'],
+    advice: 'Open your bank app yourself instead of using the email button.',
+  },
 };
 
 function mockFetch(handler) {
@@ -97,35 +107,48 @@ test('variant lookups fail open: unconfigured, HTTP error, network error', async
   }
 });
 
-test('parseDrillEmail accepts plain copy and refuses links, contacts, markup and the real organisation', () => {
+test('parseDrillEmail accepts long plain copy and refuses links, contacts, markup and the real organisation', () => {
   const real = { impersonatedEntity: 'Lion City Bank' };
   assert.deepEqual(parseDrillEmail(JSON.stringify(GOOD_EMAIL), real), GOOD_EMAIL);
+  const withParagraph = (i, text) => ({ ...GOOD_EMAIL, paragraphs: GOOD_EMAIL.paragraphs.map((p, j) => (j === i ? text : p)) });
   const broken = [
-    { ...GOOD_EMAIL, paragraphs: ['Go to www.harbourline.example', 'now'] },
-    { ...GOOD_EMAIL, paragraphs: ['Email help@harbourline.example', 'now'] },
-    { ...GOOD_EMAIL, paragraphs: ['Call +65 6123 4567 today', 'now'] },
+    withParagraph(1, 'Go to www.harbourline.example to unlock transfers.'),
+    withParagraph(1, 'Email help@harbourline.example to unlock transfers.'),
+    withParagraph(1, 'Call +65 6123 4567 or 6123 4567 today.'),
+    withParagraph(1, 'Call our hotline 1800 123 4567 today.'),
     { ...GOOD_EMAIL, subject: '<b>Alert</b>' },
     { ...GOOD_EMAIL, sender: 'Lion City Bank' },
-    { ...GOOD_EMAIL, paragraphs: ['This is a SafeSpace drill.', 'now'] },
-    { ...GOOD_EMAIL, paragraphs: ['only one'] },
+    withParagraph(0, 'This is a SafeSpace drill.'),
+    { ...GOOD_EMAIL, paragraphs: GOOD_EMAIL.paragraphs.slice(0, 2) },
+    { ...GOOD_EMAIL, paragraphs: ['Too short.', 'Really.', 'Short.', 'Yes.'] },
     { ...GOOD_EMAIL, action: 'x'.repeat(31) },
   ];
   for (const email of broken) assert.equal(parseDrillEmail(email, real), null, JSON.stringify(email));
+  // Reference numbers, order numbers, amounts and dates are allowed.
+  assert.ok(parseDrillEmail(withParagraph(1, 'Order #MK-48213-A for S$1,250.00 is due on 21/10/2026.'), real));
+  // A lesson with a link loses that line but the email is still usable.
+  const lessonLink = parseDrillEmail({ ...GOOD_EMAIL, lesson: { ...GOOD_EMAIL.lesson, redFlags: ['see www.x.example', 'A 24-hour deadline'] } }, real);
+  assert.deepEqual(lessonLink.lesson.redFlags, ['A 24-hour deadline']);
   assert.equal(parseDrillEmail('not json'), null);
 });
 
-test('writeDrillEmail sends the variant, never the user, and falls back to null on failure', async () => {
+test('writeDrillEmail sends the variant and pre-survey topics, never the user, and falls back on failure', async () => {
   const lesson = lessonFromVariant(BANK);
+  const presurvey = { interests: ['phishing'], activities: ['banking'], ageRange: '65+', situation: 'Retired' };
   let request;
   const content = await writeDrillEmail(lesson, {
     language: 'zh',
+    presurvey,
     create: async (body) => { request = body; return { output_text: JSON.stringify(GOOD_EMAIL) }; },
   });
   assert.deepEqual(content, GOOD_EMAIL);
   const input = JSON.parse(request.input);
   assert.equal(input.language, 'zh');
+  assert.equal(input.languageName, 'Simplified Chinese');
+  assert.match(input.today, /^\d{4}-\d{2}-\d{2}$/);
   assert.equal(input.scam.variant, 'Fake bank security alert');
-  assert.deepEqual(input, buildDrillEmailInput(lesson, 'zh'));
+  assert.deepEqual(input.recipient, { wantsToPractise: ['Phishing & account safety'], regularlyDoes: ['Use online banking'] });
+  assert.doesNotMatch(request.input, /Retired|65\+/, 'age and situation are not sent');
   assert.equal(request.text.format.strict, true);
 
   assert.equal(await writeDrillEmail(lesson, { create: async () => { throw new Error('timeout'); } }), null);

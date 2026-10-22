@@ -451,9 +451,14 @@ function _sendDrill(data, properties) {
   var copy = scenario[lang] || scenario.en;
   var report = _text(lang).report;
   var greeting = _greeting(lang, name);
+  // Templates have two paragraphs, the second (the ask) in bold. Generated copy has four
+  // to six paragraphs laid out like a real email, so they are all plain.
+  var paragraphsHtml = copy.paragraphs.length === 2
+    ? '<p>' + _escapeHtml(copy.paragraphs[0]) + '</p>'
+      + '<p><strong>' + _escapeHtml(copy.paragraphs[1]) + '</strong></p>'
+    : copy.paragraphs.map(function (p) { return '<p>' + _escapeHtml(p) + '</p>'; }).join('');
   var html = '<p>' + _escapeHtml(greeting) + '</p>'
-    + '<p>' + _escapeHtml(copy.paragraphs[0]) + '</p>'
-    + '<p><strong>' + _escapeHtml(copy.paragraphs[1]) + '</strong></p>'
+    + paragraphsHtml
     + '<p><a href="' + _escapeHtml(revealUrl) + '">' + _escapeHtml(copy.action) + '</a></p>'
     + '<p><a href="' + _escapeHtml(reportUrl) + '">' + _escapeHtml(report) + '</a></p>';
   var body = greeting + '\n\n' + copy.paragraphs.join('\n\n')
@@ -654,27 +659,39 @@ function _sendSafetyFollowup(email, name, language, lesson) {
 }
 
 /**
- * Generated drill copy (server/email-writer.js): plain text only, re-checked here.
- * Anything with markup, a link, an email address or a phone number is refused.
+ * Generated drill copy (server/email-writer.js): plain text only, re-checked here with
+ * the same limits. Anything with markup, a link, an email address or a phone number is
+ * refused; reference numbers, amounts and dates are fine.
  */
 function _cleanContent(value) {
   if (!value || typeof value !== 'object') return null;
-  var bad = /[<>]|https?:\/\/|www\.|[^\s@]+@[^\s@]+\.[^\s@]+|\+?\d[\d\s-]{6,}\d|safespace/i;
+  var bad = [
+    /[<>]|https?:\/\/|www\.|safespace/i,
+    /\b[a-z0-9-]+\.(com|net|org|sg|ly|io|gov|edu|co)\b/i,
+    /[^\s@]+@[^\s@]+\.[^\s@]+/,
+    /\+\d[\d\s()-]{6,}\d/,
+    /(^|[^\w#\/-])\d{7,}(?![\w\/-])/,
+    /(^|[^\w#\/.-])\d{3,4}[\s-]\d{4}(?![\w\/.-])/,
+    /\b1[-\s]?[38]00[\s-]?\d{3}[\s-]?\d{3,4}\b/
+  ];
   var field = function (v, max) {
     var s = typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : '';
-    return s && s.length <= max && !bad.test(s) ? s : '';
+    if (!s || s.length > max) return '';
+    for (var i = 0; i < bad.length; i++) if (bad[i].test(s)) return '';
+    return s;
   };
-  var paragraphs = Array.isArray(value.paragraphs) && value.paragraphs.length === 2
-    ? value.paragraphs.map(function (p) { return field(p, 400); })
-    : [];
+  var raw = Array.isArray(value.paragraphs) ? value.paragraphs : [];
+  if (raw.length < 2 || raw.length > 6) return null;
+  var paragraphs = raw.map(function (p) { return field(p, 600); });
   var content = {
     sender: field(value.sender, 40),
     subject: field(value.subject, 100),
     paragraphs: paragraphs,
     action: field(value.action, 30)
   };
-  if (!content.sender || !content.subject || !content.action
-    || paragraphs.length !== 2 || !paragraphs[0] || !paragraphs[1]) return null;
+  if (!content.sender || !content.subject || !content.action) return null;
+  for (var j = 0; j < paragraphs.length; j++) if (!paragraphs[j]) return null;
+  if (paragraphs.join('').length > 2200) return null;
   return content;
 }
 

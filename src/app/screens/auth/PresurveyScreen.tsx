@@ -2,27 +2,41 @@ import { useState, type ReactNode } from "react";
 import { PixelButton } from "../../components/ui";
 import { SubPageHeader } from "../../components/layout";
 import {
-  ACTIVITIES, AGE_RANGES, CHANNELS, DEFAULT_DRILL_PREFERENCES, INTERESTS, SITUATIONS,
-  type DrillPreferences,
-} from "../../data/drillPreferences";
+  ACTIVITIES, AGE_RANGES, CHANNELS, DEFAULT_PRESURVEY, INTERESTS, SITUATIONS,
+  type PresurveyResponses,
+} from "../../data/presurvey";
 import { useT } from "../../i18n";
 
 const mono = "'Share Tech Mono', monospace";
 
-export function DrillPreferencesScreen({ preferences, onSave, onBack, onboarding = false }: {
-  preferences: DrillPreferences;
-  onSave: (preferences: DrillPreferences) => void;
+export function PresurveyScreen({ preferences, onSave, onBack, onboarding = false }: {
+  preferences: PresurveyResponses;
+  /**
+   * Resolves false when the answers could not be saved to the account. `skipped` is true
+   * for onboarding's skip button, which should move on even if saving failed.
+   */
+  onSave: (preferences: PresurveyResponses, options: { skipped: boolean }) => Promise<boolean>;
   onBack?: () => void;
   onboarding?: boolean;
 }) {
   const t = useT();
-  const [draft, setDraft] = useState<DrillPreferences>(preferences);
+  const [draft, setDraft] = useState<PresurveyResponses>(preferences);
   const [step, setStep] = useState(0);
-  const change = (patch: Partial<DrillPreferences>) => setDraft(previous => ({ ...previous, ...patch }));
+  const change = (patch: Partial<PresurveyResponses>) => setDraft(previous => ({ ...previous, ...patch }));
   const toggle = (key: "activities" | "interests" | "channels", id: string) => {
     change({ [key]: draft[key].includes(id) ? draft[key].filter(value => value !== id) : [...draft[key], id] });
   };
-  const finish = (value = draft) => onSave({ ...value, completed: true });
+  const [saving, setSaving] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  // Saving stays on this screen with an error if the account didn't store the answers;
+  // skipping onboarding still tries to store them but never blocks on a failure.
+  const finish = async (value = draft, skipped = false) => {
+    setSaving(true);
+    setSaveFailed(false);
+    const saved = await onSave({ ...value, completed: true }, { skipped });
+    setSaving(false);
+    if (!saved && !skipped) setSaveFailed(true);
+  };
   const chip = (label: string, selected: boolean, action: () => void) => (
     <button key={label} type="button" aria-pressed={selected} onClick={action}
       style={{ minHeight: 44, padding: "9px 10px", border: `2px solid ${selected ? "#4ecdc4" : "#2a3a5c"}`, background: selected ? "#163538" : "#111827", color: selected ? "#e8f4f8" : "#9bb0c8", fontFamily: mono, fontSize: "var(--text-body)", lineHeight: 1.5, textAlign: "left", cursor: "pointer" }}>
@@ -35,6 +49,9 @@ export function DrillPreferencesScreen({ preferences, onSave, onBack, onboarding
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>{children}</div>
     </section>
   );
+  const saveError = saveFailed
+    ? <p role="alert" style={{ color: "#ff6b35", fontFamily: mono, fontSize: "var(--text-body)", lineHeight: 1.5, margin: "0 0 12px" }}>{t("Couldn't save your answers to your account. Check your connection and try again.")}</p>
+    : null;
   const context = !onboarding || step === 0;
   const training = !onboarding || step === 1;
 
@@ -52,13 +69,16 @@ export function DrillPreferencesScreen({ preferences, onSave, onBack, onboarding
       </>}
       {training && <>
         {section("WHAT WOULD YOU LIKE TO PRACTISE?", INTERESTS.map(item => chip(item.label, draft.interests.includes(item.id), () => toggle("interests", item.id))))}
-        {section("HOW WOULD YOU LIKE TO PRACTISE?", CHANNELS.map(channel => chip(channel === "call" ? "Phone calls" : channel === "sms" ? "SMS" : "Email", draft.channels.includes(channel), () => toggle("channels", channel))))}
         {section("MORE OPTIONS", chip("Occasionally show other scam types", draft.includeOtherTypes, () => change({ includeOtherTypes: !draft.includeOtherTypes })))}
       </>}
       {onboarding ? <>
-        <PixelButton onClick={() => step === 0 ? setStep(1) : finish()} color="#00ff88" size="lg" full>{t(step === 0 ? "[ CONTINUE ]" : "[ SAVE & CONTINUE ]")}</PixelButton>
-        <div style={{ marginTop: 10 }}><PixelButton onClick={() => finish(step === 0 ? DEFAULT_DRILL_PREFERENCES : { ...draft, interests: [], channels: [...DEFAULT_DRILL_PREFERENCES.channels], includeOtherTypes: true })} color="#1a2340" textColor="#9bb0c8" size="sm" full>{t("SKIP — I'LL PERSONALISE LATER")}</PixelButton></div>
-      </> : <PixelButton onClick={() => finish()} color="#00ff88" size="lg" full>{t("[ SAVE PREFERENCES ]")}</PixelButton>}
+        {saveError}
+        <PixelButton onClick={() => { if (saving) return; if (step === 0) setStep(1); else void finish(); }} color="#00ff88" size="lg" full>{t(saving ? "SAVING…" : step === 0 ? "[ CONTINUE ]" : "[ SAVE & CONTINUE ]")}</PixelButton>
+        <div style={{ marginTop: 10 }}><PixelButton onClick={() => { if (!saving) void finish(step === 0 ? DEFAULT_PRESURVEY : { ...draft, interests: [], channels: [...DEFAULT_PRESURVEY.channels], includeOtherTypes: true }, true); }} color="#1a2340" textColor="#9bb0c8" size="sm" full>{t("SKIP — I'LL PERSONALISE LATER")}</PixelButton></div>
+      </> : <>
+        {saveError}
+        <PixelButton onClick={() => { if (!saving) void finish(); }} color="#00ff88" size="lg" full>{t(saving ? "SAVING…" : "[ SAVE PREFERENCES ]")}</PixelButton>
+      </>}
     </div>
   </div>;
 }

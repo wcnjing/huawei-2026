@@ -10,7 +10,12 @@
 // is dropped (a link is exactly what we teach people not to follow). Callers still
 // escape it for their own medium.
 
-const DEFAULT_TIMEOUT_MS = 1500;
+import { pickLessonForProfile } from './presurvey.js';
+
+// Warm reads take 0.2–0.6 s; the first after a cold start (TLS, an idle Supabase
+// project waking) can take a few seconds. A drill send already waits on OpenAI, so this
+// is generous; the startup warm-up below means players rarely pay it at all.
+const DEFAULT_TIMEOUT_MS = 5000;
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const MISS_TTL_MS = 60 * 1000;
 const MAX_TEXT = 240;
@@ -50,6 +55,7 @@ export function lessonFromVariant(variant) {
   const lesson = {
     variantId: String(variant.id),
     scamName: cleanText(variant.scams?.scam_name),
+    scamCategory: cleanText(variant.scams?.scam_category),
     variantName: cleanText(variant.variant_name),
     description: cleanText(variant.description, MAX_LONG_TEXT),
     modusOperandi: cleanText(variant.modus_operandi, MAX_LONG_TEXT),
@@ -98,10 +104,23 @@ async function loadLessons({ env = process.env, timeoutMs = DEFAULT_TIMEOUT_MS, 
   return lessons;
 }
 
+/** Every usable variant's lesson (cached), e.g. to plan a quiz round. Never throws. */
+export async function getUsableLessons(options = {}) {
+  return loadLessons(options);
+}
+
 /** A random variant's lesson for a new drill, or null. Never throws. */
 export async function getRandomLesson({ random = Math.random, ...options } = {}) {
   const lessons = await loadLessons(options);
   return lessons.length ? lessons[Math.floor(random() * lessons.length)] : null;
+}
+
+/**
+ * A variant's lesson chosen for this player's pre-survey answers (presurvey.js): mostly
+ * from scam types that fit them, sometimes any. Null preferences mean random. Never throws.
+ */
+export async function getLessonForProfile(preferences, { random = Math.random, ...options } = {}) {
+  return pickLessonForProfile(await loadLessons(options), preferences, random);
 }
 
 /** The lesson for the variant a drill was written from, or null. Never throws. */
@@ -109,6 +128,17 @@ export async function getLessonByVariantId(variantId, options = {}) {
   if (!variantId) return null;
   const lessons = await loadLessons(options);
   return lessons.find((lesson) => lesson.variantId === String(variantId)) ?? null;
+}
+
+/**
+ * Loads the variants once at server start so the first drill, reveal page or Pixi post
+ * finds them cached. Logs how many are usable. Never throws.
+ */
+export async function warmScamVariants(options = {}) {
+  if (!scamVariantsConfig(options.env)) return 0;
+  const lessons = await loadLessons(options);
+  console.log(`[scam-variants] ${lessons.length} usable scam variants loaded`);
+  return lessons.length;
 }
 
 /** Tests only. */

@@ -21,7 +21,10 @@ import { SAFETY_TIPS } from "./data/safetyTips";
 import { HALL_OF_FAME } from "./data/leaderboard";
 import { RED_FLAGS, LIVE_CALL_FLAGS, SMS_FLAGS, EMAIL_FLAGS, FLAG_MAP } from "./data/scamFlags";
 import { pickScenarios } from "./data/drillPool";
-import { loadDrillPreferences, saveDrillPreferences, setPreferenceUser, type DrillPreferences } from "./data/drillPreferences";
+import {
+  loadPresurvey, savePresurvey, setPresurveyUser, syncPresurvey, uploadPresurvey,
+  type PresurveyResponses,
+} from "./data/presurvey";
 import { DAILY_REWARD_AMOUNT, LEDGER_CAP, RACE_WIN_COINS } from "./data/economy";
 import { NOTIFICATIONS_CAP } from "./data/notifications";
 import { FURNITURE_STORE } from "./data/furniture";
@@ -80,7 +83,7 @@ import { useHouseDrill, type HouseDrill } from "./services/houseDrill";
 import { HouseChatScreen } from "./screens/chat";
 import { StartScreen } from "./screens/auth/StartScreen";
 import { RegisterScreen } from "./screens/auth/RegisterScreen";
-import { DrillPreferencesScreen } from "./screens/auth/DrillPreferencesScreen";
+import { PresurveyScreen } from "./screens/auth/PresurveyScreen";
 import {
   TelegramDrillIntroScreen, RealisticPhoneDrillIntroScreen,
   RealisticSmsDrillIntroScreen, RealisticEmailDrillIntroScreen, TELEGRAM_BOT_URL,
@@ -453,9 +456,9 @@ export default function App({ initialScreen = "title", devMode = false }: { init
     // sign-in they can actually complete, rather than leaving them on a screen whose
     // every request now 401s.
     const onExpired = () => {
-      setPreferenceUser(null);
+      setPresurveyUser(null);
       setOnboardingStage(null);
-      setDrillPreferences(loadDrillPreferences());
+      setPresurvey(loadPresurvey());
       setSessionEpoch(value => value + 1);
       setSignInMode("returning");
       setScreen("sign-in");
@@ -478,6 +481,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   };
 
   const [soloScenarios, setSoloScenarios] = useState<FamilyScenario[]>([]);
+  const [soloLoading, setSoloLoading] = useState(false);
   const [soloIndex, setSoloIndex] = useState(0);
   const [soloAnswers, setSoloAnswers] = useState<{ scenarioId: number; action: string; outcome: FamilyOutcome; foundClues: number[] }[]>([]);
   const [houseRunXp, setHouseRunXp] = useState<number | null | "pending">(null);
@@ -508,8 +512,9 @@ export default function App({ initialScreen = "title", devMode = false }: { init
     apiGet<any>("/api/me").then((data) => {
       if (!data) return;
       if (typeof data.id === "string") {
-        setPreferenceUser(data.id);
-        setDrillPreferences(loadDrillPreferences());
+        setPresurveyUser(data.id);
+        setPresurvey(loadPresurvey());
+        void syncPresurvey().then((synced) => { if (synced) setPresurvey(synced); });
       }
       const serverName = data?.name ?? data?.user?.name ?? data?.profile?.name;
       if (typeof serverName === "string" && serverName.trim()) {
@@ -570,10 +575,12 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   };
 
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
-  const [drillPreferences, setDrillPreferences] = useState<DrillPreferences>(loadDrillPreferences);
-  const updateDrillPreferences = (next: DrillPreferences) => {
-    setDrillPreferences(next);
-    saveDrillPreferences(next);
+  const [presurvey, setPresurvey] = useState<PresurveyResponses>(loadPresurvey);
+  /** Show the answers at once, then store them on the account; false if that failed. */
+  const updatePresurvey = async (next: PresurveyResponses): Promise<boolean> => {
+    setPresurvey(next);
+    savePresurvey(next);
+    return uploadPresurvey(next);
   };
   // Persist settings so the drill schedule (and every other toggle) survives a reload.
   const updateSettings = (patch: Partial<AppSettings>) =>
@@ -906,9 +913,9 @@ export default function App({ initialScreen = "title", devMode = false }: { init
 
   const FULLSCREEN_ROUTES: Screen[] = ["customize", "family-chat", "payday"];
   // A house-drill invite never interrupts sign-in, a live call, or the drill screen itself.
-  const INVITE_SUPPRESSED_SCREENS: Screen[] = ["title", "start", "new-character", "drill-preferences-onboarding", "sign-in", "register", "incoming", "call", "family-drill-intro"];
+  const INVITE_SUPPRESSED_SCREENS: Screen[] = ["title", "start", "new-character", "presurvey-onboarding", "sign-in", "register", "incoming", "call", "family-drill-intro"];
 
-  const SUB_PAGE_ROUTES: Screen[] = ["account-settings", "privacy-settings", "accessibility-settings", "about-settings", "preferences", "profile-edit", "avatar-customisation", "family-drill-intro", "solo-drill-intro", "solo-drill-summary"];
+  const SUB_PAGE_ROUTES: Screen[] = ["account-settings", "privacy-settings", "accessibility-settings", "about-settings", "presurvey", "profile-edit", "avatar-customisation", "family-drill-intro", "solo-drill-intro", "solo-drill-summary"];
 
   // --- Audio ---------------------------------------------------------------
   // No-ops until unlock() has run from a real click (PRESS START); browsers refuse to
@@ -937,8 +944,21 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   };
   const goFamilyDrill = () => setScreen("family-drill-intro");
   const goSoloDrill = () => setScreen("solo-drill-intro");
-  const startSoloDrill = (count: number) => {
-    setSoloScenarios(pickScenarios(count, Math.random, drillPreferences));
+  // A round written for this player from real scam variants and their pre-survey, in the
+  // app language (POST /api/drills/solo-round). Signed out, or if that fails, the round is
+  // the app's fixed messages; a partly written round is topped up with them.
+  const startSoloDrill = async (count: number) => {
+    if (soloLoading) return;
+    setScreen("solo-drill-intro");
+    setSoloLoading(true);
+    let written: FamilyScenario[] = [];
+    if (sessionToken()) {
+      const result = await apiPost<{ scenarios?: FamilyScenario[] }>("/api/drills/solo-round", { count, language });
+      if (result.ok && Array.isArray(result.data?.scenarios)) written = result.data.scenarios.slice(0, count);
+    }
+    const fixed = pickScenarios(count - written.length, Math.random, presurvey);
+    setSoloLoading(false);
+    setSoloScenarios([...written, ...fixed]);
     setSoloIndex(0);
     setSoloAnswers([]);
     soloAnswersRef.current = [];
@@ -1398,8 +1418,9 @@ export default function App({ initialScreen = "title", devMode = false }: { init
     if (skipOnboarding) setOnboardingStage(null);
     else if (signInMode === "new" && !onboardingStage()) setOnboardingStage("survey");
     if (userId) {
-      setPreferenceUser(userId);
-      setDrillPreferences(loadDrillPreferences());
+      setPresurveyUser(userId);
+      setPresurvey(loadPresurvey());
+      void syncPresurvey().then((synced) => { if (synced) setPresurvey(synced); });
     }
     // This may be a different account than the one that was last signed in here. Forget
     // the previous session's house so the removed-from-a-house watcher doesn't fire on
@@ -1418,7 +1439,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
     else if (signInMode === "new" && !skipOnboarding) updateProfile({ avatar: DEFAULT_PROFILE.avatar });
     const invite = peekPendingInvite();
     if (onboardingStage()) {
-      setScreen(onboardingStage() === "character" ? "new-character" : "drill-preferences-onboarding");
+      setScreen(onboardingStage() === "character" ? "new-character" : "presurvey-onboarding");
       return;
     }
     goHome();
@@ -1449,8 +1470,9 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   const finishRegistration = (name: string, userId?: string) => {
     const canonical = name.trim();
     if (userId) {
-      setPreferenceUser(userId);
-      setDrillPreferences(loadDrillPreferences());
+      setPresurveyUser(userId);
+      setPresurvey(loadPresurvey());
+      void syncPresurvey().then((synced) => { if (synced) setPresurvey(synced); });
     }
     updateProfile({ name: canonical });
     saveContact({ ...loadContact(), name: canonical });
@@ -1556,7 +1578,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
                   // Home must be mounted first. Otherwise: pick new or returning player.
                   if (sessionToken()) {
                     const stage = onboardingStage();
-                    if (stage) setScreen(stage === "character" ? "new-character" : "drill-preferences-onboarding");
+                    if (stage) setScreen(stage === "character" ? "new-character" : "presurvey-onboarding");
                     else {
                       goHome();
                       if (!hasSeenTutorial()) setTourOpen(true);
@@ -1581,11 +1603,20 @@ export default function App({ initialScreen = "title", devMode = false }: { init
                 onboardingFinish
               />
             )}
-            {screen === "drill-preferences-onboarding" && (
-              <DrillPreferencesScreen
+            {screen === "presurvey-onboarding" && (
+              <PresurveyScreen
                 onboarding
-                preferences={drillPreferences}
-                onSave={(next) => { updateDrillPreferences(next); setOnboardingStage("character"); setScreen("new-character"); }}
+                preferences={presurvey}
+                onSave={async (next, { skipped }) => {
+                  const saved = await updatePresurvey(next);
+                  // Skipping moves on even if saving failed; otherwise the screen keeps the
+                  // player here with an error so their answers aren't silently lost.
+                  if (saved || skipped) {
+                    setOnboardingStage("character");
+                    setScreen("new-character");
+                  }
+                  return saved;
+                }}
               />
             )}
             {screen === "sign-in" && (
@@ -1693,7 +1724,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
               />
             )}
             {screen === "settings" && <SettingsScreen profile={profile} settings={settings} muted={muted} onToggleMute={toggleMute} onSettings={updateSettings} onNav={handleNav} />}
-            {screen === "preferences" && <DrillPreferencesScreen preferences={drillPreferences} onSave={(next) => { updateDrillPreferences(next); setScreen("settings"); }} onBack={() => setScreen("settings")} />}
+            {screen === "presurvey" && <PresurveyScreen preferences={presurvey} onSave={async (next) => { const saved = await updatePresurvey(next); if (saved) setScreen("settings"); return saved; }} onBack={() => setScreen("settings")} />}
 
             {screen === "account-settings" && <AccountSettingsScreen profile={profile} onBack={() => setScreen("settings")} />}
             {screen === "privacy-settings" && <PrivacySettingsScreen onBack={() => setScreen("settings")} />}
@@ -1841,7 +1872,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
                 onSetUpHouse={() => setScreen("house")}
               />
             )}
-            {screen === "solo-drill-intro" && <SoloDrillIntroScreen preferences={drillPreferences} onStart={startSoloDrill} onBack={goDrillSelect} />}
+            {screen === "solo-drill-intro" && <SoloDrillIntroScreen preferences={presurvey} loading={soloLoading} onStart={(count) => { void startSoloDrill(count); }} onBack={goDrillSelect} />}
             {screen === "solo-drill-round" && soloScenarios[soloIndex] && (
               <FamilyRoundScreen
                 scenario={soloScenarios[soloIndex]}
@@ -1862,7 +1893,8 @@ export default function App({ initialScreen = "title", devMode = false }: { init
                 total={soloAnswers.length}
                 coins={soloAnswers.reduce((sum, a) => sum + FAMILY_COINS[a.outcome], 0)}
                 serverXp={houseRunXp}
-                onPlayAgain={() => startSoloDrill(soloScenarios.length || 5)}
+                lookup={(id) => soloScenarios.find((s) => s.id === id)}
+                onPlayAgain={() => { void startSoloDrill(soloScenarios.length || 5); }}
                 onSwitchMode={goFamilyDrill}
                 onHome={goHome}
               />
@@ -1870,7 +1902,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
 
             {screen === "drill-select" && (
               <DrillSelectScreen
-                preferredChannels={drillPreferences.channels}
+                preferredChannels={presurvey.channels}
                 onRealisticPhone={() => setScreen("realistic-phone-intro")}
                 onRealisticSms={() => setScreen("realistic-sms-intro")}
                 onTelegram={() => setScreen("telegram-intro")}

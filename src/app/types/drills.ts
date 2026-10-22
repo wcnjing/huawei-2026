@@ -32,7 +32,14 @@ export type EmailOutcome =
     | "opened-attachment" 
     | "cancelled-download";
 
-export type RealEmailScenario = { id: string; sender: string; subject: string };
+export type RealEmailScenario = {
+    id: string;
+    sender: string;
+    subject: string;
+    /** For an AI-written drill: its red flags and advice, in the app language. */
+    flags?: string[];
+    advice?: string | null;
+};
 
 export type CallOutcome =
     | "hung_up"

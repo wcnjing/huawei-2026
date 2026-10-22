@@ -2,13 +2,13 @@ import { useState } from "react";
 import { IconBulb, IconShield } from "../../../components/icons";
 import { PixelButton } from "../../../components/ui";
 import { SOLO_COUNT } from "../../../data/drillPool";
-import type { DrillPreferences } from "../../../data/drillPreferences";
+import type { PresurveyResponses } from "../../../data/presurvey";
 import { useT } from "../../../i18n";
 import { CountPicker } from "./CountPicker";
 
 const COUNTS = Array.from({ length: SOLO_COUNT.max - SOLO_COUNT.min + 1 }, (_, i) => SOLO_COUNT.min + i);
 
-export function SoloDrillIntroScreen({ onStart, onBack, preferences }: { onStart: (count: number) => void; onBack: () => void; preferences?: DrillPreferences }) {
+export function SoloDrillIntroScreen({ onStart, onBack, preferences, loading = false }: { onStart: (count: number) => void; onBack: () => void; preferences?: PresurveyResponses; loading?: boolean }) {
   const t = useT();
   const [count, setCount] = useState<number>(SOLO_COUNT.default);
   return (
@@ -40,7 +40,7 @@ export function SoloDrillIntroScreen({ onStart, onBack, preferences }: { onStart
           ))}
         </div>
         <div className="flex flex-col gap-3">
-          <PixelButton onClick={() => onStart(count)} color="#4ecdc4" textColor="#0a0e1a" size="lg" full>{t("[ START {count} QUESTIONS ]", { count })}</PixelButton>
+          <PixelButton onClick={() => { if (!loading) onStart(count); }} disabled={loading} color="#4ecdc4" textColor="#0a0e1a" size="lg" full>{loading ? t("WRITING YOUR QUESTIONS…") : t("[ START {count} QUESTIONS ]", { count })}</PixelButton>
           <PixelButton onClick={onBack} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>{t("[ BACK ]")}</PixelButton>
         </div>
       </div>

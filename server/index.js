@@ -52,7 +52,10 @@ import {
   sendDrillEmail,
   sendEmailOwnershipVerification,
 } from './email.js';
-import { getLessonByVariantId, getRandomLesson } from './scam-variants.js';
+import { getLessonByVariantId, getLessonForProfile, getUsableLessons, warmScamVariants } from './scam-variants.js';
+import { GENERATED_ID_BASE, planQuestions, quizWriterConfigured, writeQuizRound } from './quiz-writer.js';
+import { channelAllowed, cleanPresurvey } from './presurvey.js';
+import { getPresurvey, getPresurveyOrNull, savePresurvey } from './presurvey-store.js';
 import { writeDrillEmail } from './email-writer.js';
 import {
   resolveRevealDelay,
@@ -459,6 +462,28 @@ api.get('/api/me', async (req, res) => {
   return res.json(accountView(user));
 });
 
+// An individual (solo) drill round written for this player: real scam variants chosen by
+// their pre-survey, with about one genuine message in five, in their app language. 503
+// (the app then plays its fixed messages) when AI or the scam database is unavailable;
+// questions that fail individually are simply left out and the app tops the round up.
+api.post('/api/drills/solo-round', async (req, res) => {
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+  const count = Math.min(10, Math.max(1, Math.floor(Number(req.body?.count) || 5)));
+  if (!quizWriterConfigured()) return fail(res, 503, 'AI-written rounds are not configured');
+  const lessons = await getUsableLessons();
+  if (!lessons.length) return fail(res, 503, 'scam variants are unavailable');
+  const presurvey = await getPresurveyOrNull(userId);
+  const written = await writeQuizRound(planQuestions(lessons, presurvey, count), {
+    language: normalizeLanguage(req.body?.language),
+  });
+  const scenarios = written
+    .map((scenario, i) => (scenario ? { ...scenario, id: GENERATED_ID_BASE + i } : null))
+    .filter(Boolean);
+  if (!scenarios.length) return fail(res, 503, 'could not write a round right now');
+  return res.json({ scenarios });
+});
+
 api.get('/api/drills/pending-result', async (req, res) => {
   const userId = await requireUserId(req, res);
   if (!userId) return;
@@ -620,6 +645,31 @@ api.post('/api/me/name', async (req, res) => {
   }
 });
 
+// The pre-survey's answers, stored in safespace-prod (presurvey-store.js). Private:
+// only the player reads or writes their own.
+api.get('/api/me/presurvey', async (req, res) => {
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+  try {
+    return res.json({ presurvey: await getPresurvey(userId) });
+  } catch (error) {
+    return fail(res, 503, 'pre-survey storage is unavailable', error);
+  }
+});
+
+api.post('/api/me/presurvey', async (req, res) => {
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+  if (!cleanPresurvey(req.body?.presurvey)) {
+    return res.status(400).json({ error: 'pre-survey responses are invalid' });
+  }
+  try {
+    return res.json({ presurvey: await savePresurvey(userId, req.body.presurvey) });
+  } catch (error) {
+    return fail(res, 503, 'could not save your pre-survey answers', error);
+  }
+});
+
 api.post('/api/me/avatar', async (req, res) => {
   const userId = await requireUserId(req, res);
   if (!userId) return;
@@ -702,8 +752,58 @@ api.post('/api/house/drill', drillRoute((userId, req) =>
   createHouseDrill(userId, { perPlayer: req.body?.perPlayer, mode: req.body?.mode ?? 'turns' })));
 api.post('/api/house/drill/:drillId/respond', drillRoute((userId, req) =>
   respondToHouseDrill(userId, req.params.drillId, req.body?.accept === true)));
-api.post('/api/house/drill/:drillId/start', drillRoute((userId, req) =>
-  startHouseDrill(userId, req.params.drillId, req.body?.scenarioIds)));
+/**
+ * AI-written questions for a house drill that is about to start, or null. In turns mode
+ * each turn is written from its answering player's pre-survey; in a race everyone answers
+ * the same questions, so they cycle through every player's pre-survey. `fallbackIds` are
+ * the fixed messages the host's phone chose; any question that couldn't be written keeps
+ * its fixed message. Only the host of a lobby triggers this, so others can't spend calls.
+ */
+async function writeHouseDrillQuestions(userId, drillId, fallbackIds, language) {
+  if (!quizWriterConfigured() || !Array.isArray(fallbackIds)) return null;
+  const { drill } = await getHouseDrill(userId, { drillId });
+  if (!drill || drill.hostId !== String(userId) || drill.status !== 'lobby') return null;
+  const lessons = await getUsableLessons();
+  if (!lessons.length) return null;
+  const playing = drill.players.filter((p) => p.status === 'accepted');
+  if (!playing.length) return null;
+  const surveys = await Promise.all(playing.map((p) => getPresurveyOrNull(p.id)));
+
+  // The same slot order startHouseDrill uses: race = perPlayer shared questions; turns =
+  // round by round, one per player.
+  const owners = drill.mode === 'race'
+    ? Array.from({ length: drill.perPlayer }, (_, i) => i % playing.length)
+    : Array.from({ length: drill.perPlayer * playing.length }, (_, i) => i % playing.length);
+  if (owners.length !== fallbackIds.length) return null;
+  const specs = new Array(owners.length);
+  playing.forEach((_, playerIndex) => {
+    const slots = owners.flatMap((owner, slot) => (owner === playerIndex ? [slot] : []));
+    planQuestions(lessons, surveys[playerIndex], slots.length).forEach((spec, k) => { specs[slots[k]] = spec; });
+  });
+  const written = await writeQuizRound(specs, { language });
+  if (!written.some(Boolean)) return null;
+  const scenarios = {};
+  const ids = written.map((scenario, slot) => {
+    if (!scenario) return fallbackIds[slot];
+    const id = GENERATED_ID_BASE + slot;
+    scenarios[id] = { ...scenario, id };
+    return id;
+  });
+  return { ids, scenarios };
+}
+
+api.post('/api/house/drill/:drillId/start', drillRoute(async (userId, req) => {
+  const fallbackIds = req.body?.scenarioIds;
+  const written = await writeHouseDrillQuestions(
+    userId, req.params.drillId, fallbackIds, normalizeLanguage(req.body?.language),
+  ).catch((error) => {
+    console.error('[house-drill] could not write questions:', error?.message || error);
+    return null;
+  });
+  return written
+    ? startHouseDrill(userId, req.params.drillId, written.ids, { scenarios: written.scenarios })
+    : startHouseDrill(userId, req.params.drillId, fallbackIds);
+}));
 api.post('/api/house/drill/:drillId/answer', drillRoute((userId, req) =>
   answerHouseDrill(userId, req.params.drillId, req.body)));
 api.post('/api/house/drill/:drillId/skip', drillRoute((userId, req) =>
@@ -904,6 +1004,40 @@ api.post('/email-verify', async (req, res) => {
 
 // --- Real drills -----------------------------------------------------------
 
+/**
+ * The lesson kept with an email drill: the bulletin variant's, with its words replaced by
+ * the writer's translation for the player's language. English bulletin fields with no
+ * translation are dropped for other languages so the reveal page never mixes languages.
+ */
+function drillLesson(variant, translated, language) {
+  const english = language === 'en';
+  return {
+    variantId: variant.variantId,
+    language,
+    scamName: translated?.scamName || (english ? variant.scamName : null),
+    variantName: english ? variant.variantName : null,
+    redFlags: translated?.redFlags?.length ? translated.redFlags : (english ? variant.redFlags : []),
+    preventionAdvice: translated?.advice || (english ? variant.preventionAdvice : null),
+    verificationMethod: english ? variant.verificationMethod : null,
+  };
+}
+
+const CHANNEL_LABELS = { call: 'Call', sms: 'SMS', email: 'Email' };
+
+/**
+ * The player's survey answers when `channel` is one they allow, otherwise sends a 403
+ * and returns undefined. Channels are a hard limit; no saved answers allow everything.
+ */
+async function preferencesAllowing(res, userId, channel) {
+  const preferences = await getPresurveyOrNull(userId);
+  if (channelAllowed(preferences, channel)) return preferences;
+  res.status(403).json({
+    error: `${CHANNEL_LABELS[channel]} drills are turned off in your drill preferences`,
+    code: 'CHANNEL_DISABLED',
+  });
+  return undefined;
+}
+
 api.post('/api/drills/fire', async (req, res) => {
   const userId = await sessionUserId(req);
   if (!userId) return res.status(401).json({ error: 'sign in (verify your phone) to run a real drill' });
@@ -911,6 +1045,7 @@ api.post('/api/drills/fire', async (req, res) => {
   if (!user) return res.status(401).json({ error: 'session no longer valid' });
   if (!user.consentToDrills) return res.status(403).json({ error: 'user has not consented to drills' });
   if (!user.phone) return res.status(400).json({ error: 'no verified phone on file' });
+  if (await preferencesAllowing(res, userId, 'call') === undefined) return;
   if (!callConfigured()) return fail(res, 503, 'call drills are not configured');
 
   let attempt;
@@ -978,6 +1113,8 @@ api.post('/api/drills/email', async (req, res) => {
   if (!user.email || !user.emailVerifiedAt || user.pendingEmail) {
     return res.status(400).json({ error: 'verify your email before running a drill' });
   }
+  const preferences = await preferencesAllowing(res, userId, 'email');
+  if (preferences === undefined) return;
   if (!emailConfigured() || !drillLinksConfigured()) {
     return fail(res, 503, 'email drills are not configured');
   }
@@ -994,13 +1131,17 @@ api.post('/api/drills/email', async (req, res) => {
     throw error;
   }
 
-  // A random real scam variant from the bulletins, written up as the drill email by
-  // OpenAI. Its id is kept on the attempt so the reveal page and Pixi teach the same
-  // scam. Asking for a template scenario, or any failure, sends a fixed template.
+  // A real scam variant from the bulletins, chosen for the player's pre-survey
+  // (presurvey.js), written up by OpenAI as an email relatable to what they practise and
+  // regularly do, in their app language. The lesson (red flags, advice) comes back in
+  // that language too and is kept on the attempt, so the reveal page, the result screen,
+  // Pixi and the safety follow-up teach the same scam in the same language. Asking for a
+  // template scenario, or any failure, sends a fixed template.
   const language = normalizeLanguage(req.body?.language);
-  const lesson = req.body?.scenario ? null : await getRandomLesson();
-  const content = lesson ? await writeDrillEmail(lesson, { language }) : null;
-  const scamVariantId = content ? lesson.variantId : null;
+  const variant = req.body?.scenario ? null : await getLessonForProfile(preferences);
+  const content = variant ? await writeDrillEmail(variant, { language, presurvey: preferences }) : null;
+  const lesson = content ? drillLesson(variant, content.lesson, language) : null;
+  const scamVariantId = content ? variant.variantId : null;
   const scenarioId = content ? GENERATED_SCENARIO_ID : pickEmailScenario(req.body?.scenario).id;
   let output;
   try {
@@ -1013,12 +1154,12 @@ api.post('/api/drills/email', async (req, res) => {
       reportUrl: withLanguage(links.reportUrl, language),
       language,
       content,
-      lesson: content ? lesson : null,
+      lesson,
     });
   } catch (error) {
     if (error?.code === 'EMAIL_DELIVERY_UNCONFIRMED') {
       try {
-        await markDrillAttemptSent(attempt.id, { scenarioId, scamVariantId });
+        await markDrillAttemptSent(attempt.id, { scenarioId, scamVariantId, lesson });
       } catch (storeError) {
         console.error('[api] unconfirmed email state could not be persisted:', storeError?.message || storeError);
       }
@@ -1038,7 +1179,7 @@ api.post('/api/drills/email', async (req, res) => {
     return fail(res, 502, 'could not send the drill email', error);
   }
   try {
-    await markDrillAttemptSent(attempt.id, { scenarioId: output.scenarioId, scamVariantId });
+    await markDrillAttemptSent(attempt.id, { scenarioId: output.scenarioId, scamVariantId, lesson });
   } catch (error) {
     // Both the bait and its durable reveal are already accepted. Preserve the live
     // attempt so either signed action can still complete it; a retry could double-send.
@@ -1048,7 +1189,10 @@ api.post('/api/drills/email', async (req, res) => {
     ok: true,
     drillId: attempt.id,
     scenarioId: output.scenarioId,
-    scenario: output.scenario,
+    // The lesson in the player's language, for the in-app result screen.
+    scenario: lesson
+      ? { ...output.scenario, flags: lesson.redFlags, advice: lesson.preventionAdvice }
+      : output.scenario,
     safetyFollowupAt: output.safetyFollowupAt,
   });
 });
@@ -1060,6 +1204,7 @@ api.post('/api/drills/sms', async (req, res) => {
   if (!user) return res.status(401).json({ error: 'session no longer valid' });
   if (!user.consentToDrills) return res.status(403).json({ error: 'user has not consented to drills' });
   if (!user.phone) return res.status(400).json({ error: 'no verified phone on file' });
+  if (await preferencesAllowing(res, userId, 'sms') === undefined) return;
   if (!smsConfigured() || !drillLinksConfigured()) {
     return fail(res, 503, 'SMS drills are not configured');
   }
@@ -1198,7 +1343,7 @@ async function signedDrillAction(req, res, action, outcome, shouldComplete) {
   if (completion.applied) await ringUser(completion.record.userId);
   // Another click finished the drill between the check above and this one.
   if (completion.status !== 'completed') return sendDrillEndedPage(res);
-  const lesson = await getLessonByVariantId(attempt.scamVariantId);
+  const lesson = attempt.lesson ?? await getLessonByVariantId(attempt.scamVariantId);
   if (action === 'report') {
     // Reported it → SUCCESS.
     return sendEducationalPage(res, {
@@ -1339,6 +1484,7 @@ if (isEntrypoint) {
   const HOST = process.env.HOST || undefined;
   app.listen(PORT, HOST, () => {
     console.log(`SafeSpace backend on http://${HOST || 'localhost'}:${PORT}`);
+    void warmScamVariants();
     const mode = verifyMode();
     if (mode === 'dev') {
       console.warn('[verify] mode=dev — fixed code accepted. NEVER enable in production.');

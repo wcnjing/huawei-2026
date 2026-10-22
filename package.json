@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "dev:test": "node scripts/dev-test.mjs",
+    "tunnel": "node --env-file-if-exists=.env scripts/tunnel.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "server": "node --env-file-if-exists=.env server/index.js",
