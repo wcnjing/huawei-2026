@@ -736,7 +736,7 @@ test('/api/me/home-inventory requires a session and saves coins, furniture and l
   await freshStore();
 });
 
-test('housemates see each other\'s room look, furniture and layout, but never coins', async () => {
+test('housemates see each other\'s room look, furniture, layout and coin balance', async () => {
   await freshStore();
   const owner = await signedIn('Owner');
   const guest = await signedIn('Guest');
@@ -744,7 +744,7 @@ test('housemates see each other\'s room look, furniture and layout, but never co
   await post('/api/house/join', { code: house.inviteCode }, guest.auth);
   const ownerRoom = async () => (await getJson('/api/house', guest.auth)).body.house.members
     .find((m) => m.id === owner.user.id).room;
-  assert.deepEqual(await ownerRoom(), { style: null, items: [], layout: null });
+  assert.deepEqual(await ownerRoom(), { style: null, items: [], layout: null, coins: 0 });
 
   const roomStyle = { name: 'Cosy den', wall: 'violet', pattern: 'stars', floor: 'oak', light: 'pink', glow: true };
   assert.equal((await post('/api/me/room-style', { roomStyle })).status, 401);
@@ -766,14 +766,18 @@ test('housemates see each other\'s room look, furniture and layout, but never co
   const room = await ownerRoom();
   assert.deepEqual(room.items, ['shop-rug']);
   assert.deepEqual(room.layout, { 'shop-rug': { x: 30, y: 100 } });
+  // The coin balance is shared with the house on purpose (room-style.js roomView), but
+  // the rest of the inventory (sold items, other people's purchases) stays private.
+  assert.equal(room.coins, 300);
   const ownerView = (await getJson('/api/house', guest.auth)).body.house.members.find((m) => m.id === owner.user.id);
-  assert.equal(JSON.stringify(ownerView).includes('coins'), false);
+  assert.equal(JSON.stringify(ownerView).includes('soldItems'), false);
 
-  // A coins-only change doesn't touch the room, so it doesn't ring the house.
+  // The balance shows in the room, so a coins-only change rings the house too.
   doorbellRings.length = 0;
   const richer = { ...homeInventory, coins: { [owner.user.id]: 900 } };
   assert.equal((await post('/api/me/home-inventory', { homeInventory: richer }, owner.auth)).status, 200);
-  assert.deepEqual(doorbellRings, []);
+  assert.deepEqual(doorbellRings, [house.doorbell]);
+  assert.equal((await ownerRoom()).coins, 900);
   await freshStore();
 });
 

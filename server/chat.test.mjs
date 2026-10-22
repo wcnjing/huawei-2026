@@ -369,20 +369,24 @@ test('a player with no house posts nothing', async () => {
   assert.equal(rows[0].n, 0);
 });
 
-test('only drills someone fell for are announced: not wins, unscored results or distress exits', async () => {
+test('Pixi posts two lines after every scored drill, once each; distress exits stay private', async () => {
   const { owner, houseId } = await fixture();
   const store = await import('./store.js');
-  await store.applyOutcome({ userId: owner.id, outcome: 'hung_up' });                    // win: quiet
+  await store.applyOutcome({ userId: owner.id, outcome: 'hung_up' });                    // win
   await store.applyOutcome({ userId: owner.id, outcome: 'distress_offramp' });           // distress: private
-  await store.applyOutcome({ userId: owner.id, outcome: 'complied' });                   // scammed: announced
+  await store.applyOutcome({ userId: owner.id, outcome: 'complied' });                   // scammed
   const practice = { userId: owner.id, clientAttemptId: 'p1', outcome: 'shared_data' };
-  await store.applyPracticeOutcomeOnce(practice);                                        // scammed in practice: announced
-  await store.applyPracticeOutcomeOnce(practice);                                        // replay: no second line
-  await store.applyPracticeOutcomeOnce({ userId: owner.id, clientAttemptId: 'p2', outcome: 'hung_up' }); // win: quiet
-  await houses.recordHouseRun(owner.id, { clientKey: 'r1', correct: 3, cautious: 0, wrong: 0 }); // clean run: quiet
-  await houses.recordHouseRun(owner.id, { clientKey: 'r2', correct: 2, cautious: 0, wrong: 1 }); // a wrong round: announced
-  await houses.recordHouseRun(owner.id, { clientKey: 'r2', correct: 2, cautious: 0, wrong: 1 }); // replay: no second line
+  await store.applyPracticeOutcomeOnce(practice);                                        // scammed in practice
+  await store.applyPracticeOutcomeOnce(practice);                                        // replay: nothing new
+  await store.applyPracticeOutcomeOnce({ userId: owner.id, clientAttemptId: 'p2', outcome: 'hung_up' }); // win
+  await houses.recordHouseRun(owner.id, { clientKey: 'r1', correct: 3, cautious: 0, wrong: 0 }); // clean run
+  await houses.recordHouseRun(owner.id, { clientKey: 'r2', correct: 2, cautious: 0, wrong: 1 }); // a wrong round
+  await houses.recordHouseRun(owner.id, { clientKey: 'r2', correct: 2, cautious: 0, wrong: 1 }); // replay: nothing new
   const { messages } = await chat.listMessages(owner.id, houseId);
-  assert.equal(messages.length, 3);
-  assert.ok(messages.every(m => m.type === 'drill_scammed' && m.text === 'got caught out by a drill'));
+  // Six scored results (two wins, two scams, two house runs) × announcement + tip.
+  assert.equal(messages.length, 12);
+  assert.ok(messages.every(m => m.type === 'pixi_message' && m.text.trim()));
+  // With no OpenAI key the fixed templates are posted: both outcomes are covered.
+  assert.ok(messages.some(m => /Great work spotting the scam/.test(m.text)), 'a win is celebrated');
+  assert.ok(messages.some(m => /You got caught by/.test(m.text)), 'a loss is coached kindly');
 });
