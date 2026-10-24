@@ -11,7 +11,10 @@
 // stay hidden until the race ends, so nobody can copy. Phones learn about changes from
 // the house doorbell and poll as a fallback.
 //
-// Scenario content lives in the client, so the server stores only scenario ids and the
+// Questions are either the app's fixed messages (stored by id; content lives in the
+// client) or AI-written ones from quiz-writer.js, built from each answering player's
+// pre-survey and real scam variants. Those are stored in the drill's state under
+// `scenarios` (keyed by id) so every phone shows the same text. The server stores the
 // outcome the answering phone reports — the same trust model as POST /api/drills/house-run.
 // Every write locks the house row first (via lockHouseMember), then the drill row.
 import crypto from 'crypto';
@@ -81,6 +84,7 @@ export function drillView(row, now = new Date(), viewerId = null) {
       status: p.status === 'invited' && expired ? 'expired' : p.status,
     })),
     turns: state.turns,
+    scenarios: state.scenarios ?? {},
     currentTurn: state.currentTurn,
     revealing: state.revealing === true,
     ready: state.ready ?? [],
@@ -200,7 +204,11 @@ function validScenarioIds(ids, count) {
     && new Set(ids).size === ids.length;
 }
 
-export async function startHouseDrill(userId, drillId, scenarioIds, { now = new Date() } = {}) {
+/**
+ * `scenarios` maps AI-written question ids (in `scenarioIds`) to their content; any other
+ * id is one of the app's fixed messages.
+ */
+export async function startHouseDrill(userId, drillId, scenarioIds, { now = new Date(), scenarios = null } = {}) {
   return changeDrill(userId, drillId, now, 'startHouseDrill', ({ row, state, isHost }) => {
     if (!isHost) throw new HouseError('NOT_DRILL_HOST');
     if (row.status !== 'lobby') throw new HouseError('DRILL_ALREADY_STARTED');
@@ -221,6 +229,10 @@ export async function startHouseDrill(userId, drillId, scenarioIds, { now = new 
           state.turns.push({ playerId: p.id, scenarioId: scenarioIds[round * playing.length + i] });
         });
       }
+    }
+    if (scenarios) {
+      const used = new Set(scenarioIds.map(String));
+      state.scenarios = Object.fromEntries(Object.entries(scenarios).filter(([id]) => used.has(String(id))));
     }
     state.currentTurn = 0;
     state.startedAt = isoNow(now);

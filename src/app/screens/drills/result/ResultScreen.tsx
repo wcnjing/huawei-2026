@@ -15,7 +15,12 @@ export function ResultScreen({ win, drillType, smsOutcome, emailOutcome, callOut
   useEffect(() => { const t = setTimeout(() => setShowDetails(true), 700); return () => clearTimeout(t); }, []);
 
   const { header, xp, feedback, flags } = getResultContent(t, win, drillType, smsOutcome, emailOutcome, callOutcome);
-  const debriefFlags = realEmailScenario ? realEmailDebriefFlags(realEmailScenario.id) ?? flags : flags;
+  // An AI-written email brings its own red flags (already in the app language); a
+  // template email has a fixed set; anything else uses the generic flags.
+  const lessonFlags = realEmailScenario?.flags?.length
+    ? realEmailScenario.flags.map((name, i) => ({ id: `lesson-${i}`, name, explanation: realEmailScenario.advice ?? "" }))
+    : null;
+  const debriefFlags = lessonFlags ?? (realEmailScenario ? realEmailDebriefFlags(realEmailScenario.id) ?? flags : flags);
   const resultFeedback = drillType === "email" && realEmailScenario && emailOutcome
     ? emailOutcome === "reported"
       ? t("You reported the email from {sender}: {subject}.", { sender: realEmailScenario.sender, subject: realEmailScenario.subject })

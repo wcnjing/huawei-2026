@@ -26,6 +26,9 @@ process.env.GOOGLE_SCRIPT_URL = RELAY_URL;
 process.env.GOOGLE_SCRIPT_SECRET = 'route-test-relay-secret';
 process.env.SUPABASE_URL = 'https://doorbell.test';
 process.env.SUPABASE_SECRET_KEY = 'route-test-doorbell-key';
+const PROD_URL = 'https://safespace-prod.test';
+process.env.SUPABASE_PROD_URL = PROD_URL;
+process.env.SUPABASE_PROD_SECRET_KEY = 'route-test-prod-key';
 
 await setupTestDb();
 const { app } = await import('./index.js');
@@ -54,9 +57,25 @@ let vapiMode = null;
 let vapiRequestCount = 0;
 const vapiRequests = [];
 
+// A stand-in for safespace-prod's Data API: safespace.presurvey_responses rows by user_id.
+const prodPresurvey = new Map();
+let prodMode = 'ok';
+function fakeProd(url, init) {
+  if (prodMode === 'down') return new Response('{"message":"permission denied for schema safespace"}', { status: 403 });
+  if (init?.method === 'POST') {
+    const row = JSON.parse(String(init.body));
+    prodPresurvey.set(row.user_id, row);
+    return new Response(JSON.stringify([row]), { status: 201 });
+  }
+  const userId = (new URL(url).searchParams.get('user_id') || '').replace(/^eq\./, '');
+  const row = prodPresurvey.get(userId);
+  return new Response(JSON.stringify(row ? [row] : []), { status: 200 });
+}
+
 // Keep provider I/O hermetic while preserving real HTTP requests to the local server.
 globalThis.fetch = async (input, init) => {
   const url = typeof input === 'string' ? input : input?.url;
+  if (url?.startsWith(`${PROD_URL}/rest/v1/presurvey_responses`)) return fakeProd(url, init);
   if (url === RELAY_URL) {
     const payload = JSON.parse(String(init?.body || '{}'));
     relayRequests.push(payload);
@@ -717,7 +736,7 @@ test('/api/me/home-inventory requires a session and saves coins, furniture and l
   await freshStore();
 });
 
-test('housemates see each other\'s room look, furniture and layout, but never coins', async () => {
+test('housemates see each other\'s room look, furniture, layout and coin balance', async () => {
   await freshStore();
   const owner = await signedIn('Owner');
   const guest = await signedIn('Guest');
@@ -725,7 +744,7 @@ test('housemates see each other\'s room look, furniture and layout, but never co
   await post('/api/house/join', { code: house.inviteCode }, guest.auth);
   const ownerRoom = async () => (await getJson('/api/house', guest.auth)).body.house.members
     .find((m) => m.id === owner.user.id).room;
-  assert.deepEqual(await ownerRoom(), { style: null, items: [], layout: null });
+  assert.deepEqual(await ownerRoom(), { style: null, items: [], layout: null, coins: 0 });
 
   const roomStyle = { name: 'Cosy den', wall: 'violet', pattern: 'stars', floor: 'oak', light: 'pink', glow: true };
   assert.equal((await post('/api/me/room-style', { roomStyle })).status, 401);
@@ -747,14 +766,18 @@ test('housemates see each other\'s room look, furniture and layout, but never co
   const room = await ownerRoom();
   assert.deepEqual(room.items, ['shop-rug']);
   assert.deepEqual(room.layout, { 'shop-rug': { x: 30, y: 100 } });
+  // The coin balance is shared with the house on purpose (room-style.js roomView), but
+  // the rest of the inventory (sold items, other people's purchases) stays private.
+  assert.equal(room.coins, 300);
   const ownerView = (await getJson('/api/house', guest.auth)).body.house.members.find((m) => m.id === owner.user.id);
-  assert.equal(JSON.stringify(ownerView).includes('coins'), false);
+  assert.equal(JSON.stringify(ownerView).includes('soldItems'), false);
 
-  // A coins-only change doesn't touch the room, so it doesn't ring the house.
+  // The balance shows in the room, so a coins-only change rings the house too.
   doorbellRings.length = 0;
   const richer = { ...homeInventory, coins: { [owner.user.id]: 900 } };
   assert.equal((await post('/api/me/home-inventory', { homeInventory: richer }, owner.auth)).status, 200);
-  assert.deepEqual(doorbellRings, []);
+  assert.deepEqual(doorbellRings, [house.doorbell]);
+  assert.equal((await ownerRoom()).coins, 900);
   await freshStore();
 });
 
@@ -880,6 +903,51 @@ test('email ownership uses an opaque token and changes only after explicit POST'
     emailHint: 'o***@example.com',
     pending: false,
   });
+  await freshStore();
+});
+
+test('pre-survey answers are stored in safespace-prod and unticked channels block real drills', async () => {
+  await freshStore();
+  prodPresurvey.clear();
+  const { user, auth } = await signedIn('PRESURVEY');
+  assert.deepEqual((await getJson('/api/me/presurvey', auth)).body, { presurvey: null });
+  assert.equal((await fetch(base + '/api/me/presurvey')).status, 401);
+  assert.equal((await post('/api/me/presurvey', { presurvey: 'nope' }, auth)).status, 400);
+
+  const saved = await post('/api/me/presurvey', {
+    presurvey: {
+      ageRange: '65+', situation: 'Retired', activities: ['banking', 'made-up'],
+      interests: ['investment'], channels: ['call', 'email', 'fax'], includeOtherTypes: false,
+      completed: true, extra: 'dropped',
+    },
+  }, auth);
+  assert.equal(saved.status, 200);
+  const expected = {
+    ageRange: '65+', situation: 'Retired', activities: ['banking'], interests: ['investment'],
+    channels: ['call', 'email'], includeOtherTypes: false, completed: true,
+  };
+  assert.deepEqual((await saved.json()).presurvey, expected);
+  assert.equal(prodPresurvey.get(user.id).age_range, '65+', 'stored as a safespace-prod row');
+  assert.deepEqual((await getJson('/api/me/presurvey', auth)).body, { presurvey: expected });
+  const me = (await getJson('/api/me', auth)).body;
+  assert.equal(JSON.stringify(me).includes('Retired'), false, 'answers stay out of the user record');
+
+  const sms = await post('/api/drills/sms', {}, auth);
+  assert.equal(sms.status, 403);
+  assert.equal((await sms.json()).code, 'CHANNEL_DISABLED');
+  await post('/api/me/presurvey', { presurvey: { ...expected, channels: ['sms'] } }, auth);
+  assert.equal((await post('/api/drills/fire', {}, auth)).status, 403);
+  assert.notEqual((await post('/api/drills/sms', {}, auth)).status, 403, 'a ticked channel is not blocked');
+
+  // safespace-prod refusing: saving says so; drills fall back to allowing every channel.
+  prodMode = 'down';
+  try {
+    assert.equal((await post('/api/me/presurvey', { presurvey: expected }, auth)).status, 503);
+    assert.equal((await getJson('/api/me/presurvey', auth)).status, 503);
+    assert.notEqual((await post('/api/drills/fire', {}, auth)).status, 403);
+  } finally {
+    prodMode = 'ok';
+  }
   await freshStore();
 });
 

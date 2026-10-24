@@ -210,13 +210,14 @@ async function readResult(tx, id) {
 
 /** After a scored result commits, let Pixi celebrate a win or guide the house after a
  * loss. Distress off-ramps (SAFE) and unscored results are not announced. */
-async function announceScored(record, { scamVariantId = null } = {}) {
+async function announceScored(record, { scamVariantId = null, lesson = null } = {}) {
   if (!['WON', 'LOST'].includes(record?.result)) return;
   await announcePixiDrillOutcome(record.userId, `drill:${record.id}`, {
     channel: record.channel,
     won: record.result === 'WON',
     outcome: record.outcome,
     scamVariantId,
+    lesson,
   });
 }
 
@@ -506,7 +507,7 @@ export async function getRecentDrillAttempt({ userId, channel = 'call', since = 
 }
 
 export async function markDrillAttemptSent(attemptId, {
-  providerId = null, scenarioId = null, scamVariantId = null,
+  providerId = null, scenarioId = null, scamVariantId = null, lesson = null,
 } = {}) {
   if (!attemptId) throw new Error('attemptId is required');
   const cleanProviderId = String(providerId || '').trim() || null;
@@ -532,10 +533,11 @@ export async function markDrillAttemptSent(attemptId, {
     const { rows } = await tx.query(
       `update safespace.drill_attempts
           set status = 'sent', provider_id = coalesce($2, provider_id), sent_at = coalesce(sent_at, $3),
-              scenario_id = coalesce(scenario_id, $4), scam_variant_id = coalesce(scam_variant_id, $5)
+              scenario_id = coalesce(scenario_id, $4), scam_variant_id = coalesce(scam_variant_id, $5),
+              lesson = coalesce(lesson, $6::jsonb)
         where id = $1
         returning *`,
-      [attempt.id, cleanProviderId, sentAt, cleanScenarioId, cleanVariantId],
+      [attempt.id, cleanProviderId, sentAt, cleanScenarioId, cleanVariantId, lesson ? JSON.stringify(lesson) : null],
     );
     return publicAttempt(attemptFromRow(rows[0]));
   }, 'markDrillAttemptSent');
@@ -673,7 +675,10 @@ export async function completeDrillAttempt({
     };
   }, 'completeDrillAttempt');
   if (finished.status === 'completed') {
-    await announceScored(finished.record, { scamVariantId: finished.attempt?.scamVariantId });
+    await announceScored(finished.record, {
+      scamVariantId: finished.attempt?.scamVariantId,
+      lesson: finished.attempt?.lesson,
+    });
   }
   return finished;
 }
@@ -939,7 +944,7 @@ export async function beginEmailVerification({
   userId,
   email,
   verificationId,
-  cooldownMs = 10,
+  cooldownMs = 30_000,
   now = Date.now(),
   rateWindowMs = ONE_HOUR_MS,
   maxAccountSends = EMAIL_VERIFICATION_ACCOUNT_MAX,

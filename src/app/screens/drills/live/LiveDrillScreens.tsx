@@ -469,7 +469,13 @@ export function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, 
       const sentScenario = fd.scenario;
       setScenario(sentScenario && typeof sentScenario.id === "string"
         && typeof sentScenario.sender === "string" && typeof sentScenario.subject === "string"
-        ? { id: sentScenario.id, sender: sentScenario.sender, subject: sentScenario.subject }
+        ? {
+          id: sentScenario.id,
+          sender: sentScenario.sender,
+          subject: sentScenario.subject,
+          flags: Array.isArray(sentScenario.flags) ? sentScenario.flags.filter((f: unknown) => typeof f === "string") : undefined,
+          advice: typeof sentScenario.advice === "string" ? sentScenario.advice : null,
+        }
         : null);
       if (!id) {
         setMsg("The email request may have been accepted, but its drill ID was missing. Do not resend; refresh later to recover any result.");

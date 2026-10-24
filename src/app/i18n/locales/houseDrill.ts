@@ -94,6 +94,7 @@ const rows: Row[] = [
   ["LEFT", "已退出", "TELAH KELUAR", "வெளியேறினார்"],
   ["[ START WITH {count} PLAYERS ]", "[ {count}名玩家开始 ]", "[ MULA DENGAN {count} PEMAIN ]", "[ {count} பேருடன் தொடங்கு ]"],
   ["[ START ON MY OWN ]", "[ 我自己开始 ]", "[ MULA SENDIRIAN ]", "[ நானே தொடங்கு ]"],
+  ["WRITING YOUR QUESTIONS…", "正在为你们出题…", "SEDANG MENULIS SOALAN ANDA…", "உங்கள் கேள்விகளை எழுதுகிறது…"],
   ["[ CANCEL DRILL ]", "[ 取消演练 ]", "[ BATALKAN LATIHAN ]", "[ பயிற்சியை ரத்து செய் ]"],
   ["Waiting for {name} to start…", "等待{name}开始…", "Menunggu {name} untuk bermula…", "{name} தொடங்குவதற்காகக் காத்திருக்கிறது…"],
   ["[ NOT NOW ]", "[ 下次吧 ]", "[ BUKAN SEKARANG ]", "[ இப்போது வேண்டாம் ]"],
