@@ -1179,7 +1179,7 @@ api.post('/api/drills/email', async (req, res) => {
   } catch (error) {
     if (error?.code === 'EMAIL_DELIVERY_UNCONFIRMED') {
       try {
-        await markDrillAttemptSent(attempt.id, { scenarioId, scamVariantId, lesson });
+        await markDrillAttemptSent(attempt.id, { scenarioId, scamVariantId, lesson, language });
       } catch (storeError) {
         console.error('[api] unconfirmed email state could not be persisted:', storeError?.message || storeError);
       }
@@ -1199,7 +1199,7 @@ api.post('/api/drills/email', async (req, res) => {
     return fail(res, 502, 'could not send the drill email', error);
   }
   try {
-    await markDrillAttemptSent(attempt.id, { scenarioId: output.scenarioId, scamVariantId, lesson });
+    await markDrillAttemptSent(attempt.id, { scenarioId: output.scenarioId, scamVariantId, lesson, language });
   } catch (error) {
     // Both the bait and its durable reveal are already accepted. Preserve the live
     // attempt so either signed action can still complete it; a retry could double-send.
@@ -1268,7 +1268,7 @@ api.post('/api/drills/sms', async (req, res) => {
   } catch (error) {
     if (error?.code === 'SMS_DELIVERY_UNCONFIRMED') {
       try {
-        await markDrillAttemptSent(attempt.id, { scamVariantId, lesson });
+        await markDrillAttemptSent(attempt.id, { scamVariantId, lesson, language });
       } catch (storeError) {
         console.error('[api] unconfirmed SMS state could not be persisted:', storeError?.message || storeError);
       }
@@ -1286,7 +1286,7 @@ api.post('/api/drills/sms', async (req, res) => {
   }
   try {
     await markDrillAttemptSent(attempt.id, {
-      providerId: output.sid, scenarioId: output.scenarioId, scamVariantId, lesson,
+      providerId: output.sid, scenarioId: output.scenarioId, scamVariantId, lesson, language,
     });
     // The bait is the first turn of the exchange, so a reply the person sends has the
     // opening text as context and counts against the same cap (sms-reply.js).
@@ -1451,7 +1451,9 @@ app.post(INBOUND_SMS_PATH, twilioForm, asyncRoute(async (req, res) => {
   const attempt = user ? await findLiveSmsAttempt(user.id) : null;
   if (!attempt) return sendTwiml(res, null);
 
-  const language = normalizeLanguage(attempt.lesson?.language);
+  // Recorded when the bait was sent. `lesson` only carries one when a model wrote the
+  // copy, so a curated scenario would otherwise always be revealed in English.
+  const language = normalizeLanguage(attempt.language || attempt.lesson?.language);
   await appendSmsTurn(attempt.id, { role: 'target', text: inbound });
 
   let turn;

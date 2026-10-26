@@ -953,3 +953,23 @@ test('appending a turn to a finished or unknown drill changes nothing', async ()
   assert.equal(await smsStore.appendSmsTurn(attempt.id, { role: 'target', text: 'hello?' }), null);
   assert.equal(await smsStore.appendSmsTurn('attempt_nope', { role: 'target', text: 'hello?' }), null);
 });
+
+test('a drill remembers the language it was sent in', async () => {
+  await freshStore();
+  const user = await registerVerifiedUser({ phone: '+6590004444', name: 'Texter' });
+  const attempt = await createDrillAttempt({ userId: user.id, channel: 'sms' });
+
+  await markDrillAttemptSent(attempt.id, { language: 'ta' });
+  assert.equal((await getDrillAttempt(attempt.id)).language, 'ta');
+});
+
+test('an unknown or missing language is not stored', async () => {
+  await freshStore();
+  const user = await registerVerifiedUser({ phone: '+6590005555', name: 'Texter' });
+  for (const [language, expected] of [[undefined, null], ['', null], ['klingon', null], ['zh', 'zh']]) {
+    const attempt = await createDrillAttempt({ userId: user.id, channel: 'sms' });
+    await markDrillAttemptSent(attempt.id, { language });
+    assert.equal((await getDrillAttempt(attempt.id)).language ?? null, expected, String(language));
+    await completeDrillAttempt({ attemptId: attempt.id, outcome: 'disengaged' });
+  }
+});

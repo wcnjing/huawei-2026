@@ -120,6 +120,7 @@ export function attemptFromRow(row) {
   setIfPresent(attempt, 'scamVariantId', row.scam_variant_id);
   setIfPresent(attempt, 'lesson', row.lesson);
   setIfPresent(attempt, 'smsTurns', row.sms_turns);
+  setIfPresent(attempt, 'language', row.language);
   return attempt;
 }
 

@@ -1185,3 +1185,20 @@ test('the inbound text and the reply are both kept on the attempt', async (t) =>
   assert.equal(turns[0].role, 'target');
   assert.equal(turns[0].text, 'no thanks');
 });
+
+test('a reply is revealed in the language the bait was sent in, with no lesson stored', async (t) => {
+  await resetDb();
+  process.env.TWILIO_AUTH_TOKEN = TWILIO_TOKEN;
+  t.after(() => { delete process.env.TWILIO_AUTH_TOKEN; });
+  // A curated scenario leaves no lesson behind, so the language has to come from the
+  // attempt itself. This is the no-OPENAI_API_KEY path.
+  const user = await registerVerifiedUser({ phone: '+6594777007', name: 'Texter' });
+  const attempt = await createDrillAttempt({ userId: user.id, channel: 'sms' });
+  await markDrillAttemptSent(attempt.id, { language: 'ta' });
+  assert.equal((await getDrillAttempt(attempt.id)).lesson ?? null, null, 'no lesson, as in a scenario drill');
+
+  const res = await postTwilio({ From: '+6594777007', To: '+6598887777', Body: 'no thanks' });
+  const body = await res.text();
+  assert.match(body, /SafeSpace/, 'the reveal still names the drill');
+  assert.doesNotMatch(body, /This was a SafeSpace drill - that last message was fake/, 'not the English reveal');
+});

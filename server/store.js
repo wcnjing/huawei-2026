@@ -50,6 +50,9 @@ const TERMINAL_ATTEMPT_STATUSES = new Set(['completed', 'failed']);
 const ONE_HOUR_MS = 60 * 60 * 1000;
 // How long after a bait text a reply still belongs to that drill.
 const SMS_REPLY_WINDOW_MS = 24 * 60 * 60 * 1000;
+// The app's languages (src/app/i18n/languages.ts), mirrored so a drill can record the
+// one it was sent in.
+const DRILL_LANGUAGES = new Set(['en', 'zh', 'ms', 'ta']);
 const EMAIL_VERIFICATION_ACCOUNT_MAX = 10;
 const EMAIL_VERIFICATION_DESTINATION_MAX = 10;
 const PHONE_VERIFICATION_DESTINATION_MAX = 5;
@@ -547,12 +550,14 @@ export async function getRecentDrillAttempt({ userId, channel = 'call', since = 
 }
 
 export async function markDrillAttemptSent(attemptId, {
-  providerId = null, scenarioId = null, scamVariantId = null, lesson = null,
+  providerId = null, scenarioId = null, scamVariantId = null, lesson = null, language = null,
 } = {}) {
   if (!attemptId) throw new Error('attemptId is required');
   const cleanProviderId = String(providerId || '').trim() || null;
   const cleanScenarioId = String(scenarioId || '').trim().slice(0, 40) || null;
   const cleanVariantId = String(scamVariantId || '').trim().slice(0, 64) || null;
+  // Only a language the app actually has, so a stray value cannot reach a reveal text.
+  const cleanLanguage = DRILL_LANGUAGES.has(String(language || '')) ? String(language) : null;
   const sentAt = new Date().toISOString();
   return transaction(async (tx) => {
     const attempt = await lockAttempt(tx, attemptId);
@@ -574,10 +579,13 @@ export async function markDrillAttemptSent(attemptId, {
       `update safespace.drill_attempts
           set status = 'sent', provider_id = coalesce($2, provider_id), sent_at = coalesce(sent_at, $3),
               scenario_id = coalesce(scenario_id, $4), scam_variant_id = coalesce(scam_variant_id, $5),
-              lesson = coalesce(lesson, $6::jsonb)
+              lesson = coalesce(lesson, $6::jsonb), language = coalesce(language, $7)
         where id = $1
         returning *`,
-      [attempt.id, cleanProviderId, sentAt, cleanScenarioId, cleanVariantId, lesson ? JSON.stringify(lesson) : null],
+      [
+        attempt.id, cleanProviderId, sentAt, cleanScenarioId, cleanVariantId,
+        lesson ? JSON.stringify(lesson) : null, cleanLanguage,
+      ],
     );
     return publicAttempt(attemptFromRow(rows[0]));
   }, 'markDrillAttemptSent');

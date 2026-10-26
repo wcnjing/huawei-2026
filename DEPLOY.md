@@ -193,8 +193,10 @@ drill immediately — those are matched in code, before any model is called, so 
 with no OpenAI key. Replies in character need `OPENAI_API_KEY`; without one, the first
 reply reveals instead. `SMS_REPLY_TIMEOUT_MS` overrides the 10s model timeout.
 
-This feature needs `supabase/migrations/20261026000001_drill_attempt_sms_turns.sql`
-applied. Without that column, every inbound text 500s.
+This feature needs two migrations applied:
+`supabase/migrations/20261026000001_drill_attempt_sms_turns.sql` (without it every
+inbound text 500s) and `20261026000002_drill_attempt_language.sql` (without it a reply
+is always revealed in English, whatever language the bait was sent in).
 
 ### Google Apps Script for email ownership and drills
 
