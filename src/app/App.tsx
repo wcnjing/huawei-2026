@@ -496,7 +496,15 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   // The same fetch also pulls this account's saved coins + furniture (see below), so a
   // player signing in on a second device sees the room they built, not an empty one —
   // one round trip does both instead of firing /api/me twice on every load.
+  // Runs again on every sign-in, registration and session expiry (sessionEpoch), not
+  // just on first load. Signing in after the app is already open used to skip this, so
+  // the store showed a local 0 while Home showed the account's real balance — and the
+  // next save would push that 0 over the account's saved coins.
   useEffect(() => {
+    let cancelled = false;
+    // Hold saves until this account's saved inventory has been read (see the save effect).
+    setServerInventoryChecked(false);
+    coinMutationsSinceInventoryLoadRef.current = new Set<string>();
     if (!sessionToken()) { setServerInventoryChecked(true); return; }
     // apiGet never throws — a network error, a 5xx or a non-OK response all resolve to
     // `null`, not a rejection. Only mark the check done when a response actually
@@ -506,7 +514,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
     // means this session doesn't sync — nothing is lost, since local storage still
     // holds it — and the next successful load reconciles normally.
     apiGet<any>("/api/me").then((data) => {
-      if (!data) return;
+      if (cancelled || !data) return;
       if (typeof data.id === "string") {
         setPreferenceUser(data.id);
         setDrillPreferences(loadDrillPreferences());
@@ -534,8 +542,9 @@ export default function App({ initialScreen = "title", devMode = false }: { init
       }
       setServerInventoryChecked(true);
     });
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [sessionEpoch]);
 
   const updateVerifiedName = async (name: string): Promise<NameUpdateResult> => {
     const clean = name.trim();
@@ -702,6 +711,18 @@ export default function App({ initialScreen = "title", devMode = false }: { init
     setPurchasedItems(folded.purchasedItems);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [knownSelfId]);
+
+  // Safety net: Home falls back to the balance in the server's room view when this device
+  // holds no entry for the player, but the store and purchases read local state only. If
+  // the account fetch above failed, seed the local balance from that same room view so
+  // both screens always agree and the player can spend what Home shows.
+  const serverRoomCoins = selfView?.room?.coins;
+  useEffect(() => {
+    if (!knownSelfId || typeof serverRoomCoins !== "number" || serverRoomCoins <= 0) return;
+    setCoins((current) => (current[knownSelfId] !== undefined
+      ? current
+      : { ...current, [knownSelfId]: serverRoomCoins }));
+  }, [knownSelfId, serverRoomCoins]);
 
   // The account owns the avatar, so a player who signs in on a second device sees the
   // character they made, not this device's leftover defaults. Keyed on the serialised
