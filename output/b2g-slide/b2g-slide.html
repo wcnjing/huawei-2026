@@ -1,0 +1,143 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>B2G Business Model</title>
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Source+Code+Pro:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0D18; --white: #F4F4F4; --muted: #8E95AD;
+    --green: #6EF58A; --green-dk: #2C5C3C; --yellow: #F7DD7A; --teal: #6CCFC4;
+    --pink: #E0409E; --pink-bg: #2C0A28; --purple: #7E4CE0; --purple-bg: #1D1530;
+    --green-bg: #0E2418; --red: #F0445A;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1920px; height: 1080px; background: var(--bg); overflow: hidden; }
+  body { font-family: 'Source Code Pro', monospace; color: var(--white); position: relative; letter-spacing: 0.04em; }
+
+  .kicker { position: absolute; left: 170px; top: 96px; font-size: 30px; font-weight: 700; color: var(--teal); letter-spacing: 0.12em; }
+  h1 { position: absolute; left: 164px; top: 136px; font-family: 'Silkscreen', monospace; font-weight: 700;
+       font-size: 128px; line-height: 1; color: var(--green); text-shadow: 8px 8px 0 var(--green-dk); letter-spacing: 0.02em; }
+  .sub { position: absolute; left: 170px; top: 300px; font-size: 44px; font-weight: 700; color: var(--yellow); }
+  .sub em { font-style: normal; color: var(--green); }
+
+  .flow { position: absolute; left: 170px; top: 410px; width: 1580px; display: flex; align-items: stretch; }
+  .card { width: 440px; height: 380px; border: 3px solid; padding: 34px 36px; position: relative; }
+  .card h2 { font-size: 44px; font-weight: 700; color: var(--yellow); display: flex; align-items: center; gap: 22px; height: 70px; }
+  .card p { font-size: 32px; line-height: 1.5; margin-top: 22px; }
+  .card .small { font-size: 24px; color: var(--muted); margin-top: 18px; line-height: 1.4; }
+  .gov { border-color: var(--pink); background: var(--pink-bg); }
+  .app { border-color: var(--green); background: var(--green-bg); }
+  .fam { border-color: var(--purple); background: var(--purple-bg); }
+  .hl-g { color: var(--green); } .hl-r { color: var(--red); } .hl-y { color: var(--yellow); }
+
+  .arrow { width: 130px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+  .arrow span { font-size: 26px; font-weight: 700; color: var(--green); }
+
+  /* return loop: families -> government */
+  .loop { position: absolute; left: 390px; top: 790px; width: 1140px; height: 70px;
+          border: 4px dashed var(--teal); border-top: none; }
+  .loop::before { content: ''; position: absolute; left: -16px; top: -18px; border: 14px solid transparent;
+                  border-bottom: 20px solid var(--teal); border-top: none; }
+  .loop-label { position: absolute; left: 50%; top: 46px; transform: translateX(-50%); background: var(--bg);
+                padding: 0 22px; font-size: 28px; font-weight: 700; color: var(--teal); white-space: nowrap; }
+
+  .path { position: absolute; left: 170px; top: 950px; display: flex; align-items: center; gap: 18px; font-size: 30px; font-weight: 700; }
+  .path .label { color: var(--muted); margin-right: 10px; letter-spacing: 0.1em; }
+  .step { border: 3px solid var(--yellow); padding: 10px 22px; color: var(--yellow); }
+  .step.last { background: var(--yellow); color: var(--bg); }
+  .path .to { color: var(--green); }
+
+  .dot { position: absolute; width: 6px; height: 6px; }
+  svg.px { shape-rendering: crispEdges; display: block; }
+</style>
+</head>
+<body>
+  <div class="kicker">BUSINESS MODEL · B2G</div>
+  <h1>WHO PAYS?</h1>
+  <div class="sub">Families practise <em>free</em>. Government pays to protect them.</div>
+
+  <div class="flow">
+    <div class="card gov">
+      <h2>GOVERNMENT
+        <!-- pixel building -->
+        <svg class="px" width="64" height="64" viewBox="0 0 16 16">
+          <rect x="7" y="0" width="2" height="1" fill="#F0445A"/><rect x="7" y="1" width="1" height="2" fill="#F4F4F4"/>
+          <rect x="3" y="3" width="10" height="1" fill="#E0409E"/><rect x="2" y="4" width="12" height="2" fill="#E0409E"/>
+          <rect x="3" y="7" width="2" height="6" fill="#F4F4F4"/><rect x="7" y="7" width="2" height="6" fill="#F4F4F4"/><rect x="11" y="7" width="2" height="6" fill="#F4F4F4"/>
+          <rect x="1" y="13" width="14" height="2" fill="#E0409E"/>
+        </svg>
+      </h2>
+      <p>Buys a <span class="hl-y">programme licence</span>.</p>
+      <div class="small">IMDA · SPF · NCPC · MOE<br>Banks &amp; telcos co-fund</div>
+    </div>
+
+    <div class="arrow">
+      <span>funds</span>
+      <svg class="px" width="90" height="36" viewBox="0 0 15 6"><rect x="0" y="2" width="10" height="2" fill="#6EF58A"/><rect x="10" y="0" width="2" height="6" fill="#6EF58A"/><rect x="12" y="1" width="2" height="4" fill="#6EF58A"/><rect x="14" y="2" width="1" height="2" fill="#6EF58A"/></svg>
+    </div>
+
+    <div class="card app">
+      <h2>DRILL MODE
+        <!-- pixel robot -->
+        <svg class="px" width="64" height="64" viewBox="0 0 16 16">
+          <rect x="4" y="0" width="8" height="6" fill="#6CCFC4"/>
+          <rect x="5" y="2" width="2" height="1" fill="#0A0D18"/><rect x="9" y="2" width="2" height="1" fill="#0A0D18"/>
+          <rect x="6" y="4" width="4" height="1" fill="#0A0D18"/>
+          <rect x="1" y="8" width="2" height="2" fill="#6CCFC4"/><rect x="13" y="8" width="2" height="2" fill="#6CCFC4"/>
+          <rect x="3" y="7" width="10" height="6" fill="#6EF58A"/><rect x="5" y="9" width="6" height="2" fill="#0E2418"/>
+          <rect x="4" y="13" width="2" height="2" fill="#6CCFC4"/><rect x="10" y="13" width="2" height="2" fill="#6CCFC4"/>
+        </svg>
+      </h2>
+      <p><span class="hl-r">Realistic</span> scam drills, with <span class="hl-g">consent</span> built in.</p>
+      <div class="small">Voice · SMS · email<br>+ results dashboard</div>
+    </div>
+
+    <div class="arrow">
+      <span>free</span>
+      <svg class="px" width="90" height="36" viewBox="0 0 15 6"><rect x="0" y="2" width="10" height="2" fill="#6EF58A"/><rect x="10" y="0" width="2" height="6" fill="#6EF58A"/><rect x="12" y="1" width="2" height="4" fill="#6EF58A"/><rect x="14" y="2" width="1" height="2" fill="#6EF58A"/></svg>
+    </div>
+
+    <div class="card fam">
+      <h2>FAMILIES
+        <!-- two pixel people -->
+        <svg class="px" width="96" height="64" viewBox="0 0 24 16">
+          <g fill="#6EF58A"><rect x="1" y="1" width="8" height="6"/><rect x="0" y="8" width="10" height="4"/><rect x="2" y="12" width="2" height="3"/><rect x="6" y="12" width="2" height="3"/></g>
+          <rect x="3" y="3" width="1" height="1" fill="#0A0D18"/><rect x="6" y="3" width="1" height="1" fill="#0A0D18"/><rect x="4" y="5" width="2" height="1" fill="#0A0D18"/>
+          <g fill="#F7DD7A"><rect x="14" y="2" width="8" height="6"/><rect x="13" y="9" width="10" height="3"/><rect x="15" y="12" width="2" height="3"/><rect x="19" y="12" width="2" height="3"/></g>
+          <rect x="16" y="4" width="1" height="1" fill="#0A0D18"/><rect x="19" y="4" width="1" height="1" fill="#0A0D18"/><rect x="17" y="6" width="2" height="1" fill="#0A0D18"/>
+        </svg>
+      </h2>
+      <p>Practise <span class="hl-g">free</span>. Nothing blocks uptake.</p>
+      <div class="small">Seniors, parents, kids</div>
+    </div>
+  </div>
+
+  <div class="loop"><div class="loop-label">Results flow back: are people harder to scam?</div></div>
+
+  <div class="path">
+    <span class="label">PATH TO REVENUE</span>
+    <span class="step">Grant</span><span class="to">→</span>
+    <span class="step">Pilot</span><span class="to">→</span>
+    <span class="step">Readout</span><span class="to">→</span>
+    <span class="step last">Licence</span>
+  </div>
+
+  <script>
+    // Confetti dots in the corners, like the rest of the deck.
+    const colors = ['#6EF58A', '#F7DD7A', '#F0445A', '#7E4CE0', '#6CCFC4'];
+    let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+    const zones = [[0, 0, 360, 90], [1500, 0, 1920, 250], [1560, 860, 1920, 1080], [0, 1030, 420, 1075]];
+    zones.forEach(([x0, y0, x1, y1]) => {
+      for (let i = 0; i < 9; i++) {
+        const d = document.createElement('div');
+        d.className = 'dot';
+        d.style.left = (x0 + rnd() * (x1 - x0)) + 'px';
+        d.style.top = (y0 + rnd() * (y1 - y0)) + 'px';
+        d.style.background = colors[Math.floor(rnd() * colors.length)];
+        document.body.appendChild(d);
+      }
+    });
+  </script>
+</body>
+</html>
