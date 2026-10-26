@@ -57,6 +57,8 @@ import { channelAllowed, cleanPresurvey } from './presurvey.js';
 import { realDrillCooldownMs } from './drill-cooldown.js';
 import { getPresurvey, getPresurveyOrNull, savePresurvey } from './presurvey-store.js';
 import { writeDrillEmail } from './email-writer.js';
+import { writeDrillSms } from './sms-writer.js';
+import { tacticFromLesson } from './call-tactic.js';
 import {
   sendDrillSms,
   smsConfigured,
@@ -406,18 +408,31 @@ function sendEducationalPage(res, options) {
 // Scam intel is opt-in. Off, empty, stale or broken all mean the same thing on the call
 // path: the default persona, exactly as before intel existed. A lookup failure is logged
 // and never stops a call being placed.
-async function tacticForCall() {
-  if (process.env.INTEL_ENABLED !== 'true') return null;
+async function tacticForCall(preferences = null) {
+  // Same content path as the SMS and email drills: a bulletin scam variant chosen for
+  // this player's pre-survey (presurvey.js), worn as a fictional caller by call-tactic.js.
+  try {
+    const lesson = await getLessonForProfile(preferences);
+    const tactic = tacticFromLesson(lesson);
+    if (tactic) return { tactic, lesson };
+  } catch (error) {
+    console.error('[call] variant lookup failed; trying scraped intel:', error?.message || error);
+  }
+  // Scraped intel cards are the older, opt-in path and stay as a fallback.
+  if (process.env.INTEL_ENABLED !== 'true') return { tactic: null, lesson: null };
   try {
     const cards = await listLiveTacticCards();
     const rendered = cards.map((card) => renderTactic(card)).filter(Boolean);
     if (rendered.length < cards.length) {
       console.error(`[intel] ${cards.length - rendered.length} stored tactic card(s) failed re-validation`);
     }
-    return rendered.length ? rendered[crypto.randomInt(rendered.length)] : null;
+    return {
+      tactic: rendered.length ? rendered[crypto.randomInt(rendered.length)] : null,
+      lesson: null,
+    };
   } catch (error) {
     console.error('[intel] tactic lookup failed; using the default persona:', error?.message || error);
-    return null;
+    return { tactic: null, lesson: null };
   }
 }
 
@@ -1034,7 +1049,8 @@ api.post('/api/drills/fire', async (req, res) => {
   if (!user) return res.status(401).json({ error: 'session no longer valid' });
   if (!user.consentToDrills) return res.status(403).json({ error: 'user has not consented to drills' });
   if (!user.phone) return res.status(400).json({ error: 'no verified phone on file' });
-  if (await preferencesAllowing(res, userId, 'call') === undefined) return;
+  const preferences = await preferencesAllowing(res, userId, 'call');
+  if (preferences === undefined) return;
   if (!callConfigured()) return fail(res, 503, 'call drills are not configured');
 
   let attempt;
@@ -1049,7 +1065,11 @@ api.post('/api/drills/fire', async (req, res) => {
     throw error;
   }
 
-  const tactic = await tacticForCall();
+  const { tactic, lesson: variant } = await tacticForCall(preferences);
+  // The call has no written copy to translate, so the lesson kept on the attempt is the
+  // variant's own; the reveal page and result screen then teach the scam that was run.
+  const lesson = variant ? drillLesson(variant, null, 'en') : null;
+  const scamVariantId = variant ? variant.variantId : null;
   let call;
   try {
     call = await fireDrillCall({
@@ -1062,7 +1082,7 @@ api.post('/api/drills/fire', async (req, res) => {
   } catch (error) {
     if (error instanceof VapiDeliveryUnconfirmed || error?.code === 'VAPI_DELIVERY_UNCONFIRMED') {
       try {
-        await markDrillAttemptSent(attempt.id);
+        await markDrillAttemptSent(attempt.id, { scamVariantId, lesson });
       } catch (storeError) {
         console.error('[api] unconfirmed call state could not be persisted:', storeError?.message || storeError);
       }
@@ -1078,7 +1098,7 @@ api.post('/api/drills/fire', async (req, res) => {
   }
 
   try {
-    await markDrillAttemptSent(attempt.id, { providerId: call.id });
+    await markDrillAttemptSent(attempt.id, { providerId: call.id, scamVariantId, lesson });
   } catch (error) {
     // The call is already live and carries the attempt id in Vapi metadata, so do not
     // tell the user to retry and accidentally place a second call.
@@ -1193,7 +1213,8 @@ api.post('/api/drills/sms', async (req, res) => {
   if (!user) return res.status(401).json({ error: 'session no longer valid' });
   if (!user.consentToDrills) return res.status(403).json({ error: 'user has not consented to drills' });
   if (!user.phone) return res.status(400).json({ error: 'no verified phone on file' });
-  if (await preferencesAllowing(res, userId, 'sms') === undefined) return;
+  const preferences = await preferencesAllowing(res, userId, 'sms');
+  if (preferences === undefined) return;
   if (!smsConfigured() || !drillLinksConfigured()) {
     return fail(res, 503, 'SMS drills are not configured');
   }
@@ -1210,9 +1231,20 @@ api.post('/api/drills/sms', async (req, res) => {
     throw error;
   }
 
+  // The same content path as the email drill: a real scam variant from the bulletins,
+  // chosen for the player's pre-survey (presurvey.js), written up by OpenAI as a text
+  // relatable to what they practise and regularly do, in their app language. The lesson
+  // comes back in that language and is kept on the attempt, so the reveal page, the
+  // result screen and Pixi teach the same scam. Asking for a named scenario, or any
+  // failure along the way, falls back to a curated scenario from sms.js.
+  const language = normalizeLanguage(req.body?.language);
+  const variant = req.body?.scenario ? null : await getLessonForProfile(preferences);
+  const content = variant ? await writeDrillSms(variant, { language, presurvey: preferences }) : null;
+  const lesson = content ? drillLesson(variant, content.lesson, language) : null;
+  const scamVariantId = content ? variant.variantId : null;
+
   let output;
   try {
-    const language = normalizeLanguage(req.body?.language);
     const { revealUrl } = createEmailDrillLinks(attempt.id);
     output = await sendDrillSms({
       to: user.phone,
@@ -1220,11 +1252,12 @@ api.post('/api/drills/sms', async (req, res) => {
       scenarioId: req.body?.scenario,
       revealUrl: withLanguage(revealUrl, language),
       language,
+      content,
     });
   } catch (error) {
     if (error?.code === 'SMS_DELIVERY_UNCONFIRMED') {
       try {
-        await markDrillAttemptSent(attempt.id);
+        await markDrillAttemptSent(attempt.id, { scamVariantId, lesson });
       } catch (storeError) {
         console.error('[api] unconfirmed SMS state could not be persisted:', storeError?.message || storeError);
       }
@@ -1241,7 +1274,9 @@ api.post('/api/drills/sms', async (req, res) => {
     return fail(res, 502, 'could not send the drill SMS', error);
   }
   try {
-    await markDrillAttemptSent(attempt.id, { providerId: output.sid });
+    await markDrillAttemptSent(attempt.id, {
+      providerId: output.sid, scenarioId: output.scenarioId, scamVariantId, lesson,
+    });
   } catch (error) {
     console.error('[api] SMS sent but sent-state persistence failed:', error?.message || error);
   }
@@ -1249,6 +1284,8 @@ api.post('/api/drills/sms', async (req, res) => {
     ok: true,
     drillId: attempt.id,
     scenarioId: output.scenarioId,
+    // The lesson in the player's language, for the in-app result screen.
+    lesson: lesson ? { flags: lesson.redFlags, advice: lesson.preventionAdvice } : null,
     revealAt: output.revealAt,
     revealInMs: output.revealInMs,
   });

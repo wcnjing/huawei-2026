@@ -14,6 +14,7 @@ import {
   resolveRevealDelay,
   DEFAULT_REVEAL_DELAY_MS,
   TWILIO_MIN_SCHEDULE_MS,
+  GENERATED_SMS_SCENARIO_ID,
 } from './sms.js';
 
 function clearSmsEnv() {
@@ -282,4 +283,57 @@ test('sendDrillSms sends the bait and the scheduled reveal in the chosen languag
   assert.equal(calls[0].get('Body'), REVEAL_TEXTS.ta);
   assert.ok(calls[1].get('Body').startsWith('JUDGE, Meridian Bank எச்சரிக்கை'));
   assert.ok(calls[1].get('Body').endsWith('&lang=ta'));
+});
+
+test('an AI-written text is sent instead of a scenario, with the signed link appended', async (t) => {
+  clearSmsEnv();
+  configureSms();
+  process.env.PUBLIC_URL = 'https://safe.example.test';
+  const originalFetch = global.fetch;
+  t.after(() => {
+    global.fetch = originalFetch;
+    clearSmsEnv();
+  });
+  const calls = [];
+  global.fetch = async (url, options) => {
+    calls.push({ form: new URLSearchParams(options.body) });
+    if (calls.length === 1) return response(201, { sid: 'SM_reveal', status: 'scheduled' });
+    return response(201, { sid: 'SM_bait', status: 'accepted' });
+  };
+  const token = `payload.${'s'.repeat(43)}`;
+  const revealUrl = `https://safe.example.test/drill-reveal?token=${token}`;
+  const written = 'Harbourline Bank: a transfer of S$480 to a new payee was approved. Cancel it here:';
+
+  const result = await sendDrillSms({
+    to: '+6591234567',
+    name: 'JUDGE',
+    revealUrl,
+    content: { text: written },
+  });
+
+  const bait = calls[1].form.get('Body');
+  assert.equal(bait, `JUDGE, ${written} ${revealUrl}`);
+  assert.equal(result.scenarioId, GENERATED_SMS_SCENARIO_ID, 'the attempt records a written text');
+});
+
+test('FAILS CLOSED: a written text is never sent without a signed reveal link', async (t) => {
+  clearSmsEnv();
+  configureSms();
+  process.env.PUBLIC_URL = 'https://safe.example.test';
+  const originalFetch = global.fetch;
+  let calls = 0;
+  t.after(() => {
+    global.fetch = originalFetch;
+    clearSmsEnv();
+  });
+  global.fetch = async () => {
+    calls += 1;
+    return response(201, { sid: 'SM_reveal', status: 'scheduled' });
+  };
+  await assert.rejects(
+    () => sendDrillSms({ to: '+6591234567', content: { text: 'A fake bank alert with no way back.' } }),
+    { code: 'SMS_UNAVAILABLE' },
+    'without a link the person has no immediate exit from the drill',
+  );
+  assert.equal(calls, 0, 'nothing is scheduled or sent');
 });

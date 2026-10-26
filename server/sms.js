@@ -46,6 +46,10 @@ export function smsConfigured() {
 // simulated phishing message is a legal and reputational problem, and it is the rule
 // used by the voice persona too. sms.test.mjs enforces this. Every translation must keep
 // the English bait URL as its final token so scenarioText can swap in the signed link.
+// Recorded on the attempt when the text was written for this player rather than picked
+// from SCENARIOS, so a reveal page can tell the two apart. Mirrors email.js.
+export const GENERATED_SMS_SCENARIO_ID = 'generated';
+
 export const SCENARIOS = [
   {
     id: 'parcel',
@@ -245,16 +249,31 @@ export function personalizeSmsText(text, name) {
  * @param {{to: string, name?: string, scenarioId?: string, revealAfterMs?: number,
  *   revealUrl?: string, language?: string}} opts
  */
-export async function sendDrillSms({ to, name, scenarioId, revealAfterMs, revealUrl, language }) {
+export async function sendDrillSms({
+  to, name, scenarioId, revealAfterMs, revealUrl, language, content = null,
+}) {
   if (!smsConfigured()) {
     throw new SmsUnavailable(
       'TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_MESSAGING_SERVICE_SID must be set; '
       + 'SMS_REVEAL_DELAY_MS, when set, must be between 15 minutes and 35 days',
     );
   }
-  const scenario = pickScenario(scenarioId);
+  // An AI-written text (sms-writer.js) carries no link of its own, so the signed reveal
+  // URL is required: it is the person's immediate way out of the drill. A curated
+  // scenario can still go without one, because its bait URL is already fictional.
+  const written = typeof content?.text === 'string' ? content.text.trim() : '';
+  const scenario = written ? null : pickScenario(scenarioId);
   // Validate and render every caller-controlled value before creating a durable job.
-  const bait = scenarioText(scenario, revealUrl, language);
+  let bait;
+  if (written) {
+    const safeRevealUrl = validateSmsRevealUrl(revealUrl);
+    if (!safeRevealUrl) {
+      throw new SmsUnavailable('a written drill text needs a signed revealUrl to link to');
+    }
+    bait = `${written} ${safeRevealUrl}`;
+  } else {
+    bait = scenarioText(scenario, revealUrl, language);
+  }
   const delay = resolveRevealDelay(revealAfterMs);
   const revealAt = new Date(Date.now() + delay).toISOString();
   const scheduled = await twilioSend({ to, body: REVEAL_TEXTS[normalizeLanguage(language)], sendAt: revealAt });
@@ -283,7 +302,7 @@ export async function sendDrillSms({ to, name, scenarioId, revealAfterMs, reveal
     throw new SmsDeliveryUnconfirmed(
       'SMS delivery could not be confirmed; safety reveal remains scheduled',
       {
-        scenarioId: scenario.id,
+        scenarioId: scenario ? scenario.id : GENERATED_SMS_SCENARIO_ID,
         revealSid: scheduled.sid,
         revealAt,
         revealInMs: delay,
@@ -294,7 +313,7 @@ export async function sendDrillSms({ to, name, scenarioId, revealAfterMs, reveal
   return {
     sid: sent.sid,
     revealSid: scheduled.sid,
-    scenarioId: scenario.id,
+    scenarioId: scenario ? scenario.id : GENERATED_SMS_SCENARIO_ID,
     revealAt,
     revealInMs: delay,
   };

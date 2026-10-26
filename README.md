@@ -12,13 +12,22 @@ Built for Huawei Tech4City 2026.
 |---|---|
 | **Voice call** | Vapi places a real call only to the session user's verified number. The transient assistant uses fictional institutions, a distress off-ramp, an OTP safety tripwire and structured post-call analysis. No-answer, voicemail, provider errors and insufficient evidence are **unscored**, not wins or losses. |
 | **Phone ownership** | Twilio Verify sends the registration OTP. Missing provider configuration fails closed; the fixed development code works only when `ALLOW_DEV_VERIFY=true` is explicitly set. |
-| **SMS drill** | Twilio Programmable Messaging sends a curated fictional scenario. A signed first-party link opens a confirmation/reveal flow, and a provider-durable reveal SMS is scheduled first as a fallback. |
+| **SMS drill** | Twilio Programmable Messaging sends a text written from a real bulletin scam variant, or a curated fictional scenario when no variant or key is available. A signed first-party link opens a confirmation/reveal flow, and a provider-durable reveal SMS is scheduled first as a fallback. |
 | **Email ownership** | A signed, 30-minute ownership link opens a confirmation page; ownership changes only after an explicit POST confirmation. Proving a phone number does not prove ownership of an email address. |
-| **Email drill** | Google Apps Script renders escaped, allow-listed fictional templates. It rejects arbitrary HTML, uses signed first-party reveal/report links, and durably schedules a safety follow-up before sending bait. No OpenAI key is used. |
+| **Email drill** | Google Apps Script renders escaped, allow-listed fictional templates. It rejects arbitrary HTML, uses signed first-party reveal/report links, and durably schedules a safety follow-up before sending bait. The copy itself is written by OpenAI from a bulletin scam variant, with a fixed template as the fallback. |
 
 Real drills are **manual, explicit “send/call me now” actions**. SafeSpace does not run
 a background recurring-drill scheduler. Practice versions of all three channels remain
 fully simulated and award half XP.
+
+All three real channels draw their content from the same place: a scam variant from the
+ingested Singapore police bulletins, chosen for the player's pre-survey answers (what
+they want to practise and what they do in everyday life, `server/presurvey.js`). The
+call wears it as a fictional caller (`server/call-tactic.js`); the SMS and email drills
+have OpenAI write the copy from it (`server/sms-writer.js`, `server/email-writer.js`)
+and keep the translated lesson on the attempt, so the reveal page, result screen and
+Pixi all teach the scam that was actually run. Every path falls back to a fixed
+scenario, and no drill ever names the real organisation a variant reports on.
 
 > **Twilio trial caveat:** trial accounts add a Twilio prefix to outbound SMS and can
 > contact only verified destinations. That makes a drill easier to recognise.
