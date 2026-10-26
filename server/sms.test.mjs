@@ -10,10 +10,10 @@ import {
   pickScenario,
   personalizeSmsText,
   scenarioText,
-  validateSmsRevealUrl,
   resolveRevealDelay,
   DEFAULT_REVEAL_DELAY_MS,
   TWILIO_MIN_SCHEDULE_MS,
+  GENERATED_SMS_SCENARIO_ID,
 } from './sms.js';
 
 function clearSmsEnv() {
@@ -83,11 +83,13 @@ test('no scenario impersonates a real bank, brand or agency', () => {
   }
 });
 
-test('every built-in bait URL uses the reserved .example namespace', () => {
+test('no scenario contains a link, in any language', () => {
+  // SMS drills carry no URL at all: a person replies instead, and sms-reply.js answers.
   for (const scenario of SCENARIOS) {
-    const match = scenario.text.match(/https:\/\/\S+$/);
-    assert.ok(match, `${scenario.id} needs one absolute URL`);
-    assert.match(new URL(match[0]).hostname, /\.example$/);
+    for (const [lang, text] of [['en', scenario.text], ...Object.entries(scenario.translations || {})]) {
+      assert.doesNotMatch(text, /https?:\/\//i, `${scenario.id} (${lang}) has a URL`);
+      assert.doesNotMatch(text, /\b[a-z0-9-]+\.(?:com|net|org|example|sg|io)\b/i, `${scenario.id} (${lang}) has a domain`);
+    }
   }
 });
 
@@ -120,26 +122,6 @@ test('SMS drills address the verified user by name', () => {
   assert.equal(personalizeSmsText('Your parcel is held.', ''), 'Your parcel is held.');
 });
 
-test('a caller-supplied reveal link must be signed, HTTPS and first-party', () => {
-  clearSmsEnv();
-  process.env.PUBLIC_URL = 'https://safe.example.test';
-  const token = `payload.${'s'.repeat(43)}`;
-  const good = `https://safe.example.test/drill-reveal?token=${token}`;
-  assert.equal(validateSmsRevealUrl(good), good);
-  assert.match(scenarioText(pickScenario('parcel'), good), /safe\.example\.test\/drill-reveal/);
-  assert.doesNotMatch(scenarioText(pickScenario('parcel'), good), /parcellink\.example/);
-  for (const bad of [
-    `http://safe.example.test/drill-reveal?token=${token}`,
-    `https://evil.example/drill-reveal?token=${token}`,
-    `https://safe.example.test/drill-report?token=${token}`,
-    'https://safe.example.test/drill-reveal',
-    `${good}#fragment`,
-  ]) {
-    assert.throws(() => validateSmsRevealUrl(bad), { code: 'SMS_UNAVAILABLE' });
-  }
-  clearSmsEnv();
-});
-
 test('sendDrillSms schedules the reveal before sending bait', async (t) => {
   clearSmsEnv();
   configureSms();
@@ -155,14 +137,10 @@ test('sendDrillSms schedules the reveal before sending bait', async (t) => {
     if (calls.length === 1) return response(201, { sid: 'SM_reveal', status: 'scheduled' });
     return response(201, { sid: 'SM_bait', status: 'accepted' });
   };
-  const token = `payload.${'s'.repeat(43)}`;
-  const revealUrl = `https://safe.example.test/drill-reveal?token=${token}`;
-
   const result = await sendDrillSms({
     to: '+6591234567',
     name: 'JUDGE',
     scenarioId: 'parcel',
-    revealUrl,
   });
 
   assert.equal(calls.length, 2);
@@ -172,7 +150,7 @@ test('sendDrillSms schedules the reveal before sending bait', async (t) => {
   assert.equal(calls[0].form.get('MessagingServiceSid'), 'MG_test');
   assert.equal(calls[1].form.get('ScheduleType'), null);
   assert.match(calls[1].form.get('Body'), /^JUDGE, /);
-  assert.match(calls[1].form.get('Body'), /safe\.example\.test\/drill-reveal/);
+  assert.doesNotMatch(calls[1].form.get('Body'), /https?:\/\//, 'a drill text carries no link');
   assert.equal(result.revealSid, 'SM_reveal');
   assert.equal(result.sid, 'SM_bait');
 });
@@ -219,14 +197,12 @@ test('a bait-send failure cancels the previously scheduled standalone reveal', a
   assert.equal(calls[2].form.get('Status'), 'canceled');
 });
 
-test('every translated scenario keeps the fictional brand-free text, size and bait URL', () => {
+test('every translated scenario keeps the fictional brand-free text and size', () => {
   for (const scenario of SCENARIOS) {
-    const englishUrl = scenario.text.match(/https:\/\/\S+$/)[0];
     for (const lang of ['zh', 'ms', 'ta']) {
       const text = scenario.translations?.[lang];
       assert.ok(text, `${scenario.id} is missing a ${lang} translation`);
       assert.ok(text.length <= 320, `${scenario.id}/${lang} is ${text.length} chars`);
-      assert.equal(text.match(/https:\/\/\S+$/)?.[0], englishUrl, `${scenario.id}/${lang} must end with the bait URL`);
       for (const brand of ['dbs', 'ocbc', 'uob', 'posb', 'singpost', 'iras', 'cpf', 'singtel', 'shopee', 'lazada']) {
         assert.ok(!text.toLowerCase().includes(brand), `${scenario.id}/${lang} mentions ${brand}`);
       }
@@ -240,18 +216,6 @@ test('translated reveal texts name the drill and carry no link', () => {
     assert.ok(!/http|www\./i.test(REVEAL_TEXTS[lang]), `${lang} reveal must not contain a link`);
   }
   assert.equal(REVEAL_TEXT, REVEAL_TEXTS.en);
-});
-
-test('scenarioText swaps the signed link into the chosen language and falls back to English', () => {
-  process.env.PUBLIC_URL = 'https://safe.example.test';
-  const token = `payload.${'s'.repeat(43)}`;
-  const revealUrl = `https://safe.example.test/drill-reveal?token=${token}&lang=zh`;
-  const parcel = pickScenario('parcel');
-  const zh = scenarioText(parcel, revealUrl, 'zh');
-  assert.ok(zh.startsWith('ParcelLink：'));
-  assert.ok(zh.endsWith(revealUrl));
-  assert.equal(scenarioText(parcel, null, 'klingon'), parcel.text);
-  delete process.env.PUBLIC_URL;
 });
 
 test('sendDrillSms sends the bait and the scheduled reveal in the chosen language', async (t) => {
@@ -269,17 +233,63 @@ test('sendDrillSms sends the bait and the scheduled reveal in the chosen languag
     if (calls.length === 1) return response(201, { sid: 'SM_reveal', status: 'scheduled' });
     return response(201, { sid: 'SM_bait', status: 'accepted' });
   };
-  const token = `payload.${'s'.repeat(43)}`;
-
   await sendDrillSms({
     to: '+6591234567',
     name: 'JUDGE',
     scenarioId: 'bank',
-    revealUrl: `https://safe.example.test/drill-reveal?token=${token}&lang=ta`,
     language: 'ta',
   });
 
   assert.equal(calls[0].get('Body'), REVEAL_TEXTS.ta);
   assert.ok(calls[1].get('Body').startsWith('JUDGE, Meridian Bank எச்சரிக்கை'));
-  assert.ok(calls[1].get('Body').endsWith('&lang=ta'));
+  assert.doesNotMatch(calls[1].get('Body'), /https?:\/\//, 'a drill text carries no link');
+});
+
+test('an AI-written text is sent instead of a scenario, and carries no link', async (t) => {
+  clearSmsEnv();
+  configureSms();
+  process.env.PUBLIC_URL = 'https://safe.example.test';
+  const originalFetch = global.fetch;
+  t.after(() => {
+    global.fetch = originalFetch;
+    clearSmsEnv();
+  });
+  const calls = [];
+  global.fetch = async (url, options) => {
+    calls.push({ form: new URLSearchParams(options.body) });
+    if (calls.length === 1) return response(201, { sid: 'SM_reveal', status: 'scheduled' });
+    return response(201, { sid: 'SM_bait', status: 'accepted' });
+  };
+  const written = 'Harbourline Bank: a transfer of S$480 to a new payee was approved. Reply STOP NOW to cancel.';
+
+  const result = await sendDrillSms({
+    to: '+6591234567',
+    name: 'JUDGE',
+    content: { text: written },
+  });
+
+  const bait = calls[1].form.get('Body');
+  assert.equal(bait, `JUDGE, ${written}`);
+  assert.equal(result.scenarioId, GENERATED_SMS_SCENARIO_ID, 'the attempt records a written text');
+});
+
+test('the bait text is reported back so it can start the exchange', async (t) => {
+  clearSmsEnv();
+  configureSms();
+  process.env.PUBLIC_URL = 'https://safe.example.test';
+  const originalFetch = global.fetch;
+  t.after(() => {
+    global.fetch = originalFetch;
+    clearSmsEnv();
+  });
+  let calls = 0;
+  global.fetch = async () => {
+    calls += 1;
+    return calls === 1
+      ? response(201, { sid: 'SM_reveal', status: 'scheduled' })
+      : response(201, { sid: 'SM_bait', status: 'accepted' });
+  };
+  const result = await sendDrillSms({ to: '+6591234567', name: 'JUDGE', scenarioId: 'parcel' });
+  assert.match(result.baitText, /^JUDGE, /);
+  assert.match(result.baitText, /ParcelLink/);
 });

@@ -1,6 +1,6 @@
 import type { FamilyScenario } from "../types/drills";
 import { FAMILY_SCENARIOS } from "./familyScenarios";
-import { ACTIVITIES, INTERESTS, type DrillPreferences } from "./drillPreferences";
+import { ACTIVITIES, INTERESTS, type PresurveyResponses } from "./presurvey";
 
 export const SOLO_COUNT = { min: 5, max: 10, default: 5 } as const;
 
@@ -11,8 +11,13 @@ export function scenarioById(id: number): FamilyScenario | undefined {
 }
 
 /** `count` distinct scenarios in random order, capped at the pool size. */
-export function pickScenarios(count: number, random = Math.random, preferences?: DrillPreferences): FamilyScenario[] {
-  const pool = [...FAMILY_SCENARIOS];
+export function pickScenarios(count: number, random = Math.random, preferences?: PresurveyResponses): FamilyScenario[] {
+  // Channels are a hard limit: an unticked SMS or email never appears. App notifications
+  // belong to no channel. If that leaves nothing (every channel unticked), use them all.
+  const allowed = FAMILY_SCENARIOS.filter(scenario => !preferences
+    || (scenario.type !== "sms" && scenario.type !== "email")
+    || preferences.channels.includes(scenario.type));
+  const pool = allowed.length ? allowed : [...FAMILY_SCENARIOS];
   const selected = new Set(preferences?.interests ?? []);
   const context = new Set<string>();
   if (preferences) {
@@ -31,9 +36,7 @@ export function pickScenarios(count: number, random = Math.random, preferences?:
       const contextual = groups.some(group => context.has(group.id));
       // Keep broad coverage, including safe messages and categories with no match.
       const base = preferences.includeOtherTypes ? 1 : 0.35;
-      const channel = scenario.type === "sms" || scenario.type === "email"
-        ? (preferences.channels.includes(scenario.type) ? 0.5 : 0) : 0;
-      return base + (explicit ? 6 : 0) + (contextual ? 2 : 0) + channel;
+      return base + (explicit ? 6 : 0) + (contextual ? 2 : 0);
     });
     let draw = random() * weights.reduce((sum, weight) => sum + weight, 0);
     let index = weights.length - 1;

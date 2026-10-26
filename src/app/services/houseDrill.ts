@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiPost, handleApiAuth, sessionToken } from "./api";
 import type { Avatar } from "./house";
-import type { FamilyOutcome } from "../types/drills";
+import type { FamilyOutcome, FamilyScenario } from "../types/drills";
 
 export type DrillPlayerStatus = "accepted" | "invited" | "declined" | "expired" | "left";
 export type DrillPlayer = { id: string; name: string; avatar: Avatar | null; status: DrillPlayerStatus };
@@ -25,6 +25,8 @@ export type HouseDrill = {
   createdAt: string; updatedAt: string; inviteExpiresAt: string;
   startedAt: string | null; finishedAt: string | null;
   players: DrillPlayer[]; turns: DrillTurn[]; currentTurn: number;
+  /** AI-written questions by id; any other scenarioId is one of the app's fixed messages. */
+  scenarios?: Record<string, FamilyScenario>;
   /** The current turn was answered; the game waits until everyone in `ready` continues. */
   revealing: boolean; ready: string[];
   /** In a race, other players' answers keep `outcome`/`action` null until it finishes. */
@@ -43,8 +45,12 @@ export const openHouseDrill = (perPlayer: number, mode: DrillMode) =>
 const drillPath = (id: string, action: string) => `/api/house/drill/${encodeURIComponent(id)}/${action}`;
 export const respondToHouseDrill = (id: string, accept: boolean) =>
   apiPost<DrillResponse>(drillPath(id, "respond"), { accept });
-export const startHouseDrill = (id: string, scenarioIds: number[]) =>
-  apiPost<DrillResponse>(drillPath(id, "start"), { scenarioIds });
+/**
+ * `scenarioIds` are fixed messages to fall back on; the server writes questions from each
+ * player's pre-survey in `language` and keeps any fixed message it couldn't replace.
+ */
+export const startHouseDrill = (id: string, scenarioIds: number[], language: string) =>
+  apiPost<DrillResponse>(drillPath(id, "start"), { scenarioIds, language });
 export const answerHouseDrill = (id: string, answer: { turn: number; action: string; outcome: FamilyOutcome; foundClues: number }) =>
   apiPost<DrillResponse>(drillPath(id, "answer"), answer);
 /** Ready for the next turn. The host's `force` moves on without waiting for everyone. */

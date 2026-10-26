@@ -157,18 +157,26 @@ React (game UI)  →  Node/Express API  →  Vapi + Twilio  →  the phone rings
                     Claude (adaptive caller + debrief)
 ```
 
-**Production path:** backend on **Huawei Cloud ECS**, models via **ModelArts**,
-drill-window notifications via **HarmonyOS Push Kit**.
+**Production path:** backend on **Huawei Cloud ECS**, models via **ModelArts**.
 
 **Speaker note:** One breath. Don't linger on boxes.
 
 ---
 
-## Slide 11 — Roadmap
+## Slide 11 — Roadmap: who, when, and how we measure
 
-- **Now:** working drills, gamified app, consent + safeguards
-- **Next:** random-schedule drills at scale, family debrief generation
-- **Then:** HarmonyOS app, Singlish/code-mixed voices, schools & community deployment
+**Buyer: government. Users: families, free.**
+
+| | **Now** (to 27 Oct 2026) | **Pilot** (Nov 2026 to mid 2027) | **Scale** (2027 to 2028) | **Region** (after a proven pilot) |
+|---|---|---|---|---|
+| **Who we approach** | Tech4City judges and mentors; families from our user testing | SPF Scam Public Education Office with NCPC; seniors via Project PRAISE (RSVP Singapore) and Silver Generation Ambassadors | IMDA (Digital for Life) and MOE for national digital-literacy programmes; banks and telcos as co-funders | One anti-scam agency in a second ASEAN country |
+| **Milestone** | Final pitch and live demo, 27 Oct 2026 | Intro meeting with SPF and NCPC by Dec 2026; first pilot cohort running by Q1 2027 | First licensed programme with one agency; anonymised agency dashboard live | Second-market pilot with local languages |
+| **How we measure** | Drills run end to end on a real phone; consent checks pass | % who hang up or report in a drill, first vs later; % who finish and come back; targets set with the partner | Households reached; cost per household; still practising after 3 months | Same measures, new language, compared with Singapore |
+
+**Speaker note:** Walk it left to right. The named bodies are outreach targets, not partners:
+say so. Milestones are dated from the 27 Oct final. In-drill behaviour is a proxy for real
+scam outcomes; be upfront about that and say we would test it with partner data. Don't state
+a target number unless a partner has agreed it.
 
 ---
 

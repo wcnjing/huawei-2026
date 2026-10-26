@@ -9,11 +9,12 @@
   "scripts": {
     "dev": "vite",
     "dev:test": "node scripts/dev-test.mjs",
+    "tunnel": "node --env-file-if-exists=.env scripts/tunnel.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "server": "node --env-file-if-exists=.env server/index.js",
     "start": "npm run build && node --env-file-if-exists=.env server/index.js",
-    "test": "node --test server/*.test.mjs",
+    "test": "DOTENV_CONFIG_PATH=/dev/null node --test server/*.test.mjs",
     "db:migrate": "node --env-file-if-exists=.env server/migrate.js",
     "test:pg": "node scripts/test-pg.mjs",
     "typecheck": "tsc --noEmit",

@@ -101,6 +101,24 @@ test('only the host starts, with exactly one scenario per turn, in rotating orde
   await rejectsWith(() => drills.respondToHouseDrill(b.id, drillId, true), 'DRILL_ALREADY_STARTED');
 });
 
+test('AI-written questions are stored with the drill so every phone sees the same text', async () => {
+  await resetDb();
+  const [host, a] = await houseWith(2);
+  const { drillId } = await drills.createHouseDrill(host.id, { perPlayer: 2 });
+  await drills.respondToHouseDrill(a.id, drillId, true);
+  const written = (id) => ({ id, type: 'sms', isScam: true, message: `question ${id}`, clues: [] });
+  // Slot 2 couldn't be written, so it keeps the host's fixed message 13.
+  await drills.startHouseDrill(host.id, drillId, [9001, 9002, 13, 9004], {
+    scenarios: { 9001: written(9001), 9002: written(9002), 9004: written(9004), 9999: written(9999) },
+  });
+  for (const player of [host, a]) {
+    const seen = await view(player.id);
+    assert.deepEqual(seen.turns.map((t) => t.scenarioId), [9001, 9002, 13, 9004]);
+    assert.deepEqual(Object.keys(seen.scenarios).sort(), ['9001', '9002', '9004'], 'unused ids are dropped');
+    assert.equal(seen.scenarios[9002].message, 'question 9002');
+  }
+});
+
 test('only the current player may answer; retries are harmless; the last answer credits everyone', async () => {
   await resetDb();
   const [host, a] = await houseWith(2);

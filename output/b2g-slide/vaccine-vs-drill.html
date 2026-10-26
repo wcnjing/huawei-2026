@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Scam Vaccine vs Drill Mode</title>
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Source+Code+Pro:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0D18; --white: #F4F4F4; --muted: #8E95AD;
+    --green: #6EF58A; --green-dk: #2C5C3C; --yellow: #F7DD7A; --teal: #6CCFC4;
+    --pink: #E0409E; --pink-bg: #2C0A28; --green-bg: #0E2418; --red: #F0445A;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1920px; height: 1080px; background: var(--bg); overflow: hidden; }
+  body { font-family: 'Source Code Pro', monospace; color: var(--white); position: relative; letter-spacing: 0.04em; }
+
+  .kicker { position: absolute; left: 170px; top: 84px; font-size: 30px; font-weight: 700; color: var(--teal); letter-spacing: 0.12em; }
+  h1 { position: absolute; left: 164px; top: 124px; font-family: 'Silkscreen', monospace; font-weight: 700;
+       font-size: 96px; line-height: 1; color: var(--green); text-shadow: 7px 7px 0 var(--green-dk); }
+  h1 .vs { color: var(--yellow); text-shadow: 7px 7px 0 #5C4E1E; font-size: 72px; margin: 0 18px; }
+  .sub { position: absolute; left: 170px; top: 262px; font-size: 40px; font-weight: 700; color: var(--yellow); }
+  .sub em { font-style: normal; color: var(--green); }
+
+  .table { position: absolute; left: 170px; top: 350px; width: 1580px; display: grid;
+           grid-template-columns: 270px 1fr 1fr; column-gap: 30px; }
+  .col { border: 3px solid; padding: 0 34px 10px; }
+  .col.vac { border-color: var(--pink); background: var(--pink-bg); }
+  .col.drl { border-color: var(--green); background: var(--green-bg); }
+  .head { height: 104px; display: flex; align-items: center; gap: 20px; font-size: 40px; font-weight: 700; color: var(--yellow); }
+  .head small { display: block; font-size: 20px; color: var(--muted); font-weight: 500; margin-top: 4px; }
+  .cell, .label { height: 86px; display: flex; align-items: center; font-size: 28px; line-height: 1.3; }
+  .col .cell { border-top: 2px dashed rgba(255,255,255,0.12); }
+  .labels { padding-top: 107px; }
+  .label { color: var(--teal); font-weight: 700; font-size: 26px; letter-spacing: 0.1em; }
+  .hl-g { color: var(--green); } .hl-r { color: var(--red); } .hl-y { color: var(--yellow); }
+
+  .bottom { position: absolute; left: 170px; top: 940px; font-size: 32px; font-weight: 700; display: flex; align-items: center; gap: 22px; }
+  .tag { background: var(--yellow); color: var(--bg); padding: 8px 18px; }
+  .src { position: absolute; left: 170px; top: 1022px; font-size: 18px; color: var(--muted); }
+
+  .dot { position: absolute; width: 6px; height: 6px; }
+  svg.px { shape-rendering: crispEdges; display: block; flex-shrink: 0; }
+</style>
+</head>
+<body>
+  <div class="kicker">THE LANDSCAPE · WHERE WE FIT</div>
+  <h1>VACCINE<span class="vs">vs</span>DRILL</h1>
+  <div class="sub">Scam Vaccine trains <em>you</em>. Drill Mode trains your <em>whole family</em>.</div>
+
+  <div class="table">
+    <div class="labels">
+      <div class="label">WHO</div>
+      <div class="label">WHEN</div>
+      <div class="label">CHANNELS</div>
+      <div class="label">AFTER</div>
+      <div class="label">COME BACK?</div>
+    </div>
+
+    <div class="col vac">
+      <div class="head">
+        <!-- pixel syringe -->
+        <svg class="px" width="64" height="64" viewBox="0 0 16 16">
+          <rect x="12" y="0" width="4" height="2" fill="#F4F4F4"/><rect x="13" y="2" width="2" height="2" fill="#F4F4F4"/>
+          <rect x="11" y="3" width="2" height="2" fill="#8E95AD"/>
+          <rect x="9" y="4" width="3" height="3" fill="#F4F4F4"/><rect x="7" y="6" width="3" height="3" fill="#E0409E"/>
+          <rect x="5" y="8" width="3" height="3" fill="#E0409E"/><rect x="4" y="10" width="2" height="2" fill="#F4F4F4"/>
+          <rect x="2" y="12" width="2" height="2" fill="#8E95AD"/><rect x="0" y="14" width="2" height="2" fill="#8E95AD"/>
+        </svg>
+        <div>SCAM VACCINE<small>GovTech OGP · launched Sep 2026</small></div>
+      </div>
+      <div class="cell">One person at a time</div>
+      <div class="cell"><span><span class="hl-r">Surprise</span>, on new scams</span></div>
+      <div class="cell">Call · WhatsApp</div>
+      <div class="cell">Personal debrief of red flags</div>
+      <div class="cell">Irregular, kept low</div>
+    </div>
+
+    <div class="col drl">
+      <div class="head">
+        <!-- pixel robot -->
+        <svg class="px" width="64" height="64" viewBox="0 0 16 16">
+          <rect x="4" y="0" width="8" height="6" fill="#6CCFC4"/>
+          <rect x="5" y="2" width="2" height="1" fill="#0A0D18"/><rect x="9" y="2" width="2" height="1" fill="#0A0D18"/>
+          <rect x="6" y="4" width="4" height="1" fill="#0A0D18"/>
+          <rect x="1" y="8" width="2" height="2" fill="#6CCFC4"/><rect x="13" y="8" width="2" height="2" fill="#6CCFC4"/>
+          <rect x="3" y="7" width="10" height="6" fill="#6EF58A"/><rect x="5" y="9" width="6" height="2" fill="#0E2418"/>
+          <rect x="4" y="13" width="2" height="2" fill="#6CCFC4"/><rect x="10" y="13" width="2" height="2" fill="#6CCFC4"/>
+        </svg>
+        <div>DRILL MODE<small>SafeSpace · our product</small></div>
+      </div>
+      <div class="cell"><span>The <span class="hl-g">whole household</span></span></div>
+      <div class="cell">On your terms, anytime</div>
+      <div class="cell">Call · SMS · email</div>
+      <div class="cell"><span>Debrief + <span class="hl-g">family talk</span></span></div>
+      <div class="cell"><span><span class="hl-g">XP, streaks</span>, virtual house</span></div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <span class="tag">BETTER TOGETHER</span>
+    <span>The vaccine spots new scams. <span class="hl-g">The drill builds the reflex.</span></span>
+  </div>
+  <div class="src">Scam Vaccine details: scamvaccine.gov.sg and The Straits Times, Oct 2026.</div>
+
+  <script>
+    const colors = ['#6EF58A', '#F7DD7A', '#F0445A', '#7E4CE0', '#6CCFC4'];
+    let seed = 11; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+    const zones = [[0, 0, 360, 70], [1500, 0, 1920, 300], [1780, 900, 1920, 1080], [1500, 1040, 1920, 1078]];
+    zones.forEach(([x0, y0, x1, y1]) => {
+      for (let i = 0; i < 9; i++) {
+        const d = document.createElement('div');
+        d.className = 'dot';
+        d.style.left = (x0 + rnd() * (x1 - x0)) + 'px';
+        d.style.top = (y0 + rnd() * (y1 - y0)) + 'px';
+        d.style.background = colors[Math.floor(rnd() * colors.length)];
+        document.body.appendChild(d);
+      }
+    });
+  </script>
+</body>
+</html>

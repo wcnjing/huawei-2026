@@ -48,6 +48,11 @@ const OUTCOME_SET = new Set(KNOWN_OUTCOMES);
 const ACTIVE_ATTEMPT_STATUSES = new Set(['created', 'sent']);
 const TERMINAL_ATTEMPT_STATUSES = new Set(['completed', 'failed']);
 const ONE_HOUR_MS = 60 * 60 * 1000;
+// How long after a bait text a reply still belongs to that drill.
+const SMS_REPLY_WINDOW_MS = 24 * 60 * 60 * 1000;
+// The app's languages (src/app/i18n/languages.ts), mirrored so a drill can record the
+// one it was sent in.
+const DRILL_LANGUAGES = new Set(['en', 'zh', 'ms', 'ta']);
 const EMAIL_VERIFICATION_ACCOUNT_MAX = 10;
 const EMAIL_VERIFICATION_DESTINATION_MAX = 10;
 const PHONE_VERIFICATION_DESTINATION_MAX = 5;
@@ -210,13 +215,14 @@ async function readResult(tx, id) {
 
 /** After a scored result commits, let Pixi celebrate a win or guide the house after a
  * loss. Distress off-ramps (SAFE) and unscored results are not announced. */
-async function announceScored(record, { scamVariantId = null } = {}) {
+async function announceScored(record, { scamVariantId = null, lesson = null } = {}) {
   if (!['WON', 'LOST'].includes(record?.result)) return;
   await announcePixiDrillOutcome(record.userId, `drill:${record.id}`, {
     channel: record.channel,
     won: record.result === 'WON',
     outcome: record.outcome,
     scamVariantId,
+    lesson,
   });
 }
 
@@ -390,6 +396,44 @@ async function attemptByProviderId(tx, providerId) {
 }
 
 /**
+ * The SMS drill this user could still be replying to, or null. Inbound texts carry a
+ * phone number and nothing else, so this is how a reply is attributed to a drill.
+ * Only a live attempt counts: once a drill is scored, a later text is just a text.
+ */
+export async function findLiveSmsAttempt(userId, { withinMs = SMS_REPLY_WINDOW_MS } = {}) {
+  if (!userId) return null;
+  const since = new Date(Date.now() - withinMs).toISOString();
+  const { rows } = await query(
+    `select * from safespace.drill_attempts
+      where user_id = $1 and channel = 'sms' and status = any($2) and created_at > $3
+      order by created_at desc
+      limit 1`,
+    [userId, [...ACTIVE_ATTEMPT_STATUSES], since],
+  );
+  return attemptFromRow(rows[0]);
+}
+
+/**
+ * Append one message to an SMS drill's exchange, under the attempt's row lock so two
+ * webhook deliveries cannot lose a turn. Returns the new turns, or null when the
+ * attempt is unknown or already finished.
+ */
+export async function appendSmsTurn(attemptId, turn) {
+  if (!attemptId || !turn?.role || typeof turn.text !== 'string') return null;
+  const entry = { role: turn.role, text: turn.text, at: turn.at || new Date().toISOString() };
+  return transaction(async (tx) => {
+    const attempt = await lockAttempt(tx, attemptId);
+    if (!attempt || TERMINAL_ATTEMPT_STATUSES.has(attempt.status)) return null;
+    const turns = [...(Array.isArray(attempt.smsTurns) ? attempt.smsTurns : []), entry];
+    await tx.query(
+      'update safespace.drill_attempts set sms_turns = $2 where id = $1',
+      [String(attemptId), JSON.stringify(turns)],
+    );
+    return turns;
+  }, 'appendSmsTurn');
+}
+
+/**
  * Reserve an attempt before contacting a provider. When cooldownMs is supplied this
  * atomically enforces one active attempt and a per-user/channel cooldown, across every
  * server instance: the user row lock serialises them.
@@ -506,12 +550,14 @@ export async function getRecentDrillAttempt({ userId, channel = 'call', since = 
 }
 
 export async function markDrillAttemptSent(attemptId, {
-  providerId = null, scenarioId = null, scamVariantId = null,
+  providerId = null, scenarioId = null, scamVariantId = null, lesson = null, language = null,
 } = {}) {
   if (!attemptId) throw new Error('attemptId is required');
   const cleanProviderId = String(providerId || '').trim() || null;
   const cleanScenarioId = String(scenarioId || '').trim().slice(0, 40) || null;
   const cleanVariantId = String(scamVariantId || '').trim().slice(0, 64) || null;
+  // Only a language the app actually has, so a stray value cannot reach a reveal text.
+  const cleanLanguage = DRILL_LANGUAGES.has(String(language || '')) ? String(language) : null;
   const sentAt = new Date().toISOString();
   return transaction(async (tx) => {
     const attempt = await lockAttempt(tx, attemptId);
@@ -532,10 +578,14 @@ export async function markDrillAttemptSent(attemptId, {
     const { rows } = await tx.query(
       `update safespace.drill_attempts
           set status = 'sent', provider_id = coalesce($2, provider_id), sent_at = coalesce(sent_at, $3),
-              scenario_id = coalesce(scenario_id, $4), scam_variant_id = coalesce(scam_variant_id, $5)
+              scenario_id = coalesce(scenario_id, $4), scam_variant_id = coalesce(scam_variant_id, $5),
+              lesson = coalesce(lesson, $6::jsonb), language = coalesce(language, $7)
         where id = $1
         returning *`,
-      [attempt.id, cleanProviderId, sentAt, cleanScenarioId, cleanVariantId],
+      [
+        attempt.id, cleanProviderId, sentAt, cleanScenarioId, cleanVariantId,
+        lesson ? JSON.stringify(lesson) : null, cleanLanguage,
+      ],
     );
     return publicAttempt(attemptFromRow(rows[0]));
   }, 'markDrillAttemptSent');
@@ -673,7 +723,10 @@ export async function completeDrillAttempt({
     };
   }, 'completeDrillAttempt');
   if (finished.status === 'completed') {
-    await announceScored(finished.record, { scamVariantId: finished.attempt?.scamVariantId });
+    await announceScored(finished.record, {
+      scamVariantId: finished.attempt?.scamVariantId,
+      lesson: finished.attempt?.lesson,
+    });
   }
   return finished;
 }
@@ -939,7 +992,7 @@ export async function beginEmailVerification({
   userId,
   email,
   verificationId,
-  cooldownMs = 10,
+  cooldownMs = 30_000,
   now = Date.now(),
   rateWindowMs = ONE_HOUR_MS,
   maxAccountSends = EMAIL_VERIFICATION_ACCOUNT_MAX,

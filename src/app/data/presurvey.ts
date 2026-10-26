@@ -1,3 +1,10 @@
+import { apiGet, apiPost } from "../services/api";
+
+// The pre-survey: the onboarding questions (also Settings → Preferences) whose answers
+// personalise drills. Answers are stored on the account in safespace-prod via
+// /api/me/presurvey; this browser keeps a copy per signed-in player for display.
+// The option lists are mirrored in server/presurvey.js, which also maps them to the
+// bulletin scam types that drills are written from; keep the two in sync.
 // User-facing groups derived from the ScamShield scam and variant CSVs. The IDs map to
 // the app's current solo scenarios; related scenarios stand in where an exact one is absent.
 export const INTERESTS = [
@@ -26,7 +33,7 @@ export const AGE_RANGES = ["Under 18", "18–24", "25–34", "35–49", "50–64
 export const SITUATIONS = ["Student", "Working", "Self-employed", "Looking for work", "Retired", "Other"] as const;
 export const CHANNELS = ["call", "sms", "email"] as const;
 
-export interface DrillPreferences {
+export interface PresurveyResponses {
   ageRange: string;
   situation: string;
   activities: string[];
@@ -36,7 +43,7 @@ export interface DrillPreferences {
   completed: boolean;
 }
 
-export const DEFAULT_DRILL_PREFERENCES: DrillPreferences = {
+export const DEFAULT_PRESURVEY: PresurveyResponses = {
   ageRange: "", situation: "", activities: [], interests: [], channels: ["call", "sms", "email"],
   includeOtherTypes: true, completed: false,
 };
@@ -44,32 +51,32 @@ export const DEFAULT_DRILL_PREFERENCES: DrillPreferences = {
 const CURRENT_USER_KEY = "safespace_current_user_id";
 const PREFERENCES_KEY = "safespace_drill_preferences_v1";
 
-export function setPreferenceUser(id: string | null) {
+export function setPresurveyUser(id: string | null) {
   try {
     if (id) localStorage.setItem(CURRENT_USER_KEY, id);
     else localStorage.removeItem(CURRENT_USER_KEY);
   } catch { /* private mode */ }
 }
 
-export function loadDrillPreferences(): DrillPreferences {
+export function loadPresurvey(): PresurveyResponses {
   try {
     const id = localStorage.getItem(CURRENT_USER_KEY);
     const saved = id && JSON.parse(localStorage.getItem(PREFERENCES_KEY) || "{}")[id];
-    if (!saved || typeof saved !== "object") return { ...DEFAULT_DRILL_PREFERENCES };
+    if (!saved || typeof saved !== "object") return { ...DEFAULT_PRESURVEY };
     return {
-      ...DEFAULT_DRILL_PREFERENCES,
+      ...DEFAULT_PRESURVEY,
       ageRange: typeof saved.ageRange === "string" && (AGE_RANGES as readonly string[]).includes(saved.ageRange) ? saved.ageRange : "",
       situation: typeof saved.situation === "string" && (SITUATIONS as readonly string[]).includes(saved.situation) ? saved.situation : "",
       activities: Array.isArray(saved.activities) ? saved.activities.filter((id: unknown) => typeof id === "string") : [],
       interests: Array.isArray(saved.interests) ? saved.interests.filter((id: unknown) => typeof id === "string") : [],
-      channels: Array.isArray(saved.channels) ? saved.channels.filter((id: unknown) => typeof id === "string") : [...DEFAULT_DRILL_PREFERENCES.channels],
-      includeOtherTypes: typeof saved.includeOtherTypes === "boolean" ? saved.includeOtherTypes : DEFAULT_DRILL_PREFERENCES.includeOtherTypes,
+      channels: Array.isArray(saved.channels) ? saved.channels.filter((id: unknown) => typeof id === "string") : [...DEFAULT_PRESURVEY.channels],
+      includeOtherTypes: typeof saved.includeOtherTypes === "boolean" ? saved.includeOtherTypes : DEFAULT_PRESURVEY.includeOtherTypes,
       completed: saved.completed === true,
     };
-  } catch { return { ...DEFAULT_DRILL_PREFERENCES }; }
+  } catch { return { ...DEFAULT_PRESURVEY }; }
 }
 
-export function saveDrillPreferences(preferences: DrillPreferences) {
+export function savePresurvey(preferences: PresurveyResponses) {
   try {
     const id = localStorage.getItem(CURRENT_USER_KEY);
     if (!id) return;
@@ -77,4 +84,28 @@ export function saveDrillPreferences(preferences: DrillPreferences) {
     all[id] = preferences;
     localStorage.setItem(PREFERENCES_KEY, JSON.stringify(all));
   } catch { /* private mode */ }
+}
+
+/** Stores the answers on the account. Resolves false when the server couldn't save them. */
+export async function uploadPresurvey(presurvey: PresurveyResponses): Promise<boolean> {
+  const result = await apiPost("/api/me/presurvey", { presurvey });
+  return result.ok;
+}
+
+/**
+ * Brings this device in line with the account, for the player setPresurveyUser named:
+ * the account's saved answers win; a device that answered before they were stored on
+ * the account uploads its copy. Returns the preferences to show, or null to keep the
+ * local ones (offline, or nothing saved anywhere).
+ */
+export async function syncPresurvey(): Promise<PresurveyResponses | null> {
+  const data = await apiGet<{ presurvey: PresurveyResponses | null }>("/api/me/presurvey");
+  if (!data) return null;
+  if (data.presurvey) {
+    savePresurvey({ ...DEFAULT_PRESURVEY, ...data.presurvey });
+    return loadPresurvey();
+  }
+  const local = loadPresurvey();
+  if (local.completed) void uploadPresurvey(local);
+  return null;
 }

@@ -26,6 +26,9 @@ process.env.GOOGLE_SCRIPT_URL = RELAY_URL;
 process.env.GOOGLE_SCRIPT_SECRET = 'route-test-relay-secret';
 process.env.SUPABASE_URL = 'https://doorbell.test';
 process.env.SUPABASE_SECRET_KEY = 'route-test-doorbell-key';
+const PROD_URL = 'https://safespace-prod.test';
+process.env.SUPABASE_PROD_URL = PROD_URL;
+process.env.SUPABASE_PROD_SECRET_KEY = 'route-test-prod-key';
 
 await setupTestDb();
 const { app } = await import('./index.js');
@@ -54,9 +57,25 @@ let vapiMode = null;
 let vapiRequestCount = 0;
 const vapiRequests = [];
 
+// A stand-in for safespace-prod's Data API: safespace.presurvey_responses rows by user_id.
+const prodPresurvey = new Map();
+let prodMode = 'ok';
+function fakeProd(url, init) {
+  if (prodMode === 'down') return new Response('{"message":"permission denied for schema safespace"}', { status: 403 });
+  if (init?.method === 'POST') {
+    const row = JSON.parse(String(init.body));
+    prodPresurvey.set(row.user_id, row);
+    return new Response(JSON.stringify([row]), { status: 201 });
+  }
+  const userId = (new URL(url).searchParams.get('user_id') || '').replace(/^eq\./, '');
+  const row = prodPresurvey.get(userId);
+  return new Response(JSON.stringify(row ? [row] : []), { status: 200 });
+}
+
 // Keep provider I/O hermetic while preserving real HTTP requests to the local server.
 globalThis.fetch = async (input, init) => {
   const url = typeof input === 'string' ? input : input?.url;
+  if (url?.startsWith(`${PROD_URL}/rest/v1/presurvey_responses`)) return fakeProd(url, init);
   if (url === RELAY_URL) {
     const payload = JSON.parse(String(init?.body || '{}'));
     relayRequests.push(payload);
@@ -717,7 +736,7 @@ test('/api/me/home-inventory requires a session and saves coins, furniture and l
   await freshStore();
 });
 
-test('housemates see each other\'s room look, furniture and layout, but never coins', async () => {
+test('housemates see each other\'s room look, furniture, layout and coin balance', async () => {
   await freshStore();
   const owner = await signedIn('Owner');
   const guest = await signedIn('Guest');
@@ -725,7 +744,7 @@ test('housemates see each other\'s room look, furniture and layout, but never co
   await post('/api/house/join', { code: house.inviteCode }, guest.auth);
   const ownerRoom = async () => (await getJson('/api/house', guest.auth)).body.house.members
     .find((m) => m.id === owner.user.id).room;
-  assert.deepEqual(await ownerRoom(), { style: null, items: [], layout: null });
+  assert.deepEqual(await ownerRoom(), { style: null, items: [], layout: null, coins: 0 });
 
   const roomStyle = { name: 'Cosy den', wall: 'violet', pattern: 'stars', floor: 'oak', light: 'pink', glow: true };
   assert.equal((await post('/api/me/room-style', { roomStyle })).status, 401);
@@ -747,14 +766,18 @@ test('housemates see each other\'s room look, furniture and layout, but never co
   const room = await ownerRoom();
   assert.deepEqual(room.items, ['shop-rug']);
   assert.deepEqual(room.layout, { 'shop-rug': { x: 30, y: 100 } });
+  // The coin balance is shared with the house on purpose (room-style.js roomView), but
+  // the rest of the inventory (sold items, other people's purchases) stays private.
+  assert.equal(room.coins, 300);
   const ownerView = (await getJson('/api/house', guest.auth)).body.house.members.find((m) => m.id === owner.user.id);
-  assert.equal(JSON.stringify(ownerView).includes('coins'), false);
+  assert.equal(JSON.stringify(ownerView).includes('soldItems'), false);
 
-  // A coins-only change doesn't touch the room, so it doesn't ring the house.
+  // The balance shows in the room, so a coins-only change rings the house too.
   doorbellRings.length = 0;
   const richer = { ...homeInventory, coins: { [owner.user.id]: 900 } };
   assert.equal((await post('/api/me/home-inventory', { homeInventory: richer }, owner.auth)).status, 200);
-  assert.deepEqual(doorbellRings, []);
+  assert.deepEqual(doorbellRings, [house.doorbell]);
+  assert.equal((await ownerRoom()).coins, 900);
   await freshStore();
 });
 
@@ -880,6 +903,51 @@ test('email ownership uses an opaque token and changes only after explicit POST'
     emailHint: 'o***@example.com',
     pending: false,
   });
+  await freshStore();
+});
+
+test('pre-survey answers are stored in safespace-prod and unticked channels block real drills', async () => {
+  await freshStore();
+  prodPresurvey.clear();
+  const { user, auth } = await signedIn('PRESURVEY');
+  assert.deepEqual((await getJson('/api/me/presurvey', auth)).body, { presurvey: null });
+  assert.equal((await fetch(base + '/api/me/presurvey')).status, 401);
+  assert.equal((await post('/api/me/presurvey', { presurvey: 'nope' }, auth)).status, 400);
+
+  const saved = await post('/api/me/presurvey', {
+    presurvey: {
+      ageRange: '65+', situation: 'Retired', activities: ['banking', 'made-up'],
+      interests: ['investment'], channels: ['call', 'email', 'fax'], includeOtherTypes: false,
+      completed: true, extra: 'dropped',
+    },
+  }, auth);
+  assert.equal(saved.status, 200);
+  const expected = {
+    ageRange: '65+', situation: 'Retired', activities: ['banking'], interests: ['investment'],
+    channels: ['call', 'email'], includeOtherTypes: false, completed: true,
+  };
+  assert.deepEqual((await saved.json()).presurvey, expected);
+  assert.equal(prodPresurvey.get(user.id).age_range, '65+', 'stored as a safespace-prod row');
+  assert.deepEqual((await getJson('/api/me/presurvey', auth)).body, { presurvey: expected });
+  const me = (await getJson('/api/me', auth)).body;
+  assert.equal(JSON.stringify(me).includes('Retired'), false, 'answers stay out of the user record');
+
+  const sms = await post('/api/drills/sms', {}, auth);
+  assert.equal(sms.status, 403);
+  assert.equal((await sms.json()).code, 'CHANNEL_DISABLED');
+  await post('/api/me/presurvey', { presurvey: { ...expected, channels: ['sms'] } }, auth);
+  assert.equal((await post('/api/drills/fire', {}, auth)).status, 403);
+  assert.notEqual((await post('/api/drills/sms', {}, auth)).status, 403, 'a ticked channel is not blocked');
+
+  // safespace-prod refusing: saving says so; drills fall back to allowing every channel.
+  prodMode = 'down';
+  try {
+    assert.equal((await post('/api/me/presurvey', { presurvey: expected }, auth)).status, 503);
+    assert.equal((await getJson('/api/me/presurvey', auth)).status, 503);
+    assert.notEqual((await post('/api/drills/fire', {}, auth)).status, 403);
+  } finally {
+    prodMode = 'ok';
+  }
   await freshStore();
 });
 
@@ -1023,4 +1091,114 @@ test('the database keep-alive answers without a session', async () => {
   const response = await fetch(`${base}/api/health/db`);
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { ok: true });
+});
+
+// ─── Inbound SMS replies (server/sms-reply.js) ───────────────────────────────
+const { signTwilioRequest } = await import('./twilio-signature.js');
+const TWILIO_TOKEN = 'route-test-twilio-auth-token';
+const INBOUND_URL = 'https://safespace.test/api/webhooks/twilio/sms';
+
+const postTwilio = (params, { signature, token = TWILIO_TOKEN } = {}) =>
+  fetch(`${base}/api/webhooks/twilio/sms`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/x-www-form-urlencoded',
+      'x-twilio-signature': signature ?? signTwilioRequest(INBOUND_URL, params, token),
+    },
+    body: new URLSearchParams(params).toString(),
+  });
+
+async function liveSmsDrill(phone) {
+  const user = await registerVerifiedUser({ phone, name: 'Texter' });
+  const attempt = await createDrillAttempt({ userId: user.id, channel: 'sms' });
+  await markDrillAttemptSent(attempt.id);
+  return { user, attempt };
+}
+
+test('FAILS CLOSED: inbound SMS is refused while the auth token is unset', async () => {
+  await resetDb();
+  delete process.env.TWILIO_AUTH_TOKEN;
+  const res = await postTwilio({ From: '+6594777001', To: '+6598887777', Body: 'hello' });
+  assert.equal(res.status, 503);
+});
+
+test('FAILS CLOSED: an unsigned or wrongly signed inbound text is refused', async (t) => {
+  await resetDb();
+  process.env.TWILIO_AUTH_TOKEN = TWILIO_TOKEN;
+  t.after(() => { delete process.env.TWILIO_AUTH_TOKEN; });
+  await liveSmsDrill('+6594777002');
+  const params = { From: '+6594777002', To: '+6598887777', Body: 'what transfer?' };
+
+  assert.equal((await postTwilio(params, { signature: '' })).status, 401);
+  assert.equal((await postTwilio(params, { signature: 'nonsense' })).status, 401);
+  assert.equal((await postTwilio(params, { token: 'someone-elses-token' })).status, 401);
+});
+
+test('a text from a number with no live drill is accepted and ignored', async (t) => {
+  await resetDb();
+  process.env.TWILIO_AUTH_TOKEN = TWILIO_TOKEN;
+  t.after(() => { delete process.env.TWILIO_AUTH_TOKEN; });
+  const res = await postTwilio({ From: '+6594777003', To: '+6598887777', Body: 'who is this?' });
+  assert.equal(res.status, 200, 'Twilio must not be told to retry');
+  // Empty TwiML is how Twilio is told to send nothing back.
+  assert.doesNotMatch(await res.text(), /<Message>/, 'a stranger gets no reply at all');
+});
+
+test('a frightened reply ends the drill unscored and answers with the reveal', async (t) => {
+  await resetDb();
+  process.env.TWILIO_AUTH_TOKEN = TWILIO_TOKEN;
+  t.after(() => { delete process.env.TWILIO_AUTH_TOKEN; });
+  const { attempt } = await liveSmsDrill('+6594777004');
+
+  const res = await postTwilio({ From: '+6594777004', To: '+6598887777', Body: 'is this a scam? im scared' });
+  assert.equal(res.status, 200);
+  const body = await res.text();
+  assert.match(body, /<Response>/, 'the reply is TwiML Twilio can send');
+  assert.match(body, /SafeSpace drill/, 'the person is told at once that they are safe');
+
+  const done = await getDrillAttempt(attempt.id);
+  assert.equal(done.status, 'completed');
+  assert.equal(done.outcome, 'distress_offramp');
+});
+
+test('sharing a code ends the drill as a loss and stops the pressure', async (t) => {
+  await resetDb();
+  process.env.TWILIO_AUTH_TOKEN = TWILIO_TOKEN;
+  t.after(() => { delete process.env.TWILIO_AUTH_TOKEN; });
+  const { attempt } = await liveSmsDrill('+6594777005');
+
+  const res = await postTwilio({ From: '+6594777005', To: '+6598887777', Body: 'the code is 418922' });
+  const body = await res.text();
+  assert.match(body, /SafeSpace drill/);
+  assert.ok(!/code/i.test(body.replace(/SafeSpace drill[^<]*/i, '')), 'no further scam text is sent');
+  assert.equal((await getDrillAttempt(attempt.id)).outcome, 'shared_data');
+});
+
+test('the inbound text and the reply are both kept on the attempt', async (t) => {
+  await resetDb();
+  process.env.TWILIO_AUTH_TOKEN = TWILIO_TOKEN;
+  t.after(() => { delete process.env.TWILIO_AUTH_TOKEN; });
+  const { attempt } = await liveSmsDrill('+6594777006');
+
+  await postTwilio({ From: '+6594777006', To: '+6598887777', Body: 'no thanks' });
+  const turns = (await getDrillAttempt(attempt.id)).smsTurns ?? [];
+  assert.equal(turns[0].role, 'target');
+  assert.equal(turns[0].text, 'no thanks');
+});
+
+test('a reply is revealed in the language the bait was sent in, with no lesson stored', async (t) => {
+  await resetDb();
+  process.env.TWILIO_AUTH_TOKEN = TWILIO_TOKEN;
+  t.after(() => { delete process.env.TWILIO_AUTH_TOKEN; });
+  // A curated scenario leaves no lesson behind, so the language has to come from the
+  // attempt itself. This is the no-OPENAI_API_KEY path.
+  const user = await registerVerifiedUser({ phone: '+6594777007', name: 'Texter' });
+  const attempt = await createDrillAttempt({ userId: user.id, channel: 'sms' });
+  await markDrillAttemptSent(attempt.id, { language: 'ta' });
+  assert.equal((await getDrillAttempt(attempt.id)).lesson ?? null, null, 'no lesson, as in a scenario drill');
+
+  const res = await postTwilio({ From: '+6594777007', To: '+6598887777', Body: 'no thanks' });
+  const body = await res.text();
+  assert.match(body, /SafeSpace/, 'the reveal still names the drill');
+  assert.doesNotMatch(body, /This was a SafeSpace drill - that last message was fake/, 'not the English reveal');
 });

@@ -112,10 +112,13 @@ async function writtenMessages(userId, key, drill) {
  * `outcome` is the xp.js outcome and `run` the house quiz counts, both optional.
  */
 export async function announcePixiDrillOutcome(userId, key, {
-  channel, won, outcome = null, run = null, scamVariantId = null,
+  channel, won, outcome = null, run = null, scamVariantId = null, lesson: storedLesson = null,
 } = {}) {
-  // The real scam variant the drill email was written from (scam-variants.js), or null.
-  const lesson = scamVariantId ? await getLessonByVariantId(scamVariantId) : null;
+  // The real scam the drill email was written from: the translated lesson stored with the
+  // drill, else the bulletin's own (English) text for that variant, else null.
+  const lesson = storedLesson?.redFlags?.length || storedLesson?.preventionAdvice
+    ? storedLesson
+    : scamVariantId ? await getLessonByVariantId(scamVariantId) : null;
   const written = await writtenMessages(userId, key, { channel, won, outcome, run, lesson });
   // The insert runs both lines through format() for the template's %s, so a % the model
   // wrote, or a bulletin's red flag, has to be escaped to survive it.

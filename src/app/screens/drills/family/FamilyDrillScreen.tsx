@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { FamilyOutcome } from "../../../types/drills";
+import type { FamilyOutcome, FamilyScenario } from "../../../types/drills";
 import { IconShield } from "../../../components/icons";
 import { PixelButton } from "../../../components/ui";
 import { MemberChar, PixelMascot } from "../../../components/avatars";
@@ -7,7 +7,7 @@ import { useMemberMap, useMembers } from "../../../hooks/useMembers";
 import { pickScenarios, scenarioById } from "../../../data/drillPool";
 import { FAMILY_COINS } from "../../../data/familyData";
 import { RACE_WIN_COINS } from "../../../data/economy";
-import { useT } from "../../../i18n";
+import { useI18n, useT } from "../../../i18n";
 import {
   DEFAULT_PER_PLAYER, PER_PLAYER_OPTIONS, answerHouseDrill, continueHouseDrill, leaveHouseDrill,
   openHouseDrill, respondToHouseDrill, skipHouseDrillTurn, startHouseDrill,
@@ -53,6 +53,11 @@ function Body({ children, color = "#e8f4f8", center = false }: { children: React
   return <div style={{ fontFamily: MONO, fontSize: "var(--text-body)", color, lineHeight: 1.6, textAlign: center ? "center" : undefined }}>{children}</div>;
 }
 
+/** A drill's question: AI-written ones travel with the drill, the rest are fixed messages. */
+function questionById(drill: HouseDrill, id: number): FamilyScenario | undefined {
+  return drill.scenarios?.[id] ?? scenarioById(id);
+}
+
 export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, onRoundResult, onFinished, onExit, onIndividual, onSetUpHouse }: {
   drill: HouseDrill | null;
   selfId: string;
@@ -66,6 +71,7 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
   onSetUpHouse: () => void;
 }) {
   const t = useT();
+  const { language } = useI18n();
   const members = useMembers();
   const memberMap = useMemberMap();
   const [perPlayer, setPerPlayer] = useState<number>(DEFAULT_PER_PLAYER);
@@ -177,7 +183,7 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
     : !shown.revealing && shown.turns[shown.currentTurn]?.playerId === selfId ? shown.currentTurn : null;
   const turnToShow = reviewing ?? liveTurn;
   if (shown && turnToShow !== null && shown.turns[turnToShow]) {
-    const scenario = scenarioById(shown.turns[turnToShow].scenarioId);
+    const scenario = questionById(shown, shown.turns[turnToShow].scenarioId);
     if (scenario) {
       const note = send?.state === "sending" ? t("SENDING YOUR ANSWER…")
         : send?.state === "failed" ? t("ANSWER NOT SENT — TAP CONTINUE TO RETRY") : null;
@@ -238,6 +244,7 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
         players={race ? undefined : players}
         headline={headline}
         leaderboard={race ? <RaceResults drill={shown} selfId={selfId} /> : undefined}
+        lookup={(id) => questionById(shown, id)}
         onPlayAgain={() => setDismissedId(shown.id)}
         onSwitchMode={onIndividual}
         onHome={onExit}
@@ -314,7 +321,7 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
     const turn = shown.currentTurn;
     const current = shown.turns[turn];
     const answer = shown.answers.find((a) => a.turn === turn && !a.skipped && a.outcome);
-    const scenario = current ? scenarioById(current.scenarioId) : null;
+    const scenario = current ? questionById(shown, current.scenarioId) : null;
     const byMe = current?.playerId === selfId;
     const playing = shown.players.filter((p) => p.status === "accepted");
     const isReady = (id: string) => shown.ready.includes(id) || (id === selfId && readyTurn === turn);
@@ -491,11 +498,12 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
             {isHost ? (
               <>
                 <PixelButton
-                  onClick={() => run(() => startHouseDrill(shown.id, pickScenarios(race ? shown.perPlayer : accepted.length * shown.perPlayer).map((s) => s.id)))}
+                  onClick={() => run(() => startHouseDrill(shown.id, pickScenarios(race ? shown.perPlayer : accepted.length * shown.perPlayer).map((s) => s.id), language))}
                   disabled={busy}
                   color="#00ff88" textColor="#0a0e1a" size="lg" full
                 >
-                  {accepted.length > 1 ? t("[ START WITH {count} PLAYERS ]", { count: accepted.length }) : t("[ START ON MY OWN ]")}
+                  {busy ? t("WRITING YOUR QUESTIONS…")
+                    : accepted.length > 1 ? t("[ START WITH {count} PLAYERS ]", { count: accepted.length }) : t("[ START ON MY OWN ]")}
                 </PixelButton>
                 <PixelButton onClick={() => run(() => leaveHouseDrill(shown.id))} disabled={busy} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>{t("[ CANCEL DRILL ]")}</PixelButton>
               </>

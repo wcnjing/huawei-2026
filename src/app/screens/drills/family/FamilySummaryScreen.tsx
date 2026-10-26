@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { FamilyOutcome } from "../../../types/drills";
+import type { FamilyOutcome, FamilyScenario } from "../../../types/drills";
 import { scenarioById } from "../../../data/drillPool";
 import { IconBadge } from "../../../components/icons";
 import { PixelButton } from "../../../components/ui";
@@ -8,7 +8,7 @@ import { useT } from "../../../i18n";
 export type SummaryAnswer = { scenarioId: number; outcome: FamilyOutcome; foundClues: number };
 export type SummaryPlayer = { id: string; name: string; correct: number; answered: number; xp: number | null; isSelf: boolean };
 
-export function FamilySummaryScreen({ mode, answers, total, coins, serverXp, players, headline, leaderboard, onPlayAgain, onSwitchMode, onHome }: {
+export function FamilySummaryScreen({ mode, answers, total, coins, serverXp, players, headline, leaderboard, lookup = scenarioById, onPlayAgain, onSwitchMode, onHome }: {
   mode: "solo" | "family";
   answers: SummaryAnswer[];
   total: number;
@@ -19,11 +19,13 @@ export function FamilySummaryScreen({ mode, answers, total, coins, serverXp, pla
   headline?: { text: string; color: string };
   /** Shown first, e.g. a race's final standings. */
   leaderboard?: ReactNode;
+  /** Finds a question by id, including AI-written ones that aren't fixed messages. */
+  lookup?: (id: number) => FamilyScenario | undefined;
   onPlayAgain: () => void; onSwitchMode: () => void; onHome: () => void;
 }) {
   const t = useT();
   const correctCount = answers.filter((a) => a.outcome === "correct").length;
-  const totalClues = answers.reduce((sum, a) => sum + (scenarioById(a.scenarioId)?.clues.length ?? 0), 0);
+  const totalClues = answers.reduce((sum, a) => sum + (lookup(a.scenarioId)?.clues.length ?? 0), 0);
   const foundCluesCount = answers.reduce((sum, a) => sum + a.foundClues, 0);
 
   // Thresholds scale with the game length; at 6 questions they match the original 5/3/8/4.
