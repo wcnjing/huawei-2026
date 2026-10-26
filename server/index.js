@@ -1226,7 +1226,8 @@ api.post('/api/drills/sms', async (req, res) => {
   if (!user.phone) return res.status(400).json({ error: 'no verified phone on file' });
   const preferences = await preferencesAllowing(res, userId, 'sms');
   if (preferences === undefined) return;
-  if (!smsConfigured() || !drillLinksConfigured()) {
+  // No drill links are needed: an SMS drill carries no URL (sms.js).
+  if (!smsConfigured()) {
     return fail(res, 503, 'SMS drills are not configured');
   }
 
@@ -1256,12 +1257,10 @@ api.post('/api/drills/sms', async (req, res) => {
 
   let output;
   try {
-    const { revealUrl } = createEmailDrillLinks(attempt.id);
     output = await sendDrillSms({
       to: user.phone,
       name: user.name,
       scenarioId: req.body?.scenario,
-      revealUrl: withLanguage(revealUrl, language),
       language,
       content,
     });

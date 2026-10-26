@@ -170,6 +170,10 @@ A standalone `TWILIO_SMS_FROM` value is not sufficient. SafeSpace schedules the 
 reveal before bait and refuses to send bait unless Twilio confirms `scheduled`. Twilio
 accepts delays from 15 minutes to 35 days; the default is 16 minutes.
 
+A drill text carries no link, so `DRILL_LINK_SECRET` and `PUBLIC_URL` are not required
+for SMS drills (they still are for email). The scheduled reveal and the app's own
+outcome buttons are how an SMS drill ends.
+
 ### Inbound SMS replies
 
 When someone texts back during an SMS drill, the drill answers in character for a few

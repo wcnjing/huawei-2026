@@ -9,6 +9,9 @@
 // checked again here, and any failure (no key, timeout, refusal, bad output, the real
 // impersonated organisation named) returns null so the caller sends a curated scenario
 // from sms.js instead. Nothing here throws.
+//
+// A drill text carries no link at all, not even a first-party one (see sms.js), so the
+// text ends by inviting a reply, which sms-reply.js answers in character.
 import OpenAI from 'openai';
 import { loadPrompt, pixiModel } from './pixi-writer.js';
 import { LINK_RE } from './scam-variants.js';
@@ -18,9 +21,8 @@ import { hasContact, namesRealBrand } from './content-safety.js';
 
 export const DEFAULT_SMS_WRITER_TIMEOUT_MS = 15000;
 export const SMS_CONTENT_LIMITS = {
-  // A signed reveal URL and the player's name are appended after this, and the whole
-  // thing should still sit inside two SMS segments. Counted in characters so it works
-  // for Chinese and Tamil as well as English.
+  // The player's name is prefixed to this, and the whole thing should sit inside two
+  // SMS segments. Counted in characters so it works for Chinese and Tamil too.
   maxText: 180,
   minText: 40,
   lessonLine: 240,
