@@ -48,17 +48,16 @@ import {
   emailVerificationConfigured,
   GENERATED_SCENARIO_ID,
   pickEmailScenario,
-  resolveEmailFollowupDelay,
   sendDrillEmail,
   sendEmailOwnershipVerification,
 } from './email.js';
 import { getLessonByVariantId, getLessonForProfile, getUsableLessons, warmScamVariants } from './scam-variants.js';
 import { GENERATED_ID_BASE, planQuestions, quizWriterConfigured, writeQuizRound } from './quiz-writer.js';
 import { channelAllowed, cleanPresurvey } from './presurvey.js';
+import { realDrillCooldownMs } from './drill-cooldown.js';
 import { getPresurvey, getPresurveyOrNull, savePresurvey } from './presurvey-store.js';
 import { writeDrillEmail } from './email-writer.js';
 import {
-  resolveRevealDelay,
   sendDrillSms,
   smsConfigured,
 } from './sms.js';
@@ -334,16 +333,6 @@ function maskEmail(email) {
   const [local = '', domain = ''] = String(email || '').split('@');
   if (!local || !domain) return null;
   return `${local.slice(0, 1)}${'*'.repeat(Math.min(3, Math.max(1, local.length - 1)))}@${domain}`;
-}
-
-function realDrillCooldownMs(channel) {
-  const configured = Number(process.env.REAL_DRILL_COOLDOWN_MS);
-  const baseline = Number.isFinite(configured) && configured >= 5_000
-    ? configured
-    : 5 * 60 * 1000;
-  if (channel === 'sms') return Math.max(baseline, resolveRevealDelay());
-  if (channel === 'email') return Math.max(baseline, resolveEmailFollowupDelay());
-  return baseline;
 }
 
 function attemptConflict(res, error) {
