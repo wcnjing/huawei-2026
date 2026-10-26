@@ -5,6 +5,7 @@ import {
 import { PixelButton } from "../../components/ui";
 import { SafetyHabitsDropdown } from "./SafetyHabitsDropdown";
 import { useT } from "../../i18n";
+import { sessionToken } from "../../services/session";
 
 export function DrillSelectScreen({
   onRealisticPhone, onRealisticSms, onTelegram, onRealisticEmail, onFamily, onIndividual, inHouse, preferredChannels,
@@ -20,13 +21,15 @@ export function DrillSelectScreen({
   onBack: () => void;
 }) {
   const t = useT();
+  // A verified phone is what turns these cards from "set this up" into "run it now".
+  const verified = !!sessionToken();
   const realisticDrills = [
     {
       id: "phone",
       title: t("SCAM CALL"),
       eyebrow: t("PHONE · LIVE"),
       description: t("Receive a simulated scam call on your verified phone."),
-      action: t("SET UP CALL"),
+      action: verified ? t("START CALL DRILL") : t("SET UP CALL"),
       color: "#c77dff",
       icon: <IconPhone size={24} color="#c77dff" />,
       onClick: onRealisticPhone,
@@ -36,7 +39,7 @@ export function DrillSelectScreen({
       title: t("SCAM TEXT"),
       eyebrow: t("SMS · LIVE"),
       description: t("Get a realistic scam text and practise spotting its red flags."),
-      action: t("SET UP SMS"),
+      action: verified ? t("START SMS DRILL") : t("SET UP SMS"),
       color: "#4ecdc4",
       icon: <IconChatBubble size={24} color="#4ecdc4" />,
       onClick: onRealisticSms,
@@ -56,7 +59,7 @@ export function DrillSelectScreen({
       title: t("PHISHING EMAIL"),
       eyebrow: t("EMAIL · LIVE"),
       description: t("Receive a simulated phishing message in your registered inbox."),
-      action: t("SET UP EMAIL"),
+      action: verified ? t("START EMAIL DRILL") : t("SET UP EMAIL"),
       color: "#ff6b35",
       icon: <IconRealEmail size={24} color="#ff6b35" />,
       onClick: onRealisticEmail,
