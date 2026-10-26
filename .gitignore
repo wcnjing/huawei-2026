@@ -10,7 +10,13 @@ server/.pglite/
 server/.pglite-houses/
 server/.pglite-character/
 server/.pglite-dev-mode/
-src/.DS_Store
 # Local PGlite databases and any copies/backups of them (never commit these)
 server/.pglite*/
 scripts/.scam-lesson-preview/
+
+# macOS
+.DS_Store
+
+# Scratch build directories for the slide decks (they contain node_modules symlinks)
+.codex-build/
+.deck-build/
