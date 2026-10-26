@@ -906,3 +906,50 @@ test('setUserHomeInventory is last-write-wins: an overlapping save from a second
   assert.deepEqual(final.homeInventory, fromDeviceB);
   assert.deepEqual((await getUser(u.id)).homeInventory, fromDeviceB);
 });
+
+// ── The SMS reply loop's state (server/sms-reply.js) ─────────────────────────
+const smsStore = await import('./store.js');
+
+test('an inbound text finds only a live SMS drill for that user', async () => {
+  await freshStore();
+  const user = await registerVerifiedUser({ phone: '+6590001111', name: 'Texter' });
+  assert.equal(await smsStore.findLiveSmsAttempt(user.id), null, 'no drill, nothing to reply to');
+
+  const call = await createDrillAttempt({ userId: user.id, channel: 'call' });
+  assert.equal(await smsStore.findLiveSmsAttempt(user.id), null, 'a call drill is not an SMS drill');
+
+  const sms = await createDrillAttempt({ userId: user.id, channel: 'sms' });
+  await markDrillAttemptSent(sms.id);
+  const found = await smsStore.findLiveSmsAttempt(user.id);
+  assert.equal(found.id, sms.id);
+  assert.notEqual(found.id, call.id);
+
+  await completeDrillAttempt({ attemptId: sms.id, outcome: 'disengaged' });
+  assert.equal(await smsStore.findLiveSmsAttempt(user.id), null, 'a finished drill takes no more replies');
+});
+
+test('turns accumulate in order and survive being read back', async () => {
+  await freshStore();
+  const user = await registerVerifiedUser({ phone: '+6590002222', name: 'Texter' });
+  const attempt = await createDrillAttempt({ userId: user.id, channel: 'sms' });
+  await markDrillAttemptSent(attempt.id);
+
+  assert.deepEqual((await getDrillAttempt(attempt.id)).smsTurns ?? [], []);
+  await smsStore.appendSmsTurn(attempt.id, { role: 'scammer', text: 'first bait' });
+  await smsStore.appendSmsTurn(attempt.id, { role: 'target', text: 'what transfer?' });
+  await smsStore.appendSmsTurn(attempt.id, { role: 'scammer', text: 'the one at 9pm' });
+
+  const turns = (await getDrillAttempt(attempt.id)).smsTurns;
+  assert.deepEqual(turns.map((t) => t.role), ['scammer', 'target', 'scammer']);
+  assert.deepEqual(turns.map((t) => t.text), ['first bait', 'what transfer?', 'the one at 9pm']);
+  assert.ok(turns.every((t) => typeof t.at === 'string'), 'each turn is timestamped');
+});
+
+test('appending a turn to a finished or unknown drill changes nothing', async () => {
+  await freshStore();
+  const user = await registerVerifiedUser({ phone: '+6590003333', name: 'Texter' });
+  const attempt = await createDrillAttempt({ userId: user.id, channel: 'sms' });
+  await completeDrillAttempt({ attemptId: attempt.id, outcome: 'disengaged' });
+  assert.equal(await smsStore.appendSmsTurn(attempt.id, { role: 'target', text: 'hello?' }), null);
+  assert.equal(await smsStore.appendSmsTurn('attempt_nope', { role: 'target', text: 'hello?' }), null);
+});

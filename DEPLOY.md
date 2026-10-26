@@ -170,6 +170,32 @@ A standalone `TWILIO_SMS_FROM` value is not sufficient. SafeSpace schedules the 
 reveal before bait and refuses to send bait unless Twilio confirms `scheduled`. Twilio
 accepts delays from 15 minutes to 35 days; the default is 16 minutes.
 
+### Inbound SMS replies
+
+When someone texts back during an SMS drill, the drill answers in character for a few
+turns and then reveals itself (`server/sms-reply.js`). This needs one more step in the
+Messaging Service:
+
+4. In the Messaging Service, set **Integration → Incoming Messages** to *Send a webhook*
+   with `https://YOUR_DOMAIN/api/webhooks/twilio/sms`, HTTP POST.
+
+The webhook authenticates the `X-Twilio-Signature` header, which is HMAC-SHA1 over the
+exact URL plus the posted parameters, keyed on `TWILIO_AUTH_TOKEN`. The URL is taken from
+`PUBLIC_URL`, never from request headers, so it must match the webhook URL above exactly
+— including scheme and host. A mismatch shows up as every inbound text returning 401.
+
+Without `TWILIO_AUTH_TOKEN`, or with a non-HTTPS `PUBLIC_URL`, the route returns 503 and
+no reply is ever sent. A text from a number with no live drill gets no reply at all.
+
+The exchange is capped at four messages from the drill, counting the original bait. A
+reply that sounds frightened, shares a code or card number, or clearly refuses ends the
+drill immediately — those are matched in code, before any model is called, so they work
+with no OpenAI key. Replies in character need `OPENAI_API_KEY`; without one, the first
+reply reveals instead. `SMS_REPLY_TIMEOUT_MS` overrides the 10s model timeout.
+
+This feature needs `supabase/migrations/20261026000001_drill_attempt_sms_turns.sql`
+applied. Without that column, every inbound text 500s.
+
 ### Google Apps Script for email ownership and drills
 
 Create an Apps Script project from `server/apps-script/Code.gs`, then set these Script

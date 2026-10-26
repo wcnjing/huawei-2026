@@ -1092,3 +1092,96 @@ test('the database keep-alive answers without a session', async () => {
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { ok: true });
 });
+
+// ─── Inbound SMS replies (server/sms-reply.js) ───────────────────────────────
+const { signTwilioRequest } = await import('./twilio-signature.js');
+const TWILIO_TOKEN = 'route-test-twilio-auth-token';
+const INBOUND_URL = 'https://safespace.test/api/webhooks/twilio/sms';
+
+const postTwilio = (params, { signature, token = TWILIO_TOKEN } = {}) =>
+  fetch(`${base}/api/webhooks/twilio/sms`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/x-www-form-urlencoded',
+      'x-twilio-signature': signature ?? signTwilioRequest(INBOUND_URL, params, token),
+    },
+    body: new URLSearchParams(params).toString(),
+  });
+
+async function liveSmsDrill(phone) {
+  const user = await registerVerifiedUser({ phone, name: 'Texter' });
+  const attempt = await createDrillAttempt({ userId: user.id, channel: 'sms' });
+  await markDrillAttemptSent(attempt.id);
+  return { user, attempt };
+}
+
+test('FAILS CLOSED: inbound SMS is refused while the auth token is unset', async () => {
+  await resetDb();
+  delete process.env.TWILIO_AUTH_TOKEN;
+  const res = await postTwilio({ From: '+6594777001', To: '+6598887777', Body: 'hello' });
+  assert.equal(res.status, 503);
+});
+
+test('FAILS CLOSED: an unsigned or wrongly signed inbound text is refused', async (t) => {
+  await resetDb();
+  process.env.TWILIO_AUTH_TOKEN = TWILIO_TOKEN;
+  t.after(() => { delete process.env.TWILIO_AUTH_TOKEN; });
+  await liveSmsDrill('+6594777002');
+  const params = { From: '+6594777002', To: '+6598887777', Body: 'what transfer?' };
+
+  assert.equal((await postTwilio(params, { signature: '' })).status, 401);
+  assert.equal((await postTwilio(params, { signature: 'nonsense' })).status, 401);
+  assert.equal((await postTwilio(params, { token: 'someone-elses-token' })).status, 401);
+});
+
+test('a text from a number with no live drill is accepted and ignored', async (t) => {
+  await resetDb();
+  process.env.TWILIO_AUTH_TOKEN = TWILIO_TOKEN;
+  t.after(() => { delete process.env.TWILIO_AUTH_TOKEN; });
+  const res = await postTwilio({ From: '+6594777003', To: '+6598887777', Body: 'who is this?' });
+  assert.equal(res.status, 200, 'Twilio must not be told to retry');
+  // Empty TwiML is how Twilio is told to send nothing back.
+  assert.doesNotMatch(await res.text(), /<Message>/, 'a stranger gets no reply at all');
+});
+
+test('a frightened reply ends the drill unscored and answers with the reveal', async (t) => {
+  await resetDb();
+  process.env.TWILIO_AUTH_TOKEN = TWILIO_TOKEN;
+  t.after(() => { delete process.env.TWILIO_AUTH_TOKEN; });
+  const { attempt } = await liveSmsDrill('+6594777004');
+
+  const res = await postTwilio({ From: '+6594777004', To: '+6598887777', Body: 'is this a scam? im scared' });
+  assert.equal(res.status, 200);
+  const body = await res.text();
+  assert.match(body, /<Response>/, 'the reply is TwiML Twilio can send');
+  assert.match(body, /SafeSpace drill/, 'the person is told at once that they are safe');
+
+  const done = await getDrillAttempt(attempt.id);
+  assert.equal(done.status, 'completed');
+  assert.equal(done.outcome, 'distress_offramp');
+});
+
+test('sharing a code ends the drill as a loss and stops the pressure', async (t) => {
+  await resetDb();
+  process.env.TWILIO_AUTH_TOKEN = TWILIO_TOKEN;
+  t.after(() => { delete process.env.TWILIO_AUTH_TOKEN; });
+  const { attempt } = await liveSmsDrill('+6594777005');
+
+  const res = await postTwilio({ From: '+6594777005', To: '+6598887777', Body: 'the code is 418922' });
+  const body = await res.text();
+  assert.match(body, /SafeSpace drill/);
+  assert.ok(!/code/i.test(body.replace(/SafeSpace drill[^<]*/i, '')), 'no further scam text is sent');
+  assert.equal((await getDrillAttempt(attempt.id)).outcome, 'shared_data');
+});
+
+test('the inbound text and the reply are both kept on the attempt', async (t) => {
+  await resetDb();
+  process.env.TWILIO_AUTH_TOKEN = TWILIO_TOKEN;
+  t.after(() => { delete process.env.TWILIO_AUTH_TOKEN; });
+  const { attempt } = await liveSmsDrill('+6594777006');
+
+  await postTwilio({ From: '+6594777006', To: '+6598887777', Body: 'no thanks' });
+  const turns = (await getDrillAttempt(attempt.id)).smsTurns ?? [];
+  assert.equal(turns[0].role, 'target');
+  assert.equal(turns[0].text, 'no thanks');
+});

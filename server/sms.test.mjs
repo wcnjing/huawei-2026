@@ -337,3 +337,24 @@ test('FAILS CLOSED: a written text is never sent without a signed reveal link', 
   );
   assert.equal(calls, 0, 'nothing is scheduled or sent');
 });
+
+test('the bait text is reported back so it can start the exchange', async (t) => {
+  clearSmsEnv();
+  configureSms();
+  process.env.PUBLIC_URL = 'https://safe.example.test';
+  const originalFetch = global.fetch;
+  t.after(() => {
+    global.fetch = originalFetch;
+    clearSmsEnv();
+  });
+  let calls = 0;
+  global.fetch = async () => {
+    calls += 1;
+    return calls === 1
+      ? response(201, { sid: 'SM_reveal', status: 'scheduled' })
+      : response(201, { sid: 'SM_bait', status: 'accepted' });
+  };
+  const result = await sendDrillSms({ to: '+6591234567', name: 'JUDGE', scenarioId: 'parcel' });
+  assert.match(result.baitText, /^JUDGE, /);
+  assert.match(result.baitText, /ParcelLink/);
+});

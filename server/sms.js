@@ -313,6 +313,8 @@ export async function sendDrillSms({
   return {
     sid: sent.sid,
     revealSid: scheduled.sid,
+    // What was actually sent, so the caller can record it as the exchange's first turn.
+    baitText: personalizeSmsText(bait, name),
     scenarioId: scenario ? scenario.id : GENERATED_SMS_SCENARIO_ID,
     revealAt,
     revealInMs: delay,

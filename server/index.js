@@ -22,6 +22,9 @@ import {
   getUserIdByToken,
   listLiveTacticCards,
   markDrillAttemptFailed,
+  appendSmsTurn,
+  findLiveSmsAttempt,
+  getUserByPhone,
   markDrillAttemptSent,
   peekPendingResult,
   pingDb,
@@ -59,7 +62,15 @@ import { getPresurvey, getPresurveyOrNull, savePresurvey } from './presurvey-sto
 import { writeDrillEmail } from './email-writer.js';
 import { writeDrillSms } from './sms-writer.js';
 import { tacticFromLesson } from './call-tactic.js';
+import { nextSmsTurn } from './sms-reply.js';
 import {
+  INBOUND_SMS_PATH,
+  inboundWebhookConfigured,
+  inboundWebhookUrl,
+  verifyTwilioSignature,
+} from './twilio-signature.js';
+import {
+  REVEAL_TEXTS,
   sendDrillSms,
   smsConfigured,
 } from './sms.js';
@@ -1277,6 +1288,9 @@ api.post('/api/drills/sms', async (req, res) => {
     await markDrillAttemptSent(attempt.id, {
       providerId: output.sid, scenarioId: output.scenarioId, scamVariantId, lesson,
     });
+    // The bait is the first turn of the exchange, so a reply the person sends has the
+    // opening text as context and counts against the same cap (sms-reply.js).
+    await appendSmsTurn(attempt.id, { role: 'scammer', text: output.baitText });
   } catch (error) {
     console.error('[api] SMS sent but sent-state persistence failed:', error?.message || error);
   }
@@ -1400,6 +1414,78 @@ api.post('/drill-report', (req, res) =>
   signedDrillAction(req, res, 'report', 'reported', true));
 
 // --- Vapi callback ---------------------------------------------------------
+
+// --- Inbound SMS: the drill replies in character ----------------------------
+// Twilio posts form-encoded, not JSON, so this route brings its own parser. The reply
+// goes back as TwiML in the response body, which costs no extra API call.
+//
+// The scheduled reveal from sms.js is NOT cancelled when the drill reveals here: an
+// extra "you are safe" text is harmless, and a missed one is not.
+const twilioForm = express.urlencoded({ extended: false, limit: '64kb' });
+
+function twiml(message) {
+  if (!message) return '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';
+  const escaped = String(message).replace(/[<>&'"]/g, (c) => (
+    { '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]
+  ));
+  return `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${escaped}</Message></Response>`;
+}
+
+const sendTwiml = (res, message) => res.type('text/xml').send(twiml(message));
+
+app.post(INBOUND_SMS_PATH, twilioForm, asyncRoute(async (req, res) => {
+  if (!inboundWebhookConfigured()) return fail(res, 503, 'inbound SMS is not configured');
+  const ok = verifyTwilioSignature({
+    url: inboundWebhookUrl(),
+    params: req.body || {},
+    signature: req.get('x-twilio-signature') || '',
+    authToken: process.env.TWILIO_AUTH_TOKEN,
+  });
+  if (!ok) return fail(res, 401, 'invalid webhook signature');
+
+  const from = String(req.body?.From || '').trim();
+  const inbound = String(req.body?.Body || '').trim();
+  // A text from someone with no drill running gets no reply at all. Answering a stranger
+  // would mean sending scam-shaped text to a number that never consented to one.
+  const user = from ? await getUserByPhone(from) : null;
+  const attempt = user ? await findLiveSmsAttempt(user.id) : null;
+  if (!attempt) return sendTwiml(res, null);
+
+  const language = normalizeLanguage(attempt.lesson?.language);
+  await appendSmsTurn(attempt.id, { role: 'target', text: inbound });
+
+  let turn;
+  try {
+    turn = await nextSmsTurn({
+      inbound,
+      history: attempt.smsTurns || [],
+      lesson: attempt.lesson || null,
+      language,
+    });
+  } catch (error) {
+    // Never leave someone mid-scam because our own code threw.
+    console.error('[sms-reply] turn failed; revealing:', error?.message || error);
+    turn = { text: null, reveal: true, outcome: 'disengaged' };
+  }
+
+  if (!turn.reveal && turn.text) {
+    await appendSmsTurn(attempt.id, { role: 'scammer', text: turn.text });
+    return sendTwiml(res, turn.text);
+  }
+
+  const reveal = REVEAL_TEXTS[language] || REVEAL_TEXTS.en;
+  try {
+    const result = await completeDrillAttempt({
+      attemptId: attempt.id,
+      outcome: turn.outcome || 'disengaged',
+    });
+    if (result.applied) await ringUser(result.record.userId);
+  } catch (error) {
+    // The reveal still goes out: being told you are safe matters more than the score.
+    console.error('[sms-reply] could not record the outcome:', error?.message || error);
+  }
+  return sendTwiml(res, reveal);
+}));
 
 api.post('/api/webhooks/vapi', async (req, res) => {
   const secret = process.env.VAPI_WEBHOOK_SECRET;
