@@ -40,9 +40,41 @@ const DEFAULT_OPENER = Object.freeze({
   topic: 'an urgent matter on your bank account',
 });
 
-export function buildFirstMessage(name, opener = DEFAULT_OPENER) {
+/** "Good morning" / "Good afternoon" / "Good evening" by the clock in Singapore. */
+export function greetingFor(now = new Date()) {
+  const hour = Number(new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Singapore', hour: 'numeric', hour12: false,
+  }).format(now));
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+/**
+ * The shapes a drill call can open with. Real scam calls vary — some are polite, some
+ * skip the greeting, some withhold the caller's name until you have confirmed yours —
+ * and a single fixed line teaches a repeat user to recognise SafeSpace rather than a
+ * scam. Every shape must name the person: this is the only place their profile name is
+ * used, deliberately kept out of the system prompt (see buildAssistant).
+ */
+export const CALL_OPENERS = Object.freeze([
+  ({ name, greeting, opener }) =>
+    `${greeting}, am I speaking with ${name}? This is ${opener.caller} from ${opener.org}. I'm calling about ${opener.topic}.`,
+  ({ name, opener }) =>
+    `Hello, is this ${name}? ${opener.caller} here from ${opener.org}, calling about ${opener.topic}.`,
+  ({ name, opener }) =>
+    `Hi, ${name}? This is ${opener.caller} from ${opener.org}. I need to speak to you about ${opener.topic}.`,
+  ({ name, greeting, opener }) =>
+    `${greeting}. I'm calling from ${opener.org} regarding ${opener.topic}. Can I confirm I'm speaking with ${name}?`,
+]);
+
+/**
+ * The line the assistant speaks first. `random` and `now` are injectable for tests.
+ */
+export function buildFirstMessage(name, opener = DEFAULT_OPENER, { random = Math.random, now = new Date() } = {}) {
   const targetName = safeDisplayName(name);
-  return `Good afternoon, am I speaking with ${targetName}? This is ${opener.caller} from ${opener.org}. I'm calling about ${opener.topic}.`;
+  const template = CALL_OPENERS[Math.floor(random() * CALL_OPENERS.length)] ?? CALL_OPENERS[0];
+  return template({ name: targetName, greeting: greetingFor(now), opener });
 }
 
 // Everything from STYLE onwards: escalation limits, the hard safety rules and the verbatim

@@ -4,8 +4,15 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import {
   outcomeFromVapiWebhook, classifyCallTranscript, fireDrillCall, buildFirstMessage,
+  CALL_OPENERS, greetingFor,
   buildAssistant, CALL_OUTCOMES, parseVapiCallReport, callIdFromVapiWebhook,
 } from './vapi.js';
+
+const TEST_OPENER = Object.freeze({
+  caller: 'Daniel',
+  org: "Meridian Bank's fraud team",
+  topic: 'a suspicious transaction on your account',
+});
 
 const report = (transcript, extra = {}) => ({
   message: { type: 'end-of-call-report', transcript, ...extra },
@@ -224,8 +231,36 @@ test('fireDrillCall attaches the reserved attempt id as provider metadata', asyn
   assert.deepEqual(sent.metadata, { attemptId: 'attempt_reserved' });
 });
 
-test('call drills greet the verified user by name', () => {
-  assert.match(buildFirstMessage('JUDGE'), /speaking with JUDGE/);
+test('call drills greet the verified user by name, whichever opener is used', () => {
+  // Every shape must name the person: it is the one place their profile name appears.
+  for (const template of CALL_OPENERS) {
+    const line = template({ name: 'JUDGE', greeting: 'Good morning', opener: TEST_OPENER });
+    assert.match(line, /JUDGE/, line);
+    assert.ok(line.length > 30 && line.length < 260, `${line.length} chars: ${line}`);
+  }
+  assert.match(buildFirstMessage('JUDGE'), /JUDGE/);
+});
+
+test('the greeting follows the hour in Singapore, not the server', () => {
+  const at = (iso) => greetingFor(new Date(iso));
+  assert.equal(at('2026-11-03T01:00:00Z'), 'Good morning', '9am in Singapore');
+  assert.equal(at('2026-11-03T06:00:00Z'), 'Good afternoon', '2pm in Singapore');
+  assert.equal(at('2026-11-03T12:00:00Z'), 'Good evening', '8pm in Singapore');
+  // The server being in UTC must not change any of the above.
+  assert.equal(at('2026-11-02T23:30:00Z'), 'Good morning', '7:30am in Singapore');
+});
+
+test('openers vary, so a repeat user practises the scam and not our phrasing', () => {
+  assert.ok(CALL_OPENERS.length >= 3, 'one shape is a pattern to memorise');
+  const lines = new Set();
+  for (let i = 0; i < 40; i += 1) lines.add(buildFirstMessage('JUDGE'));
+  assert.ok(lines.size > 1, 'forty calls produced one identical opening line');
+});
+
+test('a malformed name falls back instead of being spoken', () => {
+  for (const bad of ['Bob <script>', '', '   ', 'x'.repeat(40), '1234']) {
+    assert.match(buildFirstMessage(bad), /the account holder/, JSON.stringify(bad));
+  }
 });
 
 test('transient call assistant requests a constrained structured outcome', () => {
@@ -256,7 +291,14 @@ test('with no tactic, the call prompt and opener are byte-for-byte the pre-intel
     sha256(assistant.model.messages[0].content),
     '84a8b23ecec405d3138dcc255eccae5baafec7371a1a35a35e0dab18b10f65bb',
   );
-  assert.equal(sha256(assistant.firstMessage), '9a762ed2735a1253b9a612bfa605ce1b2ea810df6597ad2fb84333256841c652');
+  // The opener now varies on purpose (CALL_OPENERS), so it is pinned by shape rather
+  // than by hash: every template, with the default persona, names the account holder
+  // and the default organisation.
+  for (let i = 0; i < CALL_OPENERS.length; i += 1) {
+    const line = buildFirstMessage('JUDGE', undefined, { random: () => i / CALL_OPENERS.length });
+    assert.match(line, /JUDGE/, line);
+    assert.match(line, /Office of Public Trust/, line);
+  }
 });
 
 test('a malformed tactic is ignored rather than half-applied', () => {
@@ -264,7 +306,9 @@ test('a malformed tactic is ignored rather than half-applied', () => {
   for (const tactic of [{}, { roleBlock: 42 }, { roleBlock: 'ROLE: x', opener: { caller: 'A' } }]) {
     const assistant = buildAssistant('JUDGE', tactic);
     assert.equal(assistant.model.messages[0].content, plain.model.messages[0].content);
-    assert.equal(assistant.firstMessage, plain.firstMessage);
+    // The opener is random now, so compare the persona it used, not the exact words.
+    assert.match(assistant.firstMessage, /Office of Public Trust/, assistant.firstMessage);
+    assert.doesNotMatch(assistant.firstMessage, /\bA\b from/, 'a half-built opener must not be used');
   }
 });
 
@@ -294,7 +338,8 @@ test('fireDrillCall sends a rendered tactic ahead of the unchanged safety rules'
     delete process.env.VAPI_API_KEY;
     delete process.env.VAPI_PHONE_NUMBER_ID;
   }
-  assert.match(sent.assistant.firstMessage, /This is Rachel from ParcelLink customer care/);
+  // One opener shape withholds the caller's name, so match the organisation instead.
+  assert.match(sent.assistant.firstMessage, /ParcelLink customer care/, sent.assistant.firstMessage);
   const system = sent.assistant.model.messages[0].content;
   assert.ok(system.startsWith('ROLE: test persona\nSTYLE:'));
   assert.ok(system.includes('HARD SAFETY RULES'));

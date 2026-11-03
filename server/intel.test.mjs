@@ -160,10 +160,11 @@ test('a tactic replaces the persona but never the safety rules or the reveal scr
   assert.ok(system.indexOf('COVER STORY:') < system.indexOf('HARD SAFETY RULES'));
   assert.ok(system.includes('REVEAL SCRIPT'));
   assert.ok(!system.includes('Officer Tan'), 'the default persona is replaced, not appended to');
-  assert.match(
-    assistant.firstMessage,
-    /This is Rachel from ParcelLink customer care\. I'm calling about a parcel being held under your name\./,
-  );
+  // The opener shape is chosen at random (vapi.js CALL_OPENERS) and one shape withholds
+  // the caller's name, so assert the card's persona reached the line, not its wording.
+  assert.match(assistant.firstMessage, /ParcelLink customer care/, assistant.firstMessage);
+  assert.match(assistant.firstMessage, /parcel being held under your name/, assistant.firstMessage);
+  assert.doesNotMatch(assistant.firstMessage, /Officer Tan|Office of Public Trust/);
 });
 
 // --- Summariser contract ----------------------------------------------------

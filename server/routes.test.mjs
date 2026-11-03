@@ -1061,7 +1061,9 @@ test('call drills use a live tactic card only when intel is enabled', async () =
     const plain = await post('/api/drills/fire', {}, { authorization: `Bearer ${await createSession(plainUser.id)}` });
     assert.equal(plain.status, 200);
     assert.equal((await plain.json()).tactic, null);
-    assert.match(vapiRequests[0].assistant.firstMessage, /Officer Tan from the Office of Public Trust/);
+    // One opener shape withholds the caller's name (vapi.js CALL_OPENERS), so the
+    // default persona is identified by its organisation.
+    assert.match(vapiRequests[0].assistant.firstMessage, /Office of Public Trust/, vapiRequests[0].assistant.firstMessage);
 
     process.env.INTEL_ENABLED = 'true';
     const withIntel = await post('/api/drills/fire', {}, { authorization: `Bearer ${await createSession(intelUser.id)}` });
@@ -1069,7 +1071,7 @@ test('call drills use a live tactic card only when intel is enabled', async () =
     const body = await withIntel.json();
     assert.equal(body.tactic.sourceUrl, 'https://intel.test/advisory');
     const assistant = vapiRequests[1].assistant;
-    assert.match(assistant.firstMessage, /Rachel from ParcelLink customer care/);
+    assert.match(assistant.firstMessage, /ParcelLink customer care/, assistant.firstMessage);
     const system = assistant.model.messages[0].content;
     assert.ok(system.indexOf('COVER STORY:') < system.indexOf('HARD SAFETY RULES'));
     assert.ok(system.includes('REVEAL SCRIPT'));
