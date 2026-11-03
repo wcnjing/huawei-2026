@@ -54,7 +54,9 @@ import {
   sendDrillEmail,
   sendEmailOwnershipVerification,
 } from './email.js';
-import { getLessonByVariantId, getLessonForProfile, getUsableLessons, warmScamVariants } from './scam-variants.js';
+import {
+  diagnoseScamVariants, getLessonByVariantId, getLessonForProfile, getUsableLessons, warmScamVariants,
+} from './scam-variants.js';
 import { GENERATED_ID_BASE, planQuestions, quizWriterConfigured, writeQuizRound } from './quiz-writer.js';
 import { channelAllowed, cleanPresurvey } from './presurvey.js';
 import { realDrillCooldownMs } from './drill-cooldown.js';
@@ -460,6 +462,18 @@ api.get('/api/health', (_req, res) => {
 
 // Called daily by a Vercel cron (vercel.json): a free-tier Supabase project pauses after
 // a week without activity. It reveals nothing beyond reachability, so it needs no session.
+// Why drills are or are not adapting to the scam bulletins. Behind CRON_SECRET: it
+// reports configuration, so it is for operators, not the public. Nothing it returns
+// includes a key or any row content.
+api.get('/api/health/variants', async (req, res) => {
+  const secret = intelRefreshSecret();
+  if (!secret) return fail(res, 503, 'diagnostics are not configured (set CRON_SECRET)');
+  if (!timingSafeEqualStr(req.get('authorization') || '', `Bearer ${secret}`)) {
+    return fail(res, 401, 'unauthorized');
+  }
+  return res.json(await diagnoseScamVariants());
+});
+
 api.get('/api/health/db', async (_req, res) => {
   try {
     await pingDb();

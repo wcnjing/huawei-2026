@@ -203,3 +203,68 @@ test('the safety follow-up carries only plain-text red flags and advice', () => 
 test('drill pages have no "Return to SafeSpace" link', () => {
   assert.doesNotMatch(educationalPage({ title: 't', heading: 'h', message: 'm' }).html, /Return to SafeSpace|class="home"/);
 });
+
+// ── Why are there no variants? (diagnoseScamVariants) ───────────────────────
+const { diagnoseScamVariants } = await import('./scam-variants.js');
+
+const VARIANT_ENV = { SUPABASE_URL: 'https://intel.supabase.co', SUPABASE_SECRET_KEY: 'sb_secret_intel' };
+
+test('an unconfigured reader says so instead of guessing', async () => {
+  const result = await diagnoseScamVariants({ env: {} });
+  assert.equal(result.configured, false);
+  assert.equal(result.usableVariants, 0);
+  assert.match(result.reason, /SUPABASE_URL/);
+});
+
+test('it names the mistake when both keys point at the same project', async () => {
+  const env = { ...VARIANT_ENV, SUPABASE_PROD_URL: VARIANT_ENV.SUPABASE_URL };
+  const result = await diagnoseScamVariants({
+    env,
+    fetchImpl: async () => ({ ok: false, status: 404, json: async () => ({}) }),
+  });
+  assert.equal(result.sameProjectAsAppDatabase, true);
+  assert.match(result.reason, /same Supabase project/i);
+});
+
+test('a 404 is reported as a missing table, not an empty one', async () => {
+  const result = await diagnoseScamVariants({
+    env: { ...VARIANT_ENV, SUPABASE_PROD_URL: 'https://app.supabase.co' },
+    fetchImpl: async () => ({ ok: false, status: 404, json: async () => ({}) }),
+  });
+  assert.equal(result.httpStatus, 404);
+  assert.match(result.reason, /scam_variants/);
+});
+
+test('rows that teach nothing are counted separately from rows returned', async () => {
+  const rows = [
+    { id: 'a', variant_name: 'Teaches something', red_flags: ['Urgency'], scams: { scam_name: 'Phishing scam' } },
+    { id: 'b', variant_name: 'Teaches nothing', red_flags: [] },
+  ];
+  const result = await diagnoseScamVariants({
+    env: { ...VARIANT_ENV, SUPABASE_PROD_URL: 'https://app.supabase.co' },
+    fetchImpl: async () => ({ ok: true, status: 200, json: async () => rows }),
+  });
+  assert.equal(result.rowsReturned, 2);
+  assert.equal(result.usableVariants, 1);
+  assert.equal(result.ok, true);
+});
+
+test('NEVER leaks the secret key, whatever happens', async () => {
+  for (const fetchImpl of [
+    async () => ({ ok: true, status: 200, json: async () => [] }),
+    async () => ({ ok: false, status: 401, json: async () => ({}) }),
+    async () => { throw new Error('network down'); },
+  ]) {
+    const result = await diagnoseScamVariants({ env: VARIANT_ENV, fetchImpl });
+    assert.doesNotMatch(JSON.stringify(result), /sb_secret_intel/, JSON.stringify(result));
+  }
+});
+
+test('a network failure is reported rather than thrown', async () => {
+  const result = await diagnoseScamVariants({
+    env: VARIANT_ENV,
+    fetchImpl: async () => { throw new Error('network down'); },
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /could not be reached/i);
+});

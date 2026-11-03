@@ -1202,3 +1202,44 @@ test('a reply is revealed in the language the bait was sent in, with no lesson s
   assert.match(body, /SafeSpace/, 'the reveal still names the drill');
   assert.doesNotMatch(body, /This was a SafeSpace drill - that last message was fake/, 'not the English reveal');
 });
+
+// ─── Variant diagnostics ────────────────────────────────────────────────────
+const CRON = 'route-test-cron-secret-is-at-least-32-characters-long';
+
+test('FAILS CLOSED: the variant diagnostic needs the admin secret', async (t) => {
+  await resetDb();
+  delete process.env.CRON_SECRET;
+  assert.equal((await fetch(`${base}/api/health/variants`)).status, 503, 'no secret configured');
+
+  process.env.CRON_SECRET = CRON;
+  t.after(() => { delete process.env.CRON_SECRET; });
+  assert.equal((await fetch(`${base}/api/health/variants`)).status, 401, 'no authorization header');
+  assert.equal(
+    (await fetch(`${base}/api/health/variants`, { headers: { authorization: 'Bearer wrong' } })).status,
+    401,
+  );
+});
+
+test('the diagnostic explains why drills are not adapting, without leaking the key', async (t) => {
+  await resetDb();
+  process.env.CRON_SECRET = CRON;
+  const previousUrl = process.env.SUPABASE_URL;
+  const previousKey = process.env.SUPABASE_SECRET_KEY;
+  process.env.SUPABASE_URL = PROD_URL;          // the mistake: same project as the app db
+  process.env.SUPABASE_SECRET_KEY = 'sb_secret_should_never_appear';
+  t.after(() => {
+    delete process.env.CRON_SECRET;
+    process.env.SUPABASE_URL = previousUrl;
+    process.env.SUPABASE_SECRET_KEY = previousKey;
+  });
+
+  const res = await fetch(`${base}/api/health/variants`, { headers: { authorization: `Bearer ${CRON}` } });
+  assert.equal(res.status, 200);
+  const body = await res.text();
+  assert.doesNotMatch(body, /sb_secret_should_never_appear/, 'the key must never be echoed');
+  const data = JSON.parse(body);
+  assert.equal(data.configured, true);
+  assert.equal(data.sameProjectAsAppDatabase, true);
+  assert.equal(data.ok, false);
+  assert.match(data.reason, /same Supabase project/i);
+});

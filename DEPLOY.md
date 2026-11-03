@@ -174,6 +174,34 @@ A drill text carries no link, so `DRILL_LINK_SECRET` and `PUBLIC_URL` are not re
 for SMS drills (they still are for email). The scheduled reveal and the app's own
 outcome buttons are how an SMS drill ends.
 
+### Why drills are not adapting
+
+Every failure on the scam-variant path is silent by design: a drill falls back to a
+fixed scenario or the default call persona and says nothing. That makes "no data",
+"wrong project" and "working normally" look identical from outside, so there is a
+diagnostic endpoint:
+
+```sh
+curl -H "Authorization: Bearer $CRON_SECRET" https://YOUR_DOMAIN/api/health/variants
+```
+
+It reports whether the reader is configured, the HTTP status the project returned, how
+many rows came back and how many of those teach anything, plus a one-line reason. It
+returns no key and no row content.
+
+The most common causes, in the order the endpoint reports them:
+
+- **`SUPABASE_URL` is unset** — no variants are ever read.
+- **`SUPABASE_URL` equals `SUPABASE_PROD_URL`** — these are two different Supabase
+  projects. `SUPABASE_PROD_URL` is the app database (users, drills, pre-survey);
+  `SUPABASE_URL` is the scam-intelligence project that holds `bulletins`, `scams` and
+  `scam_variants`.
+- **HTTP 404** — that project has no `scam_variants` table.
+- **`scam_variants` is empty** — the pipeline is two manual steps, and the second is
+  easy to miss: `node server/scam-intelligence/ingestBulletin.js 2026/scam_bulletin_2026_09.pdf`
+  only files the bulletin as `pending`; `node server/scam-intelligence/aiExtractor.js`
+  then processes **one** pending bulletin into variants. Run it once per bulletin.
+
 ### Inbound SMS replies
 
 When someone texts back during an SMS drill, the drill answers in character for a few

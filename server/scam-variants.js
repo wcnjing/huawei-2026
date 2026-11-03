@@ -141,6 +141,82 @@ export async function warmScamVariants(options = {}) {
   return lessons.length;
 }
 
+/**
+ * Why a drill is or is not getting scam variants, for an operator. Every failure in this
+ * path is otherwise silent by design: a drill falls back to a fixed scenario or the
+ * default persona and says nothing, which makes "no data", "wrong project" and "working
+ * normally" indistinguishable from outside.
+ *
+ * Bypasses the cache, never throws, and never returns the key or any row content.
+ */
+export async function diagnoseScamVariants({
+  env = process.env, timeoutMs = DEFAULT_TIMEOUT_MS, fetchImpl,
+} = {}) {
+  const config = scamVariantsConfig(env);
+  const appUrl = String(env.SUPABASE_PROD_URL || '').trim().replace(/\/+$/, '');
+  const sameProjectAsAppDatabase = Boolean(config && appUrl && config.url === appUrl);
+  const base = {
+    configured: Boolean(config),
+    sameProjectAsAppDatabase,
+    httpStatus: null,
+    rowsReturned: null,
+    usableVariants: 0,
+    ok: false,
+  };
+  if (!config) {
+    return { ...base, reason: 'SUPABASE_URL and SUPABASE_SECRET_KEY are not set, so no variants are ever read' };
+  }
+  if (sameProjectAsAppDatabase) {
+    return {
+      ...base,
+      reason: 'SUPABASE_URL points at the same Supabase project as SUPABASE_PROD_URL; '
+        + 'the bulletin tables live in a separate project',
+    };
+  }
+
+  const doFetch = fetchImpl ?? fetch;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let response;
+  try {
+    response = await doFetch(
+      `${config.url}/rest/v1/scam_variants?select=${encodeURIComponent(SELECT)}`,
+      { headers: { apikey: config.key, accept: 'application/json' }, signal: controller.signal },
+    );
+  } catch (error) {
+    return { ...base, reason: `the project could not be reached (${error?.name || 'error'})` };
+  } finally {
+    clearTimeout(timer);
+  }
+
+  const httpStatus = response?.status ?? null;
+  if (!response?.ok) {
+    const reason = httpStatus === 404
+      ? 'the project has no scam_variants table; check SUPABASE_URL names the scam-intelligence project'
+      : `the project refused the read (HTTP ${httpStatus}); check SUPABASE_SECRET_KEY`;
+    return { ...base, httpStatus, reason };
+  }
+
+  let rows = null;
+  try {
+    rows = await response.json();
+  } catch {
+    return { ...base, httpStatus, reason: 'the project returned something that is not JSON' };
+  }
+  if (!Array.isArray(rows)) {
+    return { ...base, httpStatus, reason: 'the project did not return a list of rows' };
+  }
+  const usableVariants = rows.map(lessonFromVariant).filter(Boolean).length;
+  const reason = usableVariants > 0
+    ? `${usableVariants} usable variant(s); drills will adapt`
+    : rows.length === 0
+      ? 'scam_variants is empty; run ingestBulletin.js then aiExtractor.js'
+      : 'every row was discarded for teaching nothing (no red flags and no prevention advice)';
+  return {
+    ...base, httpStatus, rowsReturned: rows.length, usableVariants, ok: usableVariants > 0, reason,
+  };
+}
+
 /** Tests only. */
 export function clearScamVariantCache() {
   cache = null;
