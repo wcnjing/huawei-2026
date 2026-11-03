@@ -84,7 +84,7 @@ export function RealisticPhoneDrillIntroScreen({ onBack, onRegister, onStarted, 
   scheduleBlocked: boolean;
   scheduleNextLabel: string;
 }) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [phase, setPhase] = useState<"idle" | "calling" | "sent">("idle");
   const [msg, setMsg] = useState("");
   const [deliveryUnconfirmed, setDeliveryUnconfirmed] = useState(false);
@@ -96,7 +96,7 @@ export function RealisticPhoneDrillIntroScreen({ onBack, onRegister, onStarted, 
     try {
       // No body — the server dials the session user's OWN verified number, never one
       // from the request. That's the invariant that stops this dialling strangers.
-      const r = await fetch("/api/drills/fire", { method: "POST", headers: { ...authHeaders() } });
+      const r = await fetch("/api/drills/fire", { method: "POST", headers: { "content-type": "application/json", ...authHeaders() }, body: JSON.stringify({ language }) });
       handleApiAuth(r);
       const d = await r.json().catch(() => ({}));
       if (!r.ok || d.ok === false) {

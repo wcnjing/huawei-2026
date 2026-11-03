@@ -4,9 +4,11 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import {
   outcomeFromVapiWebhook, classifyCallTranscript, fireDrillCall, buildFirstMessage,
-  CALL_OPENERS, greetingFor,
-  buildAssistant, CALL_OUTCOMES, parseVapiCallReport, callIdFromVapiWebhook,
+  CALL_OPENERS, greetingFor, DEFAULT_CALL_OPENER,
+  buildAssistant, buildSystemPrompt, CALL_OUTCOMES, parseVapiCallReport, callIdFromVapiWebhook,
 } from './vapi.js';
+
+const { FICTIONAL_IDENTITIES } = await import('./intel/render.js');
 
 const TEST_OPENER = Object.freeze({
   caller: 'Daniel',
@@ -231,14 +233,17 @@ test('fireDrillCall attaches the reserved attempt id as provider metadata', asyn
   assert.deepEqual(sent.metadata, { attemptId: 'attempt_reserved' });
 });
 
-test('call drills greet the verified user by name, whichever opener is used', () => {
-  // Every shape must name the person: it is the one place their profile name appears.
-  for (const template of CALL_OPENERS) {
-    const line = template({ name: 'JUDGE', greeting: 'Good morning', opener: TEST_OPENER });
-    assert.match(line, /JUDGE/, line);
-    assert.ok(line.length > 30 && line.length < 260, `${line.length} chars: ${line}`);
+test('every opener in every language names the person', () => {
+  // It is the one place their profile name appears, so no shape may drop it.
+  for (const [lang, shapes] of Object.entries(CALL_OPENERS)) {
+    assert.ok(shapes.length >= 3, `${lang} has only ${shapes.length} shape(s) to vary between`);
+    for (const template of shapes) {
+      const line = template({ name: 'JUDGE', greeting: 'X', opener: TEST_OPENER });
+      assert.match(line, /JUDGE/, `${lang}: ${line}`);
+      assert.ok(line.length > 30 && line.length < 260, `${lang}, ${line.length} chars: ${line}`);
+    }
+    assert.match(buildFirstMessage('JUDGE', undefined, { language: lang }), /JUDGE/, lang);
   }
-  assert.match(buildFirstMessage('JUDGE'), /JUDGE/);
 });
 
 test('the greeting follows the hour in Singapore, not the server', () => {
@@ -251,10 +256,11 @@ test('the greeting follows the hour in Singapore, not the server', () => {
 });
 
 test('openers vary, so a repeat user practises the scam and not our phrasing', () => {
-  assert.ok(CALL_OPENERS.length >= 3, 'one shape is a pattern to memorise');
-  const lines = new Set();
-  for (let i = 0; i < 40; i += 1) lines.add(buildFirstMessage('JUDGE'));
-  assert.ok(lines.size > 1, 'forty calls produced one identical opening line');
+  for (const lang of Object.keys(CALL_OPENERS)) {
+    const lines = new Set();
+    for (let i = 0; i < 40; i += 1) lines.add(buildFirstMessage('JUDGE', undefined, { language: lang }));
+    assert.ok(lines.size > 1, `forty ${lang} calls produced one identical opening line`);
+  }
 });
 
 test('a malformed name falls back instead of being spoken', () => {
@@ -354,7 +360,7 @@ test('call assistant defaults to the selected ElevenLabs voice and preserves pro
     for (const key of keys) delete process.env[key];
     let voice = buildAssistant('TEST').voice;
     assert.equal(voice.provider, '11labs');
-    assert.equal(voice.voiceId, 'FXMPPfJPpDj0GSwJ6ASO');
+    assert.ok(DEFAULT_VOICE_IDS.en.includes(voice.voiceId), voice.voiceId);
     assert.equal(voice.model, 'eleven_turbo_v2_5');
 
     process.env.VAPI_VOICE_PROVIDER = 'azure';
@@ -372,4 +378,114 @@ test('call assistant defaults to the selected ElevenLabs voice and preserves pro
       else process.env[key] = previous[key];
     }
   }
+});
+
+// ── Calls in the player's language ──────────────────────────────────────────
+const {
+  CALL_REVEAL_SCRIPTS, transcriberFor, voiceFor, languageInstruction, DEFAULT_VOICE_IDS,
+} = await import('./vapi.js');
+
+test('every app language has a translated reveal script, and it never drifts', () => {
+  for (const lang of ['en', 'zh', 'ms', 'ta']) {
+    const script = CALL_REVEAL_SCRIPTS[lang];
+    assert.ok(script && script.length > 40, `${lang} has no reveal script`);
+    assert.match(script, /SafeSpace/, `${lang} reveal must name SafeSpace`);
+  }
+  // The reveal is the one thing a frightened person must understand. Each translation
+  // has to be in its own script, not English with a note attached.
+  for (const lang of ['zh', 'ms', 'ta']) {
+    assert.notEqual(CALL_REVEAL_SCRIPTS[lang], CALL_REVEAL_SCRIPTS.en, `${lang} is still English`);
+  }
+  // 'SafeSpace' is kept untranslated on purpose, so exclude it before checking.
+  assert.doesNotMatch(CALL_REVEAL_SCRIPTS.zh.replaceAll('SafeSpace', ''), /[a-z]{4,}/, 'zh is English prose');
+});
+
+test('the prompt carries the language and the matching reveal script', () => {
+  const ta = buildSystemPrompt(null, 'ta');
+  assert.match(ta, /Tamil/, 'the model is told which language to speak');
+  assert.ok(ta.includes(CALL_REVEAL_SCRIPTS.ta), 'the Tamil reveal script is in the prompt');
+  assert.ok(!ta.includes(CALL_REVEAL_SCRIPTS.en), 'the English reveal must not also be there');
+  // English is unchanged, byte for byte, so the pinned hash still protects it.
+  assert.equal(buildSystemPrompt(null, 'en'), buildSystemPrompt(null));
+});
+
+test('the safety rules survive translation', () => {
+  for (const lang of ['en', 'zh', 'ms', 'ta']) {
+    const prompt = buildSystemPrompt(null, lang);
+    assert.ok(prompt.includes('HARD SAFETY RULES'), lang);
+    assert.ok(prompt.includes('REVEAL SCRIPT'), lang);
+    assert.ok(prompt.indexOf('HARD SAFETY RULES') < prompt.indexOf('REVEAL SCRIPT'), lang);
+  }
+});
+
+test('Tamil needs nova-3, so every language uses it', () => {
+  for (const [lang, code] of [['en', 'en'], ['zh', 'zh'], ['ms', 'ms'], ['ta', 'ta']]) {
+    const t = transcriberFor(lang);
+    assert.equal(t.provider, 'deepgram');
+    assert.equal(t.model, 'nova-3', `${lang} must not fall back to nova-2`);
+    assert.equal(t.language, code);
+  }
+  assert.equal(transcriberFor('klingon').language, 'en', 'an unknown language is English');
+});
+
+
+test('the assistant speaks, hears and reveals in one language throughout', () => {
+  const assistant = buildAssistant('JUDGE', null, { language: 'zh' });
+  assert.equal(assistant.transcriber.language, 'zh');
+  assert.equal(assistant.voice.provider, voiceFor('zh').provider, 'one provider across languages');
+  assert.ok(assistant.model.messages[0].content.includes(CALL_REVEAL_SCRIPTS.zh));
+  assert.match(assistant.firstMessage, /JUDGE/, 'the name still appears');
+  assert.doesNotMatch(assistant.firstMessage, /Good (morning|afternoon|evening)/, assistant.firstMessage);
+});
+
+test('languageInstruction names the language in English for the model', () => {
+  assert.match(languageInstruction('zh'), /Chinese/);
+  assert.match(languageInstruction('ms'), /Malay/);
+  assert.match(languageInstruction('ta'), /Tamil/);
+  assert.equal(languageInstruction('en'), '');
+});
+
+test('a translated call names its organisation in that language too', () => {
+  for (const lang of ['zh', 'ms', 'ta']) {
+    const line = buildFirstMessage('JUDGE', DEFAULT_CALL_OPENER, { language: lang, random: () => 0 });
+    assert.doesNotMatch(line, /Office of Public Trust/, `${lang} left the org in English: ${line}`);
+    assert.doesNotMatch(line, /Officer Tan/, `${lang} left the caller in English: ${line}`);
+    assert.doesNotMatch(line, /bank account/, `${lang} left the topic in English: ${line}`);
+  }
+  // English is untouched.
+  assert.match(
+    buildFirstMessage('JUDGE', DEFAULT_CALL_OPENER, { language: 'en', random: () => 0 }),
+    /Officer Tan from the Office of Public Trust/,
+  );
+});
+
+test('every fictional identity is translated into every language', () => {
+  for (const [key, identity] of Object.entries(FICTIONAL_IDENTITIES)) {
+    for (const lang of ['zh', 'ms', 'ta']) {
+      const translated = identity.i18n?.[lang];
+      assert.ok(translated, `${key} has no ${lang} translation`);
+      for (const field of ['caller', 'org', 'topic']) {
+        assert.ok(translated[field], `${key}.${lang} is missing ${field}`);
+      }
+    }
+  }
+});
+
+test('each language has two voices, and they are real ElevenLabs ids', () => {
+  for (const [lang, ids] of Object.entries(DEFAULT_VOICE_IDS)) {
+    assert.equal(ids.length, 2, `${lang} should have two voices to vary between`);
+    for (const id of ids) assert.match(id, /^[A-Za-z0-9]{20}$/, `${lang}: ${id}`);
+  }
+});
+
+test('a call picks one of its language voices, and env still wins', () => {
+  const env = {};
+  const first = voiceFor('ta', { random: () => 0, env });
+  const second = voiceFor('ta', { random: () => 0.9, env });
+  assert.equal(first.voiceId, DEFAULT_VOICE_IDS.ta[0]);
+  assert.equal(second.voiceId, DEFAULT_VOICE_IDS.ta[1]);
+  assert.notEqual(first.voiceId, second.voiceId, 'both Tamil voices are reachable');
+
+  const overridden = voiceFor('ta', { random: () => 0, env: { VAPI_VOICE_ID_TA: 'custom_id_x' } });
+  assert.equal(overridden.voiceId, 'custom_id_x', 'an explicit id still wins');
 });

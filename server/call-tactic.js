@@ -100,7 +100,7 @@ export function tacticFromLesson(lesson) {
   ].join('\n');
   return {
     roleBlock,
-    opener: { caller: identity.caller, org: identity.org, topic: identity.topic },
+    opener: { caller: identity.caller, org: identity.org, topic: identity.topic, i18n: identity.i18n },
     card: {
       variantId: lesson.variantId,
       tacticName: lesson.scamName || lesson.variantName || null,

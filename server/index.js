@@ -1090,10 +1090,12 @@ api.post('/api/drills/fire', async (req, res) => {
     throw error;
   }
 
+  const language = normalizeLanguage(req.body?.language);
   const { tactic, lesson: variant } = await tacticForCall(preferences);
-  // The call has no written copy to translate, so the lesson kept on the attempt is the
-  // variant's own; the reveal page and result screen then teach the scam that was run.
-  const lesson = variant ? drillLesson(variant, null, 'en') : null;
+  // The call is spoken in the player's language (vapi.js), but the bulletin's own lesson
+  // text is English only, so a non-English call keeps the English fields rather than
+  // mixing languages on the result screen.
+  const lesson = variant ? drillLesson(variant, null, language) : null;
   const scamVariantId = variant ? variant.variantId : null;
   let call;
   try {
@@ -1102,12 +1104,13 @@ api.post('/api/drills/fire', async (req, res) => {
       name: user.name,
       attemptId: attempt.id,
       tactic,
+      language,
     });
     if (!call?.id) throw new Error('Vapi accepted the request without a call id');
   } catch (error) {
     if (error instanceof VapiDeliveryUnconfirmed || error?.code === 'VAPI_DELIVERY_UNCONFIRMED') {
       try {
-        await markDrillAttemptSent(attempt.id, { scamVariantId, lesson });
+        await markDrillAttemptSent(attempt.id, { scamVariantId, lesson, language });
       } catch (storeError) {
         console.error('[api] unconfirmed call state could not be persisted:', storeError?.message || storeError);
       }
@@ -1123,7 +1126,7 @@ api.post('/api/drills/fire', async (req, res) => {
   }
 
   try {
-    await markDrillAttemptSent(attempt.id, { providerId: call.id, scamVariantId, lesson });
+    await markDrillAttemptSent(attempt.id, { providerId: call.id, scamVariantId, lesson, language });
   } catch (error) {
     // The call is already live and carries the attempt id in Vapi metadata, so do not
     // tell the user to retry and accidentally place a second call.
