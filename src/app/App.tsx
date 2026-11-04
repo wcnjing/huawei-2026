@@ -101,7 +101,7 @@ import { NotificationToast } from "./screens/notifications/NotificationToast";
 import { PaydayScreen } from "./screens/rewards/PaydayScreen";
 
 import { useIdleFrame } from "./hooks/useIdleFrame";
-import { useI18n, translate, type Language } from "./i18n";
+import { useI18n, syncLanguage, translate, type Language } from "./i18n";
 import { hasStoredLanguage } from "./i18n/languages";
 import { MembersContext, useMemberMap, useMembers } from "./hooks/useMembers";
 import { SelfIdContext, useSelfId } from "./hooks/useSelfId";
@@ -1454,6 +1454,9 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   // house, and land on Home (or the house, for an invited player).
   const finishSignIn = async (name: string, userId?: string, skipOnboarding = false) => {
     updateProfile({ name });
+    // The language was almost certainly chosen before this account existed, so the
+    // account has not heard about it yet.
+    syncLanguage(language);
     if (skipOnboarding) setOnboardingStage(null);
     else if (signInMode === "new" && !onboardingStage()) setOnboardingStage("survey");
     if (userId) {

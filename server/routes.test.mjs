@@ -1245,3 +1245,55 @@ test('the diagnostic explains why drills are not adapting, without leaking the k
   assert.equal(data.ok, false);
   assert.match(data.reason, /same Supabase project/i);
 });
+
+// ── The player's stored language ──────────────────────────────────────────
+// A copy of the choice their device holds, so it survives a new phone and so the server
+// has a language to speak when a request carries none.
+
+test('the stored language needs a session and rejects anything outside the four', async () => {
+  await freshStore();
+  assert.equal((await post('/api/me/language', { language: 'ta' })).status, 401);
+  const { auth } = await signedIn('Lang');
+  for (const language of ['klingon', '', 'EN', 'en-SG', undefined]) {
+    assert.equal((await post('/api/me/language', { language }, auth)).status, 400, String(language));
+  }
+  const ok = await post('/api/me/language', { language: 'ta' }, auth);
+  assert.equal(ok.status, 200);
+  assert.deepEqual(await ok.json(), { stored: true });
+});
+
+test('a call with no language on the request is placed in the stored one', async () => {
+  await freshStore();
+  const { user, auth } = await signedIn('Mala');
+  assert.equal((await post('/api/me/language', { language: 'ta' }, auth)).status, 200);
+  assert.equal((await getUser(user.id)).language, 'ta', 'the choice is on the account');
+
+  const previous = { key: process.env.VAPI_API_KEY, phone: process.env.VAPI_PHONE_NUMBER_ID };
+  process.env.VAPI_API_KEY = 'route-test-vapi-key';
+  process.env.VAPI_PHONE_NUMBER_ID = 'route-test-phone-id';
+  vapiMode = 'capture';
+  vapiRequests.length = 0;
+  try {
+    const fired = await post('/api/drills/fire', {}, auth);
+    assert.equal(fired.status, 200);
+    // The strongest evidence is what Vapi was actually asked for, not what we stored.
+    assert.equal(vapiRequests[0].assistant.transcriber.language, 'ta');
+    const attempt = await getDrillAttempt((await fired.json()).drillId);
+    assert.equal(attempt.language, 'ta');
+
+    // The open app still decides: a language on the request beats the stored one. A
+    // second player, because one drill per user is all the cooldown allows.
+    const other = await signedIn('Wei');
+    assert.equal((await post('/api/me/language', { language: 'ta' }, other.auth)).status, 200);
+    const asked = await post('/api/drills/fire', { language: 'zh' }, other.auth);
+    assert.equal(asked.status, 200);
+    assert.equal(vapiRequests[1].assistant.transcriber.language, 'zh');
+  } finally {
+    vapiMode = null;
+    if (previous.key === undefined) delete process.env.VAPI_API_KEY;
+    else process.env.VAPI_API_KEY = previous.key;
+    if (previous.phone === undefined) delete process.env.VAPI_PHONE_NUMBER_ID;
+    else process.env.VAPI_PHONE_NUMBER_ID = previous.phone;
+    await freshStore();
+  }
+});

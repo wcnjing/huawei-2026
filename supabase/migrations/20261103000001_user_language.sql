@@ -1,0 +1,14 @@
+-- The language the player chose for themselves, so it survives a new phone and so the
+-- server can speak it where there is no request to read it from. Until now language was
+-- device-local (localStorage), which meant a player who reinstalled or switched handsets
+-- silently fell back to English, and anything the server ever sends without a live
+-- request — a scheduled drill, a follow-up — had no language at all.
+--
+-- Deliberately NOT added to rows.js USER_FIELDS: that list drives every user insert and
+-- update, so a column there is a column every write depends on. This one is written only
+-- by saveUserLanguage, which degrades to a no-op where the column is missing, so the
+-- application keeps working whether or not this migration has been applied yet.
+--
+-- Null for every player who chose before this column existed, and for anyone who has not
+-- chosen; both fall back to the language on the request, then to English.
+alter table safespace.users add column language text;

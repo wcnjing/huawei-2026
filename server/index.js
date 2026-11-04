@@ -31,6 +31,7 @@ import {
   publicUser,
   registerVerifiedUser,
   reservePhoneVerificationSend,
+  saveUserLanguage,
   setUserAvatar,
   setUserHomeInventory,
   setUserRoomStyle,
@@ -85,7 +86,7 @@ import {
 } from './drill-links.js';
 import { KNOWN_OUTCOMES } from './xp.js';
 import { educationalPage } from './pages.js';
-import { normalizeLanguage, pageText, withLanguage } from './language.js';
+import { LANGUAGES, normalizeLanguage, pageText, withLanguage } from './language.js';
 import { renderTactic } from './intel/render.js';
 import {
   HouseError,
@@ -674,6 +675,30 @@ api.post('/api/me/name', async (req, res) => {
   }
 });
 
+// The language to speak to this player in: what the open app asked for, and failing that
+// the choice stored on their account, which is all the server has when a request carries
+// none — a scheduled send, or a client too old to pass one. An unrecognised value on the
+// request is treated as no answer rather than as English, so a client bug cannot override
+// a choice the player actually made. English remains the floor.
+function languageFor(req, user) {
+  const asked = String(req?.body?.language || '');
+  return LANGUAGES.includes(asked) ? asked : normalizeLanguage(user?.language);
+}
+
+// The player's chosen language, mirrored from their device so it survives a new phone
+// and so the server can speak it with no request to read it from. The device remains the
+// source of truth while the app is open; this is a copy, and a failure to store it is
+// never worth interrupting anyone for, so the client sends it and ignores the outcome.
+api.post('/api/me/language', async (req, res) => {
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+  const language = String(req.body?.language || '');
+  if (!LANGUAGES.includes(language)) {
+    return res.status(400).json({ error: 'unknown language' });
+  }
+  return res.json({ stored: await saveUserLanguage(userId, language) });
+});
+
 // The pre-survey's answers, stored in safespace-prod (presurvey-store.js). Private:
 // only the player reads or writes their own.
 api.get('/api/me/presurvey', async (req, res) => {
@@ -927,11 +952,13 @@ async function startEmailOwnership(req, res) {
   const userId = await sessionUserId(req);
   if (!userId) return res.status(401).json({ error: 'sign in to verify an email' });
   const email = String(req.body?.email || '').trim().toLowerCase();
-  const language = normalizeLanguage(req.body?.language);
   if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'email is not a valid address' });
   if (!emailVerificationConfigured() || !drillLinksConfigured()) {
     return fail(res, 503, 'email verification is not configured');
   }
+  // Read after the cheap guards: this is the one caller of languageFor that has no user
+  // loaded already, and a bad address should not cost a query.
+  const language = languageFor(req, await getUser(userId));
 
   let reservation;
   const verificationId = crypto.randomBytes(32).toString('base64url');
@@ -1090,7 +1117,7 @@ api.post('/api/drills/fire', async (req, res) => {
     throw error;
   }
 
-  const language = normalizeLanguage(req.body?.language);
+  const language = languageFor(req, user);
   const { tactic, lesson: variant } = await tacticForCall(preferences);
   // The call is spoken in the player's language (vapi.js), but the bulletin's own lesson
   // text is English only, so a non-English call keeps the English fields rather than
@@ -1174,7 +1201,7 @@ api.post('/api/drills/email', async (req, res) => {
   // that language too and is kept on the attempt, so the reveal page, the result screen,
   // Pixi and the safety follow-up teach the same scam in the same language. Asking for a
   // template scenario, or any failure, sends a fixed template.
-  const language = normalizeLanguage(req.body?.language);
+  const language = languageFor(req, user);
   const variant = req.body?.scenario ? null : await getLessonForProfile(preferences);
   const content = variant ? await writeDrillEmail(variant, { language, presurvey: preferences }) : null;
   const lesson = content ? drillLesson(variant, content.lesson, language) : null;
@@ -1266,7 +1293,7 @@ api.post('/api/drills/sms', async (req, res) => {
   // comes back in that language and is kept on the attempt, so the reveal page, the
   // result screen and Pixi teach the same scam. Asking for a named scenario, or any
   // failure along the way, falls back to a curated scenario from sms.js.
-  const language = normalizeLanguage(req.body?.language);
+  const language = languageFor(req, user);
   const variant = req.body?.scenario ? null : await getLessonForProfile(preferences);
   const content = variant ? await writeDrillSms(variant, { language, presurvey: preferences }) : null;
   const lesson = content ? drillLesson(variant, content.lesson, language) : null;
