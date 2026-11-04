@@ -16,13 +16,37 @@ export function isLanguage(value: unknown): value is Language {
   return LANGUAGES.some((l) => l.code === value);
 }
 
-export function loadLanguage(): Language {
-  try {
-    const raw = localStorage.getItem(LANGUAGE_KEY);
-    return isLanguage(raw) ? raw : DEFAULT_LANGUAGE;
-  } catch {
-    return DEFAULT_LANGUAGE;
+// The device's own language, consulted only when the user has never picked one in the app.
+// Matching is on the primary subtag, so en-SG, zh-Hans-SG, ms-MY and ta-IN all land on the
+// language they are written in. Anything we do not speak (id, hi, ...) is left to the caller
+// rather than guessed at: a near-miss language is worse than English, which every screen has.
+export function matchDeviceLanguage(tags: readonly (string | undefined)[]): Language | undefined {
+  for (const tag of tags) {
+    const primary = String(tag ?? "").toLowerCase().split("-")[0];
+    if (isLanguage(primary)) return primary;
   }
+  return undefined;
+}
+
+function deviceLanguage(): Language | undefined {
+  try {
+    const preferred = navigator.languages?.length ? navigator.languages : [navigator.language];
+    return matchDeviceLanguage(preferred);
+  } catch {
+    return undefined;
+  }
+}
+
+// A stored choice always wins. Without one we read the device, and that result is deliberately
+// not saved: the user has still chosen nothing, so changing the phone's language changes the
+// app's until they pick for themselves. A Tamil speaker should not have to read English menus
+// to find the language setting.
+export function loadLanguage(): Language {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(LANGUAGE_KEY);
+  } catch { /* private mode: nothing was stored */ }
+  return isLanguage(raw) ? raw : deviceLanguage() ?? DEFAULT_LANGUAGE;
 }
 
 export function saveLanguage(language: Language) {
