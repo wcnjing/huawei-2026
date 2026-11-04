@@ -49,6 +49,22 @@ export function loadLanguage(): Language {
   return isLanguage(raw) ? raw : deviceLanguage() ?? DEFAULT_LANGUAGE;
 }
 
+// Whether the user has ever picked for themselves. Drives the one-time language step at
+// the start of the app: a detected language is a guess, so it does not count as a choice.
+export function hasStoredLanguage(): boolean {
+  try {
+    return isLanguage(localStorage.getItem(LANGUAGE_KEY));
+  } catch {
+    return false;
+  }
+}
+
+// The language the device suggests, for marking it as the suggestion on that step. Undefined
+// when the device speaks nothing we do, so no option is singled out.
+export function suggestedLanguage(): Language | undefined {
+  return deviceLanguage();
+}
+
 export function saveLanguage(language: Language) {
   try { localStorage.setItem(LANGUAGE_KEY, language); } catch { /* private mode: not persisted */ }
 }

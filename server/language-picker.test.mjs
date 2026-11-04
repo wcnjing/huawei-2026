@@ -6,7 +6,7 @@ import { transformSync } from 'esbuild';
 // Exercise the language the app opens in, as shipped to the browser, without a DOM.
 const source = readFileSync(new URL('../src/app/i18n/languages.ts', import.meta.url), 'utf8');
 const { code } = transformSync(source, { loader: 'ts', format: 'esm' });
-const { loadLanguage, matchDeviceLanguage, LANGUAGE_KEY } =
+const { loadLanguage, matchDeviceLanguage, hasStoredLanguage, suggestedLanguage, LANGUAGE_KEY } =
   await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
 
 // Node ships a read-only `navigator`, so it has to be redefined rather than assigned.
@@ -70,4 +70,37 @@ test('English is the floor: no device match, no device, or no storage', () => {
   assert.equal(loadLanguage(), 'ta', 'private mode must not cost the device language');
   setNavigator(undefined);
   assert.equal(loadLanguage(), 'en');
+});
+
+// ── The one-time language step ────────────────────────────────────────────
+// hasStoredLanguage decides whether the step is shown at all, so a detected language
+// must never be mistaken for a choice: that would hide the step from the very users it
+// exists for — someone reading Tamil on a handset their family set up in English.
+
+test('a detected language is not a choice, so the step is still shown', () => {
+  browser({ languages: ['ta-SG'] });
+  assert.equal(loadLanguage(), 'ta', 'the device still decides what the app opens in');
+  assert.equal(hasStoredLanguage(), false, 'but the step must still be offered');
+});
+
+test('picking a language retires the step', () => {
+  browser({ stored: 'ta', languages: ['en-SG'] });
+  assert.equal(hasStoredLanguage(), true);
+});
+
+test('a tampered stored value does not retire the step', () => {
+  browser({ stored: 'klingon', languages: ['en-SG'] });
+  assert.equal(hasStoredLanguage(), false);
+});
+
+test('private mode shows the step rather than failing shut', () => {
+  browser({ stored: 'ta', languages: ['en-SG'], throws: true });
+  assert.equal(hasStoredLanguage(), false);
+});
+
+test('the step marks the device language, and marks nothing when it speaks none of ours', () => {
+  browser({ languages: ['zh-CN'] });
+  assert.equal(suggestedLanguage(), 'zh');
+  browser({ languages: ['id-ID'] });
+  assert.equal(suggestedLanguage(), undefined, 'no option should be singled out on a guess');
 });
