@@ -1,5 +1,6 @@
 export type Screen =
   | "title"
+  | "language"
   | "start"
   | "new-character"
   | "presurvey-onboarding"

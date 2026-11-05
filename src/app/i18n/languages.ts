@@ -16,13 +16,53 @@ export function isLanguage(value: unknown): value is Language {
   return LANGUAGES.some((l) => l.code === value);
 }
 
-export function loadLanguage(): Language {
-  try {
-    const raw = localStorage.getItem(LANGUAGE_KEY);
-    return isLanguage(raw) ? raw : DEFAULT_LANGUAGE;
-  } catch {
-    return DEFAULT_LANGUAGE;
+// The device's own language, consulted only when the user has never picked one in the app.
+// Matching is on the primary subtag, so en-SG, zh-Hans-SG, ms-MY and ta-IN all land on the
+// language they are written in. Anything we do not speak (id, hi, ...) is left to the caller
+// rather than guessed at: a near-miss language is worse than English, which every screen has.
+export function matchDeviceLanguage(tags: readonly (string | undefined)[]): Language | undefined {
+  for (const tag of tags) {
+    const primary = String(tag ?? "").toLowerCase().split("-")[0];
+    if (isLanguage(primary)) return primary;
   }
+  return undefined;
+}
+
+function deviceLanguage(): Language | undefined {
+  try {
+    const preferred = navigator.languages?.length ? navigator.languages : [navigator.language];
+    return matchDeviceLanguage(preferred);
+  } catch {
+    return undefined;
+  }
+}
+
+// A stored choice always wins. Without one we read the device, and that result is deliberately
+// not saved: the user has still chosen nothing, so changing the phone's language changes the
+// app's until they pick for themselves. A Tamil speaker should not have to read English menus
+// to find the language setting.
+export function loadLanguage(): Language {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(LANGUAGE_KEY);
+  } catch { /* private mode: nothing was stored */ }
+  return isLanguage(raw) ? raw : deviceLanguage() ?? DEFAULT_LANGUAGE;
+}
+
+// Whether the user has ever picked for themselves. Drives the one-time language step at
+// the start of the app: a detected language is a guess, so it does not count as a choice.
+export function hasStoredLanguage(): boolean {
+  try {
+    return isLanguage(localStorage.getItem(LANGUAGE_KEY));
+  } catch {
+    return false;
+  }
+}
+
+// The language the device suggests, for marking it as the suggestion on that step. Undefined
+// when the device speaks nothing we do, so no option is singled out.
+export function suggestedLanguage(): Language | undefined {
+  return deviceLanguage();
 }
 
 export function saveLanguage(language: Language) {

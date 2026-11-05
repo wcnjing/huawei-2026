@@ -143,6 +143,32 @@ async function writeHomeInventory(runner, userId, inventory) {
   return userFromRow(rows[0]);
 }
 
+/**
+ * The language the player chose for themselves. Written on its own rather than through
+ * USER_FIELDS, so that a deployment running ahead of its migration keeps working: an
+ * absent column is undefined_column (42703), which we swallow — the player's choice
+ * still lives on their device, and every drill still reads the language off the request.
+ * Returns true when it was stored.
+ */
+export async function saveUserLanguage(userId, language) {
+  const clean = DRILL_LANGUAGES.has(String(language || '')) ? String(language) : null;
+  if (!userId || !clean) return false;
+  try {
+    const { rowCount } = await query(
+      'update safespace.users set language = $2 where id = $1',
+      [String(userId), clean],
+      'saveUserLanguage',
+    );
+    return rowCount > 0;
+  } catch (error) {
+    if (error?.code === '42703') {
+      console.error('[store] users.language is missing — apply 20261103000001_user_language.sql');
+      return false;
+    }
+    throw error;
+  }
+}
+
 // --- Read models ---------------------------------------------------------------
 
 export async function getUser(id) {

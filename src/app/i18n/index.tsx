@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { DEFAULT_LANGUAGE, LANGUAGES, loadLanguage, saveLanguage, type Language, type TranslatedLanguage } from "./languages";
 import { DICTIONARIES } from "./locales";
+import { apiPost } from "../services/api";
+import { sessionToken } from "../services/session";
 
 export { LANGUAGES, type Language } from "./languages";
 
@@ -54,6 +56,16 @@ export function translate(language: Language, text: string, vars?: TranslateVars
   return out;
 }
 
+// Mirror the choice onto the account when there is one, so it survives a new phone and
+// so the server has a language to speak when it sends something with no request to read
+// it from. Best-effort on purpose: the device stays the source of truth while the app is
+// open, and nobody should be interrupted because a copy failed to save. Signing in pushes
+// the device's language too, since the choice is usually made before there is an account.
+export function syncLanguage(language: Language) {
+  if (!sessionToken()) return;
+  void apiPost("/api/me/language", { language });
+}
+
 type I18nValue = { language: Language; setLanguage: (l: Language) => void; t: Translate };
 
 const I18nContext = createContext<I18nValue>({
@@ -72,6 +84,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const setLanguage = useCallback((l: Language) => {
     saveLanguage(l);
     setLanguageState(l);
+    syncLanguage(l);
   }, []);
 
   const value = useMemo<I18nValue>(

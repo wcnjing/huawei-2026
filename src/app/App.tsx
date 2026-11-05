@@ -81,6 +81,7 @@ import { FamilyDrillScreen } from "./screens/drills/family/FamilyDrillScreen";
 import { HouseDrillInvite } from "./screens/drills/family/HouseDrillInvite";
 import { useHouseDrill, type HouseDrill } from "./services/houseDrill";
 import { HouseChatScreen } from "./screens/chat";
+import { LanguageScreen } from "./screens/auth/LanguageScreen";
 import { StartScreen } from "./screens/auth/StartScreen";
 import { RegisterScreen } from "./screens/auth/RegisterScreen";
 import { PresurveyScreen } from "./screens/auth/PresurveyScreen";
@@ -100,7 +101,8 @@ import { NotificationToast } from "./screens/notifications/NotificationToast";
 import { PaydayScreen } from "./screens/rewards/PaydayScreen";
 
 import { useIdleFrame } from "./hooks/useIdleFrame";
-import { useI18n, translate, type Language } from "./i18n";
+import { useI18n, syncLanguage, translate, type Language } from "./i18n";
+import { hasStoredLanguage } from "./i18n/languages";
 import { MembersContext, useMemberMap, useMembers } from "./hooks/useMembers";
 import { SelfIdContext, useSelfId } from "./hooks/useSelfId";
 import { useHouseChat } from "./hooks/useHouseChat";
@@ -428,7 +430,7 @@ function claimRealEventId(id: string): boolean {
 // ─────────────────────────────────────────────────────────────────────────
 
 export default function App({ initialScreen = "title", devMode = false }: { initialScreen?: Screen; devMode?: boolean }) {
-  const { t, language } = useI18n();
+  const { t, language, setLanguage } = useI18n();
   const [sessionEpoch, setSessionEpoch] = useState(0);
   const [screen, setScreen] = useState<Screen>(initialScreen);
   const [activeTab, setActiveTab] = useState<Tab>("home");
@@ -934,7 +936,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
 
   const FULLSCREEN_ROUTES: Screen[] = ["customize", "family-chat", "payday"];
   // A house-drill invite never interrupts sign-in, a live call, or the drill screen itself.
-  const INVITE_SUPPRESSED_SCREENS: Screen[] = ["title", "start", "new-character", "presurvey-onboarding", "sign-in", "register", "incoming", "call", "family-drill-intro"];
+  const INVITE_SUPPRESSED_SCREENS: Screen[] = ["title", "language", "start", "new-character", "presurvey-onboarding", "sign-in", "register", "incoming", "call", "family-drill-intro"];
 
   const SUB_PAGE_ROUTES: Screen[] = ["account-settings", "privacy-settings", "accessibility-settings", "about-settings", "presurvey", "profile-edit", "avatar-customisation", "family-drill-intro", "solo-drill-intro", "solo-drill-summary"];
 
@@ -957,6 +959,22 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   const showAppChrome = isMainTab || screen === "drill-select";
 
   const goHome = () => { setActiveTab("home"); setScreen("home"); };
+  // Where the title screen leads, once the language step (if any) is out of the way.
+  // Signed in: straight to Home — the tour highlights real elements, so Home must be
+  // mounted first. Otherwise: pick new or returning player.
+  const enterFromTitle = () => {
+    if (!sessionToken()) {
+      setScreen("start");
+      return;
+    }
+    const stage = onboardingStage();
+    if (stage) {
+      setScreen(stage === "character" ? "new-character" : "presurvey-onboarding");
+      return;
+    }
+    goHome();
+    if (!hasSeenTutorial()) setTourOpen(true);
+  };
   const goDrillSelect = () => {
     practiceAttemptIdsRef.current = {};
     displayedPracticeAttemptRef.current = null;
@@ -1436,6 +1454,9 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   // house, and land on Home (or the house, for an invited player).
   const finishSignIn = async (name: string, userId?: string, skipOnboarding = false) => {
     updateProfile({ name });
+    // The language was almost certainly chosen before this account existed, so the
+    // account has not heard about it yet.
+    syncLanguage(language);
     if (skipOnboarding) setOnboardingStage(null);
     else if (signInMode === "new" && !onboardingStage()) setOnboardingStage("survey");
     if (userId) {
@@ -1595,18 +1616,21 @@ export default function App({ initialScreen = "title", devMode = false }: { init
                   // user gesture, and this is the one button everybody presses first.
                   unlock();
                   playSfx("select");
-                  // Signed in: straight to Home. The tour highlights real elements, so
-                  // Home must be mounted first. Otherwise: pick new or returning player.
-                  if (sessionToken()) {
-                    const stage = onboardingStage();
-                    if (stage) setScreen(stage === "character" ? "new-character" : "presurvey-onboarding");
-                    else {
-                      goHome();
-                      if (!hasSeenTutorial()) setTourOpen(true);
-                    }
-                  } else {
-                    setScreen("start");
-                  }
+                  // A player who has never picked a language chooses one before meeting
+                  // any English screen. Asked once, then never again — a stored choice,
+                  // or one made on this step, skips straight past it.
+                  if (!hasStoredLanguage()) setScreen("language");
+                  else enterFromTitle();
+                }}
+              />
+            )}
+            {screen === "language" && (
+              <LanguageScreen
+                onPick={(picked) => {
+                  playSfx("select");
+                  // Writes through to localStorage, so the step is not shown again.
+                  setLanguage(picked);
+                  enterFromTitle();
                 }}
               />
             )}
