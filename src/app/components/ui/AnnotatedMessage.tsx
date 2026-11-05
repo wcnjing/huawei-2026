@@ -33,9 +33,9 @@ export function AnnotatedMessage({
             key={i}
             onClick={(e) => { e.stopPropagation(); onFlagTap(seg.flagId!); }}
             style={{
-              color: "#ff2d55",
-              backgroundColor: "rgba(255,45,85,0.18)",
-              borderBottom: "2px solid #ff2d55",
+              color: "var(--red)",
+              backgroundColor: "color-mix(in srgb, var(--red-fill) 18%, transparent)",
+              borderBottom: "2px solid var(--red)",
               cursor: "pointer",
               padding: "0 2px",
               fontWeight: "bold",

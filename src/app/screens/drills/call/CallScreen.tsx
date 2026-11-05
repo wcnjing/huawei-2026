@@ -63,23 +63,23 @@ export function CallScreen({ onHangUp, onResult, onDistress }: { activeMemberId:
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-3" style={{ backgroundColor: "#111827", borderBottom: "4px solid #2a3a5c" }}>
+    <div className="flex flex-col h-full" data-theme="dark">
+      <div className="flex items-center justify-between px-4 py-3" style={{ backgroundColor: "var(--card)", borderBottom: "4px solid var(--border)" }}>
         <div className="flex items-center gap-2">
-          <div style={{ width: 8, height: 8, backgroundColor: callerSpeaking ? "#ff6b35" : "#00ff88", animation: "pulse-dot 1s ease-in-out infinite" }} />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: callerSpeaking ? "#ff6b35" : "#00ff88" }}>
+          <div style={{ width: 8, height: 8, backgroundColor: callerSpeaking ? "var(--orange-fill)" : "var(--green-fill)", animation: "pulse-dot 1s ease-in-out infinite" }} />
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: callerSpeaking ? "var(--orange)" : "var(--green)" }}>
             {callerSpeaking ? t("CALLER SPEAKING") : t("LISTENING...")}
           </div>
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ffe66d" }}>{mins}:{secs}</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--yellow)" }}>{mins}:{secs}</div>
       </div>
-      <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: "3px solid #1a2340" }}>
+      <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: "3px solid var(--secondary)" }}>
         <PixelPhone />
         <div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ffffff" }}>{t("UNKNOWN CALLER")}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--foreground-strong)" }}>{t("UNKNOWN CALLER")}</div>
           <div className="flex items-center gap-1 mt-1">
-            <IconWarning size={10} color="#ff6b35" />
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff6b35" }}>{t("SCAM DRILL ACTIVE")}</div>
+            <IconWarning size={10} color="var(--orange)" />
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--orange)" }}>{t("SCAM DRILL ACTIVE")}</div>
           </div>
         </div>
       </div>
@@ -90,12 +90,12 @@ export function CallScreen({ onHangUp, onResult, onDistress }: { activeMemberId:
             return (
               <div key={i} className={`flex ${line.who === "you" ? "justify-end" : "justify-start"}`}>
                 {line.who === "caller" && <div className="mr-2 mt-1 flex-shrink-0"><PixelAvatar rank={9} size={24} /></div>}
-                <div style={{ maxWidth: "72%", backgroundColor: line.who === "you" ? "#1a3a2a" : "#1a2340", border: `3px solid ${line.who === "you" ? "#00ff88" : hasFlags ? "#ff2d55" : "#ff6b35"}`, padding: "8px 10px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: line.who === "you" ? "#00ff88" : "#e8f4f8", lineHeight: 1.6 }}>
+                <div style={{ maxWidth: "72%", backgroundColor: line.who === "you" ? "color-mix(in srgb, var(--green) 18%, var(--background))" : "var(--secondary)", border: `3px solid ${line.who === "you" ? "var(--green)" : hasFlags ? "var(--red)" : "var(--orange)"}`, padding: "8px 10px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: line.who === "you" ? "var(--green)" : "var(--foreground)", lineHeight: 1.6 }}>
                   <AnnotatedMessage text={line.text} highlights={line.highlights} onFlagTap={handleFlagTap} />
                   {hasFlags && line.who === "caller" && (
                     <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
-                      <IconWarning size={9} color="#ff2d55" />
-                      <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff2d55" }}>{t("TAP RED TEXT")}</span>
+                      <IconWarning size={9} color="var(--red)" />
+                      <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--red)" }}>{t("TAP RED TEXT")}</span>
                     </div>
                   )}
                 </div>
@@ -105,22 +105,22 @@ export function CallScreen({ onHangUp, onResult, onDistress }: { activeMemberId:
           {visibleLines < CONVERSATION.length && (
             <div className="flex justify-start">
               <div className="mr-2"><PixelAvatar rank={9} size={24} /></div>
-              <div style={{ backgroundColor: "#1a2340", border: "3px solid #ff6b35", padding: "8px 14px" }}>
-                <Blink ms={400}><span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ff6b35" }}>...</span></Blink>
+              <div style={{ backgroundColor: "var(--secondary)", border: "3px solid var(--orange)", padding: "8px 14px" }}>
+                <Blink ms={400}><span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--orange)" }}>...</span></Blink>
               </div>
             </div>
           )}
         </div>
         {activeFlag && <FlagTooltip flag={activeFlag} onClose={() => setActiveFlag(null)} />}
       </div>
-      <div className="px-4 py-4" style={{ borderTop: "4px solid #2a3a5c", backgroundColor: "#0a0e1a" }}>
-        <PixelButton onClick={() => onHangUp(true)} color="#ff2d55" textColor="#ffffff" size="lg" full>
+      <div className="px-4 py-4" style={{ borderTop: "4px solid var(--border)", backgroundColor: "var(--background)" }}>
+        <PixelButton onClick={() => onHangUp(true)} color="var(--red-fill)" textColor="var(--on-danger)" size="lg" full>
           {t("[ HANG UP — DEFEAT SCAMMER ]")}
         </PixelButton>
         {/* Distress off-ramp — always available, never scored. Quiet styling on purpose:
             it should be findable without competing with the primary action. */}
-        <button onClick={onDistress} style={{ width: "100%", marginTop: 10, background: "none", border: "2px solid #2a3a5c", cursor: "pointer", padding: "8px" }}>
-          <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>{t("THIS IS TOO MUCH — STOP THE DRILL")}</span>
+        <button onClick={onDistress} style={{ width: "100%", marginTop: 10, background: "none", border: "2px solid var(--border)", cursor: "pointer", padding: "8px" }}>
+          <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)" }}>{t("THIS IS TOO MUCH — STOP THE DRILL")}</span>
         </button>
       </div>
     </div>

@@ -1,4 +1,4 @@
-export function IconTelegram({ size = 20, color = "#00d4ff" }: { size?: number; color?: string }) {
+export function IconTelegram({ size = 20, color = "var(--cyan)" }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 12 12" style={{ imageRendering: "pixelated", display: "block" }}>
       <rect x={0} y={4} width={2} height={2} fill={color} />

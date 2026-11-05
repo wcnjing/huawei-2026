@@ -37,12 +37,12 @@ export function RegisterScreen({ mode, name, devMode = false, onDone, onDevSkip,
   };
 
   const inputStyle: React.CSSProperties = {
-    width: "100%", padding: "12px", backgroundColor: "#0a0e1a",
-    border: "3px solid #2a3a5c", color: "#e8f4f8",
+    width: "100%", padding: "12px", backgroundColor: "var(--background)",
+    border: "3px solid var(--border)", color: "var(--foreground)",
     fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", outline: "none",
   };
   const label = (text: string) => (
-    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8", marginBottom: 8 }}>{text}</div>
+    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--soft-foreground)", marginBottom: 8 }}>{text}</div>
   );
 
   async function sendCode() {
@@ -133,44 +133,44 @@ export function RegisterScreen({ mode, name, devMode = false, onDone, onDevSkip,
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <div style={{ padding: "0 16px", minHeight: 52, backgroundColor: "#0a0e1a", borderBottom: "4px solid #2a3a5c", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#4ecdc4" }}>{mode === "new" ? t("SIGN UP") : t("SIGN IN")}</div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#2a3a5c" }}>{t("OPT IN")}</div>
+      <div style={{ padding: "0 16px", minHeight: 52, backgroundColor: "var(--background)", borderBottom: "4px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--teal)" }}>{mode === "new" ? t("SIGN UP") : t("SIGN IN")}</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--border)" }}>{t("OPT IN")}</div>
       </div>
       <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={{ fontFamily: "'VT323', monospace", fontSize: "var(--text-heading)", color: "#9bb0c8", lineHeight: 1.3 }}>
+        <div style={{ fontFamily: "'VT323', monospace", fontSize: "var(--text-heading)", color: "var(--soft-foreground)", lineHeight: 1.3 }}>
           {t("Verify your phone. We only ever call this number, and you can stop anytime.")}
         </div>
-        <PixelPanel accent="#4ecdc4" className="w-full">
+        <PixelPanel accent="var(--teal)" className="w-full">
           {step === "phone" ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {mode === "new" && <div>{label(t("WHAT SHOULD WE CALL YOU?"))}<input style={inputStyle} value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t("YOUR NAME")} maxLength={30} autoComplete="name" /></div>}
               <div>{label(t("PHONE NUMBER"))}<input style={inputStyle} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+6591234567" inputMode="tel" /></div>
               <div>{label(t("EMAIL (OPTIONAL)"))}<input style={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" inputMode="email" type="email" autoCapitalize="none" /></div>
-              {mode === "new" && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#8da4b8", lineHeight: 1.5 }}>{t("Email drills will ask you to verify your inbox separately.")}</div>}
-              <PixelButton onClick={sendCode} color="#4ecdc4" size="lg" full disabled={busy}>{busy ? t("SENDING...") : t("[ SEND CODE ]")}</PixelButton>
-              <PixelButton onClick={handleSave} color="#1a2340" textColor="#4ecdc4" size="sm" full disabled={busy}>{t("[ SAVE DETAILS ]")}</PixelButton>
+              {mode === "new" && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)", lineHeight: 1.5 }}>{t("Email drills will ask you to verify your inbox separately.")}</div>}
+              <PixelButton onClick={sendCode} color="var(--teal-fill)" size="lg" full disabled={busy}>{busy ? t("SENDING...") : t("[ SEND CODE ]")}</PixelButton>
+              <PixelButton onClick={handleSave} color="var(--secondary)" textColor="var(--teal)" size="sm" full disabled={busy}>{t("[ SAVE DETAILS ]")}</PixelButton>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>{label(t("CODE SENT TO {phone}", { phone }))}<input style={{ ...inputStyle, letterSpacing: 8, textAlign: "center" }} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="000000" inputMode="numeric" /></div>
-              {devCode && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ffe66d", textAlign: "center" }}>{t("DEV CODE: {code}", { code: devCode })}</div>}
-              <PixelButton onClick={verify} color="#00ff88" size="lg" full disabled={busy || code.length < 6}>{busy ? t("CHECKING...") : t("[ VERIFY ]")}</PixelButton>
-              <PixelButton onClick={() => { setStep("phone"); setMsg(""); setNoAccount(false); }} color="#1a2340" textColor="#6b8ba4" size="sm" full>{t("CHANGE NUMBER")}</PixelButton>
+              {devCode && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--yellow)", textAlign: "center" }}>{t("DEV CODE: {code}", { code: devCode })}</div>}
+              <PixelButton onClick={verify} color="var(--green-fill)" size="lg" full disabled={busy || code.length < 6}>{busy ? t("CHECKING...") : t("[ VERIFY ]")}</PixelButton>
+              <PixelButton onClick={() => { setStep("phone"); setMsg(""); setNoAccount(false); }} color="var(--secondary)" textColor="var(--muted-foreground)" size="sm" full>{t("CHANGE NUMBER")}</PixelButton>
             </div>
           )}
-          {msg && <div style={{ marginTop: 12, fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: msg.includes("VERIFIED") ? "#00ff88" : "#ff6b35", textAlign: "center" }}>{t(msg)}</div>}
+          {msg && <div style={{ marginTop: 12, fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: msg.includes("VERIFIED") ? "var(--green)" : "var(--orange)", textAlign: "center" }}>{t(msg)}</div>}
           {noAccount && onNewPlayer && (
             <div style={{ marginTop: 12 }}>
-              <PixelButton onClick={onNewPlayer} color="#00ff88" size="md" full>{t("[ NEW PLAYER ]")}</PixelButton>
+              <PixelButton onClick={onNewPlayer} color="var(--green-fill)" size="md" full>{t("[ NEW PLAYER ]")}</PixelButton>
             </div>
           )}
         </PixelPanel>
         {devMode && onDevSkip && <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <PixelButton onClick={skipWithDemoAccount} color="#c77dff" textColor="#0a0e1a" size="md" full disabled={busy}>{t("[ DEV: SKIP TO APP ]")}</PixelButton>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#8da4b8", lineHeight: 1.5, textAlign: "center" }}>{t("Use the form to preview registration, or enter with a local demo account.")}</div>
+          <PixelButton onClick={skipWithDemoAccount} color="var(--violet-fill)" textColor="var(--on-fill)" size="md" full disabled={busy}>{t("[ DEV: SKIP TO APP ]")}</PixelButton>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)", lineHeight: 1.5, textAlign: "center" }}>{t("Use the form to preview registration, or enter with a local demo account.")}</div>
         </div>}
-        <PixelButton onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="md" full>{t("BACK")}</PixelButton>
+        <PixelButton onClick={onBack} color="var(--secondary)" textColor="var(--muted-foreground)" size="md" full>{t("BACK")}</PixelButton>
       </div>
     </div>
   );

@@ -17,7 +17,7 @@ export function TitleScreen({ onNext }: { onNext: () => void }) {
   }, []);
 
   return (
-    <div className="relative flex flex-col items-center justify-between h-full px-6 py-10 overflow-hidden">
+    <div className="relative flex flex-col items-center justify-between h-full px-6 py-10 overflow-hidden" data-theme="dark">
       <Stars />
       <div className="relative z-10 flex flex-col items-center gap-2 mt-8">
         <div

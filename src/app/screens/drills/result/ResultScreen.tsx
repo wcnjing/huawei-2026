@@ -8,6 +8,7 @@ import { useMemberMap } from "../../../hooks/useMembers";
 import type { CallOutcome, DrillType, EmailOutcome, RealEmailScenario, SmsOutcome } from "../../../types/drills";
 import { useT } from "../../../i18n";
 import { realEmailDebriefFlags } from "../../../data/realEmailDebrief";
+import { ink, tint } from "../../../utils/color";
 
 export function ResultScreen({ win, drillType, smsOutcome, emailOutcome, callOutcome, realEmailScenario, profileName, activeMemberId, onPlayAgain, onGoHome, xpOverride }: { win: boolean; drillType: DrillType; smsOutcome: SmsOutcome | null; emailOutcome: EmailOutcome | null; callOutcome: CallOutcome | null; realEmailScenario?: RealEmailScenario | null; profileName: string; activeMemberId: string; onPlayAgain: () => void; onGoHome: () => void; xpOverride?: number | null }) {
   const t = useT();
@@ -29,7 +30,7 @@ export function ResultScreen({ win, drillType, smsOutcome, emailOutcome, callOut
   const drillLabel = drillType === "call" ? t("CALL") : drillType === "sms" ? "SMS" : t("EMAIL");
   const member = useMemberMap()[activeMemberId];
   const resultName = drillType === "call" && callOutcome ? profileName : member?.name;
-  const resultNameColor = drillType === "call" && callOutcome ? "#4ecdc4" : member?.primaryColor;
+  const resultNameColor = drillType === "call" && callOutcome ? "var(--teal)" : member?.primaryColor && ink(member.primaryColor);
   // Missing a red flag is already the learning signal. Never take away a user's
   // furniture currency for being fooled during a training exercise.
   const coinReward = win
@@ -65,18 +66,18 @@ export function ResultScreen({ win, drillType, smsOutcome, emailOutcome, callOut
       <Stars />
       <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 20, padding: "32px 20px 36px" }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8", letterSpacing: 2 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--soft-foreground)", letterSpacing: 2 }}>
             {win ? t("{type} DRILL — SUCCESS", { type: drillLabel }) : t("{type} DRILL — REVIEW", { type: drillLabel })}
           </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: win ? 24 : 20, color: win ? "#00ff88" : "#ff2d55", textShadow: win ? "4px 4px 0 #006633, 0 0 30px rgba(0,255,136,0.7)" : "4px 4px 0 #660011, 0 0 30px rgba(255,45,85,0.7)", textAlign: "center", lineHeight: 1.3 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: win ? 24 : 20, color: win ? "var(--green)" : "var(--red)", textShadow: win ? "4px 4px 0 color-mix(in srgb, var(--green) 40%, var(--background)), 0 0 calc(30px * var(--glow)) color-mix(in srgb, var(--green) 70%, transparent)" : "4px 4px 0 color-mix(in srgb, var(--red) 40%, var(--background)), 0 0 calc(30px * var(--glow)) color-mix(in srgb, var(--red) 70%, transparent)", textAlign: "center", lineHeight: 1.3 }}>
             {header}
           </div>
-          <div style={{ fontFamily: "'VT323', monospace", fontSize: "var(--text-display)", color: win ? "#4ecdc4" : "#ff6b35", textAlign: "center" }}>
+          <div style={{ fontFamily: "'VT323', monospace", fontSize: "var(--text-display)", color: win ? "var(--teal)" : "var(--orange)", textAlign: "center" }}>
             {win ? t("\"Great instinct!\"") : t("\"Let’s learn from this.\"")}
           </div>
           {resultName && resultNameColor && (
-            <div style={{ marginTop: 4, padding: "4px 10px", border: `2px solid ${resultNameColor}`, backgroundColor: `${resultNameColor}11`, display: "flex", alignItems: "center", gap: 6 }}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>{t("FOR:")}</div>
+            <div style={{ marginTop: 4, padding: "4px 10px", border: `2px solid ${resultNameColor}`, backgroundColor: tint(resultNameColor, 7), display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)" }}>{t("FOR:")}</div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: resultNameColor }}>{resultName}</div>
             </div>
           )}
@@ -85,61 +86,61 @@ export function ResultScreen({ win, drillType, smsOutcome, emailOutcome, callOut
           <PixelMascot size={96} animate />
           {win && (
             <div style={{ position: "absolute", top: -20, right: -20, animation: "spin 2s linear infinite" }}>
-              <IconStar size={24} color="#ffe66d" />
+              <IconStar size={24} color="var(--yellow)" />
             </div>
           )}
         </div>
         {showDetails && (
           <div style={{ width: "100%" }}>
-            <PixelPanel accent={win ? "#00ff88" : "#ff2d55"} className="w-full">
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: win ? "#00ff88" : "#ff2d55", marginBottom: 12, textAlign: "center" }}>
+            <PixelPanel accent={win ? "var(--green)" : "var(--red)"} className="w-full">
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: win ? "var(--green)" : "var(--red)", marginBottom: 12, textAlign: "center" }}>
                 {t("=== RESULTS ===")}
               </div>
               <div className="flex justify-between items-center mb-2">
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8" }}>{t("XP GAINED")}</div>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: displayedXp >= 0 ? "#ffe66d" : "#ff2d55" }}>{displayedXp >= 0 ? "+" : ""}{displayedXp}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--soft-foreground)" }}>{t("XP GAINED")}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: displayedXp >= 0 ? "var(--yellow)" : "var(--red)" }}>{displayedXp >= 0 ? "+" : ""}{displayedXp}</div>
               </div>
               <div className="flex justify-between items-center mb-2">
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8" }}>{t("COINS")}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--soft-foreground)" }}>{t("COINS")}</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <IconCoin size={12} color={coinReward >= 0 ? "#ffe66d" : "#ff2d55"} />
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: coinReward >= 0 ? "#00ff88" : "#ff2d55" }}>
+                  <IconCoin size={12} color={coinReward >= 0 ? "var(--yellow)" : "var(--red)"} />
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: coinReward >= 0 ? "var(--green)" : "var(--red)" }}>
                     {coinReward >= 0 ? `+${coinReward}` : coinReward}
                   </div>
                 </div>
               </div>
               <div className="flex justify-between items-center mb-3">
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8" }}>{t("STREAK")}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--soft-foreground)" }}>{t("STREAK")}</div>
                 <div className="flex items-center gap-2">
-                  {win ? <IconFlame size={14} color="#ff6b35" /> : <IconBulb size={14} color="#ffe66d" />}
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: win ? "#ff6b35" : "#ff2d55" }}>
+                  {win ? <IconFlame size={14} color="var(--orange)" /> : <IconBulb size={14} color="var(--yellow)" />}
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: win ? "var(--orange)" : "var(--red)" }}>
                     {win ? t("EXTENDED") : t("READY TO REBUILD")}
                   </div>
                 </div>
               </div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: win ? "#00ff88" : "#ff6b35", backgroundColor: win ? "rgba(0,255,136,0.08)" : "rgba(255,45,85,0.08)", border: `2px solid ${win ? "#00ff88" : "#ff2d55"}`, padding: "8px 10px", lineHeight: 1.6 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: win ? "var(--green)" : "var(--orange)", backgroundColor: win ? "color-mix(in srgb, var(--green-fill) 8%, transparent)" : "color-mix(in srgb, var(--red-fill) 8%, transparent)", border: `2px solid ${win ? "var(--green)" : "var(--red)"}`, padding: "8px 10px", lineHeight: 1.6 }}>
                 {resultFeedback}
               </div>
             </PixelPanel>
           </div>
         )}
         {showDetails && drillType === "email" && realEmailScenario && (
-          <div style={{ width: "100%", backgroundColor: "#111827", border: "2px solid #c77dff", padding: "8px 10px" }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#c77dff", marginBottom: 5 }}>{t("EMAIL RECEIVED")}</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8" }}>{realEmailScenario.sender}</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8", marginTop: 3 }}>{realEmailScenario.subject}</div>
+          <div style={{ width: "100%", backgroundColor: "var(--card)", border: "2px solid var(--violet)", padding: "8px 10px" }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--violet)", marginBottom: 5 }}>{t("EMAIL RECEIVED")}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)" }}>{realEmailScenario.sender}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)", marginTop: 3 }}>{realEmailScenario.subject}</div>
           </div>
         )}
         {showDetails && responseDetail && (
-          <div style={{ width: "100%", backgroundColor: "#111827", border: "2px solid #4ecdc4", padding: "8px 10px", display: "flex", gap: 8, alignItems: "baseline" }}>
-            <span style={{ flexShrink: 0, fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#4ecdc4" }}>{t("YOUR ACTION")}</span>
-            <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.5 }}>{responseDetail}</span>
+          <div style={{ width: "100%", backgroundColor: "var(--card)", border: "2px solid var(--teal)", padding: "8px 10px", display: "flex", gap: 8, alignItems: "baseline" }}>
+            <span style={{ flexShrink: 0, fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--teal)" }}>{t("YOUR ACTION")}</span>
+            <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.5 }}>{responseDetail}</span>
           </div>
         )}
         {showDetails && <ScamReasonSection flags={debriefFlags} />}
         <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 12 }}>
-          <PixelButton onClick={onPlayAgain} color={win ? "#00ff88" : "#ff6b35"} size="lg" full>{t("[ PLAY ANOTHER DRILL ]")}</PixelButton>
-          <PixelButton onClick={onGoHome} color="#1a2340" textColor="#6b8ba4" size="md" full>{t("BACK TO HOME")}</PixelButton>
+          <PixelButton onClick={onPlayAgain} color={win ? "var(--green-fill)" : "var(--orange-fill)"} size="lg" full>{t("[ PLAY ANOTHER DRILL ]")}</PixelButton>
+          <PixelButton onClick={onGoHome} color="var(--secondary)" textColor="var(--muted-foreground)" size="md" full>{t("BACK TO HOME")}</PixelButton>
         </div>
       </div>
     </div>

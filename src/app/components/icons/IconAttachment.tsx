@@ -1,4 +1,4 @@
-export function IconAttachment({ size = 16, color = "#c77dff" }: { size?: number; color?: string }) {
+export function IconAttachment({ size = 16, color = "var(--violet)" }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 8 12" style={{ imageRendering: "pixelated", display: "block" }}>
       <rect x={0} y={2} width={6} height={10} fill={color} />

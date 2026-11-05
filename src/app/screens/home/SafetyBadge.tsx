@@ -3,8 +3,8 @@ import { IconShield } from "../../components/icons";
 
 export function SafetyBadge({ safe, size = 20 }: { safe: boolean; size?: number }) {
   const t = useT();
-  const color = safe ? "#00ff88" : "#ff2d55";
-  const glow = safe ? "0 0 8px rgba(0,255,136,0.8)" : "0 0 8px rgba(255,45,85,0.8)";
+  const color = safe ? "var(--green)" : "var(--red)";
+  const glow = safe ? "0 0 calc(8px * var(--glow)) color-mix(in srgb, var(--green) 80%, transparent)" : "0 0 calc(8px * var(--glow)) color-mix(in srgb, var(--red) 80%, transparent)";
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
       <div style={{ filter: `drop-shadow(${glow})` }}>

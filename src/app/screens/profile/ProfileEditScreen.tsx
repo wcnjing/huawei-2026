@@ -39,10 +39,10 @@ export function ProfileEditScreen({ profile, onRename, onBack, onAvatar, onHouse
 
   return (
     <div className="flex flex-col h-full">
-      <SubPageHeader title={t("EDIT PROFILE")} titleColor="#4ecdc4" onBack={onBack} />
+      <SubPageHeader title={t("EDIT PROFILE")} titleColor="var(--teal)" onBack={onBack} />
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
-        <div style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "12px 14px", marginBottom: 12 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8", marginBottom: 6 }}>{t("USERNAME")}</div>
+        <div style={{ backgroundColor: "var(--card)", border: "3px solid var(--border)", padding: "12px 14px", marginBottom: 12 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--soft-foreground)", marginBottom: 6 }}>{t("USERNAME")}</div>
           {editingName ? (
             <div className="flex gap-2 items-center" style={{ marginBottom: 4 }}>
               <input
@@ -52,36 +52,36 @@ export function ProfileEditScreen({ profile, onRename, onBack, onAvatar, onHouse
                 onChange={(e) => { setDraftName(e.target.value); setNameError(""); }}
                 disabled={savingName}
                 onKeyDown={(e) => { if (e.key === "Enter" && !savingName) void commitName(); if (e.key === "Escape" && !savingName) { setDraftName(profile.name); setNameError(""); setEditingName(false); } }}
-                style={{ flex: 1, minWidth: 0, fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", background: "#0a0e1a", border: `2px solid ${nameError ? "#ff2d55" : "#4ecdc4"}`, padding: "6px 8px", outline: "none" }}
+                style={{ flex: 1, minWidth: 0, fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", background: "var(--background)", border: `2px solid ${nameError ? "var(--red)" : "var(--teal)"}`, padding: "6px 8px", outline: "none" }}
               />
-              <PixelButton onClick={() => { void commitName(); }} color="#00ff88" textColor="#0a0e1a" size="sm" disabled={savingName}>
+              <PixelButton onClick={() => { void commitName(); }} color="var(--green-fill)" textColor="var(--on-fill)" size="sm" disabled={savingName}>
                 {savingName ? t("SAVING...") : t("OK")}
               </PixelButton>
             </div>
           ) : (
             <>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", marginBottom: 8 }}>{profile.name}</div>
-              <PixelButton onClick={() => { setDraftName(profile.name); setEditingName(true); }} color="#4ecdc4" textColor="#0a0e1a" size="sm">{t("CHANGE NAME")}</PixelButton>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", marginBottom: 8 }}>{profile.name}</div>
+              <PixelButton onClick={() => { setDraftName(profile.name); setEditingName(true); }} color="var(--teal-fill)" textColor="var(--on-fill)" size="sm">{t("CHANGE NAME")}</PixelButton>
             </>
           )}
-          {nameError && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ff2d55", lineHeight: 1.5, marginTop: 8 }}>{nameError}</div>}
+          {nameError && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--red)", lineHeight: 1.5, marginTop: 8 }}>{nameError}</div>}
         </div>
-        <button onClick={onAvatar} style={{ width: "100%", backgroundColor: "#111827", border: "3px solid #c77dff", padding: "10px 14px", cursor: "pointer", textAlign: "left", marginBottom: 10, display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ width: 48, display: "flex", justifyContent: "center", filter: `drop-shadow(0 0 6px ${profile.avatar.glow})` }}>
+        <button onClick={onAvatar} style={{ width: "100%", backgroundColor: "var(--card)", border: "3px solid var(--violet)", padding: "10px 14px", cursor: "pointer", textAlign: "left", marginBottom: 10, display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ width: 48, display: "flex", justifyContent: "center", filter: `drop-shadow(0 0 calc(6px * var(--glow)) ${profile.avatar.glow})` }}>
             <CharacterAvatar size={64} config={profile.avatar} title={`${profile.name}'s character`} />
           </div>
-          <div style={{ flex: 1 }}><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#c77dff", marginBottom: 4 }}>{t("CHANGE AVATAR")}</div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#9bb0c8" }}>{t("Customise your pixel character")}</div></div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#c77dff" }}>›</div>
+          <div style={{ flex: 1 }}><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--violet)", marginBottom: 4 }}>{t("CHANGE AVATAR")}</div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--soft-foreground)" }}>{t("Customise your pixel character")}</div></div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--violet)" }}>›</div>
         </button>
-        <button onClick={onHouse} style={{ width: "100%", backgroundColor: "#111827", border: "3px solid #00ff88", padding: "12px 14px", cursor: "pointer", textAlign: "left", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#00ff88", marginBottom: 4 }}>{t("CUSTOMISE HOUSE")}</div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#9bb0c8" }}>{t("Sell furniture and buy wallpapers")}</div></div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#00ff88" }}>›</div>
+        <button onClick={onHouse} style={{ width: "100%", backgroundColor: "var(--card)", border: "3px solid var(--green)", padding: "12px 14px", cursor: "pointer", textAlign: "left", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--green)", marginBottom: 4 }}>{t("CUSTOMISE HOUSE")}</div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--soft-foreground)" }}>{t("Sell furniture and buy wallpapers")}</div></div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--green)" }}>›</div>
         </button>
-        <div style={{ backgroundColor: "#111827", border: "3px solid #ffe66d", padding: "12px 14px", marginBottom: 12 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ffe66d", marginBottom: 10 }}>{t("PROFILE TITLE")}</div>
+        <div style={{ backgroundColor: "var(--card)", border: "3px solid var(--yellow)", padding: "12px 14px", marginBottom: 12 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--yellow)", marginBottom: 10 }}>{t("PROFILE TITLE")}</div>
           <PixelRadio options={titleLabels} value={t(profileTitle)} onChange={(label) => setProfileTitle(PROFILE_TITLES[titleLabels.indexOf(label)] ?? profileTitle)} />
         </div>
-        <PixelButton onClick={onBack} color="#00ff88" textColor="#0a0e1a" size="sm" full>{t("[ SAVE PROFILE ]")}</PixelButton>
+        <PixelButton onClick={onBack} color="var(--green-fill)" textColor="var(--on-fill)" size="sm" full>{t("[ SAVE PROFILE ]")}</PixelButton>
       </div>
     </div>
   );

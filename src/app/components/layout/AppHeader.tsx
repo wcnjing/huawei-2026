@@ -31,8 +31,8 @@ export function AppHeader({
       style={{
         padding: "8px 16px",
         minHeight: 52,
-        backgroundColor: "#0a0e1a",
-        borderBottom: "4px solid #2a3a5c",
+        backgroundColor: "var(--background)",
+        borderBottom: "4px solid var(--border)",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
@@ -50,7 +50,7 @@ export function AppHeader({
           aria-label={t("How to play: open the app tutorial")}
           title={t("How to play")}
         >
-          <IconBulb size={18} color="#c77dff" />
+          <IconBulb size={18} color="var(--violet)" />
         </button>
         <button
           onClick={onToggleMute}
@@ -58,14 +58,14 @@ export function AppHeader({
           aria-pressed={muted}
           style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }}
         >
-          <IconSpeaker size={18} muted={muted} color={muted ? "#6b8ba4" : "#00ff88"} />
+          <IconSpeaker size={18} muted={muted} color={muted ? "var(--muted-foreground)" : "var(--green)"} />
         </button>
         <button
           onClick={onChat}
           aria-label={hasUnreadChatMessages ? t("Open house chat (new messages)") : t("Open house chat")}
           style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center", position: "relative" }}
         >
-          <IconChat size={18} color="#4ecdc4" />
+          <IconChat size={18} color="var(--teal)" />
           {hasUnreadChatMessages && (
             <span
               aria-hidden="true"
@@ -75,8 +75,8 @@ export function AppHeader({
                 right: 0,
                 width: 7,
                 height: 7,
-                backgroundColor: "#ff2d55",
-                border: "1px solid #0a0e1a",
+                backgroundColor: "var(--red-fill)",
+                border: "1px solid var(--outline)",
               }}
             />
           )}
@@ -88,7 +88,7 @@ export function AppHeader({
             : t("Open notifications")}
           style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center", position: "relative" }}
         >
-          <IconBell size={18} color="#ffe66d" />
+          <IconBell size={18} color="var(--yellow)" />
           {unreadNotificationCount > 0 && (
             <span
               aria-hidden="true"
@@ -100,9 +100,9 @@ export function AppHeader({
                 height: 14,
                 padding: "0 2px",
                 boxSizing: "border-box",
-                backgroundColor: "#ff2d55",
-                border: "1px solid #0a0e1a",
-                color: "#ffffff",
+                backgroundColor: "var(--red-fill)",
+                border: "1px solid var(--outline)",
+                color: "var(--foreground-strong)",
                 fontFamily: "'Press Start 2P', monospace",
                 fontSize: 7,
                 lineHeight: "12px",
@@ -118,7 +118,7 @@ export function AppHeader({
           aria-label={t("Open settings")}
           style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }}
         >
-          <IconGear size={18} color="#6b8ba4" />
+          <IconGear size={18} color="var(--muted-foreground)" />
         </button>
       </div>
     </div>

@@ -7,9 +7,9 @@ export function RoomHeading({ member, coins = member.coins, actions }: { member:
   return <div className="room-heading">
     <div className="room-heading-primary">
       <div className="room-heading-name" style={{ color: colors.light }}>{member.roomName}</div>
-      <div className="room-heading-details" style={{ fontSize: "var(--text-label)", color: "#a8bbcf" }}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#ffe66d" }}>
-          <IconCoin size={14} color="#ffe66d" />{coins.toLocaleString()}
+      <div className="room-heading-details" style={{ fontSize: "var(--text-label)", color: "var(--soft-foreground)" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "var(--yellow)" }}>
+          <IconCoin size={14} color="var(--yellow)" />{coins.toLocaleString()}
         </span>
       </div>
     </div>

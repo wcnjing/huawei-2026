@@ -15,23 +15,23 @@ export function TelegramDrillIntroScreen({ onOpen, onBack }: { onOpen: () => voi
   const { t } = useI18n();
   return (
     <div className="flex flex-col h-full">
-      <SubPageHeader title={t("TELEGRAM DRILL")} titleColor="#00d4ff" onBack={onBack} />
+      <SubPageHeader title={t("TELEGRAM DRILL")} titleColor="var(--cyan)" onBack={onBack} />
 
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none", padding: "20px 16px" }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, marginBottom: 20 }}>
-          <div style={{ filter: "drop-shadow(0 0 12px rgba(0,212,255,0.8))" }}>
-            <IconTelegram size={64} color="#00d4ff" />
+          <div style={{ filter: "drop-shadow(0 0 calc(12px * var(--glow)) color-mix(in srgb, var(--cyan) 80%, transparent))" }}>
+            <IconTelegram size={64} color="var(--cyan)" />
           </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#00d4ff", textAlign: "center", textShadow: "3px 3px 0 #003a4a" }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--cyan)", textAlign: "center", textShadow: "3px 3px 0 color-mix(in srgb, var(--cyan) 25%, var(--background))" }}>
             {t("REAL BOT DRILL")}
           </div>
-          <div style={{ fontFamily: "'VT323', monospace", fontSize: "var(--text-heading)", color: "#4ecdc4", textAlign: "center", lineHeight: 1.4 }}>
+          <div style={{ fontFamily: "'VT323', monospace", fontSize: "var(--text-heading)", color: "var(--teal)", textAlign: "center", lineHeight: 1.4 }}>
             {t("Talk to a real scam-fighter bot on Telegram.")}
           </div>
         </div>
 
-        <div style={{ backgroundColor: "#111827", border: "3px solid #00d4ff", boxShadow: "3px 3px 0 #00d4ff", padding: "14px 16px", marginBottom: 14 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#00d4ff", marginBottom: 10 }}>{t("WHAT HAPPENS NEXT")}</div>
+        <div style={{ backgroundColor: "var(--card)", border: "3px solid var(--cyan)", boxShadow: "3px 3px 0 var(--cyan)", padding: "14px 16px", marginBottom: 14 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--cyan)", marginBottom: 10 }}>{t("WHAT HAPPENS NEXT")}</div>
           {[
             t("You will be sent to Telegram."),
             t("Start a chat with our drill bot."),
@@ -39,34 +39,34 @@ export function TelegramDrillIntroScreen({ onOpen, onBack }: { onOpen: () => voi
             t("Come back to the app when done."),
           ].map((line, i) => (
             <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
-              <div style={{ width: 16, height: 16, backgroundColor: "#00d4ff", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#0a0e1a" }}>{i + 1}</span>
+              <div style={{ width: 16, height: 16, backgroundColor: "var(--cyan-fill)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--on-fill)" }}>{i + 1}</span>
               </div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.6, flex: 1 }}>{line}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.6, flex: 1 }}>{line}</div>
             </div>
           ))}
         </div>
 
-        <div style={{ backgroundColor: "rgba(255,107,53,0.08)", border: "3px solid #ff6b35", padding: "12px 14px", marginBottom: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
-          <IconWarning size={14} color="#ff6b35" />
+        <div style={{ backgroundColor: "color-mix(in srgb, var(--orange-fill) 8%, transparent)", border: "3px solid var(--orange)", padding: "12px 14px", marginBottom: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <IconWarning size={14} color="var(--orange)" />
           <div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff6b35", marginBottom: 4 }}>{t("COIN REWARDS")}</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ff6b35", lineHeight: 1.5 }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--orange)", marginBottom: 4 }}>{t("COIN REWARDS")}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--orange)", lineHeight: 1.5 }}>
               {t("Coins for this drill require backend integration. They will not be credited yet.")}
             </div>
           </div>
         </div>
 
-        <div style={{ backgroundColor: "#0d1a24", border: "2px solid #2a3a5c", padding: "10px 12px", marginBottom: 20, display: "flex", alignItems: "center", gap: 8 }}>
-          <IconLink size={12} color="#00d4ff" />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#00d4ff", flex: 1, wordBreak: "break-all" }}>
+        <div style={{ backgroundColor: "color-mix(in srgb, var(--cyan) 8%, var(--background))", border: "2px solid var(--border)", padding: "10px 12px", marginBottom: 20, display: "flex", alignItems: "center", gap: 8 }}>
+          <IconLink size={12} color="var(--cyan)" />
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--cyan)", flex: 1, wordBreak: "break-all" }}>
             {TELEGRAM_BOT_URL}
           </div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <PixelButton onClick={onOpen} color="#00d4ff" textColor="#0a0e1a" size="lg" full>{t("[ OPEN TELEGRAM ]")}</PixelButton>
-          <PixelButton onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm" full>{t("BACK TO DRILLS")}</PixelButton>
+          <PixelButton onClick={onOpen} color="var(--cyan-fill)" textColor="var(--on-fill)" size="lg" full>{t("[ OPEN TELEGRAM ]")}</PixelButton>
+          <PixelButton onClick={onBack} color="var(--secondary)" textColor="var(--muted-foreground)" size="sm" full>{t("BACK TO DRILLS")}</PixelButton>
         </div>
       </div>
     </div>
@@ -126,23 +126,23 @@ export function RealisticPhoneDrillIntroScreen({ onBack, onRegister, onStarted, 
 
   return (
     <div className="flex flex-col h-full">
-      <SubPageHeader title={t("REAL PHONE DRILL")} titleColor="#00ff88" onBack={onBack} />
+      <SubPageHeader title={t("REAL PHONE DRILL")} titleColor="var(--green)" onBack={onBack} />
 
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none", padding: "20px 16px" }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, marginBottom: 20 }}>
-          <div style={{ filter: "drop-shadow(0 0 12px rgba(0,255,136,0.8))" }}>
-            <IconPhone size={64} color="#00ff88" />
+          <div style={{ filter: "drop-shadow(0 0 calc(12px * var(--glow)) color-mix(in srgb, var(--green) 80%, transparent))" }}>
+            <IconPhone size={64} color="var(--green)" />
           </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#00ff88", textAlign: "center", textShadow: "3px 3px 0 #003a1f" }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--green)", textAlign: "center", textShadow: "3px 3px 0 color-mix(in srgb, var(--green) 22%, var(--background))" }}>
             {t("LIVE CALL DRILL")}
           </div>
-          <div style={{ fontFamily: "'VT323', monospace", fontSize: "var(--text-heading)", color: "#4ecdc4", textAlign: "center", lineHeight: 1.4 }}>
+          <div style={{ fontFamily: "'VT323', monospace", fontSize: "var(--text-heading)", color: "var(--teal)", textAlign: "center", lineHeight: 1.4 }}>
             {t("Receive a simulated scam call on your real phone.")}
           </div>
         </div>
 
-        <div style={{ backgroundColor: "#111827", border: "3px solid #00ff88", boxShadow: "3px 3px 0 #00ff88", padding: "14px 16px", marginBottom: 14 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#00ff88", marginBottom: 10 }}>{t("HOW IT WORKS")}</div>
+        <div style={{ backgroundColor: "var(--card)", border: "3px solid var(--green)", boxShadow: "3px 3px 0 var(--green)", padding: "14px 16px", marginBottom: 14 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--green)", marginBottom: 10 }}>{t("HOW IT WORKS")}</div>
           {[
             t("We call your registered phone number."),
             t("Answer the call as you normally would."),
@@ -150,32 +150,32 @@ export function RealisticPhoneDrillIntroScreen({ onBack, onRegister, onStarted, 
             t("Return to the app to see your result."),
           ].map((line, i) => (
             <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
-              <div style={{ width: 16, height: 16, backgroundColor: "#00ff88", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#0a0e1a" }}>{i + 1}</span>
+              <div style={{ width: 16, height: 16, backgroundColor: "var(--green-fill)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--on-fill)" }}>{i + 1}</span>
               </div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.6, flex: 1 }}>{line}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.6, flex: 1 }}>{line}</div>
             </div>
           ))}
         </div>
 
-        <div style={{ backgroundColor: "rgba(255,107,53,0.08)", border: "3px solid #ff6b35", padding: "12px 14px", marginBottom: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
-          <IconWarning size={14} color="#ff6b35" />
+        <div style={{ backgroundColor: "color-mix(in srgb, var(--orange-fill) 8%, transparent)", border: "3px solid var(--orange)", padding: "12px 14px", marginBottom: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <IconWarning size={14} color="var(--orange)" />
           <div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff6b35", marginBottom: 4 }}>{t("TRAINING CALL")}</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ff6b35", lineHeight: 1.5 }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--orange)", marginBottom: 4 }}>{t("TRAINING CALL")}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--orange)", lineHeight: 1.5 }}>
               {t("This is a simulated security drill. We will never ask for real passwords, OTPs, card details, transfers, or payments.")}
             </div>
           </div>
         </div>
 
         {phase === "sent" ? (
-          <div style={{ backgroundColor: deliveryUnconfirmed ? "rgba(255,230,109,0.08)" : "rgba(0,255,136,0.08)", border: `3px solid ${deliveryUnconfirmed ? "#ffe66d" : "#00ff88"}`, padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
-            {deliveryUnconfirmed ? <IconWarning size={16} color="#ffe66d" /> : <IconShield size={16} color="#00ff88" />}
+          <div style={{ backgroundColor: deliveryUnconfirmed ? "color-mix(in srgb, var(--yellow-fill) 8%, transparent)" : "color-mix(in srgb, var(--green-fill) 8%, transparent)", border: `3px solid ${deliveryUnconfirmed ? "var(--yellow)" : "var(--green)"}`, padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+            {deliveryUnconfirmed ? <IconWarning size={16} color="var(--yellow)" /> : <IconShield size={16} color="var(--green)" />}
             <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: deliveryUnconfirmed ? "#ffe66d" : "#00ff88", marginBottom: 6 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: deliveryUnconfirmed ? "var(--yellow)" : "var(--green)", marginBottom: 6 }}>
                 {deliveryUnconfirmed ? t("CALL DELIVERY NOT CONFIRMED") : t("CALL REQUEST ACCEPTED")}
               </div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.5 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.5 }}>
                 {deliveryUnconfirmed
                   ? t("The provider may have accepted the call, but SafeSpace could not confirm it. Do not retry — we will keep checking this drill for a result.")
                   : t("Your phone should ring shortly. Answer it and stay sharp — hang up if it asks for anything real.")}
@@ -183,11 +183,11 @@ export function RealisticPhoneDrillIntroScreen({ onBack, onRegister, onStarted, 
             </div>
           </div>
         ) : !registered ? (
-          <div style={{ backgroundColor: "rgba(255,230,109,0.08)", border: "3px solid #ffe66d", padding: "12px 14px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
-            <IconWarning size={14} color="#ffe66d" />
+          <div style={{ backgroundColor: "color-mix(in srgb, var(--yellow-fill) 8%, transparent)", border: "3px solid var(--yellow)", padding: "12px 14px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <IconWarning size={14} color="var(--yellow)" />
             <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ffe66d", marginBottom: 4 }}>{t("REGISTER FIRST")}</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.5 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--yellow)", marginBottom: 4 }}>{t("REGISTER FIRST")}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.5 }}>
                 {t("Verify your phone so the drill only ever calls the number you own.")}
               </div>
             </div>
@@ -195,33 +195,33 @@ export function RealisticPhoneDrillIntroScreen({ onBack, onRegister, onStarted, 
         ) : null}
 
         {msg && (
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ff2d55", marginBottom: 12 }}>{t(msg)}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--red)", marginBottom: 12 }}>{t(msg)}</div>
         )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {phase === "sent" ? (
             <>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ffe66d", textAlign: "center", marginBottom: 2, lineHeight: 1.5 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--yellow)", textAlign: "center", marginBottom: 2, lineHeight: 1.5 }}>
                 {t("HOW DID THE CALL GO?")}
               </div>
-              <PixelButton onClick={() => onSelfReport(true, drillId)} color="#00ff88" textColor="#0a0e1a" size="lg" full>{t("[ I HUNG UP / STAYED SAFE ]")}</PixelButton>
-              <PixelButton onClick={() => onSelfReport(false, drillId)} color="#ff2d55" textColor="#ffffff" size="md" full>{t("I ENGAGED / GAVE INFO")}</PixelButton>
+              <PixelButton onClick={() => onSelfReport(true, drillId)} color="var(--green-fill)" textColor="var(--on-fill)" size="lg" full>{t("[ I HUNG UP / STAYED SAFE ]")}</PixelButton>
+              <PixelButton onClick={() => onSelfReport(false, drillId)} color="var(--red-fill)" textColor="var(--on-danger)" size="md" full>{t("I ENGAGED / GAVE INFO")}</PixelButton>
             </>
           ) : registered && scheduleBlocked ? (
             <>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ffe66d", textAlign: "center", lineHeight: 1.5 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--yellow)", textAlign: "center", lineHeight: 1.5 }}>
                 {t("OUTSIDE YOUR DRILL WINDOW · OPENS {scheduleNextLabel}", { scheduleNextLabel })}
               </div>
-              <PixelButton onClick={() => {}} color="#1a2340" textColor="#6b8ba4" size="lg" full disabled>{t("[ CALL ME NOW ]")}</PixelButton>
+              <PixelButton onClick={() => {}} color="var(--secondary)" textColor="var(--muted-foreground)" size="lg" full disabled>{t("[ CALL ME NOW ]")}</PixelButton>
             </>
           ) : registered ? (
-            <PixelButton onClick={placeCall} color="#00ff88" textColor="#0a0e1a" size="lg" full disabled={phase === "calling"}>
+            <PixelButton onClick={placeCall} color="var(--green-fill)" textColor="var(--on-fill)" size="lg" full disabled={phase === "calling"}>
               {phase === "calling" ? t("CALLING...") : t("[ CALL ME NOW ]")}
             </PixelButton>
           ) : (
-            <PixelButton onClick={onRegister} color="#4ecdc4" textColor="#0a0e1a" size="lg" full>{t("[ REGISTER TO CONTINUE ]")}</PixelButton>
+            <PixelButton onClick={onRegister} color="var(--teal-fill)" textColor="var(--on-fill)" size="lg" full>{t("[ REGISTER TO CONTINUE ]")}</PixelButton>
           )}
-          <PixelButton onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm" full>{t("BACK TO DRILLS")}</PixelButton>
+          <PixelButton onClick={onBack} color="var(--secondary)" textColor="var(--muted-foreground)" size="sm" full>{t("BACK TO DRILLS")}</PixelButton>
         </div>
       </div>
     </div>
@@ -287,22 +287,22 @@ export function RealisticSmsDrillIntroScreen({ onBack, onRegister, onOutcome }: 
 
   return (
     <div className="flex flex-col h-full">
-      <SubPageHeader title={t("REAL SMS DRILL")} titleColor="#4ecdc4" onBack={onBack} />
+      <SubPageHeader title={t("REAL SMS DRILL")} titleColor="var(--teal)" onBack={onBack} />
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none", padding: "20px 16px" }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, marginBottom: 20 }}>
-          <div style={{ filter: "drop-shadow(0 0 12px rgba(78,205,196,0.8))" }}>
-            <IconChatBubble size={64} color="#4ecdc4" />
+          <div style={{ filter: "drop-shadow(0 0 calc(12px * var(--glow)) color-mix(in srgb, var(--teal) 80%, transparent))" }}>
+            <IconChatBubble size={64} color="var(--teal)" />
           </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#4ecdc4", textAlign: "center", textShadow: "3px 3px 0 #08312e" }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--teal)", textAlign: "center", textShadow: "3px 3px 0 color-mix(in srgb, var(--teal) 20%, var(--background))" }}>
             {t("LIVE SMS DRILL")}
           </div>
-          <div style={{ fontFamily: "'VT323', monospace", fontSize: "var(--text-heading)", color: "#4ecdc4", textAlign: "center", lineHeight: 1.4 }}>
+          <div style={{ fontFamily: "'VT323', monospace", fontSize: "var(--text-heading)", color: "var(--teal)", textAlign: "center", lineHeight: 1.4 }}>
             {t("Get a simulated scam text on your real phone.")}
           </div>
         </div>
 
-        <div style={{ backgroundColor: "#111827", border: "3px solid #4ecdc4", boxShadow: "3px 3px 0 #4ecdc4", padding: "14px 16px", marginBottom: 14 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#4ecdc4", marginBottom: 10 }}>{t("HOW IT WORKS")}</div>
+        <div style={{ backgroundColor: "var(--card)", border: "3px solid var(--teal)", boxShadow: "3px 3px 0 var(--teal)", padding: "14px 16px", marginBottom: 14 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--teal)", marginBottom: 10 }}>{t("HOW IT WORKS")}</div>
           {[
             t("We text your registered number."),
             t("It reads like a scam — that's the point."),
@@ -310,22 +310,22 @@ export function RealisticSmsDrillIntroScreen({ onBack, onRegister, onOutcome }: 
             t("A follow-up text reveals it was a drill."),
           ].map((line, i) => (
             <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
-              <div style={{ width: 16, height: 16, backgroundColor: "#4ecdc4", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#0a0e1a" }}>{i + 1}</span>
+              <div style={{ width: 16, height: 16, backgroundColor: "var(--teal-fill)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--on-fill)" }}>{i + 1}</span>
               </div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.6, flex: 1 }}>{line}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.6, flex: 1 }}>{line}</div>
             </div>
           ))}
         </div>
 
         {phase === "sent" ? (
-          <div style={{ backgroundColor: deliveryUnconfirmed ? "rgba(255,230,109,0.08)" : "rgba(0,255,136,0.08)", border: `3px solid ${deliveryUnconfirmed ? "#ffe66d" : "#00ff88"}`, padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
-            {deliveryUnconfirmed ? <IconWarning size={16} color="#ffe66d" /> : <IconShield size={16} color="#00ff88" />}
+          <div style={{ backgroundColor: deliveryUnconfirmed ? "color-mix(in srgb, var(--yellow-fill) 8%, transparent)" : "color-mix(in srgb, var(--green-fill) 8%, transparent)", border: `3px solid ${deliveryUnconfirmed ? "var(--yellow)" : "var(--green)"}`, padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+            {deliveryUnconfirmed ? <IconWarning size={16} color="var(--yellow)" /> : <IconShield size={16} color="var(--green)" />}
             <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: deliveryUnconfirmed ? "#ffe66d" : "#00ff88", marginBottom: 6 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: deliveryUnconfirmed ? "var(--yellow)" : "var(--green)", marginBottom: 6 }}>
                 {deliveryUnconfirmed ? t("TEXT DELIVERY NOT CONFIRMED") : t("TEXT REQUEST ACCEPTED")}
               </div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.5 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.5 }}>
                 {deliveryUnconfirmed
                   ? drillId
                     ? t("The provider may have accepted the text, but SafeSpace could not confirm it. Do not resend. If it arrives, use the actions below; a reveal text should follow.")
@@ -335,41 +335,41 @@ export function RealisticSmsDrillIntroScreen({ onBack, onRegister, onOutcome }: 
             </div>
           </div>
         ) : !registered ? (
-          <div style={{ backgroundColor: "rgba(255,230,109,0.08)", border: "3px solid #ffe66d", padding: "12px 14px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
-            <IconWarning size={14} color="#ffe66d" />
+          <div style={{ backgroundColor: "color-mix(in srgb, var(--yellow-fill) 8%, transparent)", border: "3px solid var(--yellow)", padding: "12px 14px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <IconWarning size={14} color="var(--yellow)" />
             <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ffe66d", marginBottom: 4 }}>{t("REGISTER FIRST")}</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.5 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--yellow)", marginBottom: 4 }}>{t("REGISTER FIRST")}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.5 }}>
                 {t("Verify your phone so the drill only ever texts the number you own.")}
               </div>
             </div>
           </div>
         ) : null}
 
-        {msg && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ff2d55", marginBottom: 12 }}>{t(msg)}</div>}
+        {msg && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--red)", marginBottom: 12 }}>{t(msg)}</div>}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {phase === "sent" ? (
             drillId ? <>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ffe66d", textAlign: "center", marginBottom: 2, lineHeight: 1.5 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--yellow)", textAlign: "center", marginBottom: 2, lineHeight: 1.5 }}>
                 {deliveryUnconfirmed ? t("IF THE TEXT ARRIVED, HOW DID IT GO?") : t("HOW DID IT GO?")}
               </div>
-              <PixelButton onClick={() => complete("reported")} color="#00ff88" textColor="#0a0e1a" size="lg" full disabled={completing || !drillId}>[ {deliveryUnconfirmed ? t("IF IT ARRIVED: I SPOTTED IT") : t("I SPOTTED THE SCAM")} ]</PixelButton>
-              <PixelButton onClick={() => complete("clicked_link")} color="#ff2d55" textColor="#ffffff" size="md" full disabled={completing || !drillId}>{deliveryUnconfirmed ? t("IF IT ARRIVED: I CLICKED / REPLIED") : t("I CLICKED / REPLIED")}</PixelButton>
+              <PixelButton onClick={() => complete("reported")} color="var(--green-fill)" textColor="var(--on-fill)" size="lg" full disabled={completing || !drillId}>[ {deliveryUnconfirmed ? t("IF IT ARRIVED: I SPOTTED IT") : t("I SPOTTED THE SCAM")} ]</PixelButton>
+              <PixelButton onClick={() => complete("clicked_link")} color="var(--red-fill)" textColor="var(--on-danger)" size="md" full disabled={completing || !drillId}>{deliveryUnconfirmed ? t("IF IT ARRIVED: I CLICKED / REPLIED") : t("I CLICKED / REPLIED")}</PixelButton>
             </> : (
-              <PixelButton onClick={onBack} color="#ffe66d" textColor="#0a0e1a" size="lg" full>{t("[ DONE — DO NOT RESEND ]")}</PixelButton>
+              <PixelButton onClick={onBack} color="var(--yellow-fill)" textColor="var(--on-fill)" size="lg" full>{t("[ DONE — DO NOT RESEND ]")}</PixelButton>
             )
           ) : registered ? (
             // This is an explicit, consented manual send. The schedule only limits
             // surprise drills; applying it here made "TEXT ME NOW" unusable for most
             // of the day even though the SMS service itself was healthy.
-            <PixelButton onClick={sendText} color="#4ecdc4" textColor="#0a0e1a" size="lg" full disabled={phase === "sending"}>
+            <PixelButton onClick={sendText} color="var(--teal-fill)" textColor="var(--on-fill)" size="lg" full disabled={phase === "sending"}>
               {phase === "sending" ? t("SENDING...") : t("[ TEXT ME NOW ]")}
             </PixelButton>
           ) : (
-            <PixelButton onClick={onRegister} color="#4ecdc4" textColor="#0a0e1a" size="lg" full>{t("[ REGISTER TO CONTINUE ]")}</PixelButton>
+            <PixelButton onClick={onRegister} color="var(--teal-fill)" textColor="var(--on-fill)" size="lg" full>{t("[ REGISTER TO CONTINUE ]")}</PixelButton>
           )}
-          <PixelButton onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm" full>{t("BACK TO DRILLS")}</PixelButton>
+          <PixelButton onClick={onBack} color="var(--secondary)" textColor="var(--muted-foreground)" size="sm" full>{t("BACK TO DRILLS")}</PixelButton>
         </div>
       </div>
     </div>
@@ -510,23 +510,23 @@ export function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, 
 
   return (
     <div className="flex flex-col h-full">
-      <SubPageHeader title={t("REAL EMAIL DRILL")} titleColor="#ff6b35" onBack={onBack} />
+      <SubPageHeader title={t("REAL EMAIL DRILL")} titleColor="var(--orange)" onBack={onBack} />
 
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none", padding: "20px 16px" }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, marginBottom: 20 }}>
-          <div style={{ filter: "drop-shadow(0 0 12px rgba(255,107,53,0.8))" }}>
-            <IconRealEmail size={64} color="#ff6b35" />
+          <div style={{ filter: "drop-shadow(0 0 calc(12px * var(--glow)) color-mix(in srgb, var(--orange) 80%, transparent))" }}>
+            <IconRealEmail size={64} color="var(--orange)" />
           </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ff6b35", textAlign: "center", textShadow: "3px 3px 0 #4a1a08" }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--orange)", textAlign: "center", textShadow: "3px 3px 0 color-mix(in srgb, var(--orange) 25%, var(--background))" }}>
             {t("REAL INBOX DRILL")}
           </div>
-          <div style={{ fontFamily: "'VT323', monospace", fontSize: "var(--text-heading)", color: "#ffe66d", textAlign: "center", lineHeight: 1.4 }}>
+          <div style={{ fontFamily: "'VT323', monospace", fontSize: "var(--text-heading)", color: "var(--yellow)", textAlign: "center", lineHeight: 1.4 }}>
             {t("Get a simulated phishing email in your real mailbox.")}
           </div>
         </div>
 
-        <div style={{ backgroundColor: "#111827", border: "3px solid #ff6b35", boxShadow: "3px 3px 0 #ff6b35", padding: "14px 16px", marginBottom: 14 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ff6b35", marginBottom: 10 }}>{t("HOW IT WORKS")}</div>
+        <div style={{ backgroundColor: "var(--card)", border: "3px solid var(--orange)", boxShadow: "3px 3px 0 var(--orange)", padding: "14px 16px", marginBottom: 14 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--orange)", marginBottom: 10 }}>{t("HOW IT WORKS")}</div>
           {[
             t("We send a test email to your own address."),
             t("It looks like a scam — that's the point."),
@@ -534,22 +534,22 @@ export function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, 
             t("Every drill email has a reveal + report link."),
           ].map((line, i) => (
             <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
-              <div style={{ width: 16, height: 16, backgroundColor: "#ff6b35", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#0a0e1a" }}>{i + 1}</span>
+              <div style={{ width: 16, height: 16, backgroundColor: "var(--orange-fill)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--on-fill)" }}>{i + 1}</span>
               </div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.6, flex: 1 }}>{line}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.6, flex: 1 }}>{line}</div>
             </div>
           ))}
         </div>
 
         {phase === "sent" ? (
-          <div style={{ backgroundColor: deliveryUnconfirmed ? "rgba(255,230,109,0.08)" : "rgba(0,255,136,0.08)", border: `3px solid ${deliveryUnconfirmed ? "#ffe66d" : "#00ff88"}`, padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
-            {deliveryUnconfirmed ? <IconWarning size={16} color="#ffe66d" /> : <IconShield size={16} color="#00ff88" />}
+          <div style={{ backgroundColor: deliveryUnconfirmed ? "color-mix(in srgb, var(--yellow-fill) 8%, transparent)" : "color-mix(in srgb, var(--green-fill) 8%, transparent)", border: `3px solid ${deliveryUnconfirmed ? "var(--yellow)" : "var(--green)"}`, padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+            {deliveryUnconfirmed ? <IconWarning size={16} color="var(--yellow)" /> : <IconShield size={16} color="var(--green)" />}
             <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: deliveryUnconfirmed ? "#ffe66d" : "#00ff88", marginBottom: 6 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: deliveryUnconfirmed ? "var(--yellow)" : "var(--green)", marginBottom: 6 }}>
                 {deliveryUnconfirmed ? t("EMAIL DELIVERY NOT CONFIRMED") : t("EMAIL REQUEST ACCEPTED")}
               </div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.5 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.5 }}>
                 {deliveryUnconfirmed
                   ? drillId
                     ? t("The provider may have accepted the email, but SafeSpace could not confirm it. Do not resend. If it arrives, handle it normally and use the actions below.")
@@ -559,21 +559,21 @@ export function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, 
             </div>
           </div>
         ) : phase === "verify-email" ? (
-          <div style={{ backgroundColor: "rgba(255,230,109,0.08)", border: "3px solid #ffe66d", padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
-            <IconRealEmail size={16} color="#ffe66d" />
+          <div style={{ backgroundColor: "color-mix(in srgb, var(--yellow-fill) 8%, transparent)", border: "3px solid var(--yellow)", padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <IconRealEmail size={16} color="var(--yellow)" />
             <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ffe66d", marginBottom: 6 }}>{t("VERIFY YOUR INBOX")}</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.5 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--yellow)", marginBottom: 6 }}>{t("VERIFY YOUR INBOX")}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.5 }}>
                 {t("We sent a verification link to {email}. Click it before sending a drill.", { email })}
               </div>
             </div>
           </div>
         ) : !registered ? (
-          <div style={{ backgroundColor: "rgba(255,230,109,0.08)", border: "3px solid #ffe66d", padding: "12px 14px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
-            <IconWarning size={14} color="#ffe66d" />
+          <div style={{ backgroundColor: "color-mix(in srgb, var(--yellow-fill) 8%, transparent)", border: "3px solid var(--yellow)", padding: "12px 14px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <IconWarning size={14} color="var(--yellow)" />
             <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ffe66d", marginBottom: 4 }}>{t("REGISTER FIRST")}</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.5 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--yellow)", marginBottom: 4 }}>{t("REGISTER FIRST")}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.5 }}>
                 {t("Verify your phone so drills go only to you — never to an address someone types in.")}
               </div>
             </div>
@@ -581,7 +581,7 @@ export function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, 
         ) : null}
 
         {msg && phase !== "ask-email" && (
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: msg.startsWith("Verification sent") ? "#00ff88" : "#ff6b35", marginBottom: 12, lineHeight: 1.5 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: msg.startsWith("Verification sent") ? "var(--green)" : "var(--orange)", marginBottom: 12, lineHeight: 1.5 }}>
             {t(msg)}
           </div>
         )}
@@ -589,55 +589,55 @@ export function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {phase === "sent" ? (
             drillId ? <>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ffe66d", textAlign: "center", marginBottom: 2, lineHeight: 1.5 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--yellow)", textAlign: "center", marginBottom: 2, lineHeight: 1.5 }}>
                 {deliveryUnconfirmed ? t("IF THE EMAIL ARRIVED, HOW DID IT GO?") : t("HOW DID IT GO?")}
               </div>
-              <PixelButton onClick={() => complete("reported")} color="#00ff88" textColor="#0a0e1a" size="lg" full disabled={busy || !drillId}>[ {deliveryUnconfirmed ? t("IF IT ARRIVED: I SPOTTED IT") : t("I SPOTTED THE SCAM")} ]</PixelButton>
-              <PixelButton onClick={() => complete("submitted_details")} color="#ff2d55" textColor="#ffffff" size="md" full disabled={busy || !drillId}>{deliveryUnconfirmed ? t("IF IT ARRIVED: I CLICKED / REPLIED") : t("I CLICKED / REPLIED")}</PixelButton>
+              <PixelButton onClick={() => complete("reported")} color="var(--green-fill)" textColor="var(--on-fill)" size="lg" full disabled={busy || !drillId}>[ {deliveryUnconfirmed ? t("IF IT ARRIVED: I SPOTTED IT") : t("I SPOTTED THE SCAM")} ]</PixelButton>
+              <PixelButton onClick={() => complete("submitted_details")} color="var(--red-fill)" textColor="var(--on-danger)" size="md" full disabled={busy || !drillId}>{deliveryUnconfirmed ? t("IF IT ARRIVED: I CLICKED / REPLIED") : t("I CLICKED / REPLIED")}</PixelButton>
             </> : (
-              <PixelButton onClick={onBack} color="#ffe66d" textColor="#0a0e1a" size="lg" full>{t("[ DONE — DO NOT RESEND ]")}</PixelButton>
+              <PixelButton onClick={onBack} color="var(--yellow-fill)" textColor="var(--on-fill)" size="lg" full>{t("[ DONE — DO NOT RESEND ]")}</PixelButton>
             )
           ) : phase === "verify-email" ? (
             <>
-              <PixelButton onClick={checkVerificationAndSend} color="#ffe66d" textColor="#0a0e1a" size="lg" full disabled={busy}>
+              <PixelButton onClick={checkVerificationAndSend} color="var(--yellow-fill)" textColor="var(--on-fill)" size="lg" full disabled={busy}>
                 {busy ? t("CHECKING...") : t("[ CHECK VERIFICATION & SEND ]")}
               </PixelButton>
-              <PixelButton onClick={() => { setPhase("ask-email"); setMsg(""); }} color="#1a2340" textColor="#6b8ba4" size="sm" full disabled={busy}>{t("USE A DIFFERENT EMAIL")}</PixelButton>
+              <PixelButton onClick={() => { setPhase("ask-email"); setMsg(""); }} color="var(--secondary)" textColor="var(--muted-foreground)" size="sm" full disabled={busy}>{t("USE A DIFFERENT EMAIL")}</PixelButton>
             </>
           ) : registered && scheduleBlocked ? (
             <>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ffe66d", textAlign: "center", lineHeight: 1.5 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--yellow)", textAlign: "center", lineHeight: 1.5 }}>
                 {t("OUTSIDE YOUR DRILL WINDOW · OPENS {scheduleNextLabel}", { scheduleNextLabel })}
               </div>
-              <PixelButton onClick={() => {}} color="#1a2340" textColor="#6b8ba4" size="lg" full disabled>{t("[ SEND DRILL EMAIL ]")}</PixelButton>
+              <PixelButton onClick={() => {}} color="var(--secondary)" textColor="var(--muted-foreground)" size="lg" full disabled>{t("[ SEND DRILL EMAIL ]")}</PixelButton>
             </>
           ) : registered ? (
-            <PixelButton onClick={onSendTap} color="#ff6b35" textColor="#0a0e1a" size="lg" full>{t("[ SEND DRILL EMAIL ]")}</PixelButton>
+            <PixelButton onClick={onSendTap} color="var(--orange-fill)" textColor="var(--on-fill)" size="lg" full>{t("[ SEND DRILL EMAIL ]")}</PixelButton>
           ) : (
-            <PixelButton onClick={onRegister} color="#4ecdc4" textColor="#0a0e1a" size="lg" full>{t("[ REGISTER TO CONTINUE ]")}</PixelButton>
+            <PixelButton onClick={onRegister} color="var(--teal-fill)" textColor="var(--on-fill)" size="lg" full>{t("[ REGISTER TO CONTINUE ]")}</PixelButton>
           )}
-          <PixelButton onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm" full>{t("BACK TO DRILLS")}</PixelButton>
+          <PixelButton onClick={onBack} color="var(--secondary)" textColor="var(--muted-foreground)" size="sm" full>{t("BACK TO DRILLS")}</PixelButton>
         </div>
       </div>
 
       {/* The inbox must be verified through a link before the drill can be sent. */}
       {phase === "ask-email" && (
-        <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={() => !busy && setPhase("idle")}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 320, backgroundColor: "#0a0e1a", border: "4px solid #ff6b35", boxShadow: "6px 6px 0 rgba(255,107,53,0.4)", padding: "18px 16px" }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ff6b35", marginBottom: 10 }}>{t("YOUR EMAIL")}</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#9bb0c8", marginBottom: 12, lineHeight: 1.5 }}>
+        <div style={{ position: "absolute", inset: 0, backgroundColor: "var(--scrim)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={() => !busy && setPhase("idle")}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 320, backgroundColor: "var(--background)", border: "4px solid var(--orange)", boxShadow: "6px 6px 0 color-mix(in srgb, var(--orange) 40%, transparent)", padding: "18px 16px" }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--orange)", marginBottom: 10 }}>{t("YOUR EMAIL")}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--soft-foreground)", marginBottom: 12, lineHeight: 1.5 }}>
               {t("We'll email a verification link first. The drill can only be sent after the inbox owner clicks it.")}
             </div>
             <input
               autoFocus value={email} inputMode="email" autoCapitalize="none" placeholder="you@example.com"
               onChange={(e) => setEmail(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !busy) startEmailVerification(); }}
-              style={{ width: "100%", boxSizing: "border-box", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", background: "#111827", border: "3px solid #2a3a5c", padding: "10px 12px", outline: "none", marginBottom: 10 }}
+              style={{ width: "100%", boxSizing: "border-box", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", background: "var(--card)", border: "3px solid var(--border)", padding: "10px 12px", outline: "none", marginBottom: 10 }}
             />
-            {msg && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ff2d55", marginBottom: 10 }}>{t(msg)}</div>}
+            {msg && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--red)", marginBottom: 10 }}>{t(msg)}</div>}
             <div style={{ display: "flex", gap: 10 }}>
-              <div style={{ flex: 1 }}><PixelButton onClick={startEmailVerification} color="#ff6b35" textColor="#0a0e1a" size="sm" full disabled={busy}>{busy ? t("SENDING...") : t("[ VERIFY ]")}</PixelButton></div>
-              <div style={{ flex: 1 }}><PixelButton onClick={() => { if (!busy) { setPhase("idle"); setMsg(""); } }} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>{t("CANCEL")}</PixelButton></div>
+              <div style={{ flex: 1 }}><PixelButton onClick={startEmailVerification} color="var(--orange-fill)" textColor="var(--on-fill)" size="sm" full disabled={busy}>{busy ? t("SENDING...") : t("[ VERIFY ]")}</PixelButton></div>
+              <div style={{ flex: 1 }}><PixelButton onClick={() => { if (!busy) { setPhase("idle"); setMsg(""); } }} color="var(--border)" textColor="var(--foreground)" size="sm" full>{t("CANCEL")}</PixelButton></div>
             </div>
           </div>
         </div>

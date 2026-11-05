@@ -997,13 +997,13 @@ export default function App({ initialScreen = "title", devMode = false }: { init
 
   const getScreenTitle = (): { title: string; color: string } => {
     switch (screen) {
-      case "home": return { title: "DRILL MODE", color: "#00ff88" };
-      case "leaderboard": return { title: "LEADERBOARD", color: "#ffe66d" };
-      case "store": return { title: "STORE", color: "#c77dff" };
-      case "profile": return { title: "PROFILE", color: "#4ecdc4" };
-      case "settings": return { title: "SETTINGS", color: "#9bb0c8" };
-      case "drill-select": return { title: "DRILLS", color: "#00ff88" };
-      default: return { title: "DRILL MODE", color: "#00ff88" };
+      case "home": return { title: "DRILL MODE", color: "var(--green)" };
+      case "leaderboard": return { title: "LEADERBOARD", color: "var(--yellow)" };
+      case "store": return { title: "STORE", color: "var(--violet)" };
+      case "profile": return { title: "PROFILE", color: "var(--teal)" };
+      case "settings": return { title: "SETTINGS", color: "var(--soft-foreground)" };
+      case "drill-select": return { title: "DRILLS", color: "var(--green)" };
+      default: return { title: "DRILL MODE", color: "var(--green)" };
     }
   };
 
@@ -2060,17 +2060,17 @@ export default function App({ initialScreen = "title", devMode = false }: { init
             alignItems: "center",
             justifyContent: "center",
             padding: 20,
-            backgroundColor: "rgba(0,0,0,0.78)",
+            backgroundColor: "var(--scrim)",
           }}
         >
-          <div style={{ width: "min(340px, 100%)", backgroundColor: "#0d1526", border: "4px solid #4ecdc4", boxShadow: "6px 6px 0 #071018", padding: "18px 16px" }}>
-            <div id="neutral-result-title" style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "var(--text-body)", color: "#4ecdc4", lineHeight: 1.5, marginBottom: 12 }}>
+          <div style={{ width: "min(340px, 100%)", backgroundColor: "var(--surface)", border: "4px solid var(--teal)", boxShadow: "6px 6px 0 var(--surface-deep)", padding: "18px 16px" }}>
+            <div id="neutral-result-title" style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "var(--text-body)", color: "var(--teal)", lineHeight: 1.5, marginBottom: 12 }}>
               {t("DRILL NOT SCORED")}
             </div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.6, marginBottom: 16 }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.6, marginBottom: 16 }}>
               {t(neutralResultNotice.message)}
             </div>
-            <PixelButton onClick={dismissNeutralResult} color="#4ecdc4" textColor="#0a0e1a" size="md" full>
+            <PixelButton onClick={dismissNeutralResult} color="var(--teal-fill)" textColor="var(--on-fill)" size="md" full>
               {t("[ GOT IT ]")}
             </PixelButton>
           </div>

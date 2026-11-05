@@ -38,9 +38,9 @@ export function NotificationToast({
         zIndex: 60,
         display: "flex",
         alignItems: "stretch",
-        backgroundColor: "#111827",
+        backgroundColor: "var(--card)",
         border: `2px solid ${accent}`,
-        boxShadow: "4px 4px 0 #0a0e1a",
+        boxShadow: "4px 4px 0 var(--outline)",
         animation: "slideDown 0.25s steps(4)",
       }}
     >
@@ -65,10 +65,10 @@ export function NotificationToast({
           {icon}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#e8f4f8", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--foreground)", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {t(notification.title)}
           </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#4ecdc4", marginTop: 2, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--teal)", marginTop: 2, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {t(notification.body)}
           </div>
         </div>
@@ -80,9 +80,9 @@ export function NotificationToast({
         type="button"
         onClick={onDismiss}
         aria-label={t("Dismiss notification")}
-        style={{ background: "none", border: "none", borderLeft: "2px solid #1a2340", cursor: "pointer", padding: "0 10px", display: "flex", alignItems: "center" }}
+        style={{ background: "none", border: "none", borderLeft: "2px solid var(--secondary)", cursor: "pointer", padding: "0 10px", display: "flex", alignItems: "center" }}
       >
-        <IconX size={12} color="#6b8ba4" />
+        <IconX size={12} color="var(--muted-foreground)" />
       </button>
     </div>
   );

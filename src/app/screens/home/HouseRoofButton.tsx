@@ -41,7 +41,7 @@ export function HouseRoofButton({ title, onOpen, houses = [], onSwitch }: {
       style={{
         width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
         background: "none", border: "none", cursor: busy ? "wait" : "pointer",
-        fontFamily: MONO, fontSize: 22, lineHeight: 1, color: "#4ecdc4", flexShrink: 0,
+        fontFamily: MONO, fontSize: 22, lineHeight: 1, color: "var(--teal)", flexShrink: 0,
       }}
     >
       {glyph}
@@ -57,14 +57,14 @@ export function HouseRoofButton({ title, onOpen, houses = [], onSwitch }: {
           {canSwitch && (
             <div aria-hidden style={{ display: "flex", gap: 4, marginBottom: 3 }}>
               {houses.map((h) => (
-                <span key={h.id} style={{ width: 5, height: 5, backgroundColor: h.active ? "#4ecdc4" : "#2a3a5c" }} />
+                <span key={h.id} style={{ width: 5, height: 5, backgroundColor: h.active ? "var(--teal-fill)" : "var(--border)" }} />
               ))}
             </div>
           )}
           <div
             className="house-roof-title"
             aria-live="polite"
-            style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: "#4ecdc4", letterSpacing: 1, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+            style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: "var(--teal)", letterSpacing: 1, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
           >
             {title}
           </div>
@@ -72,7 +72,7 @@ export function HouseRoofButton({ title, onOpen, houses = [], onSwitch }: {
         {canSwitch && arrow(t("Next house"), "›", 1)}
       </div>
       <div className="house-invite-overlay">
-        <PixelButton onClick={onOpen} color="#1a2340" textColor="#00d4ff" size="sm" compact>
+        <PixelButton onClick={onOpen} color="var(--secondary)" textColor="var(--cyan)" size="sm" compact>
           <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 24 }} role="img" aria-label={t("House menu")} title={t("House menu")}>
             <IconFamily size={22} />
           </span>

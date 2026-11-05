@@ -227,7 +227,7 @@ export function HouseChatScreen({
     <section className="house-chat" aria-label={houseName ? t("{house} chat", { house: houseName }) : t("House chat")}>
       <header className="house-chat__header">
         <button type="button" className="house-chat__icon-button" onClick={onBack} aria-label={t("Close house chat")} style={{ background: "none", border: "none", cursor: "pointer", padding: 8 }}>
-          <IconX size={16} color="#6b8ba4" />
+          <IconX size={16} color="var(--muted-foreground)" />
         </button>
         <div>
           <h1>{t("HOUSE CHAT")}</h1>

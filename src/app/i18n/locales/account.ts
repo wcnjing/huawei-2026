@@ -4,6 +4,8 @@ export const account: LocaleTable = {
   zh: {
     "APP SETTINGS": "应用设置",
     "SOUND": "声音",
+    "THEME": "主题",
+    "Light theme": "浅色主题",
     "ACCOUNT": "账户",
     "LVL {level} — {title}": "等级 {level} — {title}",
     "WATCHER": "守望者",
@@ -197,6 +199,8 @@ export const account: LocaleTable = {
   ms: {
     "APP SETTINGS": "TETAPAN APLIKASI",
     "SOUND": "BUNYI",
+    "THEME": "TEMA",
+    "Light theme": "Tema cerah",
     "ACCOUNT": "AKAUN",
     "LVL {level} — {title}": "TAHAP {level} — {title}",
     "WATCHER": "PEMERHATI",
@@ -390,6 +394,8 @@ export const account: LocaleTable = {
   ta: {
     "APP SETTINGS": "செயலி அமைப்புகள்",
     "SOUND": "ஒலி",
+    "THEME": "தீம்",
+    "Light theme": "வெளிர் தீம்",
     "ACCOUNT": "கணக்கு",
     "LVL {level} — {title}": "நிலை {level} — {title}",
     "WATCHER": "கண்காணிப்பாளர்",

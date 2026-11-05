@@ -22,34 +22,34 @@ import { RaceResults, formatRaceTime } from "./RaceResults";
 
 const MONO = "'Share Tech Mono', monospace";
 const OUTCOME_LABEL: Record<FamilyOutcome, [string, string]> = {
-  correct: ["SAFE CHOICE!", "#00ff88"],
-  cautious: ["CAUTIOUS — SMART", "#ffe66d"],
-  wrong: ["LET'S REVIEW", "#ff6b35"],
+  correct: ["SAFE CHOICE!", "var(--green)"],
+  cautious: ["CAUTIOUS — SMART", "var(--yellow)"],
+  wrong: ["LET'S REVIEW", "var(--orange)"],
 };
 
 type Send = { turn: number; action: string; outcome: FamilyOutcome; foundClues: number; state: "sending" | "failed" };
 
 function Header({ title, right }: { title: string; right?: string }) {
   return (
-    <div className="flex items-center justify-between px-4" style={{ backgroundColor: "#0a0e1a", borderBottom: "4px solid #2a3a5c", minHeight: 56, flexShrink: 0 }}>
-      <div style={{ fontFamily: MONO, fontSize: "var(--text-body)", color: "#00ff88" }}>{title}</div>
+    <div className="flex items-center justify-between px-4" style={{ backgroundColor: "var(--background)", borderBottom: "4px solid var(--border)", minHeight: 56, flexShrink: 0 }}>
+      <div style={{ fontFamily: MONO, fontSize: "var(--text-body)", color: "var(--green)" }}>{title}</div>
       <div className="flex items-center gap-2">
-        <IconShield size={14} color="#00ff88" />
-        {right && <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: "#00ff88" }}>{right}</div>}
+        <IconShield size={14} color="var(--green)" />
+        {right && <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: "var(--green)" }}>{right}</div>}
       </div>
     </div>
   );
 }
 
-function Panel({ children, color = "#2a3a5c" }: { children: React.ReactNode; color?: string }) {
-  return <div style={{ backgroundColor: "#111827", border: `3px solid ${color}`, padding: "12px 14px", marginBottom: 14 }}>{children}</div>;
+function Panel({ children, color = "var(--border)" }: { children: React.ReactNode; color?: string }) {
+  return <div style={{ backgroundColor: "var(--card)", border: `3px solid ${color}`, padding: "12px 14px", marginBottom: 14 }}>{children}</div>;
 }
 
-function Caption({ children, color = "#4ecdc4" }: { children: React.ReactNode; color?: string }) {
+function Caption({ children, color = "var(--teal)" }: { children: React.ReactNode; color?: string }) {
   return <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color, marginBottom: 8 }}>{children}</div>;
 }
 
-function Body({ children, color = "#e8f4f8", center = false }: { children: React.ReactNode; color?: string; center?: boolean }) {
+function Body({ children, color = "var(--foreground)", center = false }: { children: React.ReactNode; color?: string; center?: boolean }) {
   return <div style={{ fontFamily: MONO, fontSize: "var(--text-body)", color, lineHeight: 1.6, textAlign: center ? "center" : undefined }}>{children}</div>;
 }
 
@@ -151,9 +151,9 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
   };
 
   const back = (
-    <PixelButton onClick={onExit} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>{t("[ BACK ]")}</PixelButton>
+    <PixelButton onClick={onExit} color="var(--border)" textColor="var(--foreground)" size="sm" full>{t("[ BACK ]")}</PixelButton>
   );
-  const errorLine = error && <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: "#ff2d55", marginBottom: 10, textAlign: "center" }}>{t(error)}</div>;
+  const errorLine = error && <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: "var(--red)", marginBottom: 10, textAlign: "center" }}>{t(error)}</div>;
 
   // ── Not in a house ──────────────────────────────────────────────────────────
   if (!inHouse) {
@@ -161,13 +161,13 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
       <div className="flex flex-col h-full">
         <Header title={t("HOUSE DRILL")} />
         <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
-          <Panel color="#ffe66d">
-            <Caption color="#ffe66d">{t("NO HOUSE YET")}</Caption>
+          <Panel color="var(--yellow)">
+            <Caption color="var(--yellow)">{t("NO HOUSE YET")}</Caption>
             <Body>{t("House drills are played with your family, each on their own phone. Create or join a house to invite them.")}</Body>
           </Panel>
           <div className="flex flex-col gap-3">
-            <PixelButton onClick={onSetUpHouse} color="#00ff88" textColor="#0a0e1a" size="md" full>{t("[ SET UP A HOUSE ]")}</PixelButton>
-            <PixelButton onClick={onIndividual} color="#4ecdc4" textColor="#0a0e1a" size="sm" full>{t("[ TRY INDIVIDUAL DRILL ]")}</PixelButton>
+            <PixelButton onClick={onSetUpHouse} color="var(--green-fill)" textColor="var(--on-fill)" size="md" full>{t("[ SET UP A HOUSE ]")}</PixelButton>
+            <PixelButton onClick={onIndividual} color="var(--teal-fill)" textColor="var(--on-fill)" size="sm" full>{t("[ TRY INDIVIDUAL DRILL ]")}</PixelButton>
             {back}
           </div>
         </div>
@@ -231,9 +231,9 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
     // A race is scored per player, so the summary shows this player's own answers.
     const shownAnswers = race ? mine : answered;
     const headline = !race ? undefined
-      : shown.winnerId === selfId ? { text: t("YOU WIN!"), color: "#ffe66d" }
-      : shown.winnerId ? { text: t("{name} WINS!", { name: nameOf(shown.winnerId).toUpperCase() }), color: "#4ecdc4" }
-      : { text: t("RACE OVER"), color: "#9bb0c8" };
+      : shown.winnerId === selfId ? { text: t("YOU WIN!"), color: "var(--yellow)" }
+      : shown.winnerId ? { text: t("{name} WINS!", { name: nameOf(shown.winnerId).toUpperCase() }), color: "var(--teal)" }
+      : { text: t("RACE OVER"), color: "var(--soft-foreground)" };
     return (
       <FamilySummaryScreen
         mode="family"
@@ -253,20 +253,20 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
   }
 
   const leaveButton = shown && (
-    <PixelButton onClick={() => setConfirmLeave(true)} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>
+    <PixelButton onClick={() => setConfirmLeave(true)} color="var(--border)" textColor="var(--foreground)" size="sm" full>
       {race ? (isHost ? t("[ END RACE FOR EVERYONE ]") : t("[ LEAVE RACE ]"))
         : isHost ? t("[ END DRILL FOR EVERYONE ]") : t("[ LEAVE DRILL ]")}
     </PixelButton>
   );
   const leaveDialog = shown && confirmLeave && (
-    <div role="dialog" aria-modal="true" style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.85)", zIndex: 80, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div style={{ backgroundColor: "#111827", border: "4px solid #ff6b35", width: "100%", padding: 16 }}>
+    <div role="dialog" aria-modal="true" style={{ position: "absolute", inset: 0, backgroundColor: "var(--scrim)", zIndex: 80, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div style={{ backgroundColor: "var(--card)", border: "4px solid var(--orange)", width: "100%", padding: 16 }}>
         <Body>{race
           ? (isHost ? t("End the race for everyone? Anyone still playing is ranked on what they've answered so far.") : t("Leave the race? Your answers so far still count."))
           : isHost ? t("End the drill for everyone? Answers so far still count.") : t("Leave the drill? Your remaining turns will be skipped.")}</Body>
         <div className="flex gap-3" style={{ marginTop: 14 }}>
-          <div style={{ flex: 1 }}><PixelButton onClick={() => { setConfirmLeave(false); void run(() => leaveHouseDrill(shown.id)); }} color="#ff6b35" size="sm" full>{isHost ? t("END") : t("LEAVE")}</PixelButton></div>
-          <div style={{ flex: 1 }}><PixelButton onClick={() => setConfirmLeave(false)} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>{t("STAY")}</PixelButton></div>
+          <div style={{ flex: 1 }}><PixelButton onClick={() => { setConfirmLeave(false); void run(() => leaveHouseDrill(shown.id)); }} color="var(--orange-fill)" size="sm" full>{isHost ? t("END") : t("LEAVE")}</PixelButton></div>
+          <div style={{ flex: 1 }}><PixelButton onClick={() => setConfirmLeave(false)} color="var(--border)" textColor="var(--foreground)" size="sm" full>{t("STAY")}</PixelButton></div>
         </div>
       </div>
     </div>
@@ -281,10 +281,10 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
       <div className="flex flex-col h-full" style={{ position: "relative" }}>
         <Header title={t("HOUSE RACE")} right={t("{count} QUESTIONS", { count: total })} />
         <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
-          <Panel color="#00ff88">
-            <div aria-live="polite" style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "var(--text-body)", color: "#00ff88", lineHeight: 1.6, marginBottom: 6 }}>{t("YOU'RE DONE!")}</div>
+          <Panel color="var(--green)">
+            <div aria-live="polite" style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "var(--text-body)", color: "var(--green)", lineHeight: 1.6, marginBottom: 6 }}>{t("YOU'RE DONE!")}</div>
             {myTime !== undefined && <Body>{t("Your time: {time}", { time: formatRaceTime(myTime) })}</Body>}
-            <Body color="#9bb0c8">{t("Scores are revealed when everyone finishes.")}</Body>
+            <Body color="var(--soft-foreground)">{t("Scores are revealed when everyone finishes.")}</Body>
           </Panel>
           <Panel>
             <Caption>{t("RACE PROGRESS")}</Caption>
@@ -293,16 +293,16 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
               const done = shown.answers.filter((a) => a.playerId === p.id).length;
               const finished = shown.finishTimes[p.id] !== undefined;
               return (
-                <div key={p.id} style={{ padding: "6px 0", borderTop: "1px solid #1a2340" }}>
+                <div key={p.id} style={{ padding: "6px 0", borderTop: "1px solid var(--secondary)" }}>
                   <div className="flex items-center gap-3">
                     {member ? <MemberChar member={member} size={32} /> : <PixelMascot size={32} />}
-                    <div style={{ flex: 1, fontFamily: MONO, fontSize: "var(--text-body)", color: p.id === selfId ? "#00ff88" : "#e8f4f8" }}>{p.name.toUpperCase()}</div>
-                    <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: finished ? "#00ff88" : p.status === "left" ? "#6b8ba4" : "#ffe66d" }}>
+                    <div style={{ flex: 1, fontFamily: MONO, fontSize: "var(--text-body)", color: p.id === selfId ? "var(--green)" : "var(--foreground)" }}>{p.name.toUpperCase()}</div>
+                    <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: finished ? "var(--green)" : p.status === "left" ? "var(--muted-foreground)" : "var(--yellow)" }}>
                       {finished ? `✓ ${t("FINISHED")}` : p.status === "left" ? t("LEFT") : `${done}/${total}`}
                     </div>
                   </div>
-                  <div style={{ height: 6, backgroundColor: "#0a0e1a", border: "1px solid #2a3a5c", marginTop: 6 }}>
-                    <div style={{ height: "100%", width: `${Math.round((done / Math.max(total, 1)) * 100)}%`, backgroundColor: finished ? "#00ff88" : "#ff6b35" }} />
+                  <div style={{ height: 6, backgroundColor: "var(--background)", border: "1px solid var(--border)", marginTop: 6 }}>
+                    <div style={{ height: "100%", width: `${Math.round((done / Math.max(total, 1)) * 100)}%`, backgroundColor: finished ? "var(--green-fill)" : "var(--orange-fill)" }} />
                   </div>
                 </div>
               );
@@ -327,32 +327,32 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
     const isReady = (id: string) => shown.ready.includes(id) || (id === selfId && readyTurn === turn);
     const waitingFor = playing.filter((p) => !isReady(p.id));
     const amReady = isReady(selfId);
-    const [label, color] = answer?.outcome ? OUTCOME_LABEL[answer.outcome] : ["SKIPPED", "#6b8ba4"];
+    const [label, color] = answer?.outcome ? OUTCOME_LABEL[answer.outcome] : ["SKIPPED", "var(--muted-foreground)"];
     const progress = Math.round(((turn + 1) / Math.max(shown.turns.length, 1)) * 100);
     return (
       <div className="flex flex-col h-full" style={{ position: "relative" }}>
         <Header title={t("HOUSE DRILL")} right={t("QUESTION {current}/{total}", { current: turn + 1, total: shown.turns.length })} />
         <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
-          <div style={{ height: 8, backgroundColor: "#0a0e1a", border: "2px solid #2a3a5c", marginBottom: 18 }}>
-            <div style={{ height: "100%", width: `${progress}%`, backgroundColor: "#00ff88" }} />
+          <div style={{ height: 8, backgroundColor: "var(--background)", border: "2px solid var(--border)", marginBottom: 18 }}>
+            <div style={{ height: "100%", width: `${progress}%`, backgroundColor: "var(--green-fill)" }} />
           </div>
           <Panel color={color}>
-            <Caption color="#9bb0c8">{byMe ? t("YOU ANSWERED") : t("{name} ANSWERED", { name: nameOf(current?.playerId).toUpperCase() })}</Caption>
+            <Caption color="var(--soft-foreground)">{byMe ? t("YOU ANSWERED") : t("{name} ANSWERED", { name: nameOf(current?.playerId).toUpperCase() })}</Caption>
             <div aria-live="polite" style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "var(--text-body)", color, lineHeight: 1.6, marginBottom: 8 }}>{t(label)}</div>
             {answer?.action && <Body>{t("CHOSE:")} <span style={{ color }}>{t(answer.action)}</span></Body>}
             {scenario && answer?.outcome !== "correct" && (
-              <Body color="#9bb0c8">{t("CORRECT:")} <span style={{ color: "#00ff88" }}>{t(scenario.correctAction)}</span></Body>
+              <Body color="var(--soft-foreground)">{t("CORRECT:")} <span style={{ color: "var(--green)" }}>{t(scenario.correctAction)}</span></Body>
             )}
           </Panel>
           {scenario && (
             <>
               <Panel>
                 <Caption>{t("THE MESSAGE")}</Caption>
-                <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: "#9bb0c8", marginBottom: 4 }}>{t(scenario.sender)}</div>
+                <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: "var(--soft-foreground)", marginBottom: 4 }}>{t(scenario.sender)}</div>
                 <Body>{t(scenario.message)}</Body>
               </Panel>
-              <Panel color="#4ecdc4">
-                <Caption color="#ffe66d">{t("WHY?")}</Caption>
+              <Panel color="var(--teal)">
+                <Caption color="var(--yellow)">{t("WHY?")}</Caption>
                 <Body>{t(scenario.explanation)}</Body>
               </Panel>
             </>
@@ -363,10 +363,10 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
               const member = memberMap[p.id];
               const ready = isReady(p.id);
               return (
-                <div key={p.id} className="flex items-center gap-3" style={{ padding: "6px 0", borderTop: "1px solid #1a2340" }}>
+                <div key={p.id} className="flex items-center gap-3" style={{ padding: "6px 0", borderTop: "1px solid var(--secondary)" }}>
                   {member ? <MemberChar member={member} size={32} /> : <PixelMascot size={32} />}
-                  <div style={{ flex: 1, fontFamily: MONO, fontSize: "var(--text-body)", color: p.id === selfId ? "#00ff88" : "#e8f4f8" }}>{p.name.toUpperCase()}</div>
-                  <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: ready ? "#00ff88" : "#ffe66d" }}>{ready ? `✓ ${t("READY")}` : t("WAITING…")}</div>
+                  <div style={{ flex: 1, fontFamily: MONO, fontSize: "var(--text-body)", color: p.id === selfId ? "var(--green)" : "var(--foreground)" }}>{p.name.toUpperCase()}</div>
+                  <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: ready ? "var(--green)" : "var(--yellow)" }}>{ready ? `✓ ${t("READY")}` : t("WAITING…")}</div>
                 </div>
               );
             })}
@@ -374,15 +374,15 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
           {errorLine}
           <div className="flex flex-col gap-3">
             {amReady ? (
-              <Body color="#ffe66d" center>{t("Waiting for {names}…", { names: waitingFor.map((p) => p.name.toUpperCase()).join(", ") })}</Body>
+              <Body color="var(--yellow)" center>{t("Waiting for {names}…", { names: waitingFor.map((p) => p.name.toUpperCase()).join(", ") })}</Body>
             ) : (
               <>
-                <Body color="#9bb0c8" center>{t("Talk it over together, then tap Continue.")}</Body>
-                <PixelButton onClick={() => void tapContinue(turn)} disabled={busy} color="#00ff88" textColor="#0a0e1a" size="lg" full>{t("[ CONTINUE ]")}</PixelButton>
+                <Body color="var(--soft-foreground)" center>{t("Talk it over together, then tap Continue.")}</Body>
+                <PixelButton onClick={() => void tapContinue(turn)} disabled={busy} color="var(--green-fill)" textColor="var(--on-fill)" size="lg" full>{t("[ CONTINUE ]")}</PixelButton>
               </>
             )}
             {isHost && waitingFor.some((p) => p.id !== selfId) && (
-              <PixelButton onClick={() => void tapContinue(turn, true)} disabled={busy} color="#ffe66d" textColor="#0a0e1a" size="sm" full>
+              <PixelButton onClick={() => void tapContinue(turn, true)} disabled={busy} color="var(--yellow-fill)" textColor="var(--on-fill)" size="sm" full>
                 {t("[ MOVE ON WITHOUT THEM ]")}
               </PixelButton>
             )}
@@ -406,32 +406,32 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
       <div className="flex flex-col h-full" style={{ position: "relative" }}>
         <Header title={t("HOUSE DRILL")} right={t("QUESTION {current}/{total}", { current: shown.currentTurn + 1, total: shown.turns.length })} />
         <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
-          <div style={{ height: 8, backgroundColor: "#0a0e1a", border: "2px solid #2a3a5c", marginBottom: 18 }}>
-            <div style={{ height: "100%", width: `${progress}%`, backgroundColor: "#00ff88" }} />
+          <div style={{ height: 8, backgroundColor: "var(--background)", border: "2px solid var(--border)", marginBottom: 18 }}>
+            <div style={{ height: "100%", width: `${progress}%`, backgroundColor: "var(--green-fill)" }} />
           </div>
           <div className="flex flex-col items-center" style={{ marginBottom: 18 }}>
             {currentMember ? <MemberChar member={currentMember} size={72} /> : <PixelMascot size={72} animate />}
-            <div aria-live="polite" style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "var(--text-body)", color: "#ffe66d", marginTop: 12, textAlign: "center", lineHeight: 1.6 }}>
+            <div aria-live="polite" style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "var(--text-body)", color: "var(--yellow)", marginTop: 12, textAlign: "center", lineHeight: 1.6 }}>
               {t("IT'S {name}'S TURN", { name: currentName.toUpperCase() })}
             </div>
-            <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: "#9bb0c8", marginTop: 8, textAlign: "center" }}>
+            <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: "var(--soft-foreground)", marginTop: 8, textAlign: "center" }}>
               {nextMine === -1 ? t("YOU'VE HAD ALL YOUR TURNS") : nextMine === shown.currentTurn + 1 ? t("YOU'RE NEXT") : t("YOUR TURN IN {count}", { count: nextMine - shown.currentTurn })}
             </div>
           </div>
           {send?.state === "failed" && (
-            <Panel color="#ff2d55">
-              <Body color="#ff2d55">{t("Your last answer wasn't sent.")}</Body>
-              <div style={{ marginTop: 8 }}><PixelButton onClick={() => void postAnswer(send)} color="#ff2d55" size="sm" full>{t("[ RETRY ]")}</PixelButton></div>
+            <Panel color="var(--red)">
+              <Body color="var(--red)">{t("Your last answer wasn't sent.")}</Body>
+              <div style={{ marginTop: 8 }}><PixelButton onClick={() => void postAnswer(send)} color="var(--red-fill)" size="sm" full>{t("[ RETRY ]")}</PixelButton></div>
             </Panel>
           )}
           {recent.length > 0 && (
             <Panel>
               <Caption>{t("LATEST ANSWERS")}</Caption>
               {recent.map((a) => {
-                const [label, color] = a.skipped || !a.outcome ? ["SKIPPED", "#6b8ba4"] : OUTCOME_LABEL[a.outcome];
+                const [label, color] = a.skipped || !a.outcome ? ["SKIPPED", "var(--muted-foreground)"] : OUTCOME_LABEL[a.outcome];
                 return (
-                  <div key={a.turn} className="flex items-center justify-between" style={{ padding: "4px 0", borderTop: "1px solid #1a2340" }}>
-                    <div style={{ fontFamily: MONO, fontSize: "var(--text-body)", color: a.playerId === selfId ? "#00ff88" : "#e8f4f8" }}>{nameOf(a.playerId).toUpperCase()}</div>
+                  <div key={a.turn} className="flex items-center justify-between" style={{ padding: "4px 0", borderTop: "1px solid var(--secondary)" }}>
+                    <div style={{ fontFamily: MONO, fontSize: "var(--text-body)", color: a.playerId === selfId ? "var(--green)" : "var(--foreground)" }}>{nameOf(a.playerId).toUpperCase()}</div>
                     <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color }}>{t(label)}</div>
                   </div>
                 );
@@ -441,7 +441,7 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
           {errorLine}
           <div className="flex flex-col gap-3">
             {isHost && current && (
-              <PixelButton onClick={() => run(() => skipHouseDrillTurn(shown.id, shown.currentTurn))} disabled={busy} color="#ffe66d" textColor="#0a0e1a" size="sm" full>
+              <PixelButton onClick={() => run(() => skipHouseDrillTurn(shown.id, shown.currentTurn))} disabled={busy} color="var(--yellow-fill)" textColor="var(--on-fill)" size="sm" full>
                 {t("[ SKIP {name}'S TURN ]", { name: currentName.toUpperCase() })}
               </PixelButton>
             )}
@@ -458,20 +458,20 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
     const accepted = shown.players.filter((p) => p.status === "accepted");
     const secondsLeft = Math.max(0, Math.ceil((new Date(shown.inviteExpiresAt).getTime() - now) / 1000));
     const statusText: Record<DrillPlayer["status"], [string, string]> = {
-      accepted: ["READY", "#00ff88"], invited: ["INVITED…", "#ffe66d"], declined: ["NOT PLAYING", "#6b8ba4"],
-      expired: ["NO REPLY", "#6b8ba4"], left: ["LEFT", "#6b8ba4"],
+      accepted: ["READY", "var(--green)"], invited: ["INVITED…", "var(--yellow)"], declined: ["NOT PLAYING", "var(--muted-foreground)"],
+      expired: ["NO REPLY", "var(--muted-foreground)"], left: ["LEFT", "var(--muted-foreground)"],
     };
     return (
       <div className="flex flex-col h-full">
         <Header title={t("HOUSE DRILL")} right={t("{count} READY", { count: accepted.length })} />
         <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
-          <Panel color="#00ff88">
-            <Caption color={race ? "#ff6b35" : "#00ff88"}>
+          <Panel color="var(--green)">
+            <Caption color={race ? "var(--orange)" : "var(--green)"}>
               {race
                 ? <>{t("RACE")} · {t("{count} QUESTIONS", { count: shown.perPlayer })}</>
                 : <>{t("{count} QUESTIONS EACH", { count: shown.perPlayer })} · {t("{count} TOTAL", { count: accepted.length * shown.perPlayer })}</>}
             </Caption>
-            <Body color="#9bb0c8">
+            <Body color="var(--soft-foreground)">
               {secondsLeft > 0
                 ? t("Invites close in {time}", { time: `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}` })
                 : t("Invites have closed")}
@@ -483,9 +483,9 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
               const member = memberMap[p.id];
               const [label, color] = statusText[p.status];
               return (
-                <div key={p.id} className="flex items-center gap-3" style={{ padding: "6px 0", borderTop: "1px solid #1a2340" }}>
+                <div key={p.id} className="flex items-center gap-3" style={{ padding: "6px 0", borderTop: "1px solid var(--secondary)" }}>
                   {member ? <MemberChar member={member} size={32} /> : <PixelMascot size={32} />}
-                  <div style={{ flex: 1, fontFamily: MONO, fontSize: "var(--text-body)", color: p.id === selfId ? "#00ff88" : "#e8f4f8" }}>
+                  <div style={{ flex: 1, fontFamily: MONO, fontSize: "var(--text-body)", color: p.id === selfId ? "var(--green)" : "var(--foreground)" }}>
                     {p.name.toUpperCase()}{p.id === shown.hostId ? ` · ${t("HOST")}` : ""}
                   </div>
                   <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color }}>{t(label)}</div>
@@ -500,26 +500,26 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
                 <PixelButton
                   onClick={() => run(() => startHouseDrill(shown.id, pickScenarios(race ? shown.perPlayer : accepted.length * shown.perPlayer).map((s) => s.id), language))}
                   disabled={busy}
-                  color="#00ff88" textColor="#0a0e1a" size="lg" full
+                  color="var(--green-fill)" textColor="var(--on-fill)" size="lg" full
                 >
                   {busy ? t("WRITING YOUR QUESTIONS…")
                     : accepted.length > 1 ? t("[ START WITH {count} PLAYERS ]", { count: accepted.length }) : t("[ START ON MY OWN ]")}
                 </PixelButton>
-                <PixelButton onClick={() => run(() => leaveHouseDrill(shown.id))} disabled={busy} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>{t("[ CANCEL DRILL ]")}</PixelButton>
+                <PixelButton onClick={() => run(() => leaveHouseDrill(shown.id))} disabled={busy} color="var(--border)" textColor="var(--foreground)" size="sm" full>{t("[ CANCEL DRILL ]")}</PixelButton>
               </>
             ) : me.status === "accepted" ? (
               <>
-                <Body color="#ffe66d" center>{t("Waiting for {name} to start…", { name: nameOf(shown.hostId) })}</Body>
-                <PixelButton onClick={() => run(() => leaveHouseDrill(shown.id))} disabled={busy} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>{t("[ LEAVE DRILL ]")}</PixelButton>
+                <Body color="var(--yellow)" center>{t("Waiting for {name} to start…", { name: nameOf(shown.hostId) })}</Body>
+                <PixelButton onClick={() => run(() => leaveHouseDrill(shown.id))} disabled={busy} color="var(--border)" textColor="var(--foreground)" size="sm" full>{t("[ LEAVE DRILL ]")}</PixelButton>
               </>
             ) : me.status === "invited" ? (
               <>
-                <PixelButton onClick={() => run(() => respondToHouseDrill(shown.id, true))} disabled={busy} color="#00ff88" textColor="#0a0e1a" size="lg" full>{t("[ JOIN ]")}</PixelButton>
-                <PixelButton onClick={() => { void run(() => respondToHouseDrill(shown.id, false)); onExit(); }} disabled={busy} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>{t("[ NOT NOW ]")}</PixelButton>
+                <PixelButton onClick={() => run(() => respondToHouseDrill(shown.id, true))} disabled={busy} color="var(--green-fill)" textColor="var(--on-fill)" size="lg" full>{t("[ JOIN ]")}</PixelButton>
+                <PixelButton onClick={() => { void run(() => respondToHouseDrill(shown.id, false)); onExit(); }} disabled={busy} color="var(--border)" textColor="var(--foreground)" size="sm" full>{t("[ NOT NOW ]")}</PixelButton>
               </>
             ) : (
               <>
-                <Body color="#9bb0c8" center>{t("You're not playing in this drill.")}</Body>
+                <Body color="var(--soft-foreground)" center>{t("You're not playing in this drill.")}</Body>
                 {back}
               </>
             )}
@@ -540,7 +540,7 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
           </Panel>
           <div className="flex flex-col gap-3">
             {shown.status === "cancelled" && (
-              <PixelButton onClick={() => setDismissedId(shown.id)} color="#00ff88" textColor="#0a0e1a" size="md" full>{t("[ START A NEW DRILL ]")}</PixelButton>
+              <PixelButton onClick={() => setDismissedId(shown.id)} color="var(--green-fill)" textColor="var(--on-fill)" size="md" full>{t("[ START A NEW DRILL ]")}</PixelButton>
             )}
             {back}
           </div>
@@ -559,7 +559,7 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
           {members.slice(0, 6).map((m) => (
             <div key={m.id} className="flex flex-col items-center gap-1" style={{ flex: "0 1 96px", minWidth: 0, textAlign: "center" }}>
               <MemberChar member={m} size={40} />
-              <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: m.id === selfId ? "#00ff88" : "#4ecdc4" }}>{m.name.toUpperCase()}</div>
+              <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: m.id === selfId ? "var(--green)" : "var(--teal)" }}>{m.name.toUpperCase()}</div>
             </div>
           ))}
         </div>
@@ -567,11 +567,11 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
           <Caption>{t("GAME MODE")}</Caption>
           <ModePicker value={mode} onChange={setMode} />
         </Panel>
-        <Panel color="#00ff88">
-          <Caption color="#00ff88">{t("QUESTIONS PER PERSON")}</Caption>
+        <Panel color="var(--green)">
+          <Caption color="var(--green)">{t("QUESTIONS PER PERSON")}</Caption>
           <CountPicker options={PER_PLAYER_OPTIONS} value={perPlayer} onChange={setPerPlayer} label={t("QUESTIONS PER PERSON")} />
           <div style={{ marginTop: 10 }}>
-            <Body color="#9bb0c8">
+            <Body color="var(--soft-foreground)">
               {mode === "race"
                 ? t("Everyone answers the same {count} questions.", { count: perPlayer })
                 : t("Up to {count} questions if everyone joins.", { count: members.length * perPlayer })}
@@ -594,25 +594,25 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
             "Start whenever you're ready; only those who join will play.",
           ]).map((line) => (
             <div key={line} className="flex items-start gap-2 mb-2">
-              <div style={{ width: 6, height: 6, backgroundColor: "#00ff88", flexShrink: 0, marginTop: 6 }} />
+              <div style={{ width: 6, height: 6, backgroundColor: "var(--green-fill)", flexShrink: 0, marginTop: 6 }} />
               <Body>{t(line)}</Body>
             </div>
           ))}
         </Panel>
         {others.length === 0 && (
-          <Panel color="#ffe66d">
-            <Body color="#ffe66d">{t("You're the only one in your house. Share your house code so family can join.")}</Body>
+          <Panel color="var(--yellow)">
+            <Body color="var(--yellow)">{t("You're the only one in your house. Share your house code so family can join.")}</Body>
           </Panel>
         )}
         {errorLine}
         <div className="flex flex-col gap-3">
-          <PixelButton onClick={() => run(() => openHouseDrill(perPlayer, mode))} disabled={busy || others.length === 0} color="#00ff88" textColor="#0a0e1a" size="lg" full>
+          <PixelButton onClick={() => run(() => openHouseDrill(perPlayer, mode))} disabled={busy || others.length === 0} color="var(--green-fill)" textColor="var(--on-fill)" size="lg" full>
             {t("[ INVITE MY HOUSE ]")}
           </PixelButton>
           {others.length === 0 && (
-            <PixelButton onClick={onSetUpHouse} color="#ffe66d" textColor="#0a0e1a" size="sm" full>{t("[ INVITE FAMILY ]")}</PixelButton>
+            <PixelButton onClick={onSetUpHouse} color="var(--yellow-fill)" textColor="var(--on-fill)" size="sm" full>{t("[ INVITE FAMILY ]")}</PixelButton>
           )}
-          <PixelButton onClick={onIndividual} color="#4ecdc4" textColor="#0a0e1a" size="sm" full>{t("[ TRY INDIVIDUAL DRILL ]")}</PixelButton>
+          <PixelButton onClick={onIndividual} color="var(--teal-fill)" textColor="var(--on-fill)" size="sm" full>{t("[ TRY INDIVIDUAL DRILL ]")}</PixelButton>
           {back}
         </div>
       </div>

@@ -13,8 +13,8 @@ export function FlagTooltip({ flag, onClose }: { flag: DrillFlag; onClose: () =>
         left: 0,
         right: 0,
         zIndex: 40,
-        backgroundColor: "rgba(10,14,26,0.95)",
-        borderTop: "3px solid #ff2d55",
+        backgroundColor: "color-mix(in srgb, var(--background) 95%, transparent)",
+        borderTop: "3px solid var(--red)",
         padding: "12px 16px 16px",
         backdropFilter: "blur(4px)",
         animation: "slideUp 0.15s ease-out",
@@ -22,18 +22,18 @@ export function FlagTooltip({ flag, onClose }: { flag: DrillFlag; onClose: () =>
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
         <div style={{ flexShrink: 0, marginTop: 2 }}>
-          <IconWarning size={16} color="#ff2d55" />
+          <IconWarning size={16} color="var(--red)" />
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ff2d55", marginBottom: 6, letterSpacing: 1 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--red)", marginBottom: 6, letterSpacing: 1 }}>
             {t(flag.name)}
           </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.5 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.5 }}>
             {t(flag.explanation)}
           </div>
         </div>
         <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", flexShrink: 0, padding: 4 }}>
-          <IconX size={12} color="#6b8ba4" />
+          <IconX size={12} color="var(--muted-foreground)" />
         </button>
       </div>
     </div>

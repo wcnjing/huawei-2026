@@ -1,7 +1,7 @@
 export function PixelPanel({
   children,
   className = "",
-  accent = "#2a3a5c",
+  accent = "var(--border)",
 }: {
   children: React.ReactNode;
   className?: string;
@@ -10,7 +10,7 @@ export function PixelPanel({
   return (
     <div
       style={{
-        backgroundColor: "#111827",
+        backgroundColor: "var(--card)",
         border: `4px solid ${accent}`,
         boxShadow: `4px 4px 0px ${accent}`,
       }}

@@ -43,15 +43,15 @@ export function FamilyHomeScreen({ onPayday, paydayClaimedThisWeek, onCustomize,
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto", scrollbarWidth: "none" }}>
-        <div style={{ height: 6, background: "linear-gradient(90deg,#2a3a5c,#3a4a6c,#2a3a5c)" }} />
+        <div style={{ height: 6, background: "linear-gradient(90deg,var(--border),var(--border-strong),var(--border))" }} />
         {together ? (
           <>
             <HouseRoofButton title={house?.name ?? t("YOUR HOUSE")} onOpen={onPlayWithOthers} houses={houses} onSwitch={onSwitchHouse} />
             {/* House safety and payday, right under the roof. */}
             <div data-tour="safety-bar"><FamilySafetyBar onPayday={onPayday} paydayClaimedThisWeek={paydayClaimedThisWeek} /></div>
             <div data-tour="family-rooms" style={{ position: "relative" }}>
-              <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 8, backgroundColor: "#2a3a5c", backgroundImage: "repeating-linear-gradient(0deg,#1a2a3c,#1a2a3c 4px,#2a3a5c 4px,#2a3a5c 8px)" }} />
-              <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 8, backgroundColor: "#2a3a5c", backgroundImage: "repeating-linear-gradient(0deg,#1a2a3c,#1a2a3c 4px,#2a3a5c 4px,#2a3a5c 8px)" }} />
+              <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 8, backgroundColor: "var(--border)", backgroundImage: "repeating-linear-gradient(0deg,color-mix(in srgb, var(--border) 60%, var(--background)),color-mix(in srgb, var(--border) 60%, var(--background)) 4px,var(--border) 4px,var(--border) 8px)" }} />
+              <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 8, backgroundColor: "var(--border)", backgroundImage: "repeating-linear-gradient(0deg,color-mix(in srgb, var(--border) 60%, var(--background)),color-mix(in srgb, var(--border) 60%, var(--background)) 4px,var(--border) 4px,var(--border) 8px)" }} />
               {homeMembers.map((member) => <div key={member.id} data-tour={member.id === selfId ? "self-room" : undefined} className={member.id === selfId ? "home-self-room" : undefined}>
                 <DollhouseRoom
                   member={member}
@@ -88,18 +88,18 @@ export function FamilyHomeScreen({ onPayday, paydayClaimedThisWeek, onCustomize,
         ) : (
           // No player data yet: say so instead of rendering an empty screen.
           <div role="status" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: "48px 24px", textAlign: "center" }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: houseFailed && !houseLoading ? "#ff6b35" : "#9bb0c8", lineHeight: 1.5 }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: houseFailed && !houseLoading ? "var(--orange)" : "var(--soft-foreground)", lineHeight: 1.5 }}>
               {houseFailed && !houseLoading
                 ? t("COULDN'T LOAD YOUR HOUSE. CHECK YOUR CONNECTION AND TRY AGAIN.")
                 : t("LOADING YOUR HOUSE…")}
             </div>
             {houseFailed && !houseLoading && onRetryHouse && (
-              <PixelButton onClick={onRetryHouse} color="#1a2340" textColor="#00ff88" size="sm">{t("[ RETRY ]")}</PixelButton>
+              <PixelButton onClick={onRetryHouse} color="var(--secondary)" textColor="var(--green)" size="sm">{t("[ RETRY ]")}</PixelButton>
             )}
           </div>
         )}
-        <div style={{ height: 24, backgroundColor: "#1a2340", borderTop: "4px solid #2a3a5c", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#2a3a5c", letterSpacing: 3 }}>████████████████████████████</div>
+        <div style={{ height: 24, backgroundColor: "var(--secondary)", borderTop: "4px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--border)", letterSpacing: 3 }}>████████████████████████████</div>
         </div>
       </div>
       {selectedMember && (

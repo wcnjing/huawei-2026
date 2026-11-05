@@ -18,52 +18,52 @@ export function SMSThreadScreen({ onReport, onAskFamily, onTapLink, onBack }: { 
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-3 px-4" style={{ backgroundColor: "#111827", borderBottom: "4px solid #2a3a5c", minHeight: 56, flexShrink: 0 }}>
+      <div className="flex items-center gap-3 px-4" style={{ backgroundColor: "var(--card)", borderBottom: "4px solid var(--border)", minHeight: 56, flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8" }}>{"<"}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--soft-foreground)" }}>{"<"}</div>
         </button>
-        <div style={{ width: 32, height: 32, backgroundColor: "#ff2d55", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <IconWarning size={16} color="#ffffff" />
+        <div style={{ width: 32, height: 32, backgroundColor: "var(--red-fill)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <IconWarning size={16} color="var(--foreground-strong)" />
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ff2d55" }}>ParcelGo Alert</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8", marginTop: 2 }}>{t("Unknown sender")}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--red)" }}>ParcelGo Alert</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)", marginTop: 2 }}>{t("Unknown sender")}</div>
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff6b35" }}>{t("DRILL ACTIVE")}</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--orange)" }}>{t("DRILL ACTIVE")}</div>
       </div>
       <div style={{ flex: 1, position: "relative", overflow: "hidden" }} onClick={() => setActiveFlag(null)}>
         <div className="flex flex-col gap-3" style={{ height: "100%", overflowY: "auto", padding: "16px", scrollbarWidth: "none" }}>
           <div className="flex justify-start">
-            <div style={{ maxWidth: "80%", backgroundColor: "#1a2340", border: "3px solid #ff2d55", padding: "12px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.8 }}>
+            <div style={{ maxWidth: "80%", backgroundColor: "var(--secondary)", border: "3px solid var(--red)", padding: "12px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.8 }}>
               {SMS_LINES.map((line, i) => (
                 <div key={i}>
                   <AnnotatedMessage text={line.text} highlights={line.highlights} onFlagTap={handleFlagTap} />
                 </div>
               ))}
               <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 4 }}>
-                <IconWarning size={9} color="#ff2d55" />
-                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff2d55" }}>{t("TAP RED TEXT TO INSPECT")}</span>
+                <IconWarning size={9} color="var(--red)" />
+                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--red)" }}>{t("TAP RED TEXT TO INSPECT")}</span>
               </div>
             </div>
           </div>
           <div className="flex justify-end">
-            <div style={{ maxWidth: "75%", backgroundColor: "#0c1a10", border: "3px solid #00ff88", padding: "10px 12px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#00ff88", lineHeight: 1.5 }}>
+            <div style={{ maxWidth: "75%", backgroundColor: "color-mix(in srgb, var(--green) 8%, var(--background))", border: "3px solid var(--green)", padding: "10px 12px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--green)", lineHeight: 1.5 }}>
               {t("Something feels off. Inspect the message carefully before acting.")}
             </div>
           </div>
         </div>
         {activeFlag && <FlagTooltip flag={activeFlag} onClose={() => setActiveFlag(null)} />}
       </div>
-      <div className="px-4 py-4 flex flex-col gap-3" style={{ borderTop: "4px solid #2a3a5c", backgroundColor: "#0a0e1a" }}>
+      <div className="px-4 py-4 flex flex-col gap-3" style={{ borderTop: "4px solid var(--border)", backgroundColor: "var(--background)" }}>
         <div className="flex gap-3">
           <div style={{ flex: 1 }}>
-            <PixelButton onClick={onReport} color="#00ff88" textColor="#0a0e1a" size="sm" full>{t("REPORT + BLOCK")}</PixelButton>
+            <PixelButton onClick={onReport} color="var(--green-fill)" textColor="var(--on-fill)" size="sm" full>{t("REPORT + BLOCK")}</PixelButton>
           </div>
           <div style={{ flex: 1 }}>
-            <PixelButton onClick={onAskFamily} color="#ffe66d" textColor="#0a0e1a" size="sm" full>{t("ASK SOMEONE YOU TRUST")}</PixelButton>
+            <PixelButton onClick={onAskFamily} color="var(--yellow-fill)" textColor="var(--on-fill)" size="sm" full>{t("ASK SOMEONE YOU TRUST")}</PixelButton>
           </div>
         </div>
-        <PixelButton onClick={onTapLink} color="#ff2d55" textColor="#ffffff" size="sm" full>{t("TAP LINK")}</PixelButton>
+        <PixelButton onClick={onTapLink} color="var(--red-fill)" textColor="var(--on-danger)" size="sm" full>{t("TAP LINK")}</PixelButton>
       </div>
     </div>
   );

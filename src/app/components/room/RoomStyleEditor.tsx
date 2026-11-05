@@ -29,7 +29,7 @@ export function RoomStyleEditor({ value, background, accent, defaultName, items,
       <h2>{t('Make it yours')}</h2>
       <p>{t('Mix walls, floors and neon lights. All styles are free.')}</p>
     </div>
-    <div className="room-style-preview" aria-label={t('Room appearance preview')} style={{ borderColor: colors.light }}>
+    <div className="room-style-preview" data-theme="dark" aria-label={t('Room appearance preview')} style={{ borderColor: colors.light }}>
       <RoomBackdrop style={draft} background={background} accent={accent} />
       <div className="room-style-preview-name" style={{ color: colors.light }}>{normalized.name || defaultName}</div>
       <div className="room-style-preview-furniture"><RoomFurnitureLayer items={items} layout={layout} /></div>

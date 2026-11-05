@@ -1,4 +1,4 @@
-export function IconCheck({ size = 16, color = "#00ff88" }: { size?: number; color?: string }) {
+export function IconCheck({ size = 16, color = "var(--green)" }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 8 8" style={{ imageRendering: "pixelated", display: "block" }}>
       <rect x={1} y={4} width={1} height={1} fill={color} />

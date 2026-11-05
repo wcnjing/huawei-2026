@@ -145,6 +145,28 @@ pixel sprites are served from `public/furniture/` and use the same art in the sh
 rooms, previews and furniture editor. Newly placed hanging pieces start near the
 wall, and carpets render beneath other furniture. Saved positions are preserved.
 
+## Light theme
+
+**Settings → Theme** switches between the dark theme (the default) and a light theme. The
+choice is saved in this browser (`safespace_theme`). A small script in `index.html` applies it
+before the first paint.
+
+- **Colours for both themes** are tokens in [src/styles/tokens.css](src/styles/tokens.css). The
+  file is identical in the website (`drill-mode-site`).
+- **In components, use tokens, not hex codes:**
+  - `var(--teal)` for text, icons and lines
+  - `var(--teal-fill)` for solid buttons and bars, which keep the original neon
+  - `var(--card)` and `var(--background)` for surfaces
+- **Colours that come from data**, such as a member's colour, go through `ink()`, `fill()` or
+  `tint()` in [src/app/utils/color.ts](src/app/utils/color.ts).
+- **Light palettes:** Mist is the default; Paper and Dusk are alternatives.
+  - To switch, set `data-palette` on `<html>` in `index.html`.
+  - To preview one, add `?palette=paper` (or `dusk`) to the address.
+- **Always dark, on purpose:** the title screen, the call screens and the room scenes are marked
+  `data-theme="dark"`. Characters, Pixi, furniture and rooms keep their own colours.
+- **The check:** `npm run check:theme` fails if a palette hex code is written into UI code, and
+  checks that each light palette keeps text readable (WCAG AA).
+
 ## Configuration
 
 Copy [.env.example](.env.example) and use a different random value for each secret.

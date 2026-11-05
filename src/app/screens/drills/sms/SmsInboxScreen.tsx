@@ -21,21 +21,21 @@ export function SMSInboxScreen({ onOpenScam, onBack }: { activeMemberId: string;
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4" style={{ backgroundColor: "#0a0e1a", borderBottom: "4px solid #2a3a5c", minHeight: 56, flexShrink: 0 }}>
+      <div className="flex items-center justify-between px-4" style={{ backgroundColor: "var(--background)", borderBottom: "4px solid var(--border)", minHeight: 56, flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8" }}>{t("< BACK")}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--soft-foreground)" }}>{t("< BACK")}</div>
         </button>
         <div className="flex items-center gap-2">
-          <IconChatBubble size={16} color="#4ecdc4" />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#4ecdc4" }}>{t("MESSAGES")}</div>
+          <IconChatBubble size={16} color="var(--teal)" />
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--teal)" }}>{t("MESSAGES")}</div>
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff2d55" }}>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--red)" }}>
           <Blink ms={700}>{t("1 NEW")}</Blink>
         </div>
       </div>
-      <div className="flex items-center gap-2 px-4 py-2" style={{ backgroundColor: "rgba(255,107,53,0.1)", borderBottom: "2px solid #ff6b35" }}>
-        <IconWarning size={12} color="#ff6b35" />
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff6b35" }}>
+      <div className="flex items-center gap-2 px-4 py-2" style={{ backgroundColor: "color-mix(in srgb, var(--orange-fill) 10%, transparent)", borderBottom: "2px solid var(--orange)" }}>
+        <IconWarning size={12} color="var(--orange)" />
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--orange)" }}>
           {t("DRILL MODE — 1 suspicious message detected")}
         </div>
       </div>
@@ -46,38 +46,38 @@ export function SMSInboxScreen({ onOpenScam, onBack }: { activeMemberId: string;
             onClick={() => item.isScam ? onOpenScam() : handleNonScam(item.id)}
             style={{
               display: "block", width: "100%", textAlign: "left", background: "none",
-              border: "none", borderBottom: "2px solid #1a2340", cursor: "pointer",
+              border: "none", borderBottom: "2px solid var(--secondary)", cursor: "pointer",
               padding: "12px 16px",
-              backgroundColor: item.isScam ? (glowFrame ? "rgba(255,45,85,0.06)" : "rgba(255,107,53,0.06)") : "#0a0e1a",
+              backgroundColor: item.isScam ? (glowFrame ? "color-mix(in srgb, var(--red-fill) 6%, transparent)" : "color-mix(in srgb, var(--orange-fill) 6%, transparent)") : "var(--background)",
               animation: shaking === item.id ? "shake 0.5s ease" : "none",
-              boxShadow: item.isScam ? `inset 0 0 ${glowFrame ? "12px" : "4px"} rgba(255,45,85,0.15)` : "none",
+              boxShadow: item.isScam ? `inset 0 0 ${glowFrame ? "12px" : "4px"} color-mix(in srgb, var(--red) 15%, transparent)` : "none",
               transition: "background-color 0.4s, box-shadow 0.4s",
             }}
           >
             <div className="flex items-start gap-3">
-              <div style={{ width: 40, height: 40, backgroundColor: item.isScam ? "#ff2d55" : "#2a3a5c", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: item.isScam ? "2px solid #ff2d55" : "2px solid #1a2340" }}>
-                {item.isScam ? <IconWarning size={20} color="#ffffff" /> : <IconPerson size={20} color="#6b8ba4" />}
+              <div style={{ width: 40, height: 40, backgroundColor: item.isScam ? "var(--red-fill)" : "var(--border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: item.isScam ? "2px solid var(--red)" : "2px solid var(--secondary)" }}>
+                {item.isScam ? <IconWarning size={20} color="var(--foreground-strong)" /> : <IconPerson size={20} color="var(--muted-foreground)" />}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="flex items-center justify-between mb-1">
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: item.isScam ? 7 : 6, color: item.isScam ? "#ff2d55" : "#e8f4f8" }}>{t(item.sender)}</div>
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: item.isScam ? "#ff6b35" : "#6b8ba4" }}>{t(item.time)}</div>
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: item.isScam ? 7 : 6, color: item.isScam ? "var(--red)" : "var(--foreground)" }}>{t(item.sender)}</div>
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: item.isScam ? "var(--orange)" : "var(--muted-foreground)" }}>{t(item.time)}</div>
                 </div>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: item.isScam ? "#ff6b35" : "#6b8ba4", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: item.isScam ? "var(--orange)" : "var(--muted-foreground)", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {t(item.preview)}
                 </div>
                 {item.isScam && (
                   <div className="flex items-center gap-2 mt-1">
-                    <div style={{ backgroundColor: "#ff2d55", padding: "1px 5px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ffffff" }}>
+                    <div style={{ backgroundColor: "var(--red-fill)", padding: "1px 5px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--on-danger)" }}>
                       <Blink ms={600}>{t("IMPORTANT")}</Blink>
                     </div>
-                    <div style={{ backgroundColor: "#ff6b35", padding: "1px 5px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#0a0e1a" }}>{t("UNREAD")}</div>
+                    <div style={{ backgroundColor: "var(--orange-fill)", padding: "1px 5px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--on-fill)" }}>{t("UNREAD")}</div>
                   </div>
                 )}
               </div>
             </div>
             {shaking === item.id && (
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#4ecdc4", marginTop: 6, textAlign: "center" }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--teal)", marginTop: 6, textAlign: "center" }}>
                 {t("Not part of this drill.")}
               </div>
             )}

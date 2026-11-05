@@ -6,21 +6,22 @@ import { IconBulb, IconMedal, IconSkull, IconTrophy, IconWarning } from "../../c
 import { PixelButton } from "../../components/ui";
 import { useMembers } from "../../hooks/useMembers";
 import { useSelfId } from "../../hooks/useSelfId";
+import { ink, tint } from "../../utils/color";
 
 export function LeaderboardScreen({ onPlayWithOthers }: { onPlayWithOthers: () => void }) {
   const t = useT();
   const [tab, setTab] = useState<"fame" | "shame">("fame");
   return (
     <div data-tour="ranks-page" className="flex flex-col h-full">
-      <div className="flex" style={{ borderBottom: "4px solid #2a3a5c" }}>
-        <button onClick={() => setTab("fame")} className="flex-1 flex flex-col items-center justify-center gap-1 py-3" style={{ backgroundColor: tab === "fame" ? "#1a3a2a" : "#0a0e1a", border: "none", borderBottom: tab === "fame" ? "4px solid #00ff88" : "4px solid transparent", cursor: "pointer" }}>
-          <IconTrophy size={16} color={tab === "fame" ? "#00ff88" : "#2a3a5c"} />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: tab === "fame" ? "#00ff88" : "#2a3a5c" }}>{t("HALL OF FAME")}</div>
+      <div className="flex" style={{ borderBottom: "4px solid var(--border)" }}>
+        <button onClick={() => setTab("fame")} className="flex-1 flex flex-col items-center justify-center gap-1 py-3" style={{ backgroundColor: tab === "fame" ? "color-mix(in srgb, var(--green) 18%, var(--background))" : "var(--background)", border: "none", borderBottom: tab === "fame" ? "4px solid var(--green)" : "4px solid transparent", cursor: "pointer" }}>
+          <IconTrophy size={16} color={tab === "fame" ? "var(--green)" : "var(--border)"} />
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: tab === "fame" ? "var(--green)" : "var(--border)" }}>{t("HALL OF FAME")}</div>
         </button>
-        <div style={{ width: 4, backgroundColor: "#2a3a5c" }} />
-        <button data-tour="ranks-shame" aria-pressed={tab === "shame"} onClick={() => setTab("shame")} className="flex-1 flex flex-col items-center justify-center gap-1 py-3" style={{ backgroundColor: tab === "shame" ? "#1a0a10" : "#0a0e1a", border: "none", borderBottom: tab === "shame" ? "4px solid #ff2d55" : "4px solid transparent", cursor: "pointer" }}>
-          <IconSkull size={16} color={tab === "shame" ? "#ff2d55" : "#2a3a5c"} />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: tab === "shame" ? "#ff2d55" : "#2a3a5c" }}>{t("HALL OF SHAME")}</div>
+        <div style={{ width: 4, backgroundColor: "var(--border)" }} />
+        <button data-tour="ranks-shame" aria-pressed={tab === "shame"} onClick={() => setTab("shame")} className="flex-1 flex flex-col items-center justify-center gap-1 py-3" style={{ backgroundColor: tab === "shame" ? "color-mix(in srgb, var(--red) 8%, var(--background))" : "var(--background)", border: "none", borderBottom: tab === "shame" ? "4px solid var(--red)" : "4px solid transparent", cursor: "pointer" }}>
+          <IconSkull size={16} color={tab === "shame" ? "var(--red)" : "var(--border)"} />
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: tab === "shame" ? "var(--red)" : "var(--border)" }}>{t("HALL OF SHAME")}</div>
         </button>
       </div>
       {tab === "fame" ? <FameBoard onPlayWithOthers={onPlayWithOthers} /> : <ShameBoard onPlayWithOthers={onPlayWithOthers} />}
@@ -33,9 +34,9 @@ export function LeaderboardScreen({ onPlayWithOthers }: { onPlayWithOthers: () =
 function PlayWithOthersPanel({ onPlayWithOthers }: { onPlayWithOthers: () => void }) {
   const t = useT();
   return (
-    <div className="px-3 py-4 flex flex-col items-center gap-3" style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c" }}>
-      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>{t("PLAY WITH OTHERS TO COMPARE")}</div>
-      <PixelButton onClick={onPlayWithOthers} color="#4ecdc4" textColor="#0a0e1a" size="sm">{t("+ CREATE OR JOIN A HOUSE")}</PixelButton>
+    <div className="px-3 py-4 flex flex-col items-center gap-3" style={{ backgroundColor: "var(--card)", border: "3px solid var(--border)" }}>
+      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)" }}>{t("PLAY WITH OTHERS TO COMPARE")}</div>
+      <PixelButton onClick={onPlayWithOthers} color="var(--teal-fill)" textColor="var(--on-fill)" size="sm">{t("+ CREATE OR JOIN A HOUSE")}</PixelButton>
     </div>
   );
 }
@@ -47,25 +48,25 @@ function FameBoard({ onPlayWithOthers }: { onPlayWithOthers: () => void }) {
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
-      <div className="mx-4 mt-3 px-3 py-3 flex items-center gap-3" style={{ backgroundColor: "rgba(0,255,136,0.08)", border: "3px solid #00ff88" }}>
+      <div className="mx-4 mt-3 px-3 py-3 flex items-center gap-3" style={{ backgroundColor: "color-mix(in srgb, var(--green-fill) 8%, transparent)", border: "3px solid var(--green)" }}>
         <PixelMascot size={28} />
         <div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#00ff88", marginBottom: 4 }}>{t("TRAINING PROGRESS")}</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#8da4b8", lineHeight: 1.5 }}>{t("Ranks celebrate safe practice in your house.")}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--green)", marginBottom: 4 }}>{t("TRAINING PROGRESS")}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)", lineHeight: 1.5 }}>{t("Ranks celebrate safe practice in your house.")}</div>
         </div>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2" style={{ scrollbarWidth: "none" }}>
         {board.map(({ rank, member: m }) => (
-          <div key={m.id} className="flex items-center gap-3 px-3 py-3" style={{ backgroundColor: "#111827", border: `3px solid ${rank <= 3 ? ["#ffe66d", "#c0c0c0", "#cd7f32"][rank - 1] : "#2a3a5c"}`, boxShadow: rank <= 3 ? `3px 3px 0px ${["#ffe66d", "#c0c0c0", "#cd7f32"][rank - 1]}` : "none" }}>
+          <div key={m.id} className="flex items-center gap-3 px-3 py-3" style={{ backgroundColor: "var(--card)", border: `3px solid ${rank <= 3 ? ["var(--yellow)", "#c0c0c0", "#cd7f32"][rank - 1] : "var(--border)"}`, boxShadow: rank <= 3 ? `3px 3px 0px ${["var(--yellow)", "#c0c0c0", "#cd7f32"][rank - 1]}` : "none" }}>
             <div className="flex items-center justify-center" style={{ width: 28 }}>
-              {rank <= 3 ? <IconMedal rank={rank} size={20} /> : <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8" }}>#{rank}</div>}
+              {rank <= 3 ? <IconMedal rank={rank} size={20} /> : <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--soft-foreground)" }}>#{rank}</div>}
             </div>
             <MemberChar member={m} size={28} />
             <div className="flex-1">
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#e8f4f8" }}>{m.name}</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8", marginTop: 2 }}>{t("{wins} WINS · LVL {level}", { wins: m.timesSafe, level: m.level })}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--foreground)" }}>{m.name}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)", marginTop: 2 }}>{t("{wins} WINS · LVL {level}", { wins: m.timesSafe, level: m.level })}</div>
             </div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#4ecdc4" }}>{m.xp} XP</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--teal)" }}>{m.xp} XP</div>
           </div>
         ))}
         {members.length < 2 && <PlayWithOthersPanel onPlayWithOthers={onPlayWithOthers} />}
@@ -82,32 +83,32 @@ function ShameBoard({ onPlayWithOthers }: { onPlayWithOthers: () => void }) {
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
-      <div className="mx-4 mt-3 px-3 py-2 flex items-center gap-2" style={{ backgroundColor: "rgba(255,45,85,0.08)", border: "3px solid #ff2d55" }}>
-        <IconWarning size={12} color="#ff2d55" />
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff2d55" }}>{t("SCAMMED THIS WEEK")}</div>
+      <div className="mx-4 mt-3 px-3 py-2 flex items-center gap-2" style={{ backgroundColor: "color-mix(in srgb, var(--red-fill) 8%, transparent)", border: "3px solid var(--red)" }}>
+        <IconWarning size={12} color="var(--red)" />
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--red)" }}>{t("SCAMMED THIS WEEK")}</div>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2" style={{ scrollbarWidth: "none" }}>
         {board.length === 0 && (
-          <div className="py-8 text-center" style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#00ff88" }}>
+          <div className="py-8 text-center" style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--green)" }}>
             {t("NOBODY SCAMMED THIS WEEK. KEEP IT THAT WAY.")}
           </div>
         )}
         {board.map((m, i) => {
           const isYou = m.id === selfId;
-          const shameColors = ["#ff2d55", "#ff2d55", "#ff2d55", "#ff6b35", "#ff6b35", "#ff6b35", "#ffe66d", "#ffe66d"];
-          const rowColor = shameColors[i] ?? "#2a3a5c";
+          const shameColors = ["var(--red)", "var(--red)", "var(--red)", "var(--orange)", "var(--orange)", "var(--orange)", "var(--yellow)", "var(--yellow)"];
+          const rowColor = shameColors[i] ?? "var(--border)";
           return (
-            <div key={m.id} className="flex items-center gap-3 px-3 py-3" style={{ backgroundColor: isYou ? "rgba(255,107,53,0.08)" : "#111827", border: `3px solid ${isYou ? "#ff6b35" : rowColor}`, boxShadow: i < 3 ? `3px 3px 0px ${rowColor}` : "none" }}>
+            <div key={m.id} className="flex items-center gap-3 px-3 py-3" style={{ backgroundColor: isYou ? "color-mix(in srgb, var(--orange-fill) 8%, transparent)" : "var(--card)", border: `3px solid ${isYou ? "var(--orange)" : rowColor}`, boxShadow: i < 3 ? `3px 3px 0px ${rowColor}` : "none" }}>
               <div className="flex items-center justify-center" style={{ width: 28 }}>
-                {i < 3 ? <IconSkull size={18} color={rowColor} /> : <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8" }}>#{i + 1}</div>}
+                {i < 3 ? <IconSkull size={18} color={rowColor} /> : <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--soft-foreground)" }}>#{i + 1}</div>}
               </div>
               <MemberChar member={m} size={28} />
               <div className="flex-1">
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: isYou ? "#ff6b35" : "#e8f4f8" }}>{isYou ? t("YOU") : m.name}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: isYou ? "var(--orange)" : "var(--foreground)" }}>{isYou ? t("YOU") : m.name}</div>
               </div>
               <div className="flex flex-col items-end gap-1">
                 <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: rowColor }}>{m.timesScammed}x</div>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>{t("SCAMMED")}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)" }}>{t("SCAMMED")}</div>
               </div>
             </div>
           );
@@ -122,22 +123,22 @@ function LearningBoard() {
   const t = useT();
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
-      <div className="mx-4 mt-3 px-3 py-3 flex items-center gap-3" style={{ backgroundColor: "rgba(255,107,53,0.08)", border: "3px solid #ff6b35" }}>
-        <IconBulb size={18} color="#ffe66d" />
+      <div className="mx-4 mt-3 px-3 py-3 flex items-center gap-3" style={{ backgroundColor: "color-mix(in srgb, var(--orange-fill) 8%, transparent)", border: "3px solid var(--orange)" }}>
+        <IconBulb size={18} color="var(--yellow)" />
         <div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ff6b35", marginBottom: 4 }}>{t("SAFETY HABITS")}</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#8da4b8", lineHeight: 1.5 }}>{t("A missed drill is private. Use it to practise the next response—never to rank or shame someone.")}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--orange)", marginBottom: 4 }}>{t("SAFETY HABITS")}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)", lineHeight: 1.5 }}>{t("A missed drill is private. Use it to practise the next response—never to rank or shame someone.")}</div>
         </div>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2" style={{ scrollbarWidth: "none" }}>
         {SAFETY_TIPS.map((tip) => (
-          <div key={tip.title} className="flex items-start gap-3 px-3 py-3" style={{ backgroundColor: "#111827", border: `3px solid ${tip.color}` }}>
-            <div className="flex items-center justify-center" style={{ width: 28, height: 28, flexShrink: 0, backgroundColor: `${tip.color}18`, border: `2px solid ${tip.color}`, fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: tip.color }}>
+          <div key={tip.title} className="flex items-start gap-3 px-3 py-3" style={{ backgroundColor: "var(--card)", border: `3px solid ${ink(tip.color)}` }}>
+            <div className="flex items-center justify-center" style={{ width: 28, height: 28, flexShrink: 0, backgroundColor: `${tint(tip.color, 9)}`, border: `2px solid ${ink(tip.color)}`, fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: ink(tip.color) }}>
               {tip.num}
             </div>
             <div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: tip.color, marginBottom: 5 }}>{t(tip.title)}</div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#b4c6d4", lineHeight: 1.5 }}>{t(tip.text)}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: ink(tip.color), marginBottom: 5 }}>{t(tip.title)}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--soft-foreground)", lineHeight: 1.5 }}>{t(tip.text)}</div>
             </div>
           </div>
         ))}

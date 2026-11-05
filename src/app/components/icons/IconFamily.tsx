@@ -1,5 +1,5 @@
 /** Two grown-ups and a child: opens the house page. */
-export function IconFamily({ size = 20, color = "#00d4ff" }: { size?: number; color?: string }) {
+export function IconFamily({ size = 20, color = "var(--cyan)" }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 14 12" style={{ imageRendering: "pixelated", display: "block" }}>
       {/* left adult */}

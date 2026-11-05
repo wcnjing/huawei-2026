@@ -4,9 +4,10 @@ import { furnitureAnchor, type RoomLayout } from "../../types/roomLayout";
 import { SHOP_CATALOGUE, SHOP_CATEGORIES, DECOR_TYPES, filterShopItems, type ShopItem, type ShopCategory, type DecorType } from "../../data/shopCatalogue";
 import { ShopFurnitureArt, purchasedFurniture } from "../../components/furniture";
 import { IconCoin, IconHouse } from "../../components/icons";
-import { PixelButton } from "../../components/ui";
+import { PixelButton, PixelSelect } from "../../components/ui";
 import { RoomBackdrop, RoomFurnitureLayer } from "../../components/room";
 import { useMemberMap } from "../../hooks/useMembers";
+import { ink } from "../../utils/color";
 
 export function ShopScreen({
   activeMemberId, coins, purchasedItems, layout, onBuy, onArrange,
@@ -41,12 +42,12 @@ export function ShopScreen({
 
   return (
     <div data-tour="store-page" className="flex flex-col h-full">
-      <div style={{ padding: "10px 12px", backgroundColor: "#0a0e1a", borderBottom: `4px solid ${member.primaryColor}`, flexShrink: 0 }}>
+      <div style={{ padding: "10px 12px", backgroundColor: "var(--background)", borderBottom: `4px solid ${ink(member.primaryColor)}`, flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8" }}>{t("YOUR COINS")}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--soft-foreground)" }}>{t("YOUR COINS")}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <IconCoin size={12} color={memberCoins < 0 ? "#ff2d55" : "#ffe66d"} />
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: memberCoins < 0 ? "#ff2d55" : "#ffe66d" }}>
+            <IconCoin size={12} color={memberCoins < 0 ? "var(--red)" : "var(--yellow)"} />
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: memberCoins < 0 ? "var(--red)" : "var(--yellow)" }}>
               {memberCoins < 0 ? "-" : ""}{Math.abs(memberCoins)}
             </div>
           </div>
@@ -57,18 +58,19 @@ export function ShopScreen({
         <div style={{ padding: "14px 14px 4px" }}>
           {/* Virtual house preview */}
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-            <IconHouse size={12} color={member.primaryColor} />
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: member.primaryColor }}>
+            <IconHouse size={12} color={ink(member.primaryColor)} />
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: ink(member.primaryColor) }}>
               {t("{name}'S ROOM PREVIEW", { name: member.name })}
             </div>
           </div>
           <div
+            data-theme="dark"
             style={{
               width: "100%",
               height: 132,
               backgroundColor: member.roomBg,
-              border: `3px solid ${member.primaryColor}`,
-              boxShadow: `3px 3px 0 ${member.primaryColor}`,
+              border: `3px solid ${ink(member.primaryColor)}`,
+              boxShadow: `3px 3px 0 ${ink(member.primaryColor)}`,
               position: "relative",
               overflow: "hidden",
               marginBottom: 14,
@@ -79,33 +81,34 @@ export function ShopScreen({
               <RoomFurnitureLayer items={purchasedFurniture(owned)} layout={layout} />
             </div>
             {owned.length === 0 && (
-              <div style={{ position: "absolute", bottom: 28, left: 12, right: 12, textAlign: "center", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8" }}>
+              <div style={{ position: "absolute", bottom: 28, left: 12, right: 12, textAlign: "center", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)" }}>
                 {t("BUY FURNITURE TO FILL THIS ROOM")}
               </div>
             )}
             {/* Item count badge */}
-            <div style={{ position: "absolute", top: 6, right: 6, backgroundColor: "#0a0e1a", border: `2px solid ${member.primaryColor}`, padding: "2px 5px" }}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: member.primaryColor }}>
+            <div style={{ position: "absolute", top: 6, right: 6, backgroundColor: "var(--background)", border: `2px solid ${ink(member.primaryColor)}`, padding: "2px 5px" }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: ink(member.primaryColor) }}>
                 {owned.length === 1 ? t("{count} SHOP ITEM", { count: owned.length }) : t("{count} SHOP ITEMS", { count: owned.length })}
               </div>
             </div>
           </div>
 
           {owned.length > 0 && <div style={{ marginBottom: 14 }}>
-            <PixelButton onClick={onArrange} color="#4ecdc4" textColor="#0a0e1a" size="md" full>{t("ARRANGE ROOM")}</PixelButton>
+            <PixelButton onClick={onArrange} color="var(--teal-fill)" textColor="var(--on-fill)" size="md" full>{t("ARRANGE ROOM")}</PixelButton>
           </div>}
-          <label htmlFor="shop-category" style={{ display: 'block', color: '#c77dff', fontSize: 'var(--text-label)', marginBottom: 8 }}>{t("SHOP BY TYPE")}</label>
-          <select id="shop-category" value={category} onChange={event => { setCategory(event.target.value as ShopCategory | 'all'); setDecorType('all'); }}
-            style={{ width: '100%', minHeight: 48, background: '#111827', color: '#e8f4f8', border: '2px solid #506180', padding: '10px', fontFamily: 'inherit', fontSize: 'var(--text-body)', marginBottom: 14 }}>
+          <label htmlFor="shop-category" style={{ display: 'block', color: 'var(--violet)', fontSize: 'var(--text-label)', marginBottom: 8 }}>{t("SHOP BY TYPE")}</label>
+          <PixelSelect id="shop-category" value={category} onChange={event => { setCategory(event.target.value as ShopCategory | 'all'); setDecorType('all'); }}
+            containerStyle={{ display: 'flex', width: '100%', marginBottom: 14 }} chevronColor="var(--violet)"
+            style={{ minHeight: 48, background: 'var(--card)', color: 'var(--foreground)', border: '2px solid var(--border-strong)', padding: '10px 38px 10px 10px', fontFamily: 'inherit', fontSize: 'var(--text-body)' }}>
             <option value="all">{t("All furniture ({count})", { count: SHOP_CATALOGUE.length })}</option>
             {SHOP_CATEGORIES.map(option => <option key={option.id} value={option.id}>{t(option.name)} ({SHOP_CATALOGUE.filter(item => item.category === option.id).length})</option>)}
-          </select>
+          </PixelSelect>
           {category === 'decor' && <fieldset style={{ border: 0, padding: 0, margin: '0 0 16px', minWidth: 0 }}>
-            <legend style={{ color: '#a8bbcf', fontSize: 'var(--text-label)', marginBottom: 8 }}>{t("Decor type")}</legend>
+            <legend style={{ color: 'var(--soft-foreground)', fontSize: 'var(--text-label)', marginBottom: 8 }}>{t("Decor type")}</legend>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {[{ id: 'all', name: t('All decor') }, ...DECOR_TYPES.map(option => ({ ...option, name: t(option.name) }))].map(option => <button type="button" key={option.id}
                 aria-pressed={decorType === option.id} onClick={() => setDecorType(option.id as DecorType | 'all')}
-                style={{ minHeight: 44, padding: '8px 10px', font: 'inherit', fontSize: 'var(--text-label)', cursor: 'pointer', border: `2px solid ${decorType === option.id ? '#c77dff' : '#506180'}`, background: decorType === option.id ? '#39214e' : '#111827', color: '#e8f4f8' }}>
+                style={{ minHeight: 44, padding: '8px 10px', font: 'inherit', fontSize: 'var(--text-label)', cursor: 'pointer', border: `2px solid ${decorType === option.id ? 'var(--violet)' : 'var(--border-strong)'}`, background: decorType === option.id ? 'color-mix(in srgb, var(--violet) 22%, var(--background))' : 'var(--card)', color: 'var(--foreground)' }}>
                 {option.name}
               </button>)}
             </div>
@@ -121,13 +124,13 @@ export function ShopScreen({
                   onClick={() => setFilter(f)}
                   style={{
                     padding: "6px 10px", minHeight: 44,
-                    backgroundColor: active ? "#ffe66d" : "#111827",
-                    border: `2px solid ${active ? "#ffe66d" : "#2a3a5c"}`,
-                    boxShadow: active ? "2px 2px 0 #0a0e1a" : "none",
+                    backgroundColor: active ? "var(--yellow-fill)" : "var(--card)",
+                    border: `2px solid ${active ? "var(--yellow)" : "var(--border)"}`,
+                    boxShadow: active ? "2px 2px 0 var(--outline)" : "none",
                     cursor: "pointer",
                     fontFamily: "'Share Tech Mono', monospace",
                     fontSize: "var(--text-caption)",
-                    color: active ? "#0a0e1a" : "#a8bbcf",
+                    color: active ? "var(--on-fill)" : "var(--soft-foreground)",
                   }}
                 >
                   {t(f)}
@@ -136,7 +139,7 @@ export function ShopScreen({
             })}
           </div>
 
-          <div role="status" style={{ color: '#a8bbcf', fontSize: 'var(--text-label)', marginBottom: 12 }}>
+          <div role="status" style={{ color: 'var(--soft-foreground)', fontSize: 'var(--text-label)', marginBottom: 12 }}>
             {filtered.length === 1 ? t('{count} item', { count: filtered.length }) : t('{count} items', { count: filtered.length })} · {category === 'all' ? t('All furniture') : t(SHOP_CATEGORIES.find(option => option.id === category)?.name ?? '')}
             {category === 'decor' && decorType !== 'all' && ` · ${t(DECOR_TYPES.find(option => option.id === decorType)?.name ?? '')}`}
           </div>
@@ -144,28 +147,28 @@ export function ShopScreen({
           {/* Catalogue grid */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10, paddingBottom: 16 }}>
             {filtered.length === 0 && (
-              <div style={{ gridColumn: "1 / -1", padding: "24px 0", textAlign: "center", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8" }}>
+              <div style={{ gridColumn: "1 / -1", padding: "24px 0", textAlign: "center", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--soft-foreground)" }}>
                 <p>{category !== 'all' && !SHOP_CATALOGUE.some(item => item.category === category)
                   ? t('No furniture in this category yet.')
                   : filter === 'OWNED' ? t('You don’t own any furniture in this category yet.')
                   : filter === 'AFFORDABLE' ? t('No unowned items in this category fit your balance.') : t('No matching furniture.')}</p>
                 <button onClick={() => { setCategory('all'); setDecorType('all'); setFilter('ALL'); }}
-                  style={{ marginTop: 12, minHeight: 44, padding: '8px 12px', border: '2px solid #4ecdc4', background: '#111827', color: '#4ecdc4', font: 'inherit', cursor: 'pointer' }}>{t('Browse all furniture')}</button>
+                  style={{ marginTop: 12, minHeight: 44, padding: '8px 12px', border: '2px solid var(--teal)', background: 'var(--card)', color: 'var(--teal)', font: 'inherit', cursor: 'pointer' }}>{t('Browse all furniture')}</button>
               </div>
             )}
             {filtered.map(item => {
               const isOwned = owned.includes(item.id);
               const affordable = memberCoins >= item.cost;
               const bought = justBought === item.id;
-              const borderColor = isOwned ? "#4ecdc4" : (affordable ? "#ffe66d" : "#2a3a5c");
+              const borderColor = isOwned ? "var(--teal)" : (affordable ? "var(--yellow)" : "var(--border)");
               return (
                 <div
                   key={item.id}
                   data-shop-item={item.id}
                   style={{
-                    backgroundColor: "#111827",
+                    backgroundColor: "var(--card)",
                     border: `3px solid ${borderColor}`,
-                    boxShadow: isOwned ? "3px 3px 0 #4ecdc4" : (affordable ? "3px 3px 0 #ffe66d" : "none"),
+                    boxShadow: isOwned ? "3px 3px 0 var(--teal)" : (affordable ? "3px 3px 0 var(--yellow)" : "none"),
                     padding: "12px 10px",
                     position: "relative",
                     display: "flex",
@@ -175,25 +178,25 @@ export function ShopScreen({
                   }}
                 >
                   {isOwned && (
-                    <div style={{ alignSelf: "flex-end", backgroundColor: "#4ecdc4", padding: "2px 4px" }}>
-                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#0a0e1a" }}>{t("OWNED")}</div>
+                    <div style={{ alignSelf: "flex-end", backgroundColor: "var(--teal-fill)", padding: "2px 4px" }}>
+                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--on-fill)" }}>{t("OWNED")}</div>
                     </div>
                   )}
                   <div style={{ height: 84, width: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <ShopFurnitureArt art={item.art} size={98} anchor={furnitureAnchor(item.id)} />
                   </div>
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#e8f4f8", textAlign: "center", lineHeight: 1.4 }}>
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--foreground)", textAlign: "center", lineHeight: 1.4 }}>
                     {t(item.name)}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <IconCoin size={10} color={isOwned ? "#6b8ba4" : "#ffe66d"} />
-                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: isOwned ? "#6b8ba4" : "#ffe66d" }}>
+                    <IconCoin size={10} color={isOwned ? "var(--muted-foreground)" : "var(--yellow)"} />
+                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: isOwned ? "var(--muted-foreground)" : "var(--yellow)" }}>
                       {item.cost.toLocaleString()}
                     </div>
                   </div>
                   {isOwned ? (
-                    <div style={{ width: "100%", padding: "5px 0", textAlign: "center", backgroundColor: "#0d1525", border: "2px solid #4ecdc4" }}>
-                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#4ecdc4" }}>{t("IN ROOM")}</div>
+                    <div style={{ width: "100%", padding: "5px 0", textAlign: "center", backgroundColor: "var(--surface)", border: "2px solid var(--teal)" }}>
+                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--teal)" }}>{t("IN ROOM")}</div>
                     </div>
                   ) : (
                     <button
@@ -203,12 +206,12 @@ export function ShopScreen({
                         width: "100%",
                         padding: "5px 0",
                         cursor: affordable ? "pointer" : "not-allowed",
-                        backgroundColor: bought ? "#00ff88" : (affordable ? "#ffe66d" : "#0d1525"),
-                        border: `2px solid ${affordable ? "#ffe66d" : "#2a3a5c"}`,
-                        boxShadow: affordable && !bought ? "2px 2px 0 #0a0e1a" : "none",
+                        backgroundColor: bought ? "var(--green-fill)" : (affordable ? "var(--yellow-fill)" : "var(--surface)"),
+                        border: `2px solid ${affordable ? "var(--yellow)" : "var(--border)"}`,
+                        boxShadow: affordable && !bought ? "2px 2px 0 var(--outline)" : "none",
                       }}
                     >
-                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: bought ? "#0a0e1a" : (affordable ? "#0a0e1a" : "#6b8ba4") }}>
+                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: bought ? "var(--on-fill)" : (affordable ? "var(--on-fill)" : "var(--muted-foreground)") }}>
                         {bought ? t("BOUGHT!") : (affordable ? t("BUY") : t("NOT ENOUGH"))}
                       </div>
                     </button>

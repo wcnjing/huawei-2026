@@ -18,18 +18,18 @@ export function PhoneFrame({ children }: { children: React.ReactNode }) {
   }, []);
 
   const inner: React.CSSProperties = compact
-    ? { width: "100%", height: "100dvh", backgroundColor: "#0a0e1a" }
+    ? { width: "100%", height: "100dvh", backgroundColor: "var(--background)" }
     : {
         width: "min(390px, 100vw)",
         height: "min(844px, 100dvh)",
-        backgroundColor: "#0a0e1a",
-        border: "6px solid #2a3a5c",
-        boxShadow: "8px 8px 0px #000, 0 0 40px rgba(0,255,136,0.15)",
+        backgroundColor: "var(--background)",
+        border: "6px solid var(--border)",
+        boxShadow: "8px 8px 0px var(--shadow-pixel), 0 0 calc(40px * var(--glow)) color-mix(in srgb, var(--green) 15%, transparent)",
       };
 
   return (
     <div
-      className="flex items-center justify-center w-full bg-[#05080f]"
+      className="flex items-center justify-center w-full bg-[var(--page-backdrop)]"
       style={{ height: compact ? "100dvh" : undefined, minHeight: compact ? undefined : "100vh" }}
     >
       {/* One delegated listener instead of wiring sound into a button component.

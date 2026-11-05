@@ -63,29 +63,29 @@ export function HouseDrillInvite({ drill, selfId, suppressed, onApply, onOpen }:
     : myTurn ? t("Your question is waiting in the house drill.") : t("Your house drill is on. Head back to see whose turn it is.");
 
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby="house-drill-invite-title" style={{ position: "fixed", inset: 0, zIndex: 90, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, backgroundColor: "rgba(0,0,0,0.78)" }}>
-      <div style={{ width: "min(340px, 100%)", backgroundColor: "#0d1526", border: "4px solid #00ff88", boxShadow: "6px 6px 0 #006633", padding: "18px 16px" }}>
+    <div role="dialog" aria-modal="true" aria-labelledby="house-drill-invite-title" style={{ position: "fixed", inset: 0, zIndex: 90, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, backgroundColor: "var(--scrim)" }}>
+      <div style={{ width: "min(340px, 100%)", backgroundColor: "var(--surface)", border: "4px solid var(--green)", boxShadow: "6px 6px 0 color-mix(in srgb, var(--green) 40%, var(--background))", padding: "18px 16px" }}>
         <div className="flex items-center gap-2" style={{ marginBottom: 12 }}>
-          <IconShield size={16} color="#00ff88" />
-          <div id="house-drill-invite-title" style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "var(--text-body)", color: "#00ff88", lineHeight: 1.5 }}>{title}</div>
+          <IconShield size={16} color="var(--green)" />
+          <div id="house-drill-invite-title" style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "var(--text-body)", color: "var(--green)", lineHeight: 1.5 }}>{title}</div>
         </div>
-        <div style={{ fontFamily: MONO, fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.6, marginBottom: 8 }}>{body}</div>
+        <div style={{ fontFamily: MONO, fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.6, marginBottom: 8 }}>{body}</div>
         {inviteOpen && (
-          <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: "#ffe66d", marginBottom: 14 }}>
+          <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: "var(--yellow)", marginBottom: 14 }}>
             {t("Invite closes in {time}", { time: `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}` })}
           </div>
         )}
-        {error && <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: "#ff2d55", marginBottom: 10 }}>{t(error)}</div>}
+        {error && <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: "var(--red)", marginBottom: 10 }}>{t(error)}</div>}
         <div className="flex flex-col gap-3" style={{ marginTop: 6 }}>
           {inviteOpen ? (
             <>
-              <PixelButton onClick={() => void respond(true)} disabled={busy} color="#00ff88" textColor="#0a0e1a" size="md" full>{t("[ JOIN ]")}</PixelButton>
-              <PixelButton onClick={() => void respond(false)} disabled={busy} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>{t("[ NOT NOW ]")}</PixelButton>
+              <PixelButton onClick={() => void respond(true)} disabled={busy} color="var(--green-fill)" textColor="var(--on-fill)" size="md" full>{t("[ JOIN ]")}</PixelButton>
+              <PixelButton onClick={() => void respond(false)} disabled={busy} color="var(--border)" textColor="var(--foreground)" size="sm" full>{t("[ NOT NOW ]")}</PixelButton>
             </>
           ) : (
             <>
-              <PixelButton onClick={() => { dismiss(); onOpen(); }} color="#00ff88" textColor="#0a0e1a" size="md" full>{t("[ GO TO DRILL ]")}</PixelButton>
-              <PixelButton onClick={dismiss} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>{t("[ LATER ]")}</PixelButton>
+              <PixelButton onClick={() => { dismiss(); onOpen(); }} color="var(--green-fill)" textColor="var(--on-fill)" size="md" full>{t("[ GO TO DRILL ]")}</PixelButton>
+              <PixelButton onClick={dismiss} color="var(--border)" textColor="var(--foreground)" size="sm" full>{t("[ LATER ]")}</PixelButton>
             </>
           )}
         </div>

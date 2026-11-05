@@ -1,7 +1,26 @@
 <!DOCTYPE html>
-<html lang="en">
+<!--
+  data-palette picks the light theme's colours: "mist" (default), "paper" or "dusk".
+  See src/styles/tokens.css. Add ?palette=paper to the address to preview one in light mode.
+-->
+<html lang="en" data-palette="mist">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Apply the saved theme before the app paints, so a light-theme player never sees a dark flash.
+      (function () {
+        var root = document.documentElement;
+        try {
+          root.dataset.theme = localStorage.getItem("safespace_theme") === "light" ? "light" : "dark";
+          var preview = new URLSearchParams(location.search).get("palette");
+          if (preview) sessionStorage.setItem("safespace_palette_preview", preview);
+          var palette = sessionStorage.getItem("safespace_palette_preview");
+          if (palette) { root.dataset.palette = palette; root.dataset.theme = "light"; }
+        } catch (e) {
+          root.dataset.theme = "dark";
+        }
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SafeSpace Drill Mode</title>
     <meta
@@ -33,7 +52,7 @@
       }
 
       body {
-        background: #05080f;
+        background: var(--page-backdrop, #05080f);
       }
     </style>
   </head>

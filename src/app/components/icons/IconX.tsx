@@ -1,4 +1,4 @@
-export function IconX({ size = 16, color = "#ff2d55" }: { size?: number; color?: string }) {
+export function IconX({ size = 16, color = "var(--red)" }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 8 8" style={{ imageRendering: "pixelated", display: "block" }}>
       <rect x={1} y={1} width={1} height={1} fill={color} />
