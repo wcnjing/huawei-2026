@@ -39,7 +39,7 @@ export function PresurveyScreen({ preferences, onSave, onBack, onboarding = fals
   };
   const chip = (label: string, selected: boolean, action: () => void) => (
     <button key={label} type="button" aria-pressed={selected} onClick={action}
-      style={{ minHeight: 44, padding: "9px 10px", border: `2px solid ${selected ? "var(--teal)" : "var(--border)"}`, background: selected ? "color-mix(in srgb, var(--teal) 18%, var(--background))" : "var(--card)", color: selected ? "var(--foreground)" : "var(--soft-foreground)", fontFamily: mono, fontSize: "var(--text-body)", lineHeight: 1.5, textAlign: "left", cursor: "pointer" }}>
+      style={{ minHeight: 44, padding: "9px 10px", border: `2px solid ${selected ? "var(--teal-line)" : "var(--border)"}`, background: selected ? "color-mix(in srgb, var(--teal) 18%, var(--background))" : "var(--card)", color: selected ? "var(--foreground)" : "var(--soft-foreground)", fontFamily: mono, fontSize: "var(--text-body)", lineHeight: 1.5, textAlign: "left", cursor: "pointer" }}>
       {selected ? "☑ " : "□ "}{t(label)}
     </button>
   );

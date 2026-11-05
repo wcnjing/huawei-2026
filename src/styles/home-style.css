@@ -17,7 +17,7 @@
   min-width: 66px;
   min-height: 48px;
   padding: 3px;
-  border: 2px solid var(--yellow);
+  border: 2px solid var(--yellow-line);
   background: var(--yellow-fill);
   color: var(--on-fill);
   box-shadow: 2px 2px 0 var(--outline);
@@ -91,7 +91,7 @@
 
 .home-room-tools { display: flex; align-items: center; gap: 6px; }
 .home-room-tools .pixel-button { padding: 6px 8px; font-size: var(--text-caption) !important; }
-.home-room-view:focus-visible { outline: 3px solid var(--teal); outline-offset: -3px; }
+.home-room-view:focus-visible { outline: 3px solid var(--teal-line); outline-offset: -3px; }
 .home-room-open-hint {
   position: absolute;
   right: 10px;
@@ -107,11 +107,11 @@
 }
 
 .house-title-row :focus-visible,
-.app-header-help:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+.app-header-help:focus-visible { outline: 3px solid var(--teal-line); outline-offset: 2px; }
 
 .app-header-help:focus-visible,
 .home-payday-tile:focus-visible {
-  outline: 3px solid var(--teal);
+  outline: 3px solid var(--teal-line);
   outline-offset: 3px;
 }
 

@@ -60,8 +60,8 @@ function Choice({ selected, label, onClick, children }: {
         justifyContent: "center",
         gap: 6,
         background: selected ? "color-mix(in srgb, var(--violet-fill) 13%, transparent)" : "var(--background)",
-        border: `3px solid ${selected ? "var(--violet)" : "var(--border)"}`,
-        boxShadow: selected ? "2px 2px 0 var(--violet)" : "none",
+        border: `3px solid ${selected ? "var(--violet-line)" : "var(--border)"}`,
+        boxShadow: selected ? "2px 2px 0 var(--violet-line)" : "none",
         color: selected ? "var(--foreground-strong)" : "var(--soft-foreground)",
         cursor: "pointer",
       }}
@@ -109,7 +109,7 @@ export function AvatarCustomisationScreen({ avatar, onSave, onBack, onChange, on
               aria-selected={tab === item.id}
               aria-label={item.label}
               onClick={() => setTab(item.id)}
-              style={{ minWidth: 0, padding: "10px 1px", border: "none", borderRight: index < TABS.length - 1 ? "2px solid var(--border)" : "none", borderBottom: tab === item.id ? "4px solid var(--violet)" : "4px solid transparent", background: tab === item.id ? "var(--secondary)" : "transparent", color: tab === item.id ? "var(--foreground-strong)" : "var(--muted-foreground)", fontFamily: mono, fontSize: "var(--text-caption)", lineHeight: 1.2, letterSpacing: -0.2, cursor: "pointer" }}
+              style={{ minWidth: 0, padding: "10px 1px", border: "none", borderRight: index < TABS.length - 1 ? "2px solid var(--border)" : "none", borderBottom: tab === item.id ? "4px solid var(--violet-line)" : "4px solid transparent", background: tab === item.id ? "var(--secondary)" : "transparent", color: tab === item.id ? "var(--foreground-strong)" : "var(--muted-foreground)", fontFamily: mono, fontSize: "var(--text-caption)", lineHeight: 1.2, letterSpacing: -0.2, cursor: "pointer" }}
             >
               {item.short}
             </button>
@@ -132,8 +132,8 @@ export function AvatarCustomisationScreen({ avatar, onSave, onBack, onChange, on
                     height: 52,
                     padding: 5,
                     background: draft.skinTone === tone.id ? "color-mix(in srgb, var(--violet-fill) 13%, transparent)" : "var(--background)",
-                    border: `3px solid ${draft.skinTone === tone.id ? "var(--violet)" : "var(--border)"}`,
-                    boxShadow: draft.skinTone === tone.id ? "2px 2px 0 var(--violet)" : "none",
+                    border: `3px solid ${draft.skinTone === tone.id ? "var(--violet-line)" : "var(--border)"}`,
+                    boxShadow: draft.skinTone === tone.id ? "2px 2px 0 var(--violet-line)" : "none",
                     cursor: "pointer",
                   }}
                 >
@@ -156,7 +156,7 @@ export function AvatarCustomisationScreen({ avatar, onSave, onBack, onChange, on
                     aria-label={color.label}
                     aria-pressed={draft.hairColor === color.id}
                     onClick={() => update({ hairColor: color.id })}
-                    style={{ height: 39, background: color.swatch, border: `4px solid ${draft.hairColor === color.id ? "var(--foreground-strong)" : "var(--outline)"}`, outline: draft.hairColor === color.id ? "2px solid var(--violet)" : "none", cursor: hairEnabled ? "pointer" : "not-allowed" }}
+                    style={{ height: 39, background: color.swatch, border: `4px solid ${draft.hairColor === color.id ? "var(--foreground-strong)" : "var(--outline)"}`, outline: draft.hairColor === color.id ? "2px solid var(--violet-line)" : "none", cursor: hairEnabled ? "pointer" : "not-allowed" }}
                   />
                 ))}
               </div>
@@ -210,7 +210,7 @@ export function AvatarCustomisationScreen({ avatar, onSave, onBack, onChange, on
               <div className="flex gap-3 flex-wrap">
                 {PROFILE_COLORS.map((color) => (
                   <button key={color} type="button" aria-label={`Use ${color} profile colour`} aria-pressed={draft.color === color} onClick={() => update({ color })}
-                    style={{ width: 40, height: 40, backgroundColor: color, border: `4px solid ${draft.color === color ? "var(--foreground-strong)" : "var(--outline)"}`, outline: draft.color === color ? "2px solid var(--violet)" : "none", cursor: "pointer" }} />
+                    style={{ width: 40, height: 40, backgroundColor: color, border: `4px solid ${draft.color === color ? "var(--foreground-strong)" : "var(--outline)"}`, outline: draft.color === color ? "2px solid var(--violet-line)" : "none", cursor: "pointer" }} />
                 ))}
               </div>
             </Section>
@@ -218,7 +218,7 @@ export function AvatarCustomisationScreen({ avatar, onSave, onBack, onChange, on
               <div className="flex gap-3 flex-wrap">
                 {PROFILE_COLORS.map((color) => (
                   <button key={color} type="button" aria-label={`Use ${color} profile glow`} aria-pressed={draft.glow === color} onClick={() => update({ glow: color })}
-                    style={{ width: 40, height: 40, backgroundColor: "var(--card)", border: `4px solid ${draft.glow === color ? "var(--foreground-strong)" : "var(--outline)"}`, boxShadow: `inset 0 0 9px ${color}, 0 0 calc(8px * var(--glow)) ${color}`, outline: draft.glow === color ? "2px solid var(--violet)" : "none", cursor: "pointer" }} />
+                    style={{ width: 40, height: 40, backgroundColor: "var(--card)", border: `4px solid ${draft.glow === color ? "var(--foreground-strong)" : "var(--outline)"}`, boxShadow: `inset 0 0 9px ${color}, 0 0 calc(8px * var(--glow)) ${color}`, outline: draft.glow === color ? "2px solid var(--violet-line)" : "none", cursor: "pointer" }} />
                 ))}
               </div>
             </Section>

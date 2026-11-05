@@ -1,6 +1,6 @@
 export function IconLock({ size = 16, color = "var(--muted-foreground)" }: { size?: number; color?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 8 10" style={{ imageRendering: "pixelated", display: "block" }}>
+    <svg className="px-icon" width={size} height={size} viewBox="0 0 8 10" style={{ imageRendering: "pixelated", display: "block" }}>
       <rect x={2} y={0} width={4} height={1} fill={color} />
       <rect x={1} y={1} width={1} height={2} fill={color} />
       <rect x={6} y={1} width={1} height={2} fill={color} />

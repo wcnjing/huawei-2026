@@ -1,6 +1,6 @@
 export function IconFlame({ size = 24, color = "var(--orange)" }: { size?: number; color?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 10 12" style={{ imageRendering: "pixelated", display: "block" }}>
+    <svg className="px-icon" width={size} height={size} viewBox="0 0 10 12" style={{ imageRendering: "pixelated", display: "block" }}>
       <rect x={3} y={9} width={4} height={3} fill={color} />
       <rect x={2} y={8} width={6} height={2} fill={color} />
       <rect x={1} y={6} width={8} height={3} fill={color} />

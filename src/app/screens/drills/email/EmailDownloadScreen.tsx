@@ -43,7 +43,7 @@ export function EmailDownloadScreen({ onCancel, onComplete }: { activeMemberId: 
         <div style={{ filter: "drop-shadow(0 0 calc(8px * var(--glow)) color-mix(in srgb, var(--violet) 60%, transparent))" }}>
           <IconDownload size={48} color="var(--violet)" />
         </div>
-        <div style={{ width: "100%", backgroundColor: "var(--card)", border: "3px solid var(--violet)", padding: "16px" }}>
+        <div style={{ width: "100%", backgroundColor: "var(--card)", border: "3px solid var(--violet-line)", padding: "16px" }}>
           <div className="flex items-center gap-3 mb-4">
             <IconAttachment size={20} color="var(--violet)" />
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--violet)" }}>Reward_Verification_Form.zip</div>

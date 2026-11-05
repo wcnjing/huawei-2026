@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { PixelMascot } from "../avatars";
 import { PixelButton } from "../ui";
 import { useT } from "../../i18n";
-import { fill, ink } from "../../utils/color";
+import { fill, ink, line } from "../../utils/color";
 
 type TourStep = { target: string | null; actionTarget?: string; frameTarget?: string; scrollTarget?: string; accent: string; title: string; body: string; screen?: "home" | "drill-select" | "leaderboard" | "store"; placement?: "below" | "bottom" };
 
@@ -100,7 +100,7 @@ function SpeechBubble({ step, index, total, onNext, onSkip, onBack, style, inner
           {t(step.title)}
         </div>
       </div>
-      <div style={{ backgroundColor: "var(--card)", border: `4px solid ${ink(step.accent)}`, boxShadow: `4px 4px 0 var(--outline)`, padding: step.target === "drill-page" ? 10 : 14 }}>
+      <div style={{ backgroundColor: "var(--card)", border: `4px solid ${line(step.accent)}`, boxShadow: `4px 4px 0 var(--outline)`, padding: step.target === "drill-page" ? 10 : 14 }}>
         <div style={{ fontFamily: "'Share Tech Mono',monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.5, whiteSpace: "pre-line" }}>
           {t(step.body)}
         </div>
@@ -294,11 +294,11 @@ export function TourOverlay({ onDone, onScreenChange }: { onDone: () => void; on
           </mask>
         </defs>
         <rect width={window.innerWidth} height={window.innerHeight} fill="rgba(4,6,12,0.88)" mask="url(#tour-spotlight-mask)" />
-        {rect && <rect x={rect.left - pad} y={rect.top - pad} width={rect.width + pad * 2} height={rect.height + pad * 2} fill="none" stroke={ink(step.accent)} strokeWidth="3" />}
-        {actionRect && !shameVisited && <rect x={actionRect.left - pad} y={actionRect.top - pad} width={actionRect.width + pad * 2} height={actionRect.height + pad * 2} fill="none" stroke="var(--yellow)" strokeWidth="4" strokeDasharray="8 5">
+        {rect && <rect x={rect.left - pad} y={rect.top - pad} width={rect.width + pad * 2} height={rect.height + pad * 2} fill="none" stroke={line(step.accent)} strokeWidth="3" />}
+        {actionRect && !shameVisited && <rect x={actionRect.left - pad} y={actionRect.top - pad} width={actionRect.width + pad * 2} height={actionRect.height + pad * 2} fill="none" stroke="var(--yellow-line)" strokeWidth="4" strokeDasharray="8 5">
           <animateTransform attributeName="transform" type="translate" values="0 0;0 -4;0 0" dur="0.8s" repeatCount="indefinite" />
         </rect>}
-        {frameRect && <rect x={frameRect.left + frameInset} y={frameRect.top + frameInset} width={Math.max(1, frameRect.width - frameInset * 2)} height={Math.max(1, frameRect.height - frameInset * 2)} fill="none" stroke={ink(step.accent)} strokeWidth="3" />}
+        {frameRect && <rect x={frameRect.left + frameInset} y={frameRect.top + frameInset} width={Math.max(1, frameRect.width - frameInset * 2)} height={Math.max(1, frameRect.height - frameInset * 2)} fill="none" stroke={line(step.accent)} strokeWidth="3" />}
       </svg>
       <SpeechBubble
         step={step} index={index} total={TOUR_STEPS.length}

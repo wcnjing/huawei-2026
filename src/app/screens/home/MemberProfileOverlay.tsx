@@ -7,7 +7,7 @@ import {
   IconFlame, IconLock, IconShield, IconX
 } from "../../components/icons";
 import { useSelfId } from "../../hooks/useSelfId";
-import { fill, ink, tint } from "../../utils/color";
+import { fill, ink, tint, line } from "../../utils/color";
 
 export function MemberProfileOverlay({
   member, onClose, onCustomize, coins, canRemove, onRemove,
@@ -20,7 +20,7 @@ export function MemberProfileOverlay({
   }));
   return (
     <div onClick={onClose} style={{ position: "absolute", inset: 0, zIndex: 100, backgroundColor: "var(--scrim)", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: "var(--background)", border: `4px solid ${ink(member.primaryColor)}`, boxShadow: `0 -6px 0 ${tint(member.primaryColor, 40)}`, maxHeight: "88%", overflowY: "auto", scrollbarWidth: "none", animation: "slideUp 0.2s ease-out" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: "var(--background)", border: `4px solid ${line(member.primaryColor)}`, boxShadow: `0 -6px 0 ${tint(member.primaryColor, 40)}`, maxHeight: "88%", overflowY: "auto", scrollbarWidth: "none", animation: "slideUp 0.2s ease-out" }}>
         <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 4px" }}>
           <div style={{ width: 40, height: 4, backgroundColor: "var(--border)" }} />
         </div>
@@ -45,7 +45,7 @@ export function MemberProfileOverlay({
         </div>
 
         {member.id === selfId && (
-          <div style={{ margin: "12px 16px 0", padding: "10px 12px", backgroundColor: coins < 0 ? "color-mix(in srgb, var(--red-fill) 6%, transparent)" : "color-mix(in srgb, var(--yellow-fill) 6%, transparent)", border: `3px solid ${coins < 0 ? "var(--red)" : "var(--yellow)"}`, display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ margin: "12px 16px 0", padding: "10px 12px", backgroundColor: coins < 0 ? "color-mix(in srgb, var(--red-fill) 6%, transparent)" : "color-mix(in srgb, var(--yellow-fill) 6%, transparent)", border: `3px solid ${coins < 0 ? "var(--red-line)" : "var(--yellow-line)"}`, display: "flex", alignItems: "center", gap: 10 }}>
             <IconCoin size={20} color={coins < 0 ? "var(--red)" : "var(--yellow)"} />
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: coins < 0 ? "var(--red)" : "var(--yellow)" }}>
@@ -61,7 +61,7 @@ export function MemberProfileOverlay({
           </div>
         )}
 
-        <div style={{ margin: "8px 16px 0", padding: "10px 12px", backgroundColor: member.safeThisWeek ? "color-mix(in srgb, var(--green-fill) 6%, transparent)" : "color-mix(in srgb, var(--red-fill) 6%, transparent)", border: `3px solid ${member.safeThisWeek ? "var(--green)" : "var(--red)"}`, display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ margin: "8px 16px 0", padding: "10px 12px", backgroundColor: member.safeThisWeek ? "color-mix(in srgb, var(--green-fill) 6%, transparent)" : "color-mix(in srgb, var(--red-fill) 6%, transparent)", border: `3px solid ${member.safeThisWeek ? "var(--green-line)" : "var(--red-line)"}`, display: "flex", alignItems: "center", gap: 10 }}>
           <IconShield size={20} color={member.safeThisWeek ? "var(--green)" : "var(--red)"} />
           <div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: member.safeThisWeek ? "var(--green)" : "var(--red)" }}>

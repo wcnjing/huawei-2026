@@ -14,7 +14,7 @@ import {
 
 import { useMemberMap } from "../../hooks/useMembers";
 import { useT } from "../../i18n";
-import { ink } from "../../utils/color";
+import { ink, line } from "../../utils/color";
 
 
 export function ProfileScreen({
@@ -57,14 +57,14 @@ export function ProfileScreen({
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
-        <div className="profile-summary mx-4 mt-4" style={{ backgroundColor: "var(--card)", border: "4px solid var(--teal)", boxShadow: "4px 4px 0 var(--teal)", alignItems: "start", padding: "0 14px 16px" }}>
+        <div className="profile-summary mx-4 mt-4" style={{ backgroundColor: "var(--card)", border: "4px solid var(--teal-line)", boxShadow: "4px 4px 0 var(--teal-line)", alignItems: "start", padding: "0 14px 16px" }}>
           <div style={{ minWidth: 68, display: "flex", justifyContent: "center", filter: `drop-shadow(0 0 calc(8px * var(--glow)) ${profile.avatar.glow})`, paddingTop: 16 }}>
             <CharacterAvatar size={104} animate config={profile.avatar} title={`${profile.name}'s character`} />
           </div>
           <div style={{ minWidth: 0, paddingTop: 16 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
               <div style={{ minWidth: 0, overflowWrap: "anywhere", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-title)", color: "var(--foreground-strong)" }}>{profile.name}</div>
-              <button onClick={onEditProfile} style={{ flexShrink: 0, minHeight: 36, background: "none", border: "2px solid var(--teal)", cursor: "pointer", padding: "4px 8px" }}>
+              <button onClick={onEditProfile} style={{ flexShrink: 0, minHeight: 36, background: "none", border: "2px solid var(--teal-line)", cursor: "pointer", padding: "4px 8px" }}>
                 <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--teal)" }}>{t("EDIT")}</div>
               </button>
             </div>
@@ -95,7 +95,7 @@ export function ProfileScreen({
           </div>
           <div className="grid grid-cols-3 gap-3">
             {ACHIEVEMENTS.map((a) => (
-              <div key={a.id} className="flex flex-col items-center gap-2 p-3" style={{ backgroundColor: a.unlocked ? "var(--card)" : "var(--surface)", border: `3px solid ${a.unlocked ? ink(a.color) : "var(--secondary)"}`, boxShadow: a.unlocked ? `3px 3px 0 ${ink(a.color)}` : "none", opacity: a.unlocked ? 1 : 0.45, position: "relative" }}>
+              <div key={a.id} className="flex flex-col items-center gap-2 p-3" style={{ backgroundColor: a.unlocked ? "var(--card)" : "var(--surface)", border: `3px solid ${a.unlocked ? line(a.color) : "var(--secondary)"}`, boxShadow: a.unlocked ? `3px 3px 0 ${line(a.color)}` : "none", opacity: a.unlocked ? 1 : 0.45, position: "relative" }}>
                 {!a.unlocked && <div style={{ position: "absolute", top: 4, right: 4 }}><IconLock size={10} color="var(--border)" /></div>}
                 <IconBadge size={28} color={a.unlocked ? ink(a.color) : "var(--border)"} />
                 <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: a.unlocked ? ink(a.color) : "var(--border)", textAlign: "center", lineHeight: 1.4 }}>{t(a.name)}</div>
@@ -113,7 +113,7 @@ export function ProfileScreen({
           </div>
 
           {/* Coin balance card */}
-          <div style={{ backgroundColor: "var(--card)", border: `4px solid ${memberCoins < 0 ? "var(--red)" : "var(--yellow)"}`, boxShadow: `4px 4px 0 ${memberCoins < 0 ? "var(--red)" : "var(--yellow)"}`, padding: "14px", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ backgroundColor: "var(--card)", border: `4px solid ${memberCoins < 0 ? "var(--red-line)" : "var(--yellow-line)"}`, boxShadow: `4px 4px 0 ${memberCoins < 0 ? "var(--red-line)" : "var(--yellow-line)"}`, padding: "14px", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
             <div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--soft-foreground)", marginBottom: 6 }}>{t("TOTAL COINS")}</div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

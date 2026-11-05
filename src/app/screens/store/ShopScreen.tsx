@@ -7,7 +7,7 @@ import { IconCoin, IconHouse } from "../../components/icons";
 import { PixelButton, PixelSelect } from "../../components/ui";
 import { RoomBackdrop, RoomFurnitureLayer } from "../../components/room";
 import { useMemberMap } from "../../hooks/useMembers";
-import { ink } from "../../utils/color";
+import { ink, line } from "../../utils/color";
 
 export function ShopScreen({
   activeMemberId, coins, purchasedItems, layout, onBuy, onArrange,
@@ -42,7 +42,7 @@ export function ShopScreen({
 
   return (
     <div data-tour="store-page" className="flex flex-col h-full">
-      <div style={{ padding: "10px 12px", backgroundColor: "var(--background)", borderBottom: `4px solid ${ink(member.primaryColor)}`, flexShrink: 0 }}>
+      <div style={{ padding: "10px 12px", backgroundColor: "var(--background)", borderBottom: `4px solid ${line(member.primaryColor)}`, flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--soft-foreground)" }}>{t("YOUR COINS")}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -69,8 +69,8 @@ export function ShopScreen({
               width: "100%",
               height: 132,
               backgroundColor: member.roomBg,
-              border: `3px solid ${ink(member.primaryColor)}`,
-              boxShadow: `3px 3px 0 ${ink(member.primaryColor)}`,
+              border: `3px solid ${line(member.primaryColor)}`,
+              boxShadow: `3px 3px 0 ${line(member.primaryColor)}`,
               position: "relative",
               overflow: "hidden",
               marginBottom: 14,
@@ -86,7 +86,7 @@ export function ShopScreen({
               </div>
             )}
             {/* Item count badge */}
-            <div style={{ position: "absolute", top: 6, right: 6, backgroundColor: "var(--background)", border: `2px solid ${ink(member.primaryColor)}`, padding: "2px 5px" }}>
+            <div style={{ position: "absolute", top: 6, right: 6, backgroundColor: "var(--background)", border: `2px solid ${line(member.primaryColor)}`, padding: "2px 5px" }}>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: ink(member.primaryColor) }}>
                 {owned.length === 1 ? t("{count} SHOP ITEM", { count: owned.length }) : t("{count} SHOP ITEMS", { count: owned.length })}
               </div>
@@ -108,7 +108,7 @@ export function ShopScreen({
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {[{ id: 'all', name: t('All decor') }, ...DECOR_TYPES.map(option => ({ ...option, name: t(option.name) }))].map(option => <button type="button" key={option.id}
                 aria-pressed={decorType === option.id} onClick={() => setDecorType(option.id as DecorType | 'all')}
-                style={{ minHeight: 44, padding: '8px 10px', font: 'inherit', fontSize: 'var(--text-label)', cursor: 'pointer', border: `2px solid ${decorType === option.id ? 'var(--violet)' : 'var(--border-strong)'}`, background: decorType === option.id ? 'color-mix(in srgb, var(--violet) 22%, var(--background))' : 'var(--card)', color: 'var(--foreground)' }}>
+                style={{ minHeight: 44, padding: '8px 10px', font: 'inherit', fontSize: 'var(--text-label)', cursor: 'pointer', border: `2px solid ${decorType === option.id ? 'var(--violet-line)' : 'var(--border-strong)'}`, background: decorType === option.id ? 'color-mix(in srgb, var(--violet) 22%, var(--background))' : 'var(--card)', color: 'var(--foreground)' }}>
                 {option.name}
               </button>)}
             </div>
@@ -125,7 +125,7 @@ export function ShopScreen({
                   style={{
                     padding: "6px 10px", minHeight: 44,
                     backgroundColor: active ? "var(--yellow-fill)" : "var(--card)",
-                    border: `2px solid ${active ? "var(--yellow)" : "var(--border)"}`,
+                    border: `2px solid ${active ? "var(--yellow-line)" : "var(--border)"}`,
                     boxShadow: active ? "2px 2px 0 var(--outline)" : "none",
                     cursor: "pointer",
                     fontFamily: "'Share Tech Mono', monospace",
@@ -153,14 +153,14 @@ export function ShopScreen({
                   : filter === 'OWNED' ? t('You don’t own any furniture in this category yet.')
                   : filter === 'AFFORDABLE' ? t('No unowned items in this category fit your balance.') : t('No matching furniture.')}</p>
                 <button onClick={() => { setCategory('all'); setDecorType('all'); setFilter('ALL'); }}
-                  style={{ marginTop: 12, minHeight: 44, padding: '8px 12px', border: '2px solid var(--teal)', background: 'var(--card)', color: 'var(--teal)', font: 'inherit', cursor: 'pointer' }}>{t('Browse all furniture')}</button>
+                  style={{ marginTop: 12, minHeight: 44, padding: '8px 12px', border: '2px solid var(--teal-line)', background: 'var(--card)', color: 'var(--teal)', font: 'inherit', cursor: 'pointer' }}>{t('Browse all furniture')}</button>
               </div>
             )}
             {filtered.map(item => {
               const isOwned = owned.includes(item.id);
               const affordable = memberCoins >= item.cost;
               const bought = justBought === item.id;
-              const borderColor = isOwned ? "var(--teal)" : (affordable ? "var(--yellow)" : "var(--border)");
+              const borderColor = isOwned ? "var(--teal-line)" : (affordable ? "var(--yellow-line)" : "var(--border)");
               return (
                 <div
                   key={item.id}
@@ -168,7 +168,7 @@ export function ShopScreen({
                   style={{
                     backgroundColor: "var(--card)",
                     border: `3px solid ${borderColor}`,
-                    boxShadow: isOwned ? "3px 3px 0 var(--teal)" : (affordable ? "3px 3px 0 var(--yellow)" : "none"),
+                    boxShadow: isOwned ? "3px 3px 0 var(--teal-line)" : (affordable ? "3px 3px 0 var(--yellow-line)" : "none"),
                     padding: "12px 10px",
                     position: "relative",
                     display: "flex",
@@ -195,7 +195,7 @@ export function ShopScreen({
                     </div>
                   </div>
                   {isOwned ? (
-                    <div style={{ width: "100%", padding: "5px 0", textAlign: "center", backgroundColor: "var(--surface)", border: "2px solid var(--teal)" }}>
+                    <div style={{ width: "100%", padding: "5px 0", textAlign: "center", backgroundColor: "var(--surface)", border: "2px solid var(--teal-line)" }}>
                       <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--teal)" }}>{t("IN ROOM")}</div>
                     </div>
                   ) : (
@@ -207,7 +207,7 @@ export function ShopScreen({
                         padding: "5px 0",
                         cursor: affordable ? "pointer" : "not-allowed",
                         backgroundColor: bought ? "var(--green-fill)" : (affordable ? "var(--yellow-fill)" : "var(--surface)"),
-                        border: `2px solid ${affordable ? "var(--yellow)" : "var(--border)"}`,
+                        border: `2px solid ${affordable ? "var(--yellow-line)" : "var(--border)"}`,
                         boxShadow: affordable && !bought ? "2px 2px 0 var(--outline)" : "none",
                       }}
                     >

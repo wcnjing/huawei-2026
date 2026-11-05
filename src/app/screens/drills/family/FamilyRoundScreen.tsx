@@ -92,7 +92,7 @@ export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplet
           </div>
           {scenario.subject && <div style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", color: "#555", fontWeight: 600, marginTop: 1 }}>{t(scenario.subject)}</div>}
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--teal)", border: "1px solid var(--teal)", padding: "2px 4px", flexShrink: 0 }}>{t("INSPECT")}</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--teal)", border: "1px solid var(--teal-line)", padding: "2px 4px", flexShrink: 0 }}>{t("INSPECT")}</div>
       </button>
       <div style={{ padding: "12px 14px", backgroundColor: "#fff" }}>
         <div style={{ fontFamily: "sans-serif", fontSize: "var(--text-body)", color: "#1a1a1a", lineHeight: 1.6, marginBottom: 8 }}>{t(scenario.message)}</div>
@@ -199,12 +199,12 @@ export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplet
             </div>
             <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 8, marginBottom: 12 }}>
               {scenario.clues.map((clue, i) => (
-                <button key={i} onClick={() => setActiveClue(clue)} style={{ backgroundColor: "color-mix(in srgb, var(--orange-fill) 15%, transparent)", border: "3px solid var(--orange)", padding: "7px 13px", cursor: "pointer" }}>
+                <button key={i} onClick={() => setActiveClue(clue)} style={{ backgroundColor: "color-mix(in srgb, var(--orange-fill) 15%, transparent)", border: "3px solid var(--orange-line)", padding: "7px 13px", cursor: "pointer" }}>
                   <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--orange)" }}>{t(clue.label)}</div>
                 </button>
               ))}
             </div>
-            <div style={{ backgroundColor: "var(--surface)", border: "3px solid var(--teal)", padding: "12px 14px", marginBottom: 8 }}>
+            <div style={{ backgroundColor: "var(--surface)", border: "3px solid var(--teal-line)", padding: "12px 14px", marginBottom: 8 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                 <IconBulb size={12} color="var(--yellow)" />
                 <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--yellow)" }}>{t("WHY?")}</div>
@@ -220,7 +220,7 @@ export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplet
             <button
               onClick={handleLightbulb}
               disabled={lightbulbIdx >= scenario.clues.length - 1}
-              style={{ background: "none", border: `2px solid ${lightbulbIdx >= scenario.clues.length - 1 ? "var(--secondary)" : "var(--yellow)"}`, cursor: lightbulbIdx >= scenario.clues.length - 1 ? "default" : "pointer", padding: "4px 10px", display: "flex", alignItems: "center", gap: 5 }}
+              style={{ background: "none", border: `2px solid ${lightbulbIdx >= scenario.clues.length - 1 ? "var(--secondary)" : "var(--yellow-line)"}`, cursor: lightbulbIdx >= scenario.clues.length - 1 ? "default" : "pointer", padding: "4px 10px", display: "flex", alignItems: "center", gap: 5 }}
             >
               <IconBulb size={12} color={lightbulbIdx >= scenario.clues.length - 1 ? "var(--secondary)" : "var(--yellow)"} />
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: lightbulbIdx >= scenario.clues.length - 1 ? "var(--secondary)" : "var(--yellow)" }}>

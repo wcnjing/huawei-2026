@@ -1,6 +1,6 @@
 export function IconPhone({ size = 20, color = "var(--teal)" }: { size?: number; color?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 10 10" style={{ imageRendering: "pixelated", display: "block" }}>
+    <svg className="px-icon" width={size} height={size} viewBox="0 0 10 10" style={{ imageRendering: "pixelated", display: "block" }}>
       <rect x={0} y={0} width={4} height={1} fill={color} />
       <rect x={0} y={1} width={1} height={2} fill={color} />
       <rect x={3} y={1} width={1} height={1} fill={color} />

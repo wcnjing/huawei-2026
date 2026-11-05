@@ -7,18 +7,21 @@
   <head>
     <meta charset="UTF-8" />
     <script>
-      // Apply the saved theme before the app paints, so a light-theme player never sees a dark flash.
+      // Apply the theme before the app paints, so nobody sees a flash of the other one: the
+      // player's own pick if they made one, otherwise the device's light/dark setting.
+      // src/app/theme/ThemeProvider.tsx applies the same rule once the app is running.
       (function () {
         var root = document.documentElement;
+        var saved = null;
+        try { saved = localStorage.getItem("safespace_theme"); } catch (e) { /* private mode */ }
+        var deviceLight = !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches);
+        root.dataset.theme = saved === "light" || saved === "dark" ? saved : deviceLight ? "light" : "dark";
         try {
-          root.dataset.theme = localStorage.getItem("safespace_theme") === "light" ? "light" : "dark";
           var preview = new URLSearchParams(location.search).get("palette");
           if (preview) sessionStorage.setItem("safespace_palette_preview", preview);
           var palette = sessionStorage.getItem("safespace_palette_preview");
           if (palette) { root.dataset.palette = palette; root.dataset.theme = "light"; }
-        } catch (e) {
-          root.dataset.theme = "dark";
-        }
+        } catch (e) { /* no preview */ }
       })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />

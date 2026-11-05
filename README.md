@@ -147,25 +147,37 @@ wall, and carpets render beneath other furniture. Saved positions are preserved.
 
 ## Light theme
 
-**Settings → Theme** switches between the dark theme (the default) and a light theme. The
-choice is saved in this browser (`safespace_theme`). A small script in `index.html` applies it
-before the first paint.
+The app follows the device's light/dark setting until the player picks. They can pick with the
+sun/moon switch on the one-time language step (before signing in) or in **Settings → Theme**.
+The pick is saved in this browser (`safespace_theme`) and wins over the device from then on. A
+small script in `index.html` applies the theme before the first paint.
 
 - **Colours for both themes** are tokens in [src/styles/tokens.css](src/styles/tokens.css). The
   file is identical in the website (`drill-mode-site`).
 - **In components, use tokens, not hex codes:**
-  - `var(--teal)` for text, icons and lines
-  - `var(--teal-fill)` for solid buttons and bars, which keep the original neon
-  - `var(--card)` and `var(--background)` for surfaces
-- **Colours that come from data**, such as a member's colour, go through `ink()`, `fill()` or
-  `tint()` in [src/app/utils/color.ts](src/app/utils/color.ts).
+  - `var(--teal)` for text. In light this is a darker teal, right at the readability floor.
+  - `var(--teal-line)` for borders, lines and pixel shadows: brighter than the text colour in light.
+  - `var(--teal-fill)` for solid buttons, badges, dots and bars, which keep the original neon.
+  - `var(--card)` and `var(--background)` for surfaces.
+- **Neon in light:** icons and solid fills stay neon in the light theme, with a dark outline so
+  they don't fade into the page (the rules are at the end of `tokens.css`):
+  - Every icon's `<svg>` has `className="px-icon"`. Pass the icon a hue (`color="var(--teal)"`)
+    and it draws in the neon with a one-pixel dark outline. Grey or navy icons get no outline.
+    Add `px-edge` to always outline an icon drawn in hex, like the medals.
+  - An inline `background: var(--yellow-fill)` (or `backgroundColor`) gets a 2px dark edge,
+    unless the element already has a `var(--outline)` border (like `PixelButton`). A fill set some
+    other way can add `className="fill-edge"`.
+- **Colours that come from data**, such as a member's colour, go through `ink()` (text),
+  `line()` (borders), `fill()` (solid fills) or `tint()` in
+  [src/app/utils/color.ts](src/app/utils/color.ts).
 - **Light palettes:** Mist is the default; Paper and Dusk are alternatives.
   - To switch, set `data-palette` on `<html>` in `index.html`.
   - To preview one, add `?palette=paper` (or `dusk`) to the address.
 - **Always dark, on purpose:** the title screen, the call screens and the room scenes are marked
   `data-theme="dark"`. Characters, Pixi, furniture and rooms keep their own colours.
-- **The check:** `npm run check:theme` fails if a palette hex code is written into UI code, and
-  checks that each light palette keeps text readable (WCAG AA).
+- **The check:** `npm run check:theme` fails if a palette hex code is written into UI code. It
+  also checks that each light palette keeps text readable (WCAG AA, 4.5:1) and borders visible
+  (3:1).
 
 ## Configuration
 

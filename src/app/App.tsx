@@ -2087,7 +2087,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
             backgroundColor: "var(--scrim)",
           }}
         >
-          <div style={{ width: "min(340px, 100%)", backgroundColor: "var(--surface)", border: "4px solid var(--teal)", boxShadow: "6px 6px 0 var(--surface-deep)", padding: "18px 16px" }}>
+          <div style={{ width: "min(340px, 100%)", backgroundColor: "var(--surface)", border: "4px solid var(--teal-line)", boxShadow: "6px 6px 0 var(--surface-deep)", padding: "18px 16px" }}>
             <div id="neutral-result-title" style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "var(--text-body)", color: "var(--teal)", lineHeight: 1.5, marginBottom: 12 }}>
               {t("DRILL NOT SCORED")}
             </div>

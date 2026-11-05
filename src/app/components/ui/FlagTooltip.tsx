@@ -14,7 +14,7 @@ export function FlagTooltip({ flag, onClose }: { flag: DrillFlag; onClose: () =>
         right: 0,
         zIndex: 40,
         backgroundColor: "color-mix(in srgb, var(--background) 95%, transparent)",
-        borderTop: "3px solid var(--red)",
+        borderTop: "3px solid var(--red-line)",
         padding: "12px 16px 16px",
         backdropFilter: "blur(4px)",
         animation: "slideUp 0.15s ease-out",

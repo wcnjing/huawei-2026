@@ -260,7 +260,7 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
   );
   const leaveDialog = shown && confirmLeave && (
     <div role="dialog" aria-modal="true" style={{ position: "absolute", inset: 0, backgroundColor: "var(--scrim)", zIndex: 80, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div style={{ backgroundColor: "var(--card)", border: "4px solid var(--orange)", width: "100%", padding: 16 }}>
+      <div style={{ backgroundColor: "var(--card)", border: "4px solid var(--orange-line)", width: "100%", padding: 16 }}>
         <Body>{race
           ? (isHost ? t("End the race for everyone? Anyone still playing is ranked on what they've answered so far.") : t("Leave the race? Your answers so far still count."))
           : isHost ? t("End the drill for everyone? Answers so far still count.") : t("Leave the drill? Your remaining turns will be skipped.")}</Body>

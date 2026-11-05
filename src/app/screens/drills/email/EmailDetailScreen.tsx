@@ -74,7 +74,7 @@ export function EmailDetailScreen({ onReport, onAskFamily, onClaimReward, onOpen
               </div>
             ))}
           </div>
-          <div className="flex items-center gap-2 mt-4" style={{ backgroundColor: "var(--secondary)", border: "2px solid var(--violet)", padding: "8px 10px", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); handleFlagTap("email_attachment"); }}>
+          <div className="flex items-center gap-2 mt-4" style={{ backgroundColor: "var(--secondary)", border: "2px solid var(--violet-line)", padding: "8px 10px", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); handleFlagTap("email_attachment"); }}>
             <IconAttachment size={14} color="var(--violet)" />
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--violet)" }}>Reward_Verification_Form.zip</div>
             <IconWarning size={10} color="var(--red)" />

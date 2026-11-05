@@ -1,6 +1,6 @@
 export function IconBrowserWindow({ size = 20, color = "var(--teal)" }: { size?: number; color?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 14 12" style={{ imageRendering: "pixelated", display: "block" }}>
+    <svg className="px-icon" width={size} height={size} viewBox="0 0 14 12" style={{ imageRendering: "pixelated", display: "block" }}>
       <rect x={0} y={0} width={14} height={12} fill={color} />
       <rect x={1} y={3} width={12} height={8} fill="var(--card)" />
       <rect x={1} y={1} width={2} height={2} fill="#ff2d55" />

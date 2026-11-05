@@ -52,7 +52,7 @@ export function ProfileEditScreen({ profile, onRename, onBack, onAvatar, onHouse
                 onChange={(e) => { setDraftName(e.target.value); setNameError(""); }}
                 disabled={savingName}
                 onKeyDown={(e) => { if (e.key === "Enter" && !savingName) void commitName(); if (e.key === "Escape" && !savingName) { setDraftName(profile.name); setNameError(""); setEditingName(false); } }}
-                style={{ flex: 1, minWidth: 0, fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", background: "var(--background)", border: `2px solid ${nameError ? "var(--red)" : "var(--teal)"}`, padding: "6px 8px", outline: "none" }}
+                style={{ flex: 1, minWidth: 0, fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", background: "var(--background)", border: `2px solid ${nameError ? "var(--red-line)" : "var(--teal-line)"}`, padding: "6px 8px", outline: "none" }}
               />
               <PixelButton onClick={() => { void commitName(); }} color="var(--green-fill)" textColor="var(--on-fill)" size="sm" disabled={savingName}>
                 {savingName ? t("SAVING...") : t("OK")}
@@ -66,18 +66,18 @@ export function ProfileEditScreen({ profile, onRename, onBack, onAvatar, onHouse
           )}
           {nameError && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--red)", lineHeight: 1.5, marginTop: 8 }}>{nameError}</div>}
         </div>
-        <button onClick={onAvatar} style={{ width: "100%", backgroundColor: "var(--card)", border: "3px solid var(--violet)", padding: "10px 14px", cursor: "pointer", textAlign: "left", marginBottom: 10, display: "flex", alignItems: "center", gap: 14 }}>
+        <button onClick={onAvatar} style={{ width: "100%", backgroundColor: "var(--card)", border: "3px solid var(--violet-line)", padding: "10px 14px", cursor: "pointer", textAlign: "left", marginBottom: 10, display: "flex", alignItems: "center", gap: 14 }}>
           <div style={{ width: 48, display: "flex", justifyContent: "center", filter: `drop-shadow(0 0 calc(6px * var(--glow)) ${profile.avatar.glow})` }}>
             <CharacterAvatar size={64} config={profile.avatar} title={`${profile.name}'s character`} />
           </div>
           <div style={{ flex: 1 }}><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--violet)", marginBottom: 4 }}>{t("CHANGE AVATAR")}</div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--soft-foreground)" }}>{t("Customise your pixel character")}</div></div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--violet)" }}>›</div>
         </button>
-        <button onClick={onHouse} style={{ width: "100%", backgroundColor: "var(--card)", border: "3px solid var(--green)", padding: "12px 14px", cursor: "pointer", textAlign: "left", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <button onClick={onHouse} style={{ width: "100%", backgroundColor: "var(--card)", border: "3px solid var(--green-line)", padding: "12px 14px", cursor: "pointer", textAlign: "left", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--green)", marginBottom: 4 }}>{t("CUSTOMISE HOUSE")}</div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--soft-foreground)" }}>{t("Sell furniture and buy wallpapers")}</div></div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--green)" }}>›</div>
         </button>
-        <div style={{ backgroundColor: "var(--card)", border: "3px solid var(--yellow)", padding: "12px 14px", marginBottom: 12 }}>
+        <div style={{ backgroundColor: "var(--card)", border: "3px solid var(--yellow-line)", padding: "12px 14px", marginBottom: 12 }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--yellow)", marginBottom: 10 }}>{t("PROFILE TITLE")}</div>
           <PixelRadio options={titleLabels} value={t(profileTitle)} onChange={(label) => setProfileTitle(PROFILE_TITLES[titleLabels.indexOf(label)] ?? profileTitle)} />
         </div>

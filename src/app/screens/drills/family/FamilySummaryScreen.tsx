@@ -83,14 +83,14 @@ export function FamilySummaryScreen({ mode, answers, total, coins, serverXp, pla
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--yellow)", marginBottom: 8 }}>{t("BADGES")}</div>
         <div className="grid grid-cols-2 gap-2 mb-14">
           {badges.map((b) => (
-            <div key={b.name} style={{ backgroundColor: b.earned ? "var(--card)" : "var(--background)", border: `2px solid ${b.earned ? "var(--yellow)" : "var(--secondary)"}`, padding: "8px 10px", opacity: b.earned ? 1 : 0.4 }}>
+            <div key={b.name} style={{ backgroundColor: b.earned ? "var(--card)" : "var(--background)", border: `2px solid ${b.earned ? "var(--yellow-line)" : "var(--secondary)"}`, padding: "8px 10px", opacity: b.earned ? 1 : 0.4 }}>
               <IconBadge size={18} color={b.earned ? "var(--yellow)" : "var(--border)"} />
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: b.earned ? "var(--yellow)" : "var(--border)", marginTop: 4, lineHeight: 1.5 }}>{b.name}</div>
               {!b.earned && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--secondary)", marginTop: 2 }}>{t("LOCKED")}</div>}
             </div>
           ))}
         </div>
-        <div style={{ backgroundColor: "var(--surface)", border: "3px solid var(--teal)", padding: "12px 14px", marginBottom: 14 }}>
+        <div style={{ backgroundColor: "var(--surface)", border: "3px solid var(--teal-line)", padding: "12px 14px", marginBottom: 14 }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--teal)", marginBottom: 8 }}>{t("TOP LESSONS")}</div>
           {["Always inspect the sender.", "Hover or long-press links before opening.", "Be careful with urgent messages.", "Never share passwords, OTPs, or card details.", "Ask someone you trust before acting on suspicious messages."].map((l, i) => (
             <div key={i} className="flex items-start gap-2 mb-2">

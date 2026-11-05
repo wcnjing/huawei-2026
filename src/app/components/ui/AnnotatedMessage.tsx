@@ -35,7 +35,7 @@ export function AnnotatedMessage({
             style={{
               color: "var(--red)",
               backgroundColor: "color-mix(in srgb, var(--red-fill) 18%, transparent)",
-              borderBottom: "2px solid var(--red)",
+              borderBottom: "2px solid var(--red-line)",
               cursor: "pointer",
               padding: "0 2px",
               fontWeight: "bold",

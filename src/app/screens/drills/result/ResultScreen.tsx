@@ -118,21 +118,21 @@ export function ResultScreen({ win, drillType, smsOutcome, emailOutcome, callOut
                   </div>
                 </div>
               </div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: win ? "var(--green)" : "var(--orange)", backgroundColor: win ? "color-mix(in srgb, var(--green-fill) 8%, transparent)" : "color-mix(in srgb, var(--red-fill) 8%, transparent)", border: `2px solid ${win ? "var(--green)" : "var(--red)"}`, padding: "8px 10px", lineHeight: 1.6 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: win ? "var(--green)" : "var(--orange)", backgroundColor: win ? "color-mix(in srgb, var(--green-fill) 8%, transparent)" : "color-mix(in srgb, var(--red-fill) 8%, transparent)", border: `2px solid ${win ? "var(--green-line)" : "var(--red-line)"}`, padding: "8px 10px", lineHeight: 1.6 }}>
                 {resultFeedback}
               </div>
             </PixelPanel>
           </div>
         )}
         {showDetails && drillType === "email" && realEmailScenario && (
-          <div style={{ width: "100%", backgroundColor: "var(--card)", border: "2px solid var(--violet)", padding: "8px 10px" }}>
+          <div style={{ width: "100%", backgroundColor: "var(--card)", border: "2px solid var(--violet-line)", padding: "8px 10px" }}>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--violet)", marginBottom: 5 }}>{t("EMAIL RECEIVED")}</div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)" }}>{realEmailScenario.sender}</div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)", marginTop: 3 }}>{realEmailScenario.subject}</div>
           </div>
         )}
         {showDetails && responseDetail && (
-          <div style={{ width: "100%", backgroundColor: "var(--card)", border: "2px solid var(--teal)", padding: "8px 10px", display: "flex", gap: 8, alignItems: "baseline" }}>
+          <div style={{ width: "100%", backgroundColor: "var(--card)", border: "2px solid var(--teal-line)", padding: "8px 10px", display: "flex", gap: 8, alignItems: "baseline" }}>
             <span style={{ flexShrink: 0, fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--teal)" }}>{t("YOUR ACTION")}</span>
             <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.5 }}>{responseDetail}</span>
           </div>

@@ -26,7 +26,7 @@ export function SoloDrillIntroScreen({ onStart, onBack, preferences, loading = f
             ? "Practice mix guided by your selected interests and activities."
             : "Balanced practice mix across scam types.")}
         </div>
-        <div style={{ backgroundColor: "var(--card)", border: "3px solid var(--teal)", padding: "12px 14px", marginBottom: 16 }}>
+        <div style={{ backgroundColor: "var(--card)", border: "3px solid var(--teal-line)", padding: "12px 14px", marginBottom: 16 }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--teal)", marginBottom: 10 }}>{t("QUESTIONS PER ROUND")}</div>
           <CountPicker options={COUNTS} value={count} onChange={setCount} color="var(--teal)" label={t("QUESTIONS PER ROUND")} />
         </div>

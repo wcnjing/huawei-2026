@@ -64,7 +64,7 @@ export function HouseDrillInvite({ drill, selfId, suppressed, onApply, onOpen }:
 
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="house-drill-invite-title" style={{ position: "fixed", inset: 0, zIndex: 90, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, backgroundColor: "var(--scrim)" }}>
-      <div style={{ width: "min(340px, 100%)", backgroundColor: "var(--surface)", border: "4px solid var(--green)", boxShadow: "6px 6px 0 color-mix(in srgb, var(--green) 40%, var(--background))", padding: "18px 16px" }}>
+      <div style={{ width: "min(340px, 100%)", backgroundColor: "var(--surface)", border: "4px solid var(--green-line)", boxShadow: "6px 6px 0 color-mix(in srgb, var(--green-line) 40%, var(--background))", padding: "18px 16px" }}>
         <div className="flex items-center gap-2" style={{ marginBottom: 12 }}>
           <IconShield size={16} color="var(--green)" />
           <div id="house-drill-invite-title" style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "var(--text-body)", color: "var(--green)", lineHeight: 1.5 }}>{title}</div>

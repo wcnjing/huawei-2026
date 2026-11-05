@@ -29,7 +29,7 @@ export function ThemeSwitch({ label }: { label: string }) {
           transform: light ? "translateX(0)" : "translateX(30px)",
           transition: "transform 180ms steps(3, end)",
           background: light ? "var(--yellow-fill)" : "var(--card)",
-          border: `2px solid ${light ? "var(--outline)" : "var(--violet)"}`,
+          border: `2px solid ${light ? "var(--outline)" : "var(--violet-line)"}`,
         }}
       >
         {light ? <IconSun size={12} color="var(--on-fill)" /> : <IconMoon size={12} color="var(--violet)" />}

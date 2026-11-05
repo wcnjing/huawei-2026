@@ -30,7 +30,7 @@ export function TelegramDrillIntroScreen({ onOpen, onBack }: { onOpen: () => voi
           </div>
         </div>
 
-        <div style={{ backgroundColor: "var(--card)", border: "3px solid var(--cyan)", boxShadow: "3px 3px 0 var(--cyan)", padding: "14px 16px", marginBottom: 14 }}>
+        <div style={{ backgroundColor: "var(--card)", border: "3px solid var(--cyan-line)", boxShadow: "3px 3px 0 var(--cyan-line)", padding: "14px 16px", marginBottom: 14 }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--cyan)", marginBottom: 10 }}>{t("WHAT HAPPENS NEXT")}</div>
           {[
             t("You will be sent to Telegram."),
@@ -47,7 +47,7 @@ export function TelegramDrillIntroScreen({ onOpen, onBack }: { onOpen: () => voi
           ))}
         </div>
 
-        <div style={{ backgroundColor: "color-mix(in srgb, var(--orange-fill) 8%, transparent)", border: "3px solid var(--orange)", padding: "12px 14px", marginBottom: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
+        <div style={{ backgroundColor: "color-mix(in srgb, var(--orange-fill) 8%, transparent)", border: "3px solid var(--orange-line)", padding: "12px 14px", marginBottom: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
           <IconWarning size={14} color="var(--orange)" />
           <div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--orange)", marginBottom: 4 }}>{t("COIN REWARDS")}</div>
@@ -141,7 +141,7 @@ export function RealisticPhoneDrillIntroScreen({ onBack, onRegister, onStarted, 
           </div>
         </div>
 
-        <div style={{ backgroundColor: "var(--card)", border: "3px solid var(--green)", boxShadow: "3px 3px 0 var(--green)", padding: "14px 16px", marginBottom: 14 }}>
+        <div style={{ backgroundColor: "var(--card)", border: "3px solid var(--green-line)", boxShadow: "3px 3px 0 var(--green-line)", padding: "14px 16px", marginBottom: 14 }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--green)", marginBottom: 10 }}>{t("HOW IT WORKS")}</div>
           {[
             t("We call your registered phone number."),
@@ -158,7 +158,7 @@ export function RealisticPhoneDrillIntroScreen({ onBack, onRegister, onStarted, 
           ))}
         </div>
 
-        <div style={{ backgroundColor: "color-mix(in srgb, var(--orange-fill) 8%, transparent)", border: "3px solid var(--orange)", padding: "12px 14px", marginBottom: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
+        <div style={{ backgroundColor: "color-mix(in srgb, var(--orange-fill) 8%, transparent)", border: "3px solid var(--orange-line)", padding: "12px 14px", marginBottom: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
           <IconWarning size={14} color="var(--orange)" />
           <div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--orange)", marginBottom: 4 }}>{t("TRAINING CALL")}</div>
@@ -169,7 +169,7 @@ export function RealisticPhoneDrillIntroScreen({ onBack, onRegister, onStarted, 
         </div>
 
         {phase === "sent" ? (
-          <div style={{ backgroundColor: deliveryUnconfirmed ? "color-mix(in srgb, var(--yellow-fill) 8%, transparent)" : "color-mix(in srgb, var(--green-fill) 8%, transparent)", border: `3px solid ${deliveryUnconfirmed ? "var(--yellow)" : "var(--green)"}`, padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <div style={{ backgroundColor: deliveryUnconfirmed ? "color-mix(in srgb, var(--yellow-fill) 8%, transparent)" : "color-mix(in srgb, var(--green-fill) 8%, transparent)", border: `3px solid ${deliveryUnconfirmed ? "var(--yellow-line)" : "var(--green-line)"}`, padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
             {deliveryUnconfirmed ? <IconWarning size={16} color="var(--yellow)" /> : <IconShield size={16} color="var(--green)" />}
             <div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: deliveryUnconfirmed ? "var(--yellow)" : "var(--green)", marginBottom: 6 }}>
@@ -183,7 +183,7 @@ export function RealisticPhoneDrillIntroScreen({ onBack, onRegister, onStarted, 
             </div>
           </div>
         ) : !registered ? (
-          <div style={{ backgroundColor: "color-mix(in srgb, var(--yellow-fill) 8%, transparent)", border: "3px solid var(--yellow)", padding: "12px 14px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <div style={{ backgroundColor: "color-mix(in srgb, var(--yellow-fill) 8%, transparent)", border: "3px solid var(--yellow-line)", padding: "12px 14px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
             <IconWarning size={14} color="var(--yellow)" />
             <div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--yellow)", marginBottom: 4 }}>{t("REGISTER FIRST")}</div>
@@ -301,7 +301,7 @@ export function RealisticSmsDrillIntroScreen({ onBack, onRegister, onOutcome }: 
           </div>
         </div>
 
-        <div style={{ backgroundColor: "var(--card)", border: "3px solid var(--teal)", boxShadow: "3px 3px 0 var(--teal)", padding: "14px 16px", marginBottom: 14 }}>
+        <div style={{ backgroundColor: "var(--card)", border: "3px solid var(--teal-line)", boxShadow: "3px 3px 0 var(--teal-line)", padding: "14px 16px", marginBottom: 14 }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--teal)", marginBottom: 10 }}>{t("HOW IT WORKS")}</div>
           {[
             t("We text your registered number."),
@@ -319,7 +319,7 @@ export function RealisticSmsDrillIntroScreen({ onBack, onRegister, onOutcome }: 
         </div>
 
         {phase === "sent" ? (
-          <div style={{ backgroundColor: deliveryUnconfirmed ? "color-mix(in srgb, var(--yellow-fill) 8%, transparent)" : "color-mix(in srgb, var(--green-fill) 8%, transparent)", border: `3px solid ${deliveryUnconfirmed ? "var(--yellow)" : "var(--green)"}`, padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <div style={{ backgroundColor: deliveryUnconfirmed ? "color-mix(in srgb, var(--yellow-fill) 8%, transparent)" : "color-mix(in srgb, var(--green-fill) 8%, transparent)", border: `3px solid ${deliveryUnconfirmed ? "var(--yellow-line)" : "var(--green-line)"}`, padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
             {deliveryUnconfirmed ? <IconWarning size={16} color="var(--yellow)" /> : <IconShield size={16} color="var(--green)" />}
             <div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: deliveryUnconfirmed ? "var(--yellow)" : "var(--green)", marginBottom: 6 }}>
@@ -335,7 +335,7 @@ export function RealisticSmsDrillIntroScreen({ onBack, onRegister, onOutcome }: 
             </div>
           </div>
         ) : !registered ? (
-          <div style={{ backgroundColor: "color-mix(in srgb, var(--yellow-fill) 8%, transparent)", border: "3px solid var(--yellow)", padding: "12px 14px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <div style={{ backgroundColor: "color-mix(in srgb, var(--yellow-fill) 8%, transparent)", border: "3px solid var(--yellow-line)", padding: "12px 14px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
             <IconWarning size={14} color="var(--yellow)" />
             <div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--yellow)", marginBottom: 4 }}>{t("REGISTER FIRST")}</div>
@@ -525,7 +525,7 @@ export function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, 
           </div>
         </div>
 
-        <div style={{ backgroundColor: "var(--card)", border: "3px solid var(--orange)", boxShadow: "3px 3px 0 var(--orange)", padding: "14px 16px", marginBottom: 14 }}>
+        <div style={{ backgroundColor: "var(--card)", border: "3px solid var(--orange-line)", boxShadow: "3px 3px 0 var(--orange-line)", padding: "14px 16px", marginBottom: 14 }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--orange)", marginBottom: 10 }}>{t("HOW IT WORKS")}</div>
           {[
             t("We send a test email to your own address."),
@@ -543,7 +543,7 @@ export function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, 
         </div>
 
         {phase === "sent" ? (
-          <div style={{ backgroundColor: deliveryUnconfirmed ? "color-mix(in srgb, var(--yellow-fill) 8%, transparent)" : "color-mix(in srgb, var(--green-fill) 8%, transparent)", border: `3px solid ${deliveryUnconfirmed ? "var(--yellow)" : "var(--green)"}`, padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <div style={{ backgroundColor: deliveryUnconfirmed ? "color-mix(in srgb, var(--yellow-fill) 8%, transparent)" : "color-mix(in srgb, var(--green-fill) 8%, transparent)", border: `3px solid ${deliveryUnconfirmed ? "var(--yellow-line)" : "var(--green-line)"}`, padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
             {deliveryUnconfirmed ? <IconWarning size={16} color="var(--yellow)" /> : <IconShield size={16} color="var(--green)" />}
             <div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: deliveryUnconfirmed ? "var(--yellow)" : "var(--green)", marginBottom: 6 }}>
@@ -559,7 +559,7 @@ export function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, 
             </div>
           </div>
         ) : phase === "verify-email" ? (
-          <div style={{ backgroundColor: "color-mix(in srgb, var(--yellow-fill) 8%, transparent)", border: "3px solid var(--yellow)", padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <div style={{ backgroundColor: "color-mix(in srgb, var(--yellow-fill) 8%, transparent)", border: "3px solid var(--yellow-line)", padding: "14px 16px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
             <IconRealEmail size={16} color="var(--yellow)" />
             <div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--yellow)", marginBottom: 6 }}>{t("VERIFY YOUR INBOX")}</div>
@@ -569,7 +569,7 @@ export function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, 
             </div>
           </div>
         ) : !registered ? (
-          <div style={{ backgroundColor: "color-mix(in srgb, var(--yellow-fill) 8%, transparent)", border: "3px solid var(--yellow)", padding: "12px 14px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <div style={{ backgroundColor: "color-mix(in srgb, var(--yellow-fill) 8%, transparent)", border: "3px solid var(--yellow-line)", padding: "12px 14px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
             <IconWarning size={14} color="var(--yellow)" />
             <div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--yellow)", marginBottom: 4 }}>{t("REGISTER FIRST")}</div>
@@ -623,7 +623,7 @@ export function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, 
       {/* The inbox must be verified through a link before the drill can be sent. */}
       {phase === "ask-email" && (
         <div style={{ position: "absolute", inset: 0, backgroundColor: "var(--scrim)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={() => !busy && setPhase("idle")}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 320, backgroundColor: "var(--background)", border: "4px solid var(--orange)", boxShadow: "6px 6px 0 color-mix(in srgb, var(--orange) 40%, transparent)", padding: "18px 16px" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 320, backgroundColor: "var(--background)", border: "4px solid var(--orange-line)", boxShadow: "6px 6px 0 color-mix(in srgb, var(--orange-line) 40%, transparent)", padding: "18px 16px" }}>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--orange)", marginBottom: 10 }}>{t("YOUR EMAIL")}</div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--soft-foreground)", marginBottom: 12, lineHeight: 1.5 }}>
               {t("We'll email a verification link first. The drill can only be sent after the inbox owner clicks it.")}

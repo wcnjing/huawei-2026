@@ -34,7 +34,7 @@ export function SMSThreadScreen({ onReport, onAskFamily, onTapLink, onBack }: { 
       <div style={{ flex: 1, position: "relative", overflow: "hidden" }} onClick={() => setActiveFlag(null)}>
         <div className="flex flex-col gap-3" style={{ height: "100%", overflowY: "auto", padding: "16px", scrollbarWidth: "none" }}>
           <div className="flex justify-start">
-            <div style={{ maxWidth: "80%", backgroundColor: "var(--secondary)", border: "3px solid var(--red)", padding: "12px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.8 }}>
+            <div style={{ maxWidth: "80%", backgroundColor: "var(--secondary)", border: "3px solid var(--red-line)", padding: "12px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.8 }}>
               {SMS_LINES.map((line, i) => (
                 <div key={i}>
                   <AnnotatedMessage text={line.text} highlights={line.highlights} onFlagTap={handleFlagTap} />
@@ -47,7 +47,7 @@ export function SMSThreadScreen({ onReport, onAskFamily, onTapLink, onBack }: { 
             </div>
           </div>
           <div className="flex justify-end">
-            <div style={{ maxWidth: "75%", backgroundColor: "color-mix(in srgb, var(--green) 8%, var(--background))", border: "3px solid var(--green)", padding: "10px 12px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--green)", lineHeight: 1.5 }}>
+            <div style={{ maxWidth: "75%", backgroundColor: "color-mix(in srgb, var(--green) 8%, var(--background))", border: "3px solid var(--green-line)", padding: "10px 12px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--green)", lineHeight: 1.5 }}>
               {t("Something feels off. Inspect the message carefully before acting.")}
             </div>
           </div>

@@ -29,7 +29,7 @@ export function RaceResults({ drill, selfId }: { drill: HouseDrill; selfId: stri
   const nameOf = (id: string) => drill.players.find((p) => p.id === id)?.name ?? t("A HOUSEMATE");
   const ranking = drill.ranking ?? [];
   return (
-    <div style={{ backgroundColor: "var(--card)", border: "4px solid var(--yellow)", boxShadow: "4px 4px 0 var(--yellow)", padding: "12px 14px", marginBottom: 14 }}>
+    <div style={{ backgroundColor: "var(--card)", border: "4px solid var(--yellow-line)", boxShadow: "4px 4px 0 var(--yellow-line)", padding: "12px 14px", marginBottom: 14 }}>
       <div style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: "var(--yellow)", marginBottom: 8 }}>{t("RACE RESULTS")}</div>
       {ranking.map((r, i) => {
         const winner = r.playerId === drill.winnerId;

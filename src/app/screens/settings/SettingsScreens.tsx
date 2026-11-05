@@ -46,7 +46,7 @@ export function SettingsScreen({ profile, settings, muted, onToggleMute, onSetti
               id="language-select"
               value={language}
               onChange={(e) => setLanguage(e.target.value as Language)}
-              style={{ fontSize: "var(--text-body)", color: "var(--foreground)", backgroundColor: "var(--background)", border: "3px solid var(--teal)", minWidth: 150 }}
+              style={{ fontSize: "var(--text-body)", color: "var(--foreground)", backgroundColor: "var(--background)", border: "3px solid var(--teal-line)", minWidth: 150 }}
               chevronColor="var(--teal)"
             >
               {LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
@@ -181,7 +181,7 @@ export function AccountSettingsScreen({ profile, onBack }: { profile: PlayerProf
         ))}
 
         {registered && (
-          <div style={{ backgroundColor: "color-mix(in srgb, var(--red-fill) 6%, transparent)", border: "3px solid var(--red)", padding: "14px 16px", marginTop: 18 }}>
+          <div style={{ backgroundColor: "color-mix(in srgb, var(--red-fill) 6%, transparent)", border: "3px solid var(--red-line)", padding: "14px 16px", marginTop: 18 }}>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--red)", marginBottom: 7 }}>{t("VERIFIED PHONE")}</div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--soft-foreground)", lineHeight: 1.55, marginBottom: 12 }}>
               {t("Removing your number signs out every device and stops all real call and SMS drills. Your progress and email are kept.")}
@@ -220,7 +220,7 @@ export function PrivacySettingsScreen({ onBack }: { onBack: () => void }) {
     <div className="flex flex-col h-full">
       <SubPageHeader title={t("PRIVACY")} titleColor="var(--teal)" onBack={onBack} />
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
-        <div style={{ backgroundColor: "var(--surface)", border: "3px solid var(--teal)", padding: "12px 14px", marginBottom: 12 }}>
+        <div style={{ backgroundColor: "var(--surface)", border: "3px solid var(--teal-line)", padding: "12px 14px", marginBottom: 12 }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--teal)", marginBottom: 6 }}>{t("DATA PRIVACY")}</div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.6 }}>
             {t("Your name, verified phone number, optional email, drill outcomes and XP are stored by the service so real drills and progress can work. Room customisation and most display preferences stay in this browser.")}
@@ -282,7 +282,7 @@ export function AboutSettingsScreen({ onBack }: { onBack: () => void }) {
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--teal)", marginBottom: 4 }}>{t("SCAM FIGHTER TRAINING")}</div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--soft-foreground)" }}>v2.0.0</div>
         </div>
-        <div style={{ backgroundColor: "color-mix(in srgb, var(--orange-fill) 10%, transparent)", border: "3px solid var(--orange)", padding: "12px 14px" }}>
+        <div style={{ backgroundColor: "color-mix(in srgb, var(--orange-fill) 10%, transparent)", border: "3px solid var(--orange-line)", padding: "12px 14px" }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--orange)", marginBottom: 6 }}>{t("DISCLAIMER")}</div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.6 }}>{t("This app is a training simulation. It does not detect real scams automatically. All scenarios are fictional educational examples.")}</div>
         </div>

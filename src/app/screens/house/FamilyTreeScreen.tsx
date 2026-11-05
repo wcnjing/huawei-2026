@@ -228,7 +228,7 @@ export function FamilyTreeTab({ house, selfId, onEdit }: {
               <svg width={layout.width} height={layout.height} style={{ position: "absolute", inset: 0, overflow: "visible" }} aria-hidden>
                 {layout.segments.map((s) => (
                   <line key={s.key} x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2}
-                    stroke={s.dashed ? "var(--yellow)" : "var(--muted-foreground)"} strokeWidth={2}
+                    stroke={s.dashed ? "var(--yellow-line)" : "var(--muted-foreground)"} strokeWidth={2}
                     strokeDasharray={s.dashed ? "4 4" : undefined} strokeLinecap="square" />
                 ))}
               </svg>
@@ -252,7 +252,7 @@ export function FamilyTreeTab({ house, selfId, onEdit }: {
         )}
         <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 12px", marginTop: 10 }}>
           {GENDERS.map((g) => legend(<Shape gender={g.id} size={12} strokeWidth={2} stroke={SHAPE_COLOR[g.id]} fill="none" />, t(g.label)))}
-          {legend(<svg width={16} height={4} aria-hidden><line x1={0} y1={2} x2={16} y2={2} stroke="var(--yellow)" strokeWidth={2} strokeDasharray="3 3" /></svg>, t("FRIEND"))}
+          {legend(<svg width={16} height={4} aria-hidden><line x1={0} y1={2} x2={16} y2={2} stroke="var(--yellow-line)" strokeWidth={2} strokeDasharray="3 3" /></svg>, t("FRIEND"))}
         </div>
       </PixelPanel>
 
@@ -304,7 +304,7 @@ export function FamilyTreeTab({ house, selfId, onEdit }: {
                             fontFamily: MONO, fontSize: "var(--text-caption)", padding: "8px 10px",
                             backgroundColor: target === m.id ? "var(--yellow-fill)" : "var(--background)",
                             color: target === m.id ? "var(--on-fill)" : ok ? "var(--foreground)" : "var(--border-strong)",
-                            border: `2px solid ${target === m.id ? "var(--yellow)" : "var(--border)"}`,
+                            border: `2px solid ${target === m.id ? "var(--yellow-line)" : "var(--border)"}`,
                             textDecoration: ok ? "none" : "line-through", cursor: ok ? "pointer" : "not-allowed",
                           }}>{m.name}</button>
                       );

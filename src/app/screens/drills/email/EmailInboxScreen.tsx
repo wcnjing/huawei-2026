@@ -43,14 +43,14 @@ export function EmailInboxScreen({ onOpenScam, onBack }: { activeMemberId: strin
           {t("Search mail…")}
         </div>
       </div>
-      <div className="flex items-center gap-2 px-4 py-2" style={{ backgroundColor: "color-mix(in srgb, var(--orange-fill) 10%, transparent)", borderBottom: "2px solid var(--orange)", flexShrink: 0 }}>
+      <div className="flex items-center gap-2 px-4 py-2" style={{ backgroundColor: "color-mix(in srgb, var(--orange-fill) 10%, transparent)", borderBottom: "2px solid var(--orange-line)", flexShrink: 0 }}>
         <IconWarning size={12} color="var(--orange)" />
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--orange)" }}>
           {t("New important email detected. Inspect before clicking.")}
         </div>
       </div>
       {toast && (
-        <div style={{ backgroundColor: "var(--secondary)", border: "2px solid var(--teal)", padding: "8px 12px", margin: "8px 12px", position: "absolute", top: 160, left: 0, right: 0, zIndex: 20, animation: "slideUp 0.2s ease-out" }}>
+        <div style={{ backgroundColor: "var(--secondary)", border: "2px solid var(--teal-line)", padding: "8px 12px", margin: "8px 12px", position: "absolute", top: 160, left: 0, right: 0, zIndex: 20, animation: "slideUp 0.2s ease-out" }}>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--teal)", lineHeight: 1.6 }}>{toast}</div>
         </div>
       )}
@@ -64,7 +64,7 @@ export function EmailInboxScreen({ onOpenScam, onBack }: { activeMemberId: strin
               border: "none", borderBottom: "2px solid var(--secondary)", cursor: "pointer",
               padding: "12px 16px",
               backgroundColor: item.isScam ? (glowFrame ? "color-mix(in srgb, var(--orange-fill) 8%, transparent)" : "color-mix(in srgb, var(--red-fill) 5%, transparent)") : "var(--background)",
-              boxShadow: item.isScam ? `inset 0 0 ${glowFrame ? "16px" : "6px"} color-mix(in srgb, var(--orange) 12%, transparent)` : "none",
+              boxShadow: item.isScam ? `inset 0 0 ${glowFrame ? "16px" : "6px"} color-mix(in srgb, var(--orange-line) 12%, transparent)` : "none",
               transition: "background-color 0.45s, box-shadow 0.45s",
             }}
           >

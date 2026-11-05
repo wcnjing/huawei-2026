@@ -5,7 +5,8 @@
  *  (drill-mode-site/src/styles/tokens.css). Change both together.
  *
  *  THEMES
- *    Dark is the default. <html data-theme="light"> switches to light (the sun/moon switch).
+ *    <html data-theme="dark" | "light">. The device's setting decides until the person picks
+ *    with the sun/moon switch (the script in index.html applies it before the first paint).
  *    data-theme="dark" on any element keeps that part dark in both themes (the intros, phone
  *    mock-ups and call screens look like a dark screen on purpose).
  *
@@ -15,11 +16,16 @@
  *    To preview one without changing anything, add ?palette=paper to the address.
  *
  *  ROLES
- *    --green, --yellow, …   "ink": text, icons and thin lines in that colour.
- *    --green-fill, …        solid fills (buttons, bars, badges). Always the original neon, with
- *                           --on-fill (navy) text on top, in both themes.
+ *    --green, --yellow, …   "ink": TEXT in that colour. In light these sit right at the WCAG AA
+ *                           floor (4.5:1), so they can't get any lighter.
+ *    --green-line, …        borders, lines and pixel shadows in that colour. Brighter than the
+ *                           ink in light (WCAG asks 3:1 for non-text). Use line() for data colours.
+ *    --green-fill, …        solid fills (buttons, bars, badges, dots). Always the original neon,
+ *                           with --on-fill (navy) text on top, in both themes.
  *    --glow                 1 in dark, 0 in light: neon glows multiply their blur by it.
  *    --shadow-pixel         the colour of the flat pixel drop-shadow under cards.
+ *    --icon-edge, --fill-edge   the dark outline that neon icons and fills get in light (see the
+ *                           NEON IN LIGHT rules at the end of this file).
  * ─────────────────────────────────────────────────────────────────────────────
  */
 :root,
@@ -55,12 +61,24 @@
   --red-soft: #ff8095;
   --green-soft: #7dffbf;
   --yellow-soft: #fff4c2;
+  /* Lines are the neon itself in dark. */
+  --green-line: #00ff88;
+  --yellow-line: #ffe66d;
+  --teal-line: #4ecdc4;
+  --red-line: #ff2d55;
+  --orange-line: #ff6b35;
+  --violet-line: #c77dff;
+  --cyan-line: #00d4ff;
+  --pink-line: #ff71c5;
 
   --sun: #ffe66d;
   --star: #ffffff;
   --scanline: rgb(0 0 0 / 0.08);
   --shadow-pixel: #05080f;
   --glow: 1;
+  /* Neon already stands out on navy: no outlines in dark. */
+  --icon-edge: none;
+  --fill-edge: 0px;
 }
 
 /* Light, palette A · Mist: cool blue-grey, closest to the dark theme. */
@@ -93,12 +111,24 @@
   --red-soft: var(--red);
   --green-soft: var(--green);
   --yellow-soft: var(--yellow);
+  /* About 3.2:1 on the page and 3.5:1 on cards (notes/theme-tooling/line-tier.mjs). */
+  --green-line: #269555;
+  --yellow-line: #aa7b23;
+  --teal-line: #27928c;
+  --red-line: #f53756;
+  --orange-line: #e05724;
+  --violet-line: #b555f4;
+  --cyan-line: #278ea9;
+  --pink-line: #ec2fac;
 
   --sun: #b87400;
   --star: rgb(15 26 51 / 0.3);
   --scanline: rgb(15 26 51 / 0.025);
   --shadow-pixel: rgb(15 26 51 / 0.22);
   --glow: 0;
+  /* A one-pixel dark outline traced around neon icons, and a 2px edge around solid neon fills. */
+  --icon-edge: drop-shadow(1px 0 0 var(--outline)) drop-shadow(-1px 0 0 var(--outline)) drop-shadow(0 1px 0 var(--outline)) drop-shadow(0 -1px 0 var(--outline));
+  --fill-edge: 2px;
 }
 
 /* Light, palette B · Paper: warm cream. */
@@ -126,6 +156,14 @@
   --violet: #7a35d6;
   --cyan: #006f9e;
   --pink: #b82578;
+  --green-line: #279756;
+  --yellow-line: #ac7c24;
+  --teal-line: #28948d;
+  --red-line: #f63c58;
+  --orange-line: #e35824;
+  --violet-line: #b658f4;
+  --cyan-line: #2790ac;
+  --pink-line: #ef30ae;
   --sun: #b87400;
   --star: rgb(29 32 51 / 0.3);
   --scanline: rgb(29 32 51 / 0.025);
@@ -157,6 +195,14 @@
   --violet: #6a2dc4;
   --cyan: #005f88;
   --pink: #a01f68;
+  --green-line: #22884d;
+  --yellow-line: #9b6f1f;
+  --teal-line: #23857f;
+  --red-line: #e32b4c;
+  --orange-line: #cd4f20;
+  --violet-line: #ae3bf3;
+  --cyan-line: #22829b;
+  --pink-line: #d72a9c;
   --sun: #9a6200;
   --star: rgb(17 24 51 / 0.3);
   --scanline: rgb(17 24 51 / 0.025);
@@ -174,4 +220,51 @@
   --violet-fill: #c77dff;
   --cyan-fill: #00d4ff;
   --pink-fill: #ff71c5;
+}
+
+/*
+ * ─────────────────────────────────────────────────────────────────────────────
+ *  NEON IN LIGHT
+ *  Icons and solid fills keep the original neon in the light theme, so they match the neon
+ *  buttons, and get a dark outline so a pale neon (yellow especially) doesn't fade into the
+ *  page. Text keeps the darker inks. In dark both outlines are off (--icon-edge: none,
+ *  --fill-edge: 0px), and so is any part marked data-theme="dark".
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
+/* Pixel icons. Every icon's <svg> has class="px-icon". A hue drawn inside one is the neon. */
+.px-icon {
+  --green: var(--green-fill);
+  --yellow: var(--yellow-fill);
+  --teal: var(--teal-fill);
+  --red: var(--red-fill);
+  --orange: var(--orange-fill);
+  --violet: var(--violet-fill);
+  --cyan: var(--cyan-fill);
+  --pink: var(--pink-fill);
+}
+/* The outline goes on icons drawn in a hue (or marked px-edge, like the medals), not on grey or
+   navy ones such as inactive nav icons or an icon sitting on a neon button. */
+.px-icon.px-edge,
+.px-icon:has([fill="var(--green)"], [fill="var(--yellow)"], [fill="var(--teal)"], [fill="var(--red)"],
+  [fill="var(--orange)"], [fill="var(--violet)"], [fill="var(--cyan)"], [fill="var(--pink)"],
+  [fill="var(--green-fill)"], [fill="var(--yellow-fill)"], [fill="var(--teal-fill)"], [fill="var(--red-fill)"],
+  [fill="var(--orange-fill)"], [fill="var(--violet-fill)"], [fill="var(--cyan-fill)"], [fill="var(--pink-fill)"]) {
+  filter: var(--icon-edge);
+}
+
+/* Solid neon fills written inline, e.g. style={{ background: "var(--yellow-fill)" }}: badges,
+   dots, progress bars, step numbers. Anything that already has a dark border (var(--outline),
+   like PixelButton) is left alone. This matches the style attribute React writes, so it covers
+   new components automatically. A fill set some other way can add class="fill-edge". */
+.fill-edge,
+:is([style*="background: var(--green-fill)"], [style*="background-color: var(--green-fill)"],
+  [style*="background: var(--yellow-fill)"], [style*="background-color: var(--yellow-fill)"],
+  [style*="background: var(--teal-fill)"], [style*="background-color: var(--teal-fill)"],
+  [style*="background: var(--red-fill)"], [style*="background-color: var(--red-fill)"],
+  [style*="background: var(--orange-fill)"], [style*="background-color: var(--orange-fill)"],
+  [style*="background: var(--violet-fill)"], [style*="background-color: var(--violet-fill)"],
+  [style*="background: var(--cyan-fill)"], [style*="background-color: var(--cyan-fill)"],
+  [style*="background: var(--pink-fill)"], [style*="background-color: var(--pink-fill)"]):not([style*="var(--outline)"]) {
+  outline: var(--fill-edge) solid var(--outline);
 }

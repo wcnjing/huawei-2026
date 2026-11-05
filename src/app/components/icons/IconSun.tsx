@@ -1,6 +1,6 @@
 export function IconSun({ size = 16, color = "var(--sun)" }: { size?: number; color?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 12 12" style={{ imageRendering: "pixelated", display: "block" }}>
+    <svg className="px-icon" width={size} height={size} viewBox="0 0 12 12" style={{ imageRendering: "pixelated", display: "block" }}>
       <rect x={5} y={0} width={2} height={2} fill={color} />
       <rect x={1} y={1} width={1} height={1} fill={color} />
       <rect x={10} y={1} width={1} height={1} fill={color} />

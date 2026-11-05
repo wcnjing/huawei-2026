@@ -2,7 +2,7 @@ import { SAFETY_TIPS } from "../../data/safetyTips";
 import { IconBadge, IconChevron } from "../../components/icons";
 import { useState } from "react";
 import { useT } from "../../i18n";
-import { ink } from "../../utils/color";
+import { ink, line } from "../../utils/color";
 
 export function SafetyHabitsDropdown() {
   const t = useT();
@@ -16,7 +16,7 @@ export function SafetyHabitsDropdown() {
         aria-expanded={open}
         aria-controls={panelId}
         className="flex items-start gap-3"
-        style={{ width: "100%", textAlign: "left", backgroundColor: "color-mix(in srgb, var(--orange-fill) 8%, transparent)", border: "3px solid var(--orange)", padding: "12px 14px", cursor: "pointer" }}
+        style={{ width: "100%", textAlign: "left", backgroundColor: "color-mix(in srgb, var(--orange-fill) 8%, transparent)", border: "3px solid var(--orange-line)", padding: "12px 14px", cursor: "pointer" }}
       >
         <IconBadge size={22} color="var(--yellow)" />
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -35,8 +35,8 @@ export function SafetyHabitsDropdown() {
       {open && (
         <div id={panelId} className="flex flex-col gap-3" style={{ marginTop: 10 }}>
           {SAFETY_TIPS.map((tip) => (
-            <div key={tip.num} className="flex items-start gap-3" style={{ backgroundColor: "var(--card)", border: `3px solid ${ink(tip.color)}`, padding: 14 }}>
-              <div style={{ width: 34, height: 34, flexShrink: 0, border: `2px solid ${ink(tip.color)}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div key={tip.num} className="flex items-start gap-3" style={{ backgroundColor: "var(--card)", border: `3px solid ${line(tip.color)}`, padding: 14 }}>
+              <div style={{ width: 34, height: 34, flexShrink: 0, border: `2px solid ${line(tip.color)}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: ink(tip.color) }}>{tip.num}</span>
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>

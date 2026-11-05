@@ -24,7 +24,7 @@ export function PhoneFrame({ children }: { children: React.ReactNode }) {
         height: "min(844px, 100dvh)",
         backgroundColor: "var(--background)",
         border: "6px solid var(--border)",
-        boxShadow: "8px 8px 0px var(--shadow-pixel), 0 0 calc(40px * var(--glow)) color-mix(in srgb, var(--green) 15%, transparent)",
+        boxShadow: "8px 8px 0px var(--shadow-pixel), 0 0 calc(40px * var(--glow)) color-mix(in srgb, var(--green-line) 15%, transparent)",
       };
 
   return (

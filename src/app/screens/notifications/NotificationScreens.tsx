@@ -6,7 +6,7 @@ import { SubPageHeader } from "../../components/layout";
 import { useMemberMap } from "../../hooks/useMembers";
 import { formatNotifTimestamp } from "../../utils/date";
 import { useI18n, useT } from "../../i18n";
-import { ink } from "../../utils/color";
+import { ink, line } from "../../utils/color";
 
 const DATE_LOCALES = { en: "en-SG", zh: "zh-SG", ms: "ms-SG", ta: "ta-SG" } as const;
 
@@ -45,7 +45,7 @@ export function NotificationsScreen({
 
   return (
     <div className="flex flex-col h-full">
-      <div style={{ padding: "0 16px", minHeight: 52, backgroundColor: "var(--background)", borderBottom: "4px solid var(--yellow)", display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ padding: "0 16px", minHeight: 52, backgroundColor: "var(--background)", borderBottom: "4px solid var(--yellow-line)", display: "flex", alignItems: "center", gap: 12 }}>
         <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
           <IconX size={16} color="var(--muted-foreground)" />
         </button>
@@ -201,7 +201,7 @@ export function NotificationDetailScreen({
         </div>
 
         {member && (
-          <div style={{ marginTop: 14, backgroundColor: "var(--background)", border: `3px solid ${ink(member.primaryColor)}`, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ marginTop: 14, backgroundColor: "var(--background)", border: `3px solid ${line(member.primaryColor)}`, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12 }}>
             <MemberChar member={member} size={40} />
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)" }}>{t("MEMBER")}</div>

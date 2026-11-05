@@ -47,7 +47,7 @@ for (const file of files) {
 if (!hits) console.log("  ✓ no palette hex codes outside art and content");
 
 console.log("\nReadability of each theme (WCAG contrast)");
-const css = readFileSync(join(SRC, "styles", "tokens.css"), "utf8");
+const css = readFileSync(join(SRC, "styles", "tokens.css"), "utf8").replace(/\r\n/g, "\n");
 const block = (selector) => {
   const start = css.indexOf(`${selector} {`);
   if (start < 0) return {};
@@ -76,6 +76,8 @@ for (const [name, t] of Object.entries(themes)) {
   }
   checks.push(["foreground", "secondary", 4.5], ["soft-foreground", "secondary", 4.5]);
   checks.push(["border-strong", "background", 3], ["sun", "background", 3]);
+  // Borders and lines (--green-line, …) only need 3:1: WCAG's minimum for non-text.
+  for (const h of HUES) checks.push([`${h}-line`, "background", 3], [`${h}-line`, "card", 3]);
   for (const h of HUES) checks.push(["on-fill", `${h}-fill`, 4.5]);
   let worst = Infinity;
   for (const [a, b, min] of checks) {

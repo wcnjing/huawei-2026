@@ -33,7 +33,7 @@ export function SMSInboxScreen({ onOpenScam, onBack }: { activeMemberId: string;
           <Blink ms={700}>{t("1 NEW")}</Blink>
         </div>
       </div>
-      <div className="flex items-center gap-2 px-4 py-2" style={{ backgroundColor: "color-mix(in srgb, var(--orange-fill) 10%, transparent)", borderBottom: "2px solid var(--orange)" }}>
+      <div className="flex items-center gap-2 px-4 py-2" style={{ backgroundColor: "color-mix(in srgb, var(--orange-fill) 10%, transparent)", borderBottom: "2px solid var(--orange-line)" }}>
         <IconWarning size={12} color="var(--orange)" />
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--orange)" }}>
           {t("DRILL MODE — 1 suspicious message detected")}
@@ -50,12 +50,12 @@ export function SMSInboxScreen({ onOpenScam, onBack }: { activeMemberId: string;
               padding: "12px 16px",
               backgroundColor: item.isScam ? (glowFrame ? "color-mix(in srgb, var(--red-fill) 6%, transparent)" : "color-mix(in srgb, var(--orange-fill) 6%, transparent)") : "var(--background)",
               animation: shaking === item.id ? "shake 0.5s ease" : "none",
-              boxShadow: item.isScam ? `inset 0 0 ${glowFrame ? "12px" : "4px"} color-mix(in srgb, var(--red) 15%, transparent)` : "none",
+              boxShadow: item.isScam ? `inset 0 0 ${glowFrame ? "12px" : "4px"} color-mix(in srgb, var(--red-line) 15%, transparent)` : "none",
               transition: "background-color 0.4s, box-shadow 0.4s",
             }}
           >
             <div className="flex items-start gap-3">
-              <div style={{ width: 40, height: 40, backgroundColor: item.isScam ? "var(--red-fill)" : "var(--border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: item.isScam ? "2px solid var(--red)" : "2px solid var(--secondary)" }}>
+              <div style={{ width: 40, height: 40, backgroundColor: item.isScam ? "var(--red-fill)" : "var(--border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: item.isScam ? "2px solid var(--red-line)" : "2px solid var(--secondary)" }}>
                 {item.isScam ? <IconWarning size={20} color="var(--foreground-strong)" /> : <IconPerson size={20} color="var(--muted-foreground)" />}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>

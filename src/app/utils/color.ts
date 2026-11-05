@@ -15,10 +15,18 @@ const NEUTRALS: Record<string, string> = {
 
 const key = (color: string) => color.trim().toLowerCase();
 
-/** Colour for text, icons and thin lines. */
+/** Colour for text (and icons, which turn it back into the neon with an outline in light). */
 export function ink(color: string) {
   const k = key(color);
   if (TOKENS[k]) return `var(--${TOKENS[k]})`;
+  if (NEUTRALS[k]) return `var(--${NEUTRALS[k]})`;
+  return color;
+}
+
+/** Colour for borders, lines and pixel shadows: brighter than ink() in the light theme. */
+export function line(color: string) {
+  const k = key(color);
+  if (TOKENS[k]) return `var(--${TOKENS[k]}-line)`;
   if (NEUTRALS[k]) return `var(--${NEUTRALS[k]})`;
   return color;
 }

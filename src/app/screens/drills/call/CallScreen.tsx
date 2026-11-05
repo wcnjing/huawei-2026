@@ -90,7 +90,7 @@ export function CallScreen({ onHangUp, onResult, onDistress }: { activeMemberId:
             return (
               <div key={i} className={`flex ${line.who === "you" ? "justify-end" : "justify-start"}`}>
                 {line.who === "caller" && <div className="mr-2 mt-1 flex-shrink-0"><PixelAvatar rank={9} size={24} /></div>}
-                <div style={{ maxWidth: "72%", backgroundColor: line.who === "you" ? "color-mix(in srgb, var(--green) 18%, var(--background))" : "var(--secondary)", border: `3px solid ${line.who === "you" ? "var(--green)" : hasFlags ? "var(--red)" : "var(--orange)"}`, padding: "8px 10px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: line.who === "you" ? "var(--green)" : "var(--foreground)", lineHeight: 1.6 }}>
+                <div style={{ maxWidth: "72%", backgroundColor: line.who === "you" ? "color-mix(in srgb, var(--green) 18%, var(--background))" : "var(--secondary)", border: `3px solid ${line.who === "you" ? "var(--green-line)" : hasFlags ? "var(--red-line)" : "var(--orange-line)"}`, padding: "8px 10px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: line.who === "you" ? "var(--green)" : "var(--foreground)", lineHeight: 1.6 }}>
                   <AnnotatedMessage text={line.text} highlights={line.highlights} onFlagTap={handleFlagTap} />
                   {hasFlags && line.who === "caller" && (
                     <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
@@ -105,7 +105,7 @@ export function CallScreen({ onHangUp, onResult, onDistress }: { activeMemberId:
           {visibleLines < CONVERSATION.length && (
             <div className="flex justify-start">
               <div className="mr-2"><PixelAvatar rank={9} size={24} /></div>
-              <div style={{ backgroundColor: "var(--secondary)", border: "3px solid var(--orange)", padding: "8px 14px" }}>
+              <div style={{ backgroundColor: "var(--secondary)", border: "3px solid var(--orange-line)", padding: "8px 14px" }}>
                 <Blink ms={400}><span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--orange)" }}>...</span></Blink>
               </div>
             </div>

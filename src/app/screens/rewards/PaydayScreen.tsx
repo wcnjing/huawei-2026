@@ -30,7 +30,7 @@ export function PaydayScreen({ coins, claimedThisWeek, canCollect, onCollect, on
 
   return (
     <div className="flex flex-col h-full">
-      <div style={{ padding: "0 16px", minHeight: 52, backgroundColor: "var(--background)", borderBottom: "4px solid var(--yellow)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ padding: "0 16px", minHeight: 52, backgroundColor: "var(--background)", borderBottom: "4px solid var(--yellow-line)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <IconCoin size={18} color="var(--yellow)" />
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--yellow)" }}>{t("PAYDAY SUNDAY")}</div>
@@ -42,7 +42,7 @@ export function PaydayScreen({ coins, claimedThisWeek, canCollect, onCollect, on
 
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
         <div style={{ padding: "16px" }}>
-          <div style={{ backgroundColor: "var(--card)", border: "4px solid var(--yellow)", boxShadow: "4px 4px 0 var(--yellow)", padding: "14px 16px", marginBottom: 16 }}>
+          <div style={{ backgroundColor: "var(--card)", border: "4px solid var(--yellow-line)", boxShadow: "4px 4px 0 var(--yellow-line)", padding: "14px 16px", marginBottom: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid var(--border)", paddingBottom: 10, marginBottom: 10 }}>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--soft-foreground)" }}>{t("PAY PERIOD")}</div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--yellow)" }}>{payPeriod}</div>
@@ -88,7 +88,7 @@ export function PaydayScreen({ coins, claimedThisWeek, canCollect, onCollect, on
             })}
           </div>
 
-          <div style={{ backgroundColor: "color-mix(in srgb, var(--green-fill) 6%, transparent)", border: "3px solid var(--green)", padding: "12px 14px", marginBottom: 16 }}>
+          <div style={{ backgroundColor: "color-mix(in srgb, var(--green-fill) 6%, transparent)", border: "3px solid var(--green-line)", padding: "12px 14px", marginBottom: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
               <IconBulb size={12} color="var(--yellow)" />
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--yellow)" }}>{t("PAYDAY TIP")}</div>

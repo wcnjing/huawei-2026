@@ -14,13 +14,13 @@ export function FamilyDrillIntroScreen({ onStart, onBack }: { onStart: () => voi
         <div className="flex items-center gap-2"><IconShield size={14} color="var(--green)" /><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--green)" }}>{members.length} READY</div></div>
       </div>
       <div className="flex-1 overflow-y-auto px-4 pb-6" style={{ scrollbarWidth: "none" }}>
-        <div style={{ margin: "14px 0", backgroundColor: "var(--card)", border: "3px solid var(--green)", padding: "10px 14px" }}>
+        <div style={{ margin: "14px 0", backgroundColor: "var(--card)", border: "3px solid var(--green-line)", padding: "10px 14px" }}>
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2"><IconShield size={14} color="var(--green)" /><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--green)" }}>HOUSE TRUST</div></div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--yellow)" }}>100%</div>
           </div>
           <div style={{ height: 8, backgroundColor: "var(--background)", border: "2px solid var(--border)" }}>
-            <div style={{ height: "100%", width: "100%", backgroundColor: "var(--green-fill)", boxShadow: "0 0 calc(8px * var(--glow)) var(--green)" }} />
+            <div style={{ height: "100%", width: "100%", backgroundColor: "var(--green-fill)", boxShadow: "0 0 calc(8px * var(--glow)) var(--green-line)" }} />
           </div>
         </div>
         <div className="flex flex-wrap justify-center gap-3 mb-4">
@@ -42,7 +42,7 @@ export function FamilyDrillIntroScreen({ onStart, onBack }: { onStart: () => voi
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.5 }}>{line}</div>
             </div>
           ))}
-          <div style={{ marginTop: 10, padding: "6px 8px", backgroundColor: "color-mix(in srgb, var(--yellow-fill) 8%, transparent)", border: "2px solid var(--yellow)", display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ marginTop: 10, padding: "6px 8px", backgroundColor: "color-mix(in srgb, var(--yellow-fill) 8%, transparent)", border: "2px solid var(--yellow-line)", display: "flex", alignItems: "center", gap: 6 }}>
             <IconCoin size={10} color="var(--yellow)" />
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--yellow)" }}>+30 COINS PER CORRECT · -10 PER WRONG</div>
           </div>
@@ -55,7 +55,7 @@ export function FamilyDrillIntroScreen({ onStart, onBack }: { onStart: () => voi
       </div>
       {showHowTo && (
         <div style={{ position: "absolute", inset: 0, backgroundColor: "var(--scrim)", zIndex: 80, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px" }}>
-          <div style={{ backgroundColor: "var(--card)", border: "4px solid var(--teal)", boxShadow: "4px 4px 0 var(--teal)", width: "100%" }}>
+          <div style={{ backgroundColor: "var(--card)", border: "4px solid var(--teal-line)", boxShadow: "4px 4px 0 var(--teal-line)", width: "100%" }}>
             <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "3px solid var(--border)" }}>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--teal)" }}>HOW TO PLAY</div>
               <button onClick={() => setShowHowTo(false)} style={{ background: "none", border: "none", cursor: "pointer" }}><IconX size={14} color="var(--muted-foreground)" /></button>

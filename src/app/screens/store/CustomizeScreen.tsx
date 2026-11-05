@@ -10,7 +10,7 @@ import { IconCoin, IconWarning, IconX } from "../../components/icons";
 import { PixelButton } from "../../components/ui";
 import { RoomStyleEditor } from "../../components/room";
 import { useMemberMap } from "../../hooks/useMembers";
-import { ink } from "../../utils/color";
+import { ink, line } from "../../utils/color";
 
 export function CustomizeScreen({ memberId, coins, purchasedItems, soldItems, layout, onStyleSave, onBack, onSell, onArrange }: {
   memberId: string;
@@ -67,7 +67,7 @@ export function CustomizeScreen({ memberId, coins, purchasedItems, soldItems, la
 
   return (
     <div className="flex flex-col h-full">
-      <div style={{ padding: "0 16px", minHeight: 52, backgroundColor: "var(--background)", borderBottom: `4px solid ${ink(member.primaryColor)}`, display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ padding: "0 16px", minHeight: 52, backgroundColor: "var(--background)", borderBottom: `4px solid ${line(member.primaryColor)}`, display: "flex", alignItems: "center", gap: 12 }}>
         <button onClick={onBack} aria-label={t("Back to home")} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, minHeight: 44 }}><IconX size={16} color="var(--muted-foreground)" /></button>
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: ink(member.primaryColor) }}>{t("CUSTOMIZE ROOM")}</div>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
@@ -79,7 +79,7 @@ export function CustomizeScreen({ memberId, coins, purchasedItems, soldItems, la
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
         <div style={{ padding: "16px" }}>
           {isInDebt && (
-            <div style={{ backgroundColor: "color-mix(in srgb, var(--red-fill) 8%, transparent)", border: "3px solid var(--red)", padding: "10px 14px", marginBottom: 16, display: "flex", gap: 10 }}>
+            <div style={{ backgroundColor: "color-mix(in srgb, var(--red-fill) 8%, transparent)", border: "3px solid var(--red-line)", padding: "10px 14px", marginBottom: 16, display: "flex", gap: 10 }}>
               <IconWarning size={14} color="var(--red)" />
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--orange)", lineHeight: 1.5 }}>{t("In debt — sell furniture to recover coins")}</div>
             </div>
@@ -97,8 +97,8 @@ export function CustomizeScreen({ memberId, coins, purchasedItems, soldItems, la
             {unifiedItems.map(item => {
               const isSold = soldItems.includes(item.id);
               return (
-                <div key={item.id} style={{ backgroundColor: "var(--card)", border: `3px solid ${isSold ? "var(--border)" : isInDebt ? "var(--orange)" : "var(--border)"}`, opacity: isSold ? 0.5 : 1, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ width: 36, height: 36, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "var(--background)", border: `2px solid ${isSold ? "var(--secondary)" : isInDebt ? "var(--orange)" : "var(--border)"}` }}>
+                <div key={item.id} style={{ backgroundColor: "var(--card)", border: `3px solid ${isSold ? "var(--border)" : isInDebt ? "var(--orange-line)" : "var(--border)"}`, opacity: isSold ? 0.5 : 1, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 36, height: 36, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "var(--background)", border: `2px solid ${isSold ? "var(--secondary)" : isInDebt ? "var(--orange-line)" : "var(--border)"}` }}>
                     {item.art}
                   </div>
                   <div style={{ flex: 1 }}>

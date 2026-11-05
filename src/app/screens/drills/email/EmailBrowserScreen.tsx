@@ -35,13 +35,13 @@ export function EmailBrowserScreen({ onClose, onSubmit }: { activeMemberId: stri
 
   return (
     <div className="flex flex-col h-full">
-      <div style={{ backgroundColor: "var(--card)", borderBottom: "4px solid var(--red)", padding: "10px 12px", flexShrink: 0 }}>
+      <div style={{ backgroundColor: "var(--card)", borderBottom: "4px solid var(--red-line)", padding: "10px 12px", flexShrink: 0 }}>
         <div className="flex items-center gap-2 mb-1">
           <div style={{ width: 8, height: 8, backgroundColor: "var(--red-fill)" }} />
           <div style={{ width: 8, height: 8, backgroundColor: "var(--yellow-fill)" }} />
           <div style={{ width: 8, height: 8, backgroundColor: "var(--green-fill)" }} />
         </div>
-        <button onClick={() => setShowUrlTip(!showUrlTip)} aria-expanded={showUrlTip} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", backgroundColor: "color-mix(in srgb, var(--red-fill) 8%, transparent)", border: "2px solid var(--red)", padding: "6px 8px", cursor: "pointer" }}>
+        <button onClick={() => setShowUrlTip(!showUrlTip)} aria-expanded={showUrlTip} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", backgroundColor: "color-mix(in srgb, var(--red-fill) 8%, transparent)", border: "2px solid var(--red-line)", padding: "6px 8px", cursor: "pointer" }}>
           <IconWarning size={10} color="var(--red)" />
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--orange)", flex: 1, textAlign: "left" }}>campus-secure-rewards.example</div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--red)" }}>{t("UNVERIFIED SITE")}</div>
@@ -50,7 +50,7 @@ export function EmailBrowserScreen({ onClose, onSubmit }: { activeMemberId: stri
           </div>
         </button>
         {showUrlTip && (
-          <div style={{ backgroundColor: "color-mix(in srgb, var(--red-fill) 12%, transparent)", border: "2px solid var(--red)", padding: "8px", marginTop: 6, fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.5 }}>
+          <div style={{ backgroundColor: "color-mix(in srgb, var(--red-fill) 12%, transparent)", border: "2px solid var(--red-line)", padding: "8px", marginTop: 6, fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.5 }}>
             {t("The domain is suspicious. Scammers often use official-sounding fake domains.")}
           </div>
         )}
@@ -62,7 +62,7 @@ export function EmailBrowserScreen({ onClose, onSubmit }: { activeMemberId: stri
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--soft-foreground)" }}>{t("Verify your identity to receive $300.")}</div>
           </div>
           <div style={{ display: "flex", justifyContent: "center" }}>
-            <div style={{ backgroundColor: "var(--secondary)", border: `2px solid ${glitch ? "var(--red)" : "var(--border)"}`, padding: "4px 12px", display: "flex", alignItems: "center", gap: 6, transition: "border-color 0.05s" }}>
+            <div style={{ backgroundColor: "var(--secondary)", border: `2px solid ${glitch ? "var(--red-line)" : "var(--border)"}`, padding: "4px 12px", display: "flex", alignItems: "center", gap: 6, transition: "border-color 0.05s" }}>
               <IconShield size={12} color={glitch ? "var(--red)" : "var(--border)"} />
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: glitch ? "var(--red)" : "var(--border)" }}>{t("SECURE VERIFIED")}</div>
             </div>

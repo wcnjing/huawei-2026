@@ -1,6 +1,6 @@
 export function IconSpeaker({ size = 16, muted = false, color = "var(--muted-foreground)" }: { size?: number; muted?: boolean; color?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 12 12" style={{ imageRendering: "pixelated", display: "block" }}>
+    <svg className="px-icon" width={size} height={size} viewBox="0 0 12 12" style={{ imageRendering: "pixelated", display: "block" }}>
       {/* speaker cone */}
       <rect x={1} y={4} width={2} height={4} fill={color} />
       <rect x={3} y={3} width={1} height={6} fill={color} />

@@ -1,6 +1,6 @@
 export function IconTrophy({ size = 24, color = "var(--yellow)" }: { size?: number; color?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 12 14" style={{ imageRendering: "pixelated", display: "block" }}>
+    <svg className="px-icon" width={size} height={size} viewBox="0 0 12 14" style={{ imageRendering: "pixelated", display: "block" }}>
       <rect x={2} y={0} width={8} height={6} fill={color} />
       <rect x={1} y={1} width={10} height={4} fill={color} />
       <rect x={0} y={1} width={2} height={3} fill={color} />
