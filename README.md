@@ -45,6 +45,9 @@ npm test                  # isolated backend regression suite
 npm run test:pg           # same suite on real Postgres (needs Docker)
 ```
 
+If port 3000 is already in use on your machine (`EADDRINUSE`), set `PORT=3001` (or any free
+port) in `.env`. The backend serves on it, and `npm run dev` proxies `/api` to it.
+
 With no provider credentials, the game UI, seeded demo family and in-app practice
 drills still work. Real phone registration and live channels correctly return
 “not configured.” For an offline registration demo, deliberately set
