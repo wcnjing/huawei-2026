@@ -26,6 +26,10 @@
  *    --shadow-pixel         the colour of the flat pixel drop-shadow under cards.
  *    --icon-edge, --fill-edge   the dark outline that neon icons and fills get in light (see the
  *                           NEON IN LIGHT rules at the end of this file).
+ *    --icon-hole            what fills the holes inside an outlined icon: see-through in dark,
+ *                           paper (the card colour) in light, so the outline stays outside.
+ *    --icon-ink             the few cut-outs that read as dark details (a warning's "!", the
+ *                           skull's eyes): see-through in dark, the outline colour in light.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 :root,
@@ -79,6 +83,8 @@
   /* Neon already stands out on navy: no outlines in dark. */
   --icon-edge: none;
   --fill-edge: 0px;
+  --icon-hole: none;
+  --icon-ink: none;
 }
 
 /* Light, palette A · Mist: cool blue-grey, closest to the dark theme. */
@@ -129,6 +135,9 @@
   /* A one-pixel dark outline traced around neon icons, and a 2px edge around solid neon fills. */
   --icon-edge: drop-shadow(1px 0 0 var(--outline)) drop-shadow(-1px 0 0 var(--outline)) drop-shadow(0 1px 0 var(--outline)) drop-shadow(0 -1px 0 var(--outline));
   --fill-edge: 2px;
+  /* Holes inside outlined icons are paper, so the outline traces only the outside (all palettes). */
+  --icon-hole: var(--card);
+  --icon-ink: var(--outline);
 }
 
 /* Light, palette B · Paper: warm cream. */
@@ -244,14 +253,25 @@
   --pink: var(--pink-fill);
 }
 /* The outline goes on icons drawn in a hue (or marked px-edge, like the medals), not on grey or
-   navy ones such as inactive nav icons or an icon sitting on a neon button. */
+   navy ones such as inactive nav icons or an icon sitting on a neon button.
+   The outline is a drop-shadow, so it would also trace every hole inside the icon and fill the
+   small ones (the white of the Instagram camera, the "in" of LinkedIn). Each icon's enclosed holes
+   are drawn as <path class="px-hole"> under it (notes/theme-tooling/icon-holes.mjs adds them).
+   An outlined icon paints them with --icon-hole, paper in light, so the outline stays on the
+   outside. Everywhere else they draw nothing. A few cut-outs are dark details instead (the
+   warning's "!", the skull's eyes): those icons also have a hand-placed <path class="px-ink">,
+   painted with the outline colour. */
 .px-icon.px-edge,
 .px-icon:has([fill="var(--green)"], [fill="var(--yellow)"], [fill="var(--teal)"], [fill="var(--red)"],
   [fill="var(--orange)"], [fill="var(--violet)"], [fill="var(--cyan)"], [fill="var(--pink)"],
   [fill="var(--green-fill)"], [fill="var(--yellow-fill)"], [fill="var(--teal-fill)"], [fill="var(--red-fill)"],
   [fill="var(--orange-fill)"], [fill="var(--violet-fill)"], [fill="var(--cyan-fill)"], [fill="var(--pink-fill)"]) {
   filter: var(--icon-edge);
+  --px-hole: var(--icon-hole);
+  --px-ink: var(--icon-ink);
 }
+.px-hole { fill: var(--px-hole, none); }
+.px-ink { fill: var(--px-ink, none); }
 
 /* Solid neon fills written inline, e.g. style={{ background: "var(--yellow-fill)" }}: badges,
    dots, progress bars, step numbers. Anything that already has a dark border (var(--outline),

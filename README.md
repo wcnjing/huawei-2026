@@ -177,6 +177,11 @@ small script in `index.html` applies the theme before the first paint.
   - Every icon's `<svg>` has `className="px-icon"`. Pass the icon a hue (`color="var(--teal)"`)
     and it draws in the neon with a one-pixel dark outline. Grey or navy icons get no outline.
     Add `px-edge` to always outline an icon drawn in hex, like the medals.
+  - Holes inside an icon (the "in" of LinkedIn, an envelope's inside) are drawn as the svg's first
+    child, `<path className="px-hole" fill="none" d="…" />`. On an outlined icon in light they
+    are filled with paper, so the outline stays on the outside and can't fill small holes. A
+    cut-out that should read dark (a warning's "!", the skull's eyes) is a `px-ink` path instead.
+    When you draw a new icon with enclosed holes, add its `px-hole` path the same way.
   - An inline `background: var(--yellow-fill)` (or `backgroundColor`) gets a 2px dark edge,
     unless the element already has a `var(--outline)` border (like `PixelButton`). A fill set some
     other way can add `className="fill-edge"`.

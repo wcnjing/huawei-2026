@@ -1,6 +1,7 @@
 export function IconShield({ size = 24, color = "var(--green)" }: { size?: number; color?: string }) {
   return (
     <svg className="px-icon" width={size} height={size} viewBox="0 0 12 14" style={{ imageRendering: "pixelated", display: "block" }}>
+      <path className="px-hole" fill="none" d="M8 4h1v1h-1zM3 5h1v1h-1zM7 5h1v1h-1zM4 6h1v1h-1zM6 6h1v1h-1zM5 7h1v1h-1z" />
       <rect x={2} y={0} width={8} height={1} fill={color} />
       <rect x={1} y={1} width={10} height={1} fill={color} />
       <rect x={0} y={2} width={12} height={2} fill={color} />

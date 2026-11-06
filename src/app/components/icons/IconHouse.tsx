@@ -1,6 +1,7 @@
 export function IconHouse({ size = 20, color = "var(--green)" }: { size?: number; color?: string }) {
   return (
     <svg className="px-icon" width={size} height={size} viewBox="0 0 12 12" style={{ imageRendering: "pixelated", display: "block" }}>
+      <path className="px-hole" fill="none" d="M2 6h2v2h-2zM8 6h2v2h-2z" />
       <rect x={5} y={0} width={2} height={1} fill={color} />
       <rect x={4} y={1} width={4} height={1} fill={color} />
       <rect x={3} y={2} width={6} height={1} fill={color} />
