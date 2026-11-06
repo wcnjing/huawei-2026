@@ -5,6 +5,7 @@ import {
 import { PixelButton } from "../../components/ui";
 import { SafetyHabitsDropdown } from "./SafetyHabitsDropdown";
 import { useT } from "../../i18n";
+import { line } from "../../utils/color";
 import { sessionToken } from "../../services/session";
 
 export function DrillSelectScreen({
@@ -94,9 +95,9 @@ export function DrillSelectScreen({
             action: inHouse ? t("START HOUSE DRILL") : t("SET UP A HOUSE"), onClick: onFamily,
           },
         ].map((card) => (
-          <div key={card.key} data-tour={card.tour} style={{ backgroundColor: "var(--secondary)", border: `3px solid ${card.color}`, boxShadow: `4px 4px 0 ${card.shadow}`, padding: 16 }}>
+          <div key={card.key} data-tour={card.tour} style={{ backgroundColor: "var(--secondary)", border: `3px solid ${line(card.color)}`, boxShadow: `4px 4px 0 ${card.shadow}`, padding: 16 }}>
             <div className="flex items-start gap-3">
-              <div style={{ width: 44, height: 44, flexShrink: 0, backgroundColor: "color-mix(in srgb, var(--green-fill) 10%, transparent)", border: `2px solid ${card.color}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ width: 44, height: 44, flexShrink: 0, backgroundColor: "color-mix(in srgb, var(--green-fill) 10%, transparent)", border: `2px solid ${line(card.color)}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {card.icon}
               </div>
               <div style={{ flex: 1 }}>
@@ -123,9 +124,9 @@ export function DrillSelectScreen({
         {[...realisticDrills].sort((a, b) => preferredChannels && preferredChannels.length < 3
           ? Number(preferredChannels.includes(b.id === "phone" ? "call" : b.id)) - Number(preferredChannels.includes(a.id === "phone" ? "call" : a.id))
           : 0).map((drill) => (
-          <div key={drill.id} style={{ backgroundColor: "var(--card)", border: "3px solid var(--border)", borderLeft: `5px solid ${drill.color}`, padding: 14 }}>
+          <div key={drill.id} style={{ backgroundColor: "var(--card)", border: "3px solid var(--border)", borderLeft: `5px solid ${line(drill.color)}`, padding: 14 }}>
             <div className="flex items-start gap-3">
-              <div style={{ width: 42, height: 42, flexShrink: 0, backgroundColor: "var(--background)", border: `2px solid ${drill.color}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ width: 42, height: 42, flexShrink: 0, backgroundColor: "var(--background)", border: `2px solid ${line(drill.color)}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {drill.icon}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>

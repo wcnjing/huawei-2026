@@ -14,6 +14,12 @@ const NEUTRALS: Record<string, string> = {
 };
 
 const key = (color: string) => color.trim().toLowerCase();
+const HUES = new Set(Object.values(TOKENS));
+/** "teal" for "var(--teal)", the hue's text token; otherwise undefined. */
+const hueToken = (color: string) => {
+  const name = key(color).match(/^var\(--([a-z]+)\)$/)?.[1];
+  return name && HUES.has(name) ? name : undefined;
+};
 
 /** Colour for text (and icons, which turn it back into the neon with an outline in light). */
 export function ink(color: string) {
@@ -23,18 +29,24 @@ export function ink(color: string) {
   return color;
 }
 
-/** Colour for borders, lines and pixel shadows: brighter than ink() in the light theme. */
+/** Colour for borders, lines and pixel shadows: brighter than ink() in the light theme.
+ *  Also takes a hue's text token: line("var(--teal)") is var(--teal-line). */
 export function line(color: string) {
   const k = key(color);
   if (TOKENS[k]) return `var(--${TOKENS[k]}-line)`;
+  const hue = hueToken(color);
+  if (hue) return `var(--${hue}-line)`;
   if (NEUTRALS[k]) return `var(--${NEUTRALS[k]})`;
   return color;
 }
 
-/** Colour for solid fills (buttons, bars, badges): the neon itself, in both themes. */
+/** Colour for solid fills (buttons, bars, badges): the neon itself, in both themes.
+ *  Also takes a hue's text token: fill("var(--teal)") is var(--teal-fill). */
 export function fill(color: string) {
   const k = key(color);
   if (TOKENS[k]) return `var(--${TOKENS[k]}-fill)`;
+  const hue = hueToken(color);
+  if (hue) return `var(--${hue}-fill)`;
   if (NEUTRALS[k]) return `var(--${NEUTRALS[k]})`;
   return color;
 }

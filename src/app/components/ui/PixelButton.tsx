@@ -1,4 +1,8 @@
 import { useState } from "react";
+import { fill } from "../../utils/color";
+
+// A button is always a solid neon fill with navy text, so a hue's text token passed as the
+// colour (var(--teal), darker in light) becomes its fill (var(--teal-fill)).
 
 export function PixelButton({
   children,
@@ -33,7 +37,7 @@ export function PixelButton({
       style={{
         fontSize: textSize,
         ...(compact ? { padding: "2px 6px", height: "26px", minHeight: "26px", boxSizing: "border-box" as const, lineHeight: "12px" } : {}),
-        backgroundColor: disabled ? "var(--border)" : color,
+        backgroundColor: disabled ? "var(--border)" : fill(color),
         color: disabled ? "var(--muted-foreground)" : textColor,
         border: `4px solid ${disabled ? "var(--secondary)" : "var(--outline)"}`,
         boxShadow: pressed || disabled ? "none" : `4px 4px 0px var(--outline)`,
