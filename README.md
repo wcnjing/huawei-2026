@@ -72,6 +72,16 @@ account choice screen. Dev mode uses a local PGlite database and disables live c
 SMS, and email delivery. It picks unused local ports, so it can run beside another
 dev server. Dev mode is available only in Vite development on a loopback host.
 
+The dev-mode database is kept in your user cache folder, not in the repo
+(`%LOCALAPPDATA%\safespace-drill-mode` on Windows, `~/Library/Caches/safespace-drill-mode`
+on macOS, `~/.cache/safespace-drill-mode` on Linux; the launcher prints the path).
+Cloud-synced folders such as OneDrive mark database folders read-only, and PGlite then
+fails to start, which made every sign-in fail. Set `DEV_PGLITE_DIR` to use another folder.
+If the database will not open, the launcher moves it aside and starts a fresh one. If
+the demo account still cannot be opened, **DEV: ENTER WITHOUT SERVER** appears and opens
+the app signed out, so you can still look around; houses, chat and real drills need the
+server. An old `server/.pglite-dev-mode` folder is no longer used and can be deleted.
+
 ## Layout
 
 ```text

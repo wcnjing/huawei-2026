@@ -28,6 +28,9 @@ export function RegisterScreen({ mode, name, devMode = false, onDone, onDevSkip,
   const [devCode, setDevCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [noAccount, setNoAccount] = useState(false);
+  // Dev mode only: the demo account needs the local server and its database. When that
+  // fails, still let the developer into the app, signed out, to look around.
+  const [devSkipFailed, setDevSkipFailed] = useState(false);
 
   // Explicit save — persist the details locally without sending an OTP. Lets the user
   // store their email for email drills, or keep a number on file, before verifying.
@@ -118,6 +121,7 @@ export function RegisterScreen({ mode, name, devMode = false, onDone, onDevSkip,
       if (result.response.status === 404 && result.data.code === "NO_ACCOUNT") result = await request(true);
       if (!result.response.ok || !result.data.token) {
         setMsg(result.data.error || "Could not open the demo account.");
+        setDevSkipFailed(true);
         return;
       }
       setSessionToken(result.data.token);
@@ -126,6 +130,7 @@ export function RegisterScreen({ mode, name, devMode = false, onDone, onDevSkip,
       onDevSkip(demoName, result.data.userId);
     } catch {
       setMsg("Could not reach the local demo server.");
+      setDevSkipFailed(true);
     } finally {
       setBusy(false);
     }
@@ -169,6 +174,10 @@ export function RegisterScreen({ mode, name, devMode = false, onDone, onDevSkip,
         {devMode && onDevSkip && <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <PixelButton onClick={skipWithDemoAccount} color="var(--violet-fill)" textColor="var(--on-fill)" size="md" full disabled={busy}>{t("[ DEV: SKIP TO APP ]")}</PixelButton>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)", lineHeight: 1.5, textAlign: "center" }}>{t("Use the form to preview registration, or enter with a local demo account.")}</div>
+          {devSkipFailed && <>
+            <PixelButton onClick={() => onDevSkip("DEV PLAYER")} color="var(--secondary)" textColor="var(--violet)" size="md" full disabled={busy}>{t("[ DEV: ENTER WITHOUT SERVER ]")}</PixelButton>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)", lineHeight: 1.5, textAlign: "center" }}>{t("Opens the app signed out. Houses, chat and real drills need the server.")}</div>
+          </>}
         </div>}
         <PixelButton onClick={onBack} color="var(--secondary)" textColor="var(--muted-foreground)" size="md" full>{t("BACK")}</PixelButton>
       </div>

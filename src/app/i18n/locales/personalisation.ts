@@ -27,6 +27,9 @@ export const personalisation: LocaleTable = {
     "Enter your name before continuing.": "请先输入姓名。", "Enter a valid email address before continuing.": "请先输入有效的电邮地址。",
     "[ DEV: SKIP TO APP ]": "[ 开发模式：直接进入应用 ]",
     "Use the form to preview registration, or enter with a local demo account.": "填写表单预览注册流程，或使用本地演示账户直接进入。",
+    "[ DEV: ENTER WITHOUT SERVER ]": "[ 开发模式：不连服务器直接进入 ]",
+    "Opens the app signed out. Houses, chat and real drills need the server.": "以未登录状态打开应用。家庭、聊天和真实演练需要服务器。",
+    "Could not open the demo account.": "无法打开演示账户。", "Could not reach the local demo server.": "无法连接本地演示服务器。",
   },
   ms: {
     "PREFERENCES": "PEMERIBADIAN LATIHAN",
@@ -48,6 +51,9 @@ export const personalisation: LocaleTable = {
     "Enter your name before continuing.": "Masukkan nama anda sebelum meneruskan.", "Enter a valid email address before continuing.": "Masukkan alamat e-mel yang sah sebelum meneruskan.",
     "[ DEV: SKIP TO APP ]": "[ MOD DEV: TERUS KE APLIKASI ]",
     "Use the form to preview registration, or enter with a local demo account.": "Gunakan borang untuk melihat pendaftaran, atau masuk dengan akaun demo setempat.",
+    "[ DEV: ENTER WITHOUT SERVER ]": "[ MOD DEV: MASUK TANPA PELAYAN ]",
+    "Opens the app signed out. Houses, chat and real drills need the server.": "Membuka aplikasi tanpa log masuk. Rumah, sembang dan latihan sebenar memerlukan pelayan.",
+    "Could not open the demo account.": "Akaun demo tidak dapat dibuka.", "Could not reach the local demo server.": "Pelayan demo setempat tidak dapat dihubungi.",
   },
   ta: {
     "PREFERENCES": "பயிற்சித் தனிப்பயனாக்கம்",
@@ -69,5 +75,8 @@ export const personalisation: LocaleTable = {
     "Enter your name before continuing.": "தொடர்வதற்கு முன் உங்கள் பெயரை உள்ளிடுங்கள்.", "Enter a valid email address before continuing.": "தொடர்வதற்கு முன் சரியான மின்னஞ்சல் முகவரியை உள்ளிடுங்கள்.",
     "[ DEV: SKIP TO APP ]": "[ உருவாக்க முறை: செயலிக்கு நேராகச் செல்க ]",
     "Use the form to preview registration, or enter with a local demo account.": "பதிவைப் பார்க்க படிவத்தைப் பயன்படுத்துங்கள், அல்லது உள்ளூர் மாதிரிக் கணக்குடன் நுழையுங்கள்.",
+    "[ DEV: ENTER WITHOUT SERVER ]": "[ உருவாக்க முறை: சர்வர் இல்லாமல் நுழைக ]",
+    "Opens the app signed out. Houses, chat and real drills need the server.": "உள்நுழையாமல் செயலியைத் திறக்கும். வீடுகள், அரட்டை, உண்மையான பயிற்சிகளுக்கு சர்வர் தேவை.",
+    "Could not open the demo account.": "மாதிரிக் கணக்கைத் திறக்க முடியவில்லை.", "Could not reach the local demo server.": "உள்ளூர் மாதிரி சர்வரை அணுக முடியவில்லை.",
   },
 };
