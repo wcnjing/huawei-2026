@@ -32,7 +32,7 @@ export function FamilySummaryScreen({ mode, answers, total, coins, serverXp, pla
   const n = Math.max(total, 1);
   const safeAt = Math.ceil((n * 5) / 6);
   const header = headline?.text ?? (correctCount >= safeAt ? t("HOUSE SAFE!") : correctCount >= n / 2 ? t("GOOD TRAINING!") : t("MORE PRACTICE NEEDED!"));
-  const headerColor = headline?.color ?? (correctCount >= safeAt ? "#00ff88" : correctCount >= n / 2 ? "#ffe66d" : "#ff2d55");
+  const headerColor = headline?.color ?? (correctCount >= safeAt ? "var(--green)" : correctCount >= n / 2 ? "var(--yellow)" : "var(--red)");
   const xpDisplay = serverXp === "pending" ? t("SAVING…") : serverXp === null ? t("NOT SAVED — CHECK YOUR CONNECTION") : serverXp > 0 ? `+${serverXp} XP` : t("XP ALREADY EARNED THIS WEEK");
 
   const badges = [
@@ -44,35 +44,35 @@ export function FamilySummaryScreen({ mode, answers, total, coins, serverXp, pla
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center px-4" style={{ backgroundColor: "#0a0e1a", borderBottom: "4px solid #2a3a5c", minHeight: 52, flexShrink: 0 }}>
+      <div className="flex items-center px-4" style={{ backgroundColor: "var(--background)", borderBottom: "4px solid var(--border)", minHeight: 52, flexShrink: 0 }}>
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: headerColor }}>{header}</div>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
         {leaderboard}
-        <div style={{ backgroundColor: "#111827", border: `4px solid ${headerColor}`, boxShadow: `4px 4px 0 ${headerColor}`, padding: "14px", marginBottom: 14 }}>
+        <div style={{ backgroundColor: "var(--card)", border: `4px solid ${headerColor}`, boxShadow: `4px 4px 0 ${headerColor}`, padding: "14px", marginBottom: 14 }}>
           <div className="grid grid-cols-2 gap-3">
             {[
-              { label: mode === "family" ? t("HOUSE CORRECT") : t("CORRECT"), value: `${correctCount}/${total}`, color: "#00ff88" },
-              { label: t("CLUES FOUND"), value: `${foundCluesCount}/${totalClues}`, color: "#4ecdc4" },
-              { label: t("YOUR XP"), value: xpDisplay, color: "#ffe66d" },
-              { label: t("COINS EARNED"), value: `+${coins}`, color: "#ffe66d" },
+              { label: mode === "family" ? t("HOUSE CORRECT") : t("CORRECT"), value: `${correctCount}/${total}`, color: "var(--green)" },
+              { label: t("CLUES FOUND"), value: `${foundCluesCount}/${totalClues}`, color: "var(--teal)" },
+              { label: t("YOUR XP"), value: xpDisplay, color: "var(--yellow)" },
+              { label: t("COINS EARNED"), value: `+${coins}`, color: "var(--yellow)" },
             ].map((s) => (
-              <div key={s.label} style={{ backgroundColor: "#0a0e1a", border: "2px solid #2a3a5c", padding: "8px 10px" }}>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#9bb0c8", marginBottom: 4 }}>{s.label}</div>
+              <div key={s.label} style={{ backgroundColor: "var(--background)", border: "2px solid var(--border)", padding: "8px 10px" }}>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)", marginBottom: 4 }}>{s.label}</div>
                 <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: s.color }}>{s.value}</div>
               </div>
             ))}
           </div>
         </div>
         {players && players.length > 0 && (
-          <div style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "10px 12px", marginBottom: 14 }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#4ecdc4", marginBottom: 8 }}>{t("PLAYERS")}</div>
+          <div style={{ backgroundColor: "var(--card)", border: "3px solid var(--border)", padding: "10px 12px", marginBottom: 14 }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--teal)", marginBottom: 8 }}>{t("PLAYERS")}</div>
             {players.map((p) => (
-              <div key={p.id} className="flex items-center justify-between" style={{ padding: "5px 0", borderTop: "1px solid #1a2340" }}>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: p.isSelf ? "#00ff88" : "#e8f4f8" }}>
+              <div key={p.id} className="flex items-center justify-between" style={{ padding: "5px 0", borderTop: "1px solid var(--secondary)" }}>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: p.isSelf ? "var(--green)" : "var(--foreground)" }}>
                   {p.name.toUpperCase()}{p.isSelf ? ` (${t("YOU")})` : ""}
                 </div>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ffe66d" }}>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--yellow)" }}>
                   {t("{correct}/{total} CORRECT", { correct: p.correct, total: p.answered })}
                   {p.xp ? ` · +${p.xp} XP` : ""}
                 </div>
@@ -80,33 +80,33 @@ export function FamilySummaryScreen({ mode, answers, total, coins, serverXp, pla
             ))}
           </div>
         )}
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ffe66d", marginBottom: 8 }}>{t("BADGES")}</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--yellow)", marginBottom: 8 }}>{t("BADGES")}</div>
         <div className="grid grid-cols-2 gap-2 mb-14">
           {badges.map((b) => (
-            <div key={b.name} style={{ backgroundColor: b.earned ? "#111827" : "#0a0e1a", border: `2px solid ${b.earned ? "#ffe66d" : "#1a2340"}`, padding: "8px 10px", opacity: b.earned ? 1 : 0.4 }}>
-              <IconBadge size={18} color={b.earned ? "#ffe66d" : "#2a3a5c"} />
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: b.earned ? "#ffe66d" : "#2a3a5c", marginTop: 4, lineHeight: 1.5 }}>{b.name}</div>
-              {!b.earned && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#1a2340", marginTop: 2 }}>{t("LOCKED")}</div>}
+            <div key={b.name} style={{ backgroundColor: b.earned ? "var(--card)" : "var(--background)", border: `2px solid ${b.earned ? "var(--yellow-line)" : "var(--secondary)"}`, padding: "8px 10px", opacity: b.earned ? 1 : 0.4 }}>
+              <IconBadge size={18} color={b.earned ? "var(--yellow)" : "var(--border)"} />
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: b.earned ? "var(--yellow)" : "var(--border)", marginTop: 4, lineHeight: 1.5 }}>{b.name}</div>
+              {!b.earned && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--secondary)", marginTop: 2 }}>{t("LOCKED")}</div>}
             </div>
           ))}
         </div>
-        <div style={{ backgroundColor: "#0d1526", border: "3px solid #4ecdc4", padding: "12px 14px", marginBottom: 14 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#4ecdc4", marginBottom: 8 }}>{t("TOP LESSONS")}</div>
+        <div style={{ backgroundColor: "var(--surface)", border: "3px solid var(--teal-line)", padding: "12px 14px", marginBottom: 14 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--teal)", marginBottom: 8 }}>{t("TOP LESSONS")}</div>
           {["Always inspect the sender.", "Hover or long-press links before opening.", "Be careful with urgent messages.", "Never share passwords, OTPs, or card details.", "Ask someone you trust before acting on suspicious messages."].map((l, i) => (
             <div key={i} className="flex items-start gap-2 mb-2">
-              <div style={{ width: 5, height: 5, backgroundColor: "#4ecdc4", flexShrink: 0, marginTop: 5 }} />
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.5 }}>{t(l)}</div>
+              <div style={{ width: 5, height: 5, backgroundColor: "var(--teal-fill)", flexShrink: 0, marginTop: 5 }} />
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.5 }}>{t(l)}</div>
             </div>
           ))}
         </div>
         <div className="flex flex-col gap-3 pb-4">
-          <PixelButton onClick={onPlayAgain} color="#00ff88" textColor="#0a0e1a" size="lg" full>
+          <PixelButton onClick={onPlayAgain} color="var(--green-fill)" textColor="var(--on-fill)" size="lg" full>
             {mode === "family" ? t("[ PLAY HOUSE DRILL AGAIN ]") : t("[ PLAY AGAIN ]")}
           </PixelButton>
-          <PixelButton onClick={onSwitchMode} color="#4ecdc4" textColor="#0a0e1a" size="sm" full>
+          <PixelButton onClick={onSwitchMode} color="var(--teal-fill)" textColor="var(--on-fill)" size="sm" full>
             {mode === "family" ? t("[ TRY INDIVIDUAL DRILL ]") : t("[ TRY HOUSE DRILL ]")}
           </PixelButton>
-          <PixelButton onClick={onHome} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>{t("[ BACK HOME ]")}</PixelButton>
+          <PixelButton onClick={onHome} color="var(--border)" textColor="var(--foreground)" size="sm" full>{t("[ BACK HOME ]")}</PixelButton>
         </div>
       </div>
     </div>

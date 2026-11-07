@@ -7,7 +7,7 @@ import { applyFamilyEdit, familyLinkFor, familyProblem } from "../../../../serve
 import { useI18n, useT } from "../../i18n";
 
 const MONO = "'Share Tech Mono', monospace";
-const SHAPE_COLOR = { male: "#4ecdc4", female: "#ff6b9d", other: "#ffe66d", none: "#9bb0c8" } as const;
+const SHAPE_COLOR = { male: "var(--teal)", female: "var(--pink)", other: "var(--yellow)", none: "var(--soft-foreground)" } as const;
 const GENDERS: { id: FamilyGender; label: string }[] = [
   { id: "male", label: "MALE" },
   { id: "female", label: "FEMALE" },
@@ -32,7 +32,7 @@ function relationEdit(kind: "add" | "remove", relation: Relation, person: string
  * Square = male, circle = female, triangle = others, dashed = not set yet. The three
  * shapes are drawn to the same visual size (a circle the width of a square looks smaller).
  */
-function Shape({ gender, size, stroke, fill = "#111827", strokeWidth = 3, dashed = false }: {
+function Shape({ gender, size, stroke, fill = "var(--card)", strokeWidth = 3, dashed = false }: {
   gender: FamilyGender | null; size: number; stroke: string; fill?: string; strokeWidth?: number; dashed?: boolean;
 }) {
   const c = size / 2;
@@ -54,7 +54,7 @@ function MemberNode({ member, label, isSelf, picked, onPick }: {
   const t = useT();
   const gender = linkOf(member).gender;
   const color = SHAPE_COLOR[gender ?? "none"];
-  const edge = picked ? "#ffffff" : isSelf ? "#00ff88" : color;
+  const edge = picked ? "var(--foreground-strong)" : isSelf ? "var(--green)" : color;
   return (
     <button
       type="button"
@@ -67,18 +67,18 @@ function MemberNode({ member, label, isSelf, picked, onPick }: {
         cursor: onPick ? "pointer" : "default",
       }}
     >
-      <div style={{ position: "relative", filter: isSelf || picked ? `drop-shadow(0 0 5px ${edge})` : "none" }}>
+      <div style={{ position: "relative", filter: isSelf || picked ? `drop-shadow(0 0 calc(5px * var(--glow)) ${edge})` : "none" }}>
         <Shape gender={gender} size={SHAPE} stroke={edge} dashed={!gender} />
         <span style={{
           position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
           paddingTop: gender === "other" ? 10 : 0,
-          fontFamily: MONO, fontSize: 14, color: "#e8f4f8",
+          fontFamily: MONO, fontSize: 14, color: "var(--foreground)",
         }}>{member.name.slice(0, 1)}</span>
       </div>
-      <span style={{ fontFamily: MONO, fontSize: 12, lineHeight: "14px", color: "#e8f4f8", maxWidth: NODE_W, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+      <span style={{ fontFamily: MONO, fontSize: 12, lineHeight: "14px", color: "var(--foreground)", maxWidth: NODE_W, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {member.name}
       </span>
-      <span style={{ fontFamily: MONO, fontSize: 11, lineHeight: "13px", color: isSelf ? "#00ff88" : color, maxWidth: NODE_W, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+      <span style={{ fontFamily: MONO, fontSize: 11, lineHeight: "13px", color: isSelf ? "var(--green)" : color, maxWidth: NODE_W, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {isSelf ? t("YOU") : label || "—"}
       </span>
     </button>
@@ -94,11 +94,11 @@ function Chip({ label, active, color, onClick, gender }: { label: string; active
       style={{
         fontFamily: MONO, fontSize: "var(--text-caption)", padding: "8px 10px",
         display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
-        backgroundColor: active ? color : "#0a0e1a", color: active ? "#0a0e1a" : "#e8f4f8",
-        border: `2px solid ${active ? color : "#2a3a5c"}`, cursor: "pointer",
+        backgroundColor: active ? color : "var(--on-fill)", color: active ? "var(--on-fill)" : "var(--foreground)",
+        border: `2px solid ${active ? color : "var(--border)"}`, cursor: "pointer",
       }}
     >
-      {gender && <Shape gender={gender} size={12} strokeWidth={2} stroke={active ? "#0a0e1a" : color} fill="none" />}
+      {gender && <Shape gender={gender} size={12} strokeWidth={2} stroke={active ? "var(--on-fill)" : color} fill="none" />}
       {label}
     </button>
   );
@@ -197,12 +197,12 @@ export function FamilyTreeTab({ house, selfId, onEdit }: {
   const others = members.filter((m) => m.id !== selected);
 
   const label = (text: string) => (
-    <div style={{ fontFamily: MONO, fontSize: "var(--text-label)", color: "#9bb0c8", margin: "14px 0 6px" }}>{text}</div>
+    <div style={{ fontFamily: MONO, fontSize: "var(--text-label)", color: "var(--soft-foreground)", margin: "14px 0 6px" }}>{text}</div>
   );
   const legend = (content: React.ReactNode, text: string) => (
     <div key={text} style={{ display: "flex", alignItems: "center", gap: 5 }}>
       {content}
-      <span style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: "#9bb0c8" }}>{text}</span>
+      <span style={{ fontFamily: MONO, fontSize: "var(--text-caption)", color: "var(--soft-foreground)" }}>{text}</span>
     </div>
   );
   const node = (id: string) => (
@@ -217,10 +217,10 @@ export function FamilyTreeTab({ house, selfId, onEdit }: {
 
   return (
     <div className="flex flex-col gap-4">
-      <PixelPanel accent="#00ff88" className="w-full">
+      <PixelPanel accent="var(--green)" className="w-full">
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          <IconTree size={18} color="#00ff88" />
-          <div style={{ fontFamily: MONO, fontSize: "var(--text-label)", color: "#00ff88" }}>{house.name}</div>
+          <IconTree size={18} color="var(--green)" />
+          <div style={{ fontFamily: MONO, fontSize: "var(--text-label)", color: "var(--green)" }}>{house.name}</div>
         </div>
         {layout.nodes.length ? (
           <div style={{ overflowX: "auto", scrollbarWidth: "thin" }}>
@@ -228,7 +228,7 @@ export function FamilyTreeTab({ house, selfId, onEdit }: {
               <svg width={layout.width} height={layout.height} style={{ position: "absolute", inset: 0, overflow: "visible" }} aria-hidden>
                 {layout.segments.map((s) => (
                   <line key={s.key} x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2}
-                    stroke={s.dashed ? "#ffe66d" : "#6b8ba4"} strokeWidth={2}
+                    stroke={s.dashed ? "var(--yellow-line)" : "var(--muted-foreground)"} strokeWidth={2}
                     strokeDasharray={s.dashed ? "4 4" : undefined} strokeLinecap="square" />
                 ))}
               </svg>
@@ -238,7 +238,7 @@ export function FamilyTreeTab({ house, selfId, onEdit }: {
             </div>
           </div>
         ) : (
-          <div style={{ fontFamily: MONO, fontSize: "var(--text-body)", color: "#9bb0c8", lineHeight: 1.5 }}>
+          <div style={{ fontFamily: MONO, fontSize: "var(--text-body)", color: "var(--soft-foreground)", lineHeight: 1.5 }}>
             {t("The tree is empty. Tap someone below to start it.")}
           </div>
         )}
@@ -252,13 +252,13 @@ export function FamilyTreeTab({ house, selfId, onEdit }: {
         )}
         <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 12px", marginTop: 10 }}>
           {GENDERS.map((g) => legend(<Shape gender={g.id} size={12} strokeWidth={2} stroke={SHAPE_COLOR[g.id]} fill="none" />, t(g.label)))}
-          {legend(<svg width={16} height={4} aria-hidden><line x1={0} y1={2} x2={16} y2={2} stroke="#ffe66d" strokeWidth={2} strokeDasharray="3 3" /></svg>, t("FRIEND"))}
+          {legend(<svg width={16} height={4} aria-hidden><line x1={0} y1={2} x2={16} y2={2} stroke="var(--yellow-line)" strokeWidth={2} strokeDasharray="3 3" /></svg>, t("FRIEND"))}
         </div>
       </PixelPanel>
 
       {person && (
-        <PixelPanel accent="#c77dff" className="w-full">
-          <div style={{ fontFamily: MONO, fontSize: "var(--text-label)", color: "#9bb0c8", marginBottom: 6 }}>{t("GENDER")}</div>
+        <PixelPanel accent="var(--violet)" className="w-full">
+          <div style={{ fontFamily: MONO, fontSize: "var(--text-label)", color: "var(--soft-foreground)", marginBottom: 6 }}>{t("GENDER")}</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {GENDERS.map((g) => (
               <Chip key={g.id} label={t(g.label)} gender={g.id} color={SHAPE_COLOR[g.id]} active={link.gender === g.id}
@@ -268,17 +268,17 @@ export function FamilyTreeTab({ house, selfId, onEdit }: {
 
           {label(t("RELATIONSHIPS"))}
           {relationships.length ? relationships.map(({ relation: r, other }) => byId[other] && (
-            <div key={`${r}-${other}`} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderTop: "2px solid #2a3a5c" }}>
-              <div style={{ flex: 1, fontFamily: MONO, fontSize: "var(--text-body)", color: "#e8f4f8" }}>
-                {relationName(r)} <span style={{ color: "#ffe66d" }}>{byId[other].name}</span>
+            <div key={`${r}-${other}`} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderTop: "2px solid var(--border)" }}>
+              <div style={{ flex: 1, fontFamily: MONO, fontSize: "var(--text-body)", color: "var(--foreground)" }}>
+                {relationName(r)} <span style={{ color: "var(--yellow)" }}>{byId[other].name}</span>
               </div>
               <button type="button" disabled={busy}
                 onClick={() => void run([relationEdit("remove", r, selected, other)])}
                 aria-label={t("Remove {relation} {name}", { relation: relationName(r), name: byId[other].name })}
-                style={{ minWidth: 40, minHeight: 36, background: "none", border: "2px solid #2a3a5c", color: "#ff6b35", fontFamily: MONO, cursor: "pointer" }}>✕</button>
+                style={{ minWidth: 40, minHeight: 36, background: "none", border: "2px solid var(--border)", color: "var(--orange)", fontFamily: MONO, cursor: "pointer" }}>✕</button>
             </div>
           )) : (
-            <div style={{ fontFamily: MONO, fontSize: "var(--text-body)", color: "#6b8ba4" }}>{t("No relationships yet.")}</div>
+            <div style={{ fontFamily: MONO, fontSize: "var(--text-body)", color: "var(--muted-foreground)" }}>{t("No relationships yet.")}</div>
           )}
 
           {others.length > 0 && (
@@ -286,7 +286,7 @@ export function FamilyTreeTab({ house, selfId, onEdit }: {
               {label(t("ADD A RELATIONSHIP"))}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 6 }}>
                 {RELATIONS.map((r) => (
-                  <Chip key={r.id} label={t(r.label)} color="#c77dff" active={relation === r.id}
+                  <Chip key={r.id} label={t(r.label)} color="var(--violet)" active={relation === r.id}
                     onClick={() => { setRelation(r.id); setTarget(null); setMsg(""); }} />
                 ))}
               </div>
@@ -302,9 +302,9 @@ export function FamilyTreeTab({ house, selfId, onEdit }: {
                           onClick={() => setTarget(m.id)}
                           style={{
                             fontFamily: MONO, fontSize: "var(--text-caption)", padding: "8px 10px",
-                            backgroundColor: target === m.id ? "#ffe66d" : "#0a0e1a",
-                            color: target === m.id ? "#0a0e1a" : ok ? "#e8f4f8" : "#4a5a78",
-                            border: `2px solid ${target === m.id ? "#ffe66d" : "#2a3a5c"}`,
+                            backgroundColor: target === m.id ? "var(--yellow-fill)" : "var(--background)",
+                            color: target === m.id ? "var(--on-fill)" : ok ? "var(--foreground)" : "var(--border-strong)",
+                            border: `2px solid ${target === m.id ? "var(--yellow-line)" : "var(--border)"}`,
                             textDecoration: ok ? "none" : "line-through", cursor: ok ? "pointer" : "not-allowed",
                           }}>{m.name}</button>
                       );
@@ -312,17 +312,17 @@ export function FamilyTreeTab({ house, selfId, onEdit }: {
                   </div>
                   {partnerEdit && targetPartner && byId[targetPartner] && sensible([...setEdits("child", target!), partnerEdit]) && (
                     <div style={{ marginTop: 8 }}>
-                      <Chip label={t("ALSO {name}'S CHILD", { name: byId[targetPartner].name })} color="#00ff88"
+                      <Chip label={t("ALSO {name}'S CHILD", { name: byId[targetPartner].name })} color="var(--green)"
                         active={withPartner} onClick={() => setWithPartner(!withPartner)} />
                     </div>
                   )}
                   {target && byId[target] && (
-                    <div style={{ fontFamily: MONO, fontSize: "var(--text-body)", color: "#00ff88", marginTop: 12 }}>
+                    <div style={{ fontFamily: MONO, fontSize: "var(--text-body)", color: "var(--green)", marginTop: 12 }}>
                       {preview
                         ? t("{person} WILL BE {name}'S {role}", { person: person.name, name: byId[target].name, role: roleText(preview) })
                         : `${person.name} · ${relationName(relation)} ${byId[target].name}`}
                       {replacing && (
-                        <div style={{ color: "#ffe66d", marginTop: 4 }}>
+                        <div style={{ color: "var(--yellow)", marginTop: 4 }}>
                           {t("INSTEAD OF {relation} {name}", { relation: relationName(replacing), name: byId[target].name })}
                         </div>
                       )}
@@ -330,7 +330,7 @@ export function FamilyTreeTab({ house, selfId, onEdit }: {
                   )}
                   <div style={{ height: 12 }} />
                   <PixelButton onClick={() => void run(addEdits(), () => { setRelation(null); setTarget(null); })}
-                    color="#00ff88" size="md" full disabled={!target || busy}>
+                    color="var(--green-fill)" size="md" full disabled={!target || busy}>
                     {busy ? t("SAVING…") : replacing ? t("[ CHANGE ]") : t("[ ADD ]")}
                   </PixelButton>
                 </>
@@ -338,7 +338,7 @@ export function FamilyTreeTab({ house, selfId, onEdit }: {
             </>
           )}
           {msg && (
-            <div role="status" style={{ fontFamily: MONO, fontSize: "var(--text-body)", color: msg === "SAVED" ? "#00ff88" : "#ff6b35", textAlign: "center", marginTop: 10, lineHeight: 1.5 }}>{t(msg)}</div>
+            <div role="status" style={{ fontFamily: MONO, fontSize: "var(--text-body)", color: msg === "SAVED" ? "var(--green)" : "var(--orange)", textAlign: "center", marginTop: 10, lineHeight: 1.5 }}>{t(msg)}</div>
           )}
         </PixelPanel>
       )}

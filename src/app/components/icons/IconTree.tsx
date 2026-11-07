@@ -1,6 +1,6 @@
-export function IconTree({ size = 20, color = "#00ff88", trunk = "#c77d4a" }: { size?: number; color?: string; trunk?: string }) {
+export function IconTree({ size = 20, color = "var(--green)", trunk = "#c77d4a" }: { size?: number; color?: string; trunk?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 12 12" style={{ imageRendering: "pixelated", display: "block" }}>
+    <svg className="px-icon" width={size} height={size} viewBox="0 0 12 12" style={{ imageRendering: "pixelated", display: "block" }}>
       <rect x={4} y={0} width={4} height={1} fill={color} />
       <rect x={2} y={1} width={8} height={1} fill={color} />
       <rect x={1} y={2} width={10} height={3} fill={color} />

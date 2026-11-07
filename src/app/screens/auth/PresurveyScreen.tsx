@@ -39,27 +39,27 @@ export function PresurveyScreen({ preferences, onSave, onBack, onboarding = fals
   };
   const chip = (label: string, selected: boolean, action: () => void) => (
     <button key={label} type="button" aria-pressed={selected} onClick={action}
-      style={{ minHeight: 44, padding: "9px 10px", border: `2px solid ${selected ? "#4ecdc4" : "#2a3a5c"}`, background: selected ? "#163538" : "#111827", color: selected ? "#e8f4f8" : "#9bb0c8", fontFamily: mono, fontSize: "var(--text-body)", lineHeight: 1.5, textAlign: "left", cursor: "pointer" }}>
+      style={{ minHeight: 44, padding: "9px 10px", border: `2px solid ${selected ? "var(--teal-line)" : "var(--border)"}`, background: selected ? "color-mix(in srgb, var(--teal) 18%, var(--background))" : "var(--card)", color: selected ? "var(--foreground)" : "var(--soft-foreground)", fontFamily: mono, fontSize: "var(--text-body)", lineHeight: 1.5, textAlign: "left", cursor: "pointer" }}>
       {selected ? "☑ " : "□ "}{t(label)}
     </button>
   );
   const section = (heading: string, children: ReactNode) => (
     <section style={{ marginBottom: 20 }}>
-      <h2 style={{ color: "#4ecdc4", fontFamily: mono, fontSize: "var(--text-label)", lineHeight: 1.5, margin: "0 0 10px" }}>{t(heading)}</h2>
+      <h2 style={{ color: "var(--teal)", fontFamily: mono, fontSize: "var(--text-label)", lineHeight: 1.5, margin: "0 0 10px" }}>{t(heading)}</h2>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>{children}</div>
     </section>
   );
   const saveError = saveFailed
-    ? <p role="alert" style={{ color: "#ff6b35", fontFamily: mono, fontSize: "var(--text-body)", lineHeight: 1.5, margin: "0 0 12px" }}>{t("Couldn't save your answers to your account. Check your connection and try again.")}</p>
+    ? <p role="alert" style={{ color: "var(--orange)", fontFamily: mono, fontSize: "var(--text-body)", lineHeight: 1.5, margin: "0 0 12px" }}>{t("Couldn't save your answers to your account. Check your connection and try again.")}</p>
     : null;
   const context = !onboarding || step === 0;
   const training = !onboarding || step === 1;
 
   return <div className="flex flex-col h-full">
-    {onboarding ? <div style={{ padding: "14px 16px", borderBottom: "3px solid #2a3a5c", color: "#4ecdc4", fontFamily: mono, fontSize: "var(--text-body)", lineHeight: 1.5 }}>{t(step === 0 ? "MAKE DRILLS MORE RELEVANT" : "CHOOSE YOUR TRAINING")} · {step + 1}/2</div>
-      : <SubPageHeader title={t("PREFERENCES")} titleColor="#4ecdc4" onBack={onBack || (() => {})} />}
+    {onboarding ? <div style={{ padding: "14px 16px", borderBottom: "3px solid var(--border)", color: "var(--teal)", fontFamily: mono, fontSize: "var(--text-body)", lineHeight: 1.5 }}>{t(step === 0 ? "MAKE DRILLS MORE RELEVANT" : "CHOOSE YOUR TRAINING")} · {step + 1}/2</div>
+      : <SubPageHeader title={t("PREFERENCES")} titleColor="var(--teal)" onBack={onBack || (() => {})} />}
     <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
-      <p style={{ color: "#9bb0c8", fontFamily: mono, fontSize: "var(--text-body)", lineHeight: 1.5, margin: "0 0 20px" }}>
+      <p style={{ color: "var(--soft-foreground)", fontFamily: mono, fontSize: "var(--text-body)", lineHeight: 1.5, margin: "0 0 20px" }}>
         {t("Preferences are optional. They help us recommend drills that are more relevant to you.")}
       </p>
       {context && <>
@@ -73,11 +73,11 @@ export function PresurveyScreen({ preferences, onSave, onBack, onboarding = fals
       </>}
       {onboarding ? <>
         {saveError}
-        <PixelButton onClick={() => { if (saving) return; if (step === 0) setStep(1); else void finish(); }} color="#00ff88" size="lg" full>{t(saving ? "SAVING…" : step === 0 ? "[ CONTINUE ]" : "[ SAVE & CONTINUE ]")}</PixelButton>
-        <div style={{ marginTop: 10 }}><PixelButton onClick={() => { if (!saving) void finish(step === 0 ? DEFAULT_PRESURVEY : { ...draft, interests: [], channels: [...DEFAULT_PRESURVEY.channels], includeOtherTypes: true }, true); }} color="#1a2340" textColor="#9bb0c8" size="sm" full>{t("SKIP — I'LL PERSONALISE LATER")}</PixelButton></div>
+        <PixelButton onClick={() => { if (saving) return; if (step === 0) setStep(1); else void finish(); }} color="var(--green-fill)" size="lg" full>{t(saving ? "SAVING…" : step === 0 ? "[ CONTINUE ]" : "[ SAVE & CONTINUE ]")}</PixelButton>
+        <div style={{ marginTop: 10 }}><PixelButton onClick={() => { if (!saving) void finish(step === 0 ? DEFAULT_PRESURVEY : { ...draft, interests: [], channels: [...DEFAULT_PRESURVEY.channels], includeOtherTypes: true }, true); }} color="var(--secondary)" textColor="var(--soft-foreground)" size="sm" full>{t("SKIP — I'LL PERSONALISE LATER")}</PixelButton></div>
       </> : <>
         {saveError}
-        <PixelButton onClick={() => { if (!saving) void finish(); }} color="#00ff88" size="lg" full>{t(saving ? "SAVING…" : "[ SAVE PREFERENCES ]")}</PixelButton>
+        <PixelButton onClick={() => { if (!saving) void finish(); }} color="var(--green-fill)" size="lg" full>{t(saving ? "SAVING…" : "[ SAVE PREFERENCES ]")}</PixelButton>
       </>}
     </div>
   </div>;

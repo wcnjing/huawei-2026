@@ -1,4 +1,4 @@
-import { PixelButton } from "../../components/ui";
+import { PixelButton, ThemeSwitch } from "../../components/ui";
 import { PixelMascot } from "../../components/avatars";
 import { Stars } from "../../components/layout";
 import { LANGUAGES, type Language } from "../../i18n";
@@ -14,10 +14,16 @@ import { suggestedLanguage } from "../../i18n/languages";
 // Not a single word on this screen goes through t(). Every option is written in its own
 // language, so it is legible to the person who needs it without their having to read any
 // of the others first — which is the whole reason the step exists.
+//
+// The sun/moon switch sits here for the same reason: it needs no words, so the player can
+// set light or dark before signing in. Until they touch it the app follows the device's
+// own light/dark setting (ThemeProvider), and the screen re-themes live when they flip it.
 // ─────────────────────────────────────────────────────────────────────────
 
 // "Language" in each of the four, so the question is clear whichever one you read.
 const PROMPT = "LANGUAGE · 语言 · BAHASA · மொழி";
+// The switch's spoken label, in all four (the same words as Settings → Theme).
+const THEME_LABEL = "Light theme · 浅色主题 · Tema cerah · வெளிர் தீம்";
 
 export function LanguageScreen({ onPick }: { onPick: (language: Language) => void }) {
   const suggested = suggestedLanguage();
@@ -34,7 +40,7 @@ export function LanguageScreen({ onPick }: { onPick: (language: Language) => voi
           style={{
             fontFamily: "'Share Tech Mono', monospace",
             fontSize: "var(--text-label)",
-            color: "#4ecdc4",
+            color: "var(--teal)",
             letterSpacing: 1,
             textAlign: "center",
           }}
@@ -50,8 +56,8 @@ export function LanguageScreen({ onPick }: { onPick: (language: Language) => voi
               <PixelButton
                 key={l.code}
                 onClick={() => onPick(l.code)}
-                color={isSuggested ? "#00ff88" : "#1a2340"}
-                textColor={isSuggested ? "#0a0e1a" : "#e8f4f8"}
+                color={isSuggested ? "var(--green-fill)" : "var(--secondary)"}
+                textColor={isSuggested ? "var(--on-fill)" : "var(--foreground)"}
                 size="md"
                 full
               >
@@ -60,6 +66,7 @@ export function LanguageScreen({ onPick }: { onPick: (language: Language) => voi
             );
           })}
         </div>
+        <ThemeSwitch label={THEME_LABEL} />
       </div>
     </section>
   );

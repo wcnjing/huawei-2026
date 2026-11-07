@@ -1,0 +1,290 @@
+/*
+ * ─────────────────────────────────────────────────────────────────────────────
+ *  COLOUR TOKENS for the dark and light themes.
+ *  This file is identical in the app (huawei-2026/src/styles/tokens.css) and the website
+ *  (drill-mode-site/src/styles/tokens.css). Change both together.
+ *
+ *  THEMES
+ *    <html data-theme="dark" | "light">. The device's setting decides until the person picks
+ *    with the sun/moon switch (the script in index.html applies it before the first paint).
+ *    data-theme="dark" on any element keeps that part dark in both themes (the intros, phone
+ *    mock-ups and call screens look like a dark screen on purpose).
+ *
+ *  LIGHT PALETTES
+ *    Mist (the default), Paper and Dusk. To change which one the light theme uses, set
+ *    data-palette on <html> in index.html: data-palette="mist" | "paper" | "dusk".
+ *    To preview one without changing anything, add ?palette=paper to the address.
+ *
+ *  ROLES
+ *    --green, --yellow, …   "ink": TEXT in that colour. In light these sit right at the WCAG AA
+ *                           floor (4.5:1), so they can't get any lighter.
+ *    --green-line, …        borders, lines and pixel shadows in that colour. Brighter than the
+ *                           ink in light (WCAG asks 3:1 for non-text). Use line() for data colours.
+ *    --green-fill, …        solid fills (buttons, bars, badges, dots). Always the original neon,
+ *                           with --on-fill (navy) text on top, in both themes.
+ *    --glow                 1 in dark, 0 in light: neon glows multiply their blur by it.
+ *    --shadow-pixel         the colour of the flat pixel drop-shadow under cards.
+ *    --icon-edge, --fill-edge   the dark outline that neon icons and fills get in light (see the
+ *                           NEON IN LIGHT rules at the end of this file).
+ *    --icon-hole            what fills the holes inside an outlined icon: see-through in dark,
+ *                           paper (the card colour) in light, so the outline stays outside.
+ *    --icon-ink             the few cut-outs that read as dark details (a warning's "!", the
+ *                           skull's eyes): see-through in dark, the outline colour in light.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0a0e1a;
+  --card: #111827;
+  --secondary: #1a2340;
+  --surface: #0d1322;
+  --surface-deep: #070b14;
+  --page-backdrop: #05080f;
+  --foreground: #e8f4f8;
+  --foreground-strong: #ffffff;
+  --soft-foreground: #9bb0c8;
+  --muted-foreground: #6b8ba4;
+  --border: #2a3a5c;
+  --border-strong: #3a4a6c;
+  --overlay: rgb(10 14 26 / 0.92);
+  --scrim: rgb(0 0 0 / 0.85);
+  --outline: #0a0e1a;
+  --on-fill: #0a0e1a;
+  --on-danger: #ffffff;
+
+  --green: #00ff88;
+  --yellow: #ffe66d;
+  --teal: #4ecdc4;
+  --red: #ff2d55;
+  --orange: #ff6b35;
+  --violet: #c77dff;
+  --cyan: #00d4ff;
+  --pink: #ff71c5;
+  /* Paler text for tinted panels in the dark theme (plain ink in light). */
+  --red-soft: #ff8095;
+  --green-soft: #7dffbf;
+  --yellow-soft: #fff4c2;
+  /* Lines are the neon itself in dark. */
+  --green-line: #00ff88;
+  --yellow-line: #ffe66d;
+  --teal-line: #4ecdc4;
+  --red-line: #ff2d55;
+  --orange-line: #ff6b35;
+  --violet-line: #c77dff;
+  --cyan-line: #00d4ff;
+  --pink-line: #ff71c5;
+
+  --sun: #ffe66d;
+  --star: #ffffff;
+  --scanline: rgb(0 0 0 / 0.08);
+  --shadow-pixel: #05080f;
+  --glow: 1;
+  /* Neon already stands out on navy: no outlines in dark. */
+  --icon-edge: none;
+  --fill-edge: 0px;
+  --icon-hole: none;
+  --icon-ink: none;
+}
+
+/* Light, palette A · Mist: cool blue-grey, closest to the dark theme. */
+[data-theme="light"] {
+  color-scheme: light;
+  --background: #e8edf4;
+  --card: #f5f8fb;
+  --secondary: #dbe3ee;
+  --surface: #eef2f7;
+  --surface-deep: #dde4ee;
+  --page-backdrop: #d3dbe6;
+  --foreground: #0f1a33;
+  --foreground-strong: #050b1c;
+  --soft-foreground: #3b4d6b;
+  --muted-foreground: #506485;
+  --border: #a3b3c9;
+  --border-strong: #74869f;
+  --overlay: rgb(232 237 244 / 0.92);
+  --scrim: rgb(15 26 51 / 0.55);
+  --outline: #0f1a33;
+
+  --green: #007a4d;
+  --yellow: #8a6200;
+  --teal: #0b7770;
+  --red: #d0103a;
+  --orange: #b93d0b;
+  --violet: #7c3aed;
+  --cyan: #0072a3;
+  --pink: #c0267e;
+  --red-soft: var(--red);
+  --green-soft: var(--green);
+  --yellow-soft: var(--yellow);
+  /* About 3.2:1 on the page and 3.5:1 on cards (notes/theme-tooling/line-tier.mjs). */
+  --green-line: #269555;
+  --yellow-line: #aa7b23;
+  --teal-line: #27928c;
+  --red-line: #f53756;
+  --orange-line: #e05724;
+  --violet-line: #b555f4;
+  --cyan-line: #278ea9;
+  --pink-line: #ec2fac;
+
+  --sun: #b87400;
+  --star: rgb(15 26 51 / 0.3);
+  --scanline: rgb(15 26 51 / 0.025);
+  --shadow-pixel: rgb(15 26 51 / 0.22);
+  --glow: 0;
+  /* A one-pixel dark outline traced around neon icons, and a 2px edge around solid neon fills. */
+  --icon-edge: drop-shadow(1px 0 0 var(--outline)) drop-shadow(-1px 0 0 var(--outline)) drop-shadow(0 1px 0 var(--outline)) drop-shadow(0 -1px 0 var(--outline));
+  --fill-edge: 2px;
+  /* Holes inside outlined icons are paper, so the outline traces only the outside (all palettes). */
+  --icon-hole: var(--card);
+  --icon-ink: var(--outline);
+}
+
+/* Light, palette B · Paper: warm cream. */
+[data-theme="light"][data-palette="paper"] {
+  --background: #f3efe4;
+  --card: #fbf8f1;
+  --secondary: #e9e2d1;
+  --surface: #f7f4ec;
+  --surface-deep: #ebe5d6;
+  --page-backdrop: #e2dccb;
+  --foreground: #1d2033;
+  --foreground-strong: #0e1020;
+  --soft-foreground: #4a4f63;
+  --muted-foreground: #625e6c;
+  --border: #c2b79d;
+  --border-strong: #918568;
+  --overlay: rgb(243 239 228 / 0.92);
+  --scrim: rgb(29 32 51 / 0.55);
+  --outline: #1d2033;
+  --green: #00784a;
+  --yellow: #856000;
+  --teal: #0a756c;
+  --red: #c8102e;
+  --orange: #bb3f0a;
+  --violet: #7a35d6;
+  --cyan: #006f9e;
+  --pink: #b82578;
+  --green-line: #279756;
+  --yellow-line: #ac7c24;
+  --teal-line: #28948d;
+  --red-line: #f63c58;
+  --orange-line: #e35824;
+  --violet-line: #b658f4;
+  --cyan-line: #2790ac;
+  --pink-line: #ef30ae;
+  --sun: #b87400;
+  --star: rgb(29 32 51 / 0.3);
+  --scanline: rgb(29 32 51 / 0.025);
+  --shadow-pixel: rgb(29 32 51 / 0.22);
+}
+
+/* Light, palette C · Dusk: dimmer lavender-grey. */
+[data-theme="light"][data-palette="dusk"] {
+  --background: #d6dbe8;
+  --card: #e4e8f2;
+  --secondary: #c7cee0;
+  --surface: #dde1ed;
+  --surface-deep: #cbd1e1;
+  --page-backdrop: #c2c9db;
+  --foreground: #111833;
+  --foreground-strong: #070b1d;
+  --soft-foreground: #323c5e;
+  --muted-foreground: #475175;
+  --border: #959fbe;
+  --border-strong: #6b7598;
+  --overlay: rgb(214 219 232 / 0.92);
+  --scrim: rgb(17 24 51 / 0.55);
+  --outline: #111833;
+  --green: #00663f;
+  --yellow: #715200;
+  --teal: #07635d;
+  --red: #b00d31;
+  --orange: #a3370a;
+  --violet: #6a2dc4;
+  --cyan: #005f88;
+  --pink: #a01f68;
+  --green-line: #22884d;
+  --yellow-line: #9b6f1f;
+  --teal-line: #23857f;
+  --red-line: #e32b4c;
+  --orange-line: #cd4f20;
+  --violet-line: #ae3bf3;
+  --cyan-line: #22829b;
+  --pink-line: #d72a9c;
+  --sun: #9a6200;
+  --star: rgb(17 24 51 / 0.3);
+  --scanline: rgb(17 24 51 / 0.025);
+  --shadow-pixel: rgb(17 24 51 / 0.24);
+}
+
+/* Fills are the original neons in every theme and palette. */
+:root,
+[data-theme] {
+  --green-fill: #00ff88;
+  --yellow-fill: #ffe66d;
+  --teal-fill: #4ecdc4;
+  --red-fill: #ff2d55;
+  --orange-fill: #ff6b35;
+  --violet-fill: #c77dff;
+  --cyan-fill: #00d4ff;
+  --pink-fill: #ff71c5;
+}
+
+/*
+ * ─────────────────────────────────────────────────────────────────────────────
+ *  NEON IN LIGHT
+ *  Icons and solid fills keep the original neon in the light theme, so they match the neon
+ *  buttons, and get a dark outline so a pale neon (yellow especially) doesn't fade into the
+ *  page. Text keeps the darker inks. In dark both outlines are off (--icon-edge: none,
+ *  --fill-edge: 0px), and so is any part marked data-theme="dark".
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
+/* Pixel icons. Every icon's <svg> has class="px-icon". A hue drawn inside one is the neon. */
+.px-icon {
+  --green: var(--green-fill);
+  --yellow: var(--yellow-fill);
+  --teal: var(--teal-fill);
+  --red: var(--red-fill);
+  --orange: var(--orange-fill);
+  --violet: var(--violet-fill);
+  --cyan: var(--cyan-fill);
+  --pink: var(--pink-fill);
+}
+/* The outline goes on icons drawn in a hue (or marked px-edge, like the medals), not on grey or
+   navy ones such as inactive nav icons or an icon sitting on a neon button.
+   The outline is a drop-shadow, so it would also trace every hole inside the icon and fill the
+   small ones (the white of the Instagram camera, the "in" of LinkedIn). Each icon's enclosed holes
+   are drawn as <path class="px-hole"> under it (notes/theme-tooling/icon-holes.mjs adds them).
+   An outlined icon paints them with --icon-hole, paper in light, so the outline stays on the
+   outside. Everywhere else they draw nothing. A few cut-outs are dark details instead (the
+   warning's "!", the skull's eyes): those icons also have a hand-placed <path class="px-ink">,
+   painted with the outline colour. */
+.px-icon.px-edge,
+.px-icon:has([fill="var(--green)"], [fill="var(--yellow)"], [fill="var(--teal)"], [fill="var(--red)"],
+  [fill="var(--orange)"], [fill="var(--violet)"], [fill="var(--cyan)"], [fill="var(--pink)"],
+  [fill="var(--green-fill)"], [fill="var(--yellow-fill)"], [fill="var(--teal-fill)"], [fill="var(--red-fill)"],
+  [fill="var(--orange-fill)"], [fill="var(--violet-fill)"], [fill="var(--cyan-fill)"], [fill="var(--pink-fill)"]) {
+  filter: var(--icon-edge);
+  --px-hole: var(--icon-hole);
+  --px-ink: var(--icon-ink);
+}
+.px-hole { fill: var(--px-hole, none); }
+.px-ink { fill: var(--px-ink, none); }
+
+/* Solid neon fills written inline, e.g. style={{ background: "var(--yellow-fill)" }}: badges,
+   dots, progress bars, step numbers. Anything that already has a dark border (var(--outline),
+   like PixelButton) is left alone. This matches the style attribute React writes, so it covers
+   new components automatically. A fill set some other way can add class="fill-edge". */
+.fill-edge,
+:is([style*="background: var(--green-fill)"], [style*="background-color: var(--green-fill)"],
+  [style*="background: var(--yellow-fill)"], [style*="background-color: var(--yellow-fill)"],
+  [style*="background: var(--teal-fill)"], [style*="background-color: var(--teal-fill)"],
+  [style*="background: var(--red-fill)"], [style*="background-color: var(--red-fill)"],
+  [style*="background: var(--orange-fill)"], [style*="background-color: var(--orange-fill)"],
+  [style*="background: var(--violet-fill)"], [style*="background-color: var(--violet-fill)"],
+  [style*="background: var(--cyan-fill)"], [style*="background-color: var(--cyan-fill)"],
+  [style*="background: var(--pink-fill)"], [style*="background-color: var(--pink-fill)"]):not([style*="var(--outline)"]) {
+  outline: var(--fill-edge) solid var(--outline);
+}

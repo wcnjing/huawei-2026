@@ -4,10 +4,12 @@ import type { AccessibilityPrefs, AppSettings } from "../../types/settings";
 import { TOKEN_KEY, authHeaders, handleApiAuth, sessionToken, setSessionToken } from "../../services/api";
 import { CONTACT_KEY, PROFILE_KEY, loadContact, saveContact } from "../../services/storage";
 import { CharacterAvatar } from "../../components/avatars";
-import { PixelButton, PixelToggle, ToggleSwitchB } from "../../components/ui";
+import { IconChevron } from "../../components/icons";
+import { PixelButton, PixelSelect, PixelToggle, ThemeSwitch, ToggleSwitchB } from "../../components/ui";
 import { SubPageHeader } from "../../components/layout";
 import { LANGUAGES, useI18n, useT, type Language } from "../../i18n";
 import { setPresurveyUser } from "../../data/presurvey";
+import { ink } from "../../utils/color";
 
 const TUTORIAL_KEY = "safespace_tutorial_seen";
 
@@ -20,50 +22,48 @@ export function SettingsScreen({ profile, settings, muted, onToggleMute, onSetti
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
   const toggleAccordion = (key: string) => setOpenAccordion((prev) => (prev === key ? null : key));
 
-  const NavChevron = () => (
-    <svg width={8} height={8} viewBox="0 0 4 4" style={{ imageRendering: "pixelated" }}>
-      <rect x={0} y={1} width={1} height={1} fill="#6b8ba4" />
-      <rect x={1} y={2} width={1} height={1} fill="#6b8ba4" />
-      <rect x={2} y={3} width={1} height={1} fill="#6b8ba4" />
-      <rect x={3} y={2} width={1} height={1} fill="#6b8ba4" />
-    </svg>
-  );
 
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
 
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#4ecdc4", marginBottom: 14 }}>{t("APP SETTINGS")}</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--teal)", marginBottom: 14 }}>{t("APP SETTINGS")}</div>
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", backgroundColor: "#111827", border: "3px solid #2a3a5c", marginBottom: 8 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#e8f4f8" }}>{t("SOUND")}</div>
-          <ToggleSwitchB on={soundOn} onToggle={onToggleMute} color="#00ff88" />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", backgroundColor: "var(--card)", border: "3px solid var(--border)", marginBottom: 8 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--foreground)" }}>{t("SOUND")}</div>
+          <ToggleSwitchB on={soundOn} onToggle={onToggleMute} color="var(--green-fill)" />
         </div>
 
-        <div style={{ padding: "14px 16px", backgroundColor: "#111827", border: "3px solid #2a3a5c", marginBottom: 28 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", backgroundColor: "var(--card)", border: "3px solid var(--border)", marginBottom: 8 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--foreground)" }}>{t("THEME")}</div>
+          <ThemeSwitch label={t("Light theme")} />
+        </div>
+
+        <div style={{ padding: "14px 16px", backgroundColor: "var(--card)", border: "3px solid var(--border)", marginBottom: 28 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-            <label htmlFor="language-select" style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#e8f4f8" }}>{t("LANGUAGE")}</label>
-            <select
+            <label htmlFor="language-select" style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--foreground)" }}>{t("LANGUAGE")}</label>
+            <PixelSelect
               id="language-select"
               value={language}
               onChange={(e) => setLanguage(e.target.value as Language)}
-              style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", backgroundColor: "#0a0e1a", border: "3px solid #4ecdc4", padding: "6px 10px", borderRadius: 0, cursor: "pointer", minWidth: 150 }}
+              style={{ fontSize: "var(--text-body)", color: "var(--foreground)", backgroundColor: "var(--background)", border: "3px solid var(--teal-line)", minWidth: 150 }}
+              chevronColor="var(--teal)"
             >
               {LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
-            </select>
+            </PixelSelect>
           </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#8da4b8", lineHeight: 1.45, marginTop: 8 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--soft-foreground)", lineHeight: 1.45, marginTop: 8 }}>
             {t("Changes the app and your drills, including real SMS and email drills.")}
           </div>
         </div>
 
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ffe66d", marginBottom: 14 }}>{t("ACCOUNT")}</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--yellow)", marginBottom: 14 }}>{t("ACCOUNT")}</div>
 
-        <div style={{ padding: "14px 16px", backgroundColor: "#111827", border: "3px solid #2a3a5c", marginBottom: 8, display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ padding: "14px 16px", backgroundColor: "var(--card)", border: "3px solid var(--border)", marginBottom: 8, display: "flex", alignItems: "center", gap: 12 }}>
           <CharacterAvatar size={40} config={profile.avatar} title={`${profile.name}'s character`} />
           <div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ffffff" }}>{profile.name}</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#4ecdc4", marginTop: 4 }}>{t("LVL {level} — {title}", { level: 7, title: t("WATCHER") })}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--foreground-strong)" }}>{profile.name}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--teal)", marginTop: 4 }}>{t("LVL {level} — {title}", { level: 7, title: t("WATCHER") })}</div>
           </div>
         </div>
 
@@ -78,23 +78,25 @@ export function SettingsScreen({ profile, settings, muted, onToggleMute, onSetti
           <button
             key={row.key}
             onClick={() => onNav(row.key)}
-            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "14px 16px", backgroundColor: "#111827", border: "3px solid #2a3a5c", cursor: "pointer", marginBottom: 4 }}
+            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "14px 16px", backgroundColor: "var(--card)", border: "3px solid var(--border)", cursor: "pointer", marginBottom: 4 }}
           >
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#e8f4f8" }}>{row.label}</div>
-            <NavChevron />
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--foreground)" }}>{row.label}</div>
+            <div aria-hidden="true" style={{ display: "flex", transform: "rotate(-90deg)" }}>
+              <IconChevron size={10} color="var(--muted-foreground)" />
+            </div>
           </button>
         ))}
 
         <div style={{ marginBottom: 4, marginTop: 4 }}>
-          <button onClick={() => toggleAccordion("reset")} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "14px 16px", backgroundColor: "#111827", border: "3px solid #2a3a5c", cursor: "pointer" }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ff2d55" }}>{t("SIGN OUT THIS DEVICE")}</div>
-            <div style={{ transform: openAccordion === "reset" ? "rotate(180deg)" : "none", transition: "transform 0.15s", display: "flex" }}>
-              <NavChevron />
+          <button onClick={() => toggleAccordion("reset")} aria-expanded={openAccordion === "reset"} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "14px 16px", backgroundColor: "var(--card)", border: "3px solid var(--border)", cursor: "pointer" }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--red)" }}>{t("SIGN OUT THIS DEVICE")}</div>
+            <div aria-hidden="true" style={{ transform: openAccordion === "reset" ? "rotate(180deg)" : "none", transition: "transform 0.15s", display: "flex" }}>
+              <IconChevron size={10} color="var(--muted-foreground)" />
             </div>
           </button>
           {openAccordion === "reset" && (
-            <div style={{ backgroundColor: "#0a0e1a", border: "3px solid #2a3a5c", borderTop: "none", padding: "14px 16px", animation: "slideUp 0.15s ease-out" }}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ff2d55", marginBottom: 10, lineHeight: 1.5 }}>{t("Removes this device's session and saved contact prefill. Your server account and XP are kept.")}</div>
+            <div style={{ backgroundColor: "var(--background)", border: "3px solid var(--border)", borderTop: "none", padding: "14px 16px", animation: "slideUp 0.15s ease-out" }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--red)", marginBottom: 10, lineHeight: 1.5 }}>{t("Removes this device's session and saved contact prefill. Your server account and XP are kept.")}</div>
               <PixelButton onClick={() => {
                 // Use the key constants, not literals — a renamed constant would otherwise
                 // leave a key uncleared and this "sign out" would silently not sign out.
@@ -107,13 +109,13 @@ export function SettingsScreen({ profile, settings, muted, onToggleMute, onSetti
                   setPresurveyUser(null);
                 } catch { /* private mode: nothing to clear */ }
                 location.reload();
-              }} color="#ff2d55" textColor="#ffffff" size="sm" full>{t("CONFIRM SIGN OUT")}</PixelButton>
+              }} color="var(--red-fill)" textColor="var(--on-danger)" size="sm" full>{t("CONFIRM SIGN OUT")}</PixelButton>
             </div>
           )}
         </div>
 
-        <div style={{ margin: "24px 0 8px", border: "3px solid #1a2340", padding: "18px", textAlign: "center" }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#2a3a5c", lineHeight: 2.4 }}>
+        <div style={{ margin: "24px 0 8px", border: "3px solid var(--secondary)", padding: "18px", textAlign: "center" }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--border)", lineHeight: 2.4 }}>
             {t("DRILL MODE")} v2.0.0<br />
             {t("SCAM FIGHTER TRAINING")}<br />
             {t("© 2026 ALL RIGHTS RESERVED")}
@@ -134,11 +136,11 @@ export function AccountSettingsScreen({ profile, onBack }: { profile: PlayerProf
   const [detachMessage, setDetachMessage] = useState("");
   const registered = !!sessionToken();
   const rows = [
-    { label: t("USERNAME"), value: profile.name, color: "#e8f4f8" },
+    { label: t("USERNAME"), value: profile.name, color: "var(--foreground)" },
     // The email address is private (never sent to the client), so it isn't shown here —
     // set it in the email drill. We only surface whether the phone is verified.
-    { label: t("PHONE"), value: registered ? t("VERIFIED") : t("NOT REGISTERED"), color: registered ? "#00ff88" : "#6b8ba4" },
-    { label: t("LINKED HOUSE PROFILES"), value: t("{count} MEMBERS", { count: 4 }), color: "#00ff88" },
+    { label: t("PHONE"), value: registered ? t("VERIFIED") : t("NOT REGISTERED"), color: registered ? "var(--green)" : "var(--muted-foreground)" },
+    { label: t("LINKED HOUSE PROFILES"), value: t("{count} MEMBERS", { count: 4 }), color: "var(--green)" },
   ];
 
   const detachPhone = async () => {
@@ -169,33 +171,33 @@ export function AccountSettingsScreen({ profile, onBack }: { profile: PlayerProf
 
   return (
     <div className="flex flex-col h-full">
-      <SubPageHeader title={t("ACCOUNT")} titleColor="#4ecdc4" onBack={onBack} />
+      <SubPageHeader title={t("ACCOUNT")} titleColor="var(--teal)" onBack={onBack} />
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
         {rows.map((row) => (
-          <div key={row.label} style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "14px 16px", marginBottom: 10 }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8", marginBottom: 4 }}>{row.label}</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: row.color }}>{row.value}</div>
+          <div key={row.label} style={{ backgroundColor: "var(--card)", border: "3px solid var(--border)", padding: "14px 16px", marginBottom: 10 }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--soft-foreground)", marginBottom: 4 }}>{row.label}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: ink(row.color) }}>{row.value}</div>
           </div>
         ))}
 
         {registered && (
-          <div style={{ backgroundColor: "rgba(255,45,85,0.06)", border: "3px solid #ff2d55", padding: "14px 16px", marginTop: 18 }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ff2d55", marginBottom: 7 }}>{t("VERIFIED PHONE")}</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#b4c6d4", lineHeight: 1.55, marginBottom: 12 }}>
+          <div style={{ backgroundColor: "color-mix(in srgb, var(--red-fill) 6%, transparent)", border: "3px solid var(--red-line)", padding: "14px 16px", marginTop: 18 }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--red)", marginBottom: 7 }}>{t("VERIFIED PHONE")}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--soft-foreground)", lineHeight: 1.55, marginBottom: 12 }}>
               {t("Removing your number signs out every device and stops all real call and SMS drills. Your progress and email are kept.")}
             </div>
             {confirmDetach ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ffe66d", lineHeight: 1.5, marginBottom: 2 }}>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--yellow)", lineHeight: 1.5, marginBottom: 2 }}>
                   {t("REMOVE YOUR VERIFIED PHONE?")}
                 </div>
-                <PixelButton onClick={detachPhone} color="#ff2d55" textColor="#ffffff" size="sm" full disabled={detaching}>
+                <PixelButton onClick={detachPhone} color="var(--red-fill)" textColor="var(--on-danger)" size="sm" full disabled={detaching}>
                   {detaching ? t("REMOVING...") : t("YES, REMOVE NUMBER")}
                 </PixelButton>
-                <PixelButton onClick={() => setConfirmDetach(false)} color="#1a2340" textColor="#b4c6d4" size="sm" full disabled={detaching}>{t("CANCEL")}</PixelButton>
+                <PixelButton onClick={() => setConfirmDetach(false)} color="var(--secondary)" textColor="var(--soft-foreground)" size="sm" full disabled={detaching}>{t("CANCEL")}</PixelButton>
               </div>
             ) : (
-              <PixelButton onClick={() => { setConfirmDetach(true); setDetachMessage(""); }} color="#ff2d55" textColor="#ffffff" size="sm" full>
+              <PixelButton onClick={() => { setConfirmDetach(true); setDetachMessage(""); }} color="var(--red-fill)" textColor="var(--on-danger)" size="sm" full>
                 {t("REMOVE VERIFIED NUMBER")}
               </PixelButton>
             )}
@@ -203,7 +205,7 @@ export function AccountSettingsScreen({ profile, onBack }: { profile: PlayerProf
         )}
 
         {detachMessage && (
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: registered ? "#ff2d55" : "#00ff88", lineHeight: 1.5, marginTop: 12 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: registered ? "var(--red)" : "var(--green)", lineHeight: 1.5, marginTop: 12 }}>
             {t(detachMessage)}
           </div>
         )}
@@ -216,11 +218,11 @@ export function PrivacySettingsScreen({ onBack }: { onBack: () => void }) {
   const t = useT();
   return (
     <div className="flex flex-col h-full">
-      <SubPageHeader title={t("PRIVACY")} titleColor="#4ecdc4" onBack={onBack} />
+      <SubPageHeader title={t("PRIVACY")} titleColor="var(--teal)" onBack={onBack} />
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
-        <div style={{ backgroundColor: "#0d1526", border: "3px solid #4ecdc4", padding: "12px 14px", marginBottom: 12 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#4ecdc4", marginBottom: 6 }}>{t("DATA PRIVACY")}</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.6 }}>
+        <div style={{ backgroundColor: "var(--surface)", border: "3px solid var(--teal-line)", padding: "12px 14px", marginBottom: 12 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--teal)", marginBottom: 6 }}>{t("DATA PRIVACY")}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.6 }}>
             {t("Your name, verified phone number, optional email, drill outcomes and XP are stored by the service so real drills and progress can work. Room customisation and most display preferences stay in this browser.")}
           </div>
         </div>
@@ -229,9 +231,9 @@ export function PrivacySettingsScreen({ onBack }: { onBack: () => void }) {
           [t("SENSITIVE DATA"), t("Never enter real passwords, OTPs, card details or payment information during a drill. For real calls, Vapi processes a short transcript to score the drill; audio recording is disabled, and SafeSpace stores the outcome rather than the transcript.")],
           [t("YOUR CONTROL"), t("You can remove your verified phone from Account settings at any time. This signs out active sessions and stops phone-based drills.")],
         ].map(([label, copy]) => (
-          <div key={label} style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "12px 14px", marginBottom: 8 }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#4ecdc4", marginBottom: 6 }}>{label}</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#b4c6d4", lineHeight: 1.6 }}>{copy}</div>
+          <div key={label} style={{ backgroundColor: "var(--card)", border: "3px solid var(--border)", padding: "12px 14px", marginBottom: 8 }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--teal)", marginBottom: 6 }}>{label}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--soft-foreground)", lineHeight: 1.6 }}>{copy}</div>
           </div>
         ))}
       </div>
@@ -255,13 +257,13 @@ export function AccessibilitySettingsScreen({
   ];
   return (
     <div className="flex flex-col h-full">
-      <SubPageHeader title={t("ACCESSIBILITY")} titleColor="#4ecdc4" onBack={onBack} />
+      <SubPageHeader title={t("ACCESSIBILITY")} titleColor="var(--teal)" onBack={onBack} />
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
         {rows.map(row => (
-          <div key={row.key} className="accessibility-option px-4 py-3" style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", marginBottom: 8, gap: 12 }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#e8f4f8" }}>{row.label}</div>
+          <div key={row.key} className="accessibility-option px-4 py-3" style={{ backgroundColor: "var(--card)", border: "3px solid var(--border)", marginBottom: 8, gap: 12 }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--foreground)" }}>{row.label}</div>
             <PixelToggle on={prefs[row.key]} onToggle={() => onChange({ [row.key]: !prefs[row.key] })} />
-            <div className="accessibility-option-description" style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#8da4b8", lineHeight: 1.45 }}>{row.description}</div>
+            <div className="accessibility-option-description" style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--soft-foreground)", lineHeight: 1.45 }}>{row.description}</div>
           </div>
         ))}
       </div>
@@ -273,16 +275,16 @@ export function AboutSettingsScreen({ onBack }: { onBack: () => void }) {
   const t = useT();
   return (
     <div className="flex flex-col h-full">
-      <SubPageHeader title={t("ABOUT")} titleColor="#ffe66d" onBack={onBack} />
+      <SubPageHeader title={t("ABOUT")} titleColor="var(--yellow)" onBack={onBack} />
       <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "none" }}>
-        <div style={{ backgroundColor: "#111827", border: "3px solid #2a3a5c", padding: "14px 16px", marginBottom: 12 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#00ff88", marginBottom: 6 }}>{t("DRILL MODE")}</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#4ecdc4", marginBottom: 4 }}>{t("SCAM FIGHTER TRAINING")}</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#9bb0c8" }}>v2.0.0</div>
+        <div style={{ backgroundColor: "var(--card)", border: "3px solid var(--border)", padding: "14px 16px", marginBottom: 12 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--green)", marginBottom: 6 }}>{t("DRILL MODE")}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--teal)", marginBottom: 4 }}>{t("SCAM FIGHTER TRAINING")}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--soft-foreground)" }}>v2.0.0</div>
         </div>
-        <div style={{ backgroundColor: "rgba(255,107,53,0.1)", border: "3px solid #ff6b35", padding: "12px 14px" }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#ff6b35", marginBottom: 6 }}>{t("DISCLAIMER")}</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.6 }}>{t("This app is a training simulation. It does not detect real scams automatically. All scenarios are fictional educational examples.")}</div>
+        <div style={{ backgroundColor: "color-mix(in srgb, var(--orange-fill) 10%, transparent)", border: "3px solid var(--orange-line)", padding: "12px 14px" }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--orange)", marginBottom: 6 }}>{t("DISCLAIMER")}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.6 }}>{t("This app is a training simulation. It does not detect real scams automatically. All scenarios are fictional educational examples.")}</div>
         </div>
       </div>
     </div>

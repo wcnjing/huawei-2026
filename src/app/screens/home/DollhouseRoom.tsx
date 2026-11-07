@@ -14,14 +14,14 @@ export function DollhouseRoom({ member, coins, onTap, soldItems, purchasedItems,
   const t = useT();
   const colors = roomColors(member.roomStyle, member.roomBg, member.primaryColor);
   return (
-    <div className="home-room-card">
+    <div className="home-room-card" data-theme="dark">
       <div className="home-room-header" style={{ backgroundColor: colors.wall }}>
         <RoomHeading
           member={member}
           coins={coins}
           actions={onCustomize && <div className="home-room-tools">
-            <PixelButton onClick={onCustomize} color="#1a2340" textColor="#c77dff" size="sm">{t("CUSTOMIZE")}</PixelButton>
-            {onArrange && purchasedItems.length > 0 && <PixelButton onClick={onArrange} color="#1a2340" textColor="#4ecdc4" size="sm">{t("ARRANGE")}</PixelButton>}
+            <PixelButton onClick={onCustomize} color="var(--secondary)" textColor="var(--violet)" size="sm">{t("CUSTOMIZE")}</PixelButton>
+            {onArrange && purchasedItems.length > 0 && <PixelButton onClick={onArrange} color="var(--secondary)" textColor="var(--teal)" size="sm">{t("ARRANGE")}</PixelButton>}
           </div>}
         />
       </div>
@@ -30,7 +30,7 @@ export function DollhouseRoom({ member, coins, onTap, soldItems, purchasedItems,
         <RoomBackdrop style={member.roomStyle} background={member.roomBg} accent={member.primaryColor} />
         <div style={{ position: "absolute", top: 10, right: 16 }}>
           <svg width={28} height={32} viewBox="0 0 7 8" style={{ imageRendering: "pixelated" }}>
-            <rect x={0} y={0} width={7} height={8} fill="#2a3a5c" />
+            <rect x={0} y={0} width={7} height={8} fill="var(--border)" />
             <rect x={1} y={1} width={2} height={3} fill={member.primaryColor} opacity={0.12} />
             <rect x={4} y={1} width={2} height={3} fill={member.primaryColor} opacity={0.08} />
             <rect x={1} y={5} width={2} height={2} fill="#1a2a4a" />

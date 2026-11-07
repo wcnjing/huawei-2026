@@ -17,10 +17,10 @@
   min-width: 66px;
   min-height: 48px;
   padding: 3px;
-  border: 2px solid #ffe66d;
-  background: #ffe66d;
-  color: #0a0e1a;
-  box-shadow: 2px 2px 0 #0a0e1a;
+  border: 2px solid var(--yellow-line);
+  background: var(--yellow-fill);
+  color: var(--on-fill);
+  box-shadow: 2px 2px 0 var(--outline);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -32,24 +32,24 @@
 }
 
 .home-payday-tile .home-payday-label {
-  color: #0a0e1a;
+  color: var(--on-fill);
   font-size: 7px;
   line-height: 1.1;
 }
 
 .home-payday-tile.is-collected {
-  background: #0a0e1a;
-  box-shadow: 2px 2px 0 #06080d;
+  background: var(--background);
+  box-shadow: 2px 2px 0 var(--page-backdrop);
 }
 
-.home-payday-tile.is-collected .home-payday-label { color: #ffe66d; }
+.home-payday-tile.is-collected .home-payday-label { color: var(--yellow); }
 .home-payday-tile:hover { filter: brightness(1.08); }
 .home-payday-tile:active { transform: translate(3px, 3px); box-shadow: none; }
 
 .house-title-row {
   position: relative;
   padding: 0;
-  background: #0a0e1a;
+  background: var(--background);
 }
 
 .house-title-row > :first-child { flex: 1; min-width: 0; }
@@ -84,34 +84,34 @@
   display: flex;
   justify-content: flex-end;
   padding: 4px 14px;
-  background: #0a0e1a;
-  border-top: 2px solid #2a3a5c;
-  border-bottom: 3px solid #2a3a5c;
+  background: var(--background);
+  border-top: 2px solid var(--border);
+  border-bottom: 3px solid var(--border);
 }
 
 .home-room-tools { display: flex; align-items: center; gap: 6px; }
 .home-room-tools .pixel-button { padding: 6px 8px; font-size: var(--text-caption) !important; }
-.home-room-view:focus-visible { outline: 3px solid #4ecdc4; outline-offset: -3px; }
+.home-room-view:focus-visible { outline: 3px solid var(--teal-line); outline-offset: -3px; }
 .home-room-open-hint {
   position: absolute;
   right: 10px;
   bottom: 10px;
   z-index: 4;
   padding: 3px 5px;
-  border: 1px solid #4a5a7c;
-  background: #0a0e1ae8;
-  color: #a8bbcf;
+  border: 1px solid var(--border-strong);
+  background: color-mix(in srgb, var(--background) 91%, transparent);
+  color: var(--soft-foreground);
   font: 9px 'Share Tech Mono', monospace;
   letter-spacing: .5px;
   pointer-events: none;
 }
 
 .house-title-row :focus-visible,
-.app-header-help:focus-visible { outline: 3px solid #4ecdc4; outline-offset: 2px; }
+.app-header-help:focus-visible { outline: 3px solid var(--teal-line); outline-offset: 2px; }
 
 .app-header-help:focus-visible,
 .home-payday-tile:focus-visible {
-  outline: 3px solid #4ecdc4;
+  outline: 3px solid var(--teal-line);
   outline-offset: 3px;
 }
 

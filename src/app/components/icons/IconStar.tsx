@@ -1,6 +1,6 @@
-export function IconStar({ size = 16, color = "#ffe66d" }: { size?: number; color?: string }) {
+export function IconStar({ size = 16, color = "var(--yellow)" }: { size?: number; color?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 10 10" style={{ imageRendering: "pixelated", display: "block" }}>
+    <svg className="px-icon" width={size} height={size} viewBox="0 0 10 10" style={{ imageRendering: "pixelated", display: "block" }}>
       <rect x={4} y={0} width={2} height={2} fill={color} />
       <rect x={3} y={2} width={4} height={2} fill={color} />
       <rect x={0} y={3} width={10} height={2} fill={color} />

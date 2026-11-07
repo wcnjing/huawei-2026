@@ -2,45 +2,46 @@ import { useEffect, useRef, useState } from "react";
 import { PixelMascot } from "../avatars";
 import { PixelButton } from "../ui";
 import { useT } from "../../i18n";
+import { fill, ink, line } from "../../utils/color";
 
 type TourStep = { target: string | null; actionTarget?: string; frameTarget?: string; scrollTarget?: string; accent: string; title: string; body: string; screen?: "home" | "drill-select" | "leaderboard" | "store"; placement?: "below" | "bottom" };
 
 const TOUR_STEPS: TourStep[] = [
   {
     target: null,
-    accent: "#00ff88",
+    accent: "var(--green)",
     title: "HI, I'M PIXI!",
     body: "Scammers practise on our households everyday. Let's practise back!",
   },
   {
     target: "safety-bar",
-    accent: "#ff6b35",
+    accent: "var(--orange)",
     title: "HOUSE SAFETY",
     body: "Your family's week at a glance.",
   },
   {
     target: "payday-tile",
-    accent: "#ffe66d",
+    accent: "var(--yellow)",
     title: "PAYDAY SUNDAY",
     body: "Tap to collect your weekly pay!",
   },
   {
     target: "self-room",
-    accent: "#c77dff",
+    accent: "var(--violet)",
     title: "THE HOUSE",
     body: "This is your room, decorate it!",
     placement: "below",
   },
   {
     target: "nav-drill",
-    accent: "#4ecdc4",
+    accent: "var(--teal)",
     title: "PICK A DRILL",
     body: "Open Drill to practise!",
   },
   {
     target: "drill-page",
     screen: "drill-select",
-    accent: "#00d4ff",
+    accent: "var(--cyan)",
     title: "THE DRILL PAGE",
     body: "Start a Call, Text, Telegram, or Phishing Email!",
     placement: "bottom",
@@ -48,14 +49,14 @@ const TOUR_STEPS: TourStep[] = [
   {
     target: null,
     screen: "drill-select",
-    accent: "#74f0ff",
+    accent: "var(--cyan)",
     title: "ALWAYS SAFE",
     body: "Say 'stop' any time to end the Call Drill. There are NEVER real consequences for stopping it.",
   },
   {
     target: "bottom-nav",
     screen: "drill-select",
-    accent: "#4d8cff",
+    accent: "light-dark(#2457c5, #4d8cff)",
     title: "EXPLORE",
     body: "Use this to switch pages.",
   },
@@ -64,7 +65,7 @@ const TOUR_STEPS: TourStep[] = [
     actionTarget: "ranks-shame",
     frameTarget: "nav-ranks",
     screen: "leaderboard",
-    accent: "#ff4fd8",
+    accent: "light-dark(#b0168f, #ff4fd8)",
     title: "RANKS",
     body: "Hall of Fame: Outsmarted the scam\nHall of Shame: Fell for the scam",
     placement: "bottom",
@@ -74,7 +75,7 @@ const TOUR_STEPS: TourStep[] = [
     frameTarget: "nav-store",
     scrollTarget: "store-scroll",
     screen: "store",
-    accent: "#ff9f1c",
+    accent: "light-dark(#a35a00, #ff9f1c)",
     title: "STORE",
     body: "Buy furniture here to decorate your room.",
     placement: "bottom",
@@ -95,38 +96,38 @@ function SpeechBubble({ step, index, total, onNext, onSkip, onBack, style, inner
     <div ref={innerRef} style={{ position: "fixed", zIndex: 10001, width: 300, ...style }}>
       <div style={{ display: "flex", alignItems: "flex-end", gap: 8, marginBottom: -4 }}>
         <PixelMascot size={step.target === "drill-page" ? 32 : 44} animate />
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: step.accent, padding: "5px 8px", marginBottom: 8, backgroundColor: "#111827", boxShadow: "3px 3px 0 #0a0e1a" }}>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: ink(step.accent), padding: "5px 8px", marginBottom: 8, backgroundColor: "var(--card)", boxShadow: "3px 3px 0 var(--outline)" }}>
           {t(step.title)}
         </div>
       </div>
-      <div style={{ backgroundColor: "#111827", border: `4px solid ${step.accent}`, boxShadow: `4px 4px 0 #0a0e1a`, padding: step.target === "drill-page" ? 10 : 14 }}>
-        <div style={{ fontFamily: "'Share Tech Mono',monospace", fontSize: "var(--text-body)", color: "#e8f4f8", lineHeight: 1.5, whiteSpace: "pre-line" }}>
+      <div style={{ backgroundColor: "var(--card)", border: `4px solid ${line(step.accent)}`, boxShadow: `4px 4px 0 var(--outline)`, padding: step.target === "drill-page" ? 10 : 14 }}>
+        <div style={{ fontFamily: "'Share Tech Mono',monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.5, whiteSpace: "pre-line" }}>
           {t(step.body)}
         </div>
         {(step.target === "drill-page" || step.scrollTarget) && !scrollComplete && (
-          <div style={{ marginTop: 10, color: "#ffe66d", font: "11px 'Share Tech Mono', monospace", letterSpacing: 1, textAlign: "center" }}>
+          <div style={{ marginTop: 10, color: "var(--yellow)", font: "11px 'Share Tech Mono', monospace", letterSpacing: 1, textAlign: "center" }}>
             {t("SCROLL DOWN TO CONTINUE ↓")}
           </div>
         )}
         {step.actionTarget === "ranks-shame" && !shameVisited && (
-          <div style={{ marginTop: 10, color: step.accent, font: "11px 'Share Tech Mono', monospace", letterSpacing: 1, textAlign: "center" }}>
+          <div style={{ marginTop: 10, color: ink(step.accent), font: "11px 'Share Tech Mono', monospace", letterSpacing: 1, textAlign: "center" }}>
             {t("TAP HALL OF SHAME TO CONTINUE")}
           </div>
         )}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
           <div style={{ display: "flex", gap: 5 }}>
             {Array.from({ length: total }).map((_, i) => (
-              <div key={i} style={{ width: 8, height: 8, backgroundColor: i === index ? step.accent : "#2a3a5c" }} />
+              <div key={i} style={{ width: 8, height: 8, backgroundColor: i === index ? ink(step.accent) : "var(--border)" }} />
             ))}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            {index > 0 && <PixelButton onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm">{t("BACK")}</PixelButton>}
-            {!(((step.target === "drill-page" || step.scrollTarget) && !scrollComplete) || (step.actionTarget === "ranks-shame" && !shameVisited)) && <PixelButton onClick={onNext} color={step.accent} size="sm">{last ? t("DONE") : t("NEXT")}</PixelButton>}
+            {index > 0 && <PixelButton onClick={onBack} color="var(--secondary)" textColor="var(--muted-foreground)" size="sm">{t("BACK")}</PixelButton>}
+            {!(((step.target === "drill-page" || step.scrollTarget) && !scrollComplete) || (step.actionTarget === "ranks-shame" && !shameVisited)) && <PixelButton onClick={onNext} color={fill(step.accent)} size="sm">{last ? t("DONE") : t("NEXT")}</PixelButton>}
           </div>
         </div>
       </div>
       <button onClick={onSkip} style={{ background: "none", border: "none", cursor: "pointer", padding: "8px 2px" }}>
-        <div style={{ display: "inline-block", padding: "5px 8px", backgroundColor: "#111827", boxShadow: "3px 3px 0 #0a0e1a", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8" }}>{t("SKIP TOUR")}</div>
+        <div style={{ display: "inline-block", padding: "5px 8px", backgroundColor: "var(--card)", boxShadow: "3px 3px 0 var(--outline)", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--soft-foreground)" }}>{t("SKIP TOUR")}</div>
       </button>
     </div>
   );
@@ -293,11 +294,11 @@ export function TourOverlay({ onDone, onScreenChange }: { onDone: () => void; on
           </mask>
         </defs>
         <rect width={window.innerWidth} height={window.innerHeight} fill="rgba(4,6,12,0.88)" mask="url(#tour-spotlight-mask)" />
-        {rect && <rect x={rect.left - pad} y={rect.top - pad} width={rect.width + pad * 2} height={rect.height + pad * 2} fill="none" stroke={step.accent} strokeWidth="3" />}
-        {actionRect && !shameVisited && <rect x={actionRect.left - pad} y={actionRect.top - pad} width={actionRect.width + pad * 2} height={actionRect.height + pad * 2} fill="none" stroke="#ffe66d" strokeWidth="4" strokeDasharray="8 5">
+        {rect && <rect x={rect.left - pad} y={rect.top - pad} width={rect.width + pad * 2} height={rect.height + pad * 2} fill="none" stroke={line(step.accent)} strokeWidth="3" />}
+        {actionRect && !shameVisited && <rect x={actionRect.left - pad} y={actionRect.top - pad} width={actionRect.width + pad * 2} height={actionRect.height + pad * 2} fill="none" stroke="var(--yellow-line)" strokeWidth="4" strokeDasharray="8 5">
           <animateTransform attributeName="transform" type="translate" values="0 0;0 -4;0 0" dur="0.8s" repeatCount="indefinite" />
         </rect>}
-        {frameRect && <rect x={frameRect.left + frameInset} y={frameRect.top + frameInset} width={Math.max(1, frameRect.width - frameInset * 2)} height={Math.max(1, frameRect.height - frameInset * 2)} fill="none" stroke={step.accent} strokeWidth="3" />}
+        {frameRect && <rect x={frameRect.left + frameInset} y={frameRect.top + frameInset} width={Math.max(1, frameRect.width - frameInset * 2)} height={Math.max(1, frameRect.height - frameInset * 2)} fill="none" stroke={line(step.accent)} strokeWidth="3" />}
       </svg>
       <SpeechBubble
         step={step} index={index} total={TOUR_STEPS.length}

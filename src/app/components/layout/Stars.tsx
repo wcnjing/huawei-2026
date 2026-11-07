@@ -15,7 +15,7 @@ export function Stars() {
             top: `${s.y}%`,
             width: s.s,
             height: s.s,
-            backgroundColor: "#ffffff",
+            backgroundColor: "var(--star)",
             opacity: 0.3 + (i % 4) * 0.15,
             animation: `twinkle ${1.5 + (i % 3) * 0.7}s ease-in-out infinite`,
             animationDelay: `${(i % 7) * 0.3}s`,

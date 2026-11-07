@@ -1,6 +1,6 @@
-export function IconSpeaker({ size = 16, muted = false, color = "#6b8ba4" }: { size?: number; muted?: boolean; color?: string }) {
+export function IconSpeaker({ size = 16, muted = false, color = "var(--muted-foreground)" }: { size?: number; muted?: boolean; color?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 12 12" style={{ imageRendering: "pixelated", display: "block" }}>
+    <svg className="px-icon" width={size} height={size} viewBox="0 0 12 12" style={{ imageRendering: "pixelated", display: "block" }}>
       {/* speaker cone */}
       <rect x={1} y={4} width={2} height={4} fill={color} />
       <rect x={3} y={3} width={1} height={6} fill={color} />
@@ -9,14 +9,14 @@ export function IconSpeaker({ size = 16, muted = false, color = "#6b8ba4" }: { s
       {muted ? (
         // red X to the right of the cone
         <>
-          <rect x={7} y={3} width={1} height={1} fill="#ff2d55" />
-          <rect x={8} y={4} width={1} height={1} fill="#ff2d55" />
-          <rect x={9} y={5} width={1} height={1} fill="#ff2d55" />
-          <rect x={10} y={6} width={1} height={1} fill="#ff2d55" />
-          <rect x={10} y={3} width={1} height={1} fill="#ff2d55" />
-          <rect x={9} y={4} width={1} height={1} fill="#ff2d55" />
-          <rect x={8} y={6} width={1} height={1} fill="#ff2d55" />
-          <rect x={7} y={7} width={1} height={1} fill="#ff2d55" />
+          <rect x={7} y={3} width={1} height={1} fill="var(--red)" />
+          <rect x={8} y={4} width={1} height={1} fill="var(--red)" />
+          <rect x={9} y={5} width={1} height={1} fill="var(--red)" />
+          <rect x={10} y={6} width={1} height={1} fill="var(--red)" />
+          <rect x={10} y={3} width={1} height={1} fill="var(--red)" />
+          <rect x={9} y={4} width={1} height={1} fill="var(--red)" />
+          <rect x={8} y={6} width={1} height={1} fill="var(--red)" />
+          <rect x={7} y={7} width={1} height={1} fill="var(--red)" />
         </>
       ) : (
         // two sound waves

@@ -1,4 +1,4 @@
-export function CountPicker({ options, value, onChange, color = "#00ff88", label }: {
+export function CountPicker({ options, value, onChange, color = "var(--green)", label }: {
   options: readonly number[]; value: number; onChange: (n: number) => void; color?: string; label: string;
 }) {
   return (
@@ -13,10 +13,10 @@ export function CountPicker({ options, value, onChange, color = "#00ff88", label
             onClick={() => onChange(n)}
             style={{
               minWidth: 44, minHeight: 44, padding: "6px 10px", cursor: "pointer",
-              backgroundColor: on ? color : "#0a0e1a",
-              border: `3px solid ${on ? color : "#2a3a5c"}`,
+              backgroundColor: on ? color : "var(--on-fill)",
+              border: `3px solid ${on ? color : "var(--border)"}`,
               fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)",
-              color: on ? "#0a0e1a" : "#e8f4f8",
+              color: on ? "var(--on-fill)" : "var(--foreground)",
             }}
           >
             {n}

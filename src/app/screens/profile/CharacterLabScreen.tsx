@@ -31,7 +31,7 @@ export function CharacterLabScreen() {
       <Scanlines />
       <PhoneFrame>
         <div className="flex flex-col flex-1 overflow-hidden">
-          <div style={{ flexShrink: 0, padding: "6px 10px", background: "#c77dff", color: "#0a0e1a", fontFamily: "'Share Tech Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textAlign: "center" }}>
+          <div style={{ flexShrink: 0, padding: "6px 10px", background: "var(--violet-fill)", color: "var(--on-fill)", fontFamily: "'Share Tech Mono', monospace", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textAlign: "center" }}>
             LOCAL CHARACTER LAB · NO SIGN-IN · SAVED ON THIS DEVICE
           </div>
           <div className="flex-1 overflow-hidden">

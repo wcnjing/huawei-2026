@@ -26,24 +26,24 @@ export function HouseChoiceScreen({ initialCode, onCreate, onJoin, onBack, title
     setBusy(false);
     if (error) setMsg(error);
   };
-  const input: React.CSSProperties = { width: "100%", padding: 12, backgroundColor: "#0a0e1a", border: "3px solid #2a3a5c", color: "#e8f4f8", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", outline: "none" };
+  const input: React.CSSProperties = { width: "100%", padding: 12, backgroundColor: "var(--background)", border: "3px solid var(--border)", color: "var(--foreground)", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", outline: "none" };
   return (
     <div className="flex flex-col h-full">
-      <SubPageHeader title={title ?? t("PLAY WITH OTHERS")} titleColor="#4ecdc4" onBack={onBack} />
+      <SubPageHeader title={title ?? t("PLAY WITH OTHERS")} titleColor="var(--teal)" onBack={onBack} />
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4" style={{ scrollbarWidth: "none" }}>
-        <PixelPanel accent="#00ff88" className="w-full">
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#00ff88", marginBottom: 8 }}>{t("CREATE A HOUSE")}</div>
+        <PixelPanel accent="var(--green)" className="w-full">
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--green)", marginBottom: 8 }}>{t("CREATE A HOUSE")}</div>
           <input style={input} maxLength={30} value={name} onChange={(e) => setName(e.target.value)} placeholder={t("e.g. THE TANS")} />
           <div style={{ height: 10 }} />
-          <PixelButton onClick={() => run(() => onCreate(name))} color="#00ff88" size="md" full disabled={busy || !name.trim()}>{t("[ CREATE ]")}</PixelButton>
+          <PixelButton onClick={() => run(() => onCreate(name))} color="var(--green-fill)" size="md" full disabled={busy || !name.trim()}>{t("[ CREATE ]")}</PixelButton>
         </PixelPanel>
-        <PixelPanel accent="#4ecdc4" className="w-full">
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#4ecdc4", marginBottom: 8 }}>{t("JOIN WITH A CODE")}</div>
+        <PixelPanel accent="var(--teal)" className="w-full">
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--teal)", marginBottom: 8 }}>{t("JOIN WITH A CODE")}</div>
           <input style={{ ...input, letterSpacing: 6, textAlign: "center", fontSize: "var(--text-display)" }} value={code} onChange={(e) => setCode(formatCodeInput(e.target.value))} placeholder="K7P-3QX" autoCapitalize="characters" />
           <div style={{ height: 10 }} />
-          <PixelButton onClick={() => run(() => onJoin(code))} color="#4ecdc4" size="md" full disabled={busy || code.length !== 7}>{t("[ JOIN ]")}</PixelButton>
+          <PixelButton onClick={() => run(() => onJoin(code))} color="var(--teal-fill)" size="md" full disabled={busy || code.length !== 7}>{t("[ JOIN ]")}</PixelButton>
         </PixelPanel>
-        {msg && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#ff6b35", textAlign: "center" }}>{t(msg)}</div>}
+        {msg && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--orange)", textAlign: "center" }}>{t(msg)}</div>}
       </div>
     </div>
   );
@@ -123,7 +123,7 @@ export function HouseSettingsScreen({ house, selfId, onRegenerate, onRename, onR
     void run(onLeave);
   };
 
-  const input: React.CSSProperties = { width: "100%", padding: 12, backgroundColor: "#0a0e1a", border: "3px solid #2a3a5c", color: "#e8f4f8", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", outline: "none" };
+  const input: React.CSSProperties = { width: "100%", padding: 12, backgroundColor: "var(--background)", border: "3px solid var(--border)", color: "var(--foreground)", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", outline: "none" };
   const sectionLabel = (text: string, color: string) => (
     <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color, marginBottom: 8 }}>{text}</div>
   );
@@ -132,24 +132,24 @@ export function HouseSettingsScreen({ house, selfId, onRegenerate, onRename, onR
     <div className="flex flex-col h-full">
       <SubPageHeader
         title={t("YOUR HOUSE")}
-        titleColor="#00ff88"
+        titleColor="var(--green)"
         onBack={onBack}
       />
       {/* Tab banner, same design as the Ranks page (Hall of Fame / Hall of Shame). It sits
           between the header and the scrolling content, so it stays put while you scroll. */}
-      <div role="tablist" aria-label={t("House")} className="flex" style={{ borderBottom: "4px solid #2a3a5c", flexShrink: 0 }}>
+      <div role="tablist" aria-label={t("House")} className="flex" style={{ borderBottom: "4px solid var(--border)", flexShrink: 0 }}>
         {([
-          ["settings", t("SETTINGS"), "#ffe66d", "#2a2610", (c: string) => <IconGear size={16} color={c} />],
-          ["tree", t("FAMILY TREE"), "#c77dff", "#1f1430", (c: string) => <IconTree size={16} color={c} trunk={c} />],
+          ["settings", t("SETTINGS"), "var(--yellow)", "color-mix(in srgb, var(--yellow) 14%, var(--background))", (c: string) => <IconGear size={16} color={c} />],
+          ["tree", t("FAMILY TREE"), "var(--violet)", "color-mix(in srgb, var(--violet) 14%, var(--background))", (c: string) => <IconTree size={16} color={c} trunk={c} />],
         ] as [HouseTab, string, string, string, (c: string) => React.ReactNode][]).map(([id, text, accent, tint, icon], i) => {
           const active = tab === id;
-          const color = active ? accent : "#2a3a5c";
+          const color = active ? accent : "var(--border)";
           return (
             <Fragment key={id}>
-              {i > 0 && <div style={{ width: 4, backgroundColor: "#2a3a5c" }} />}
+              {i > 0 && <div style={{ width: 4, backgroundColor: "var(--border)" }} />}
               <button type="button" role="tab" aria-selected={active} onClick={() => onTab?.(id)}
                 className="flex-1 flex flex-col items-center justify-center gap-1 py-3"
-                style={{ backgroundColor: active ? tint : "#0a0e1a", border: "none", borderBottom: `4px solid ${active ? accent : "transparent"}`, cursor: "pointer" }}>
+                style={{ backgroundColor: active ? tint : "var(--background)", border: "none", borderBottom: `4px solid ${active ? accent : "transparent"}`, cursor: "pointer" }}>
                 {icon(color)}
                 <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color }}>{text}</div>
               </button>
@@ -162,8 +162,8 @@ export function HouseSettingsScreen({ house, selfId, onRegenerate, onRename, onR
           <FamilyTreeTab house={house} selfId={selfId} onEdit={onFamilyEdit} />
         ) : (<>
         {onSwitchHouse && (
-          <PixelPanel accent="#4ecdc4" className="w-full">
-            {sectionLabel(t("YOUR HOUSES ({n}/{max})", { n: houseList.length, max: HOUSES_PER_USER }), "#4ecdc4")}
+          <PixelPanel accent="var(--teal)" className="w-full">
+            {sectionLabel(t("YOUR HOUSES ({n}/{max})", { n: houseList.length, max: HOUSES_PER_USER }), "var(--teal)")}
             {houseList.map((h) => (
               <button
                 key={h.id}
@@ -173,69 +173,69 @@ export function HouseSettingsScreen({ house, selfId, onRegenerate, onRename, onR
                 onClick={() => { if (!h.active) void run(() => onSwitchHouse(h.id)); }}
                 style={{
                   width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 4px",
-                  background: h.active ? "#0c1a10" : "none", border: "none", borderTop: "2px solid #2a3a5c",
+                  background: h.active ? "color-mix(in srgb, var(--green) 8%, var(--background))" : "none", border: "none", borderTop: "2px solid var(--border)",
                   cursor: h.active ? "default" : "pointer", textAlign: "left",
-                  fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: h.active ? "#00ff88" : "#e8f4f8",
+                  fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: h.active ? "var(--green)" : "var(--foreground)",
                 }}
               >
                 <span style={{ width: 12 }}>{h.active ? "▶" : ""}</span>
                 <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.name}</span>
-                <span style={{ fontSize: "var(--text-caption)", color: "#6b8ba4" }}>{t("{n} IN HOUSE", { n: h.memberCount })}</span>
+                <span style={{ fontSize: "var(--text-caption)", color: "var(--muted-foreground)" }}>{t("{n} IN HOUSE", { n: h.memberCount })}</span>
               </button>
             ))}
             {onAddHouse && houseList.length < HOUSES_PER_USER && (
               <>
                 <div style={{ height: 10 }} />
-                <PixelButton onClick={onAddHouse} color="#1a2340" textColor="#4ecdc4" size="sm" full>{t("+ CREATE OR JOIN A HOUSE")}</PixelButton>
+                <PixelButton onClick={onAddHouse} color="var(--secondary)" textColor="var(--teal)" size="sm" full>{t("+ CREATE OR JOIN A HOUSE")}</PixelButton>
               </>
             )}
           </PixelPanel>
         )}
 
-        <PixelPanel accent="#00ff88" className="w-full">
-          {sectionLabel(t("HOUSE NAME"), "#00ff88")}
+        <PixelPanel accent="var(--green)" className="w-full">
+          {sectionLabel(t("HOUSE NAME"), "var(--green)")}
           {isOwner ? (
             <>
               <input style={input} maxLength={30} value={draftName} onChange={(e) => setDraftName(e.target.value)} />
               <div style={{ height: 10 }} />
-              <PixelButton onClick={() => run(() => onRename(draftName))} color="#00ff88" size="sm" full disabled={busy || !draftName.trim()}>{t("[ RENAME ]")}</PixelButton>
+              <PixelButton onClick={() => run(() => onRename(draftName))} color="var(--green-fill)" size="sm" full disabled={busy || !draftName.trim()}>{t("[ RENAME ]")}</PixelButton>
             </>
           ) : (
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8" }}>{house.name}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)" }}>{house.name}</div>
           )}
         </PixelPanel>
 
-        <PixelPanel accent="#4ecdc4" className="w-full">
-          {sectionLabel(t("INVITE CODE"), "#4ecdc4")}
-          <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "var(--text-display)", color: code ? "#4ecdc4" : "#6b8ba4", letterSpacing: 2, textAlign: "center", padding: "8px 0" }}>
+        <PixelPanel accent="var(--teal)" className="w-full">
+          {sectionLabel(t("INVITE CODE"), "var(--teal)")}
+          <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "var(--text-display)", color: code ? "var(--teal)" : "var(--muted-foreground)", letterSpacing: 2, textAlign: "center", padding: "8px 0" }}>
             {code ?? "——"}
           </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8", textAlign: "center", marginBottom: 10 }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--soft-foreground)", textAlign: "center", marginBottom: 10 }}>
             {inviteExpiryLabel(house.inviteExpiresAt, t)}
           </div>
-          {code && <PixelButton onClick={() => { void share(); }} color="#4ecdc4" size="md" full>{t("[ SHARE ]")}</PixelButton>}
+          {code && <PixelButton onClick={() => { void share(); }} color="var(--teal-fill)" size="md" full>{t("[ SHARE ]")}</PixelButton>}
           {isOwner && (
             <>
               <div style={{ height: 10 }} />
-              <PixelButton onClick={() => run(onRegenerate)} color="#1a2340" textColor="#4ecdc4" size="sm" full disabled={busy}>{t("[ NEW CODE ]")}</PixelButton>
+              <PixelButton onClick={() => run(onRegenerate)} color="var(--secondary)" textColor="var(--teal)" size="sm" full disabled={busy}>{t("[ NEW CODE ]")}</PixelButton>
             </>
           )}
         </PixelPanel>
 
-        <PixelPanel accent="#c77dff" className="w-full">
-          {sectionLabel(t("MEMBERS ({count}/{max})", { count: house.members.length, max: HOUSE_MAX_MEMBERS }), "#c77dff")}
+        <PixelPanel accent="var(--violet)" className="w-full">
+          {sectionLabel(t("MEMBERS ({count}/{max})", { count: house.members.length, max: HOUSE_MAX_MEMBERS }), "var(--violet)")}
           {house.members.map((m) => (
-            <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderTop: "2px solid #2a3a5c" }}>
+            <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderTop: "2px solid var(--border)" }}>
               <CharacterAvatar size={40} config={normalizeAvatarConfig(m.avatar)} title={`${m.name}'s character`} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#e8f4f8" }}>{m.name}</div>
-                {m.isOwner && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ffe66d", marginTop: 3 }}>{t("OWNER")}</div>}
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)" }}>{m.name}</div>
+                {m.isOwner && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--yellow)", marginTop: 3 }}>{t("OWNER")}</div>}
               </div>
               {isOwner && m.id !== selfId && (
                 <PixelButton
                   onClick={() => { if (window.confirm(t("Remove {name} from the house?", { name: m.name }))) void run(() => onRemove(m.id)); }}
-                  color="#ff2d55"
-                  textColor="#ffffff"
+                  color="var(--red-fill)"
+                  textColor="var(--foreground-strong)"
                   size="sm"
                   disabled={busy}
                 >
@@ -246,9 +246,9 @@ export function HouseSettingsScreen({ house, selfId, onRegenerate, onRename, onR
           ))}
         </PixelPanel>
 
-        {msg && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: msg === "COPIED" ? "#00ff88" : "#ff6b35", textAlign: "center" }}>{t(msg)}</div>}
+        {msg && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: msg === "COPIED" ? "var(--green)" : "var(--orange)", textAlign: "center" }}>{t(msg)}</div>}
 
-        <PixelButton onClick={leave} color="#1a2340" textColor="#ff2d55" size="md" full disabled={busy}>{t("[ LEAVE HOUSE ]")}</PixelButton>
+        <PixelButton onClick={leave} color="var(--secondary)" textColor="var(--red)" size="md" full disabled={busy}>{t("[ LEAVE HOUSE ]")}</PixelButton>
         </>)}
       </div>
     </div>

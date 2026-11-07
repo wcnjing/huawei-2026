@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import App from "./app/App.tsx";
 import { sessionToken, setSessionToken } from "./app/services/session";
 import { LanguageProvider } from "./app/i18n";
+import { ThemeProvider } from "./app/theme/ThemeProvider";
 import "./styles/index.css";
 
 const url = new URL(window.location.href);
@@ -17,9 +18,11 @@ if (devMode && url.searchParams.get("reset") === "1") {
 }
 
 createRoot(document.getElementById("root")!).render(
-  <LanguageProvider>
-    <App devMode={devMode} initialScreen={devMode ? (sessionToken() ? "home" : "start") : "title"} />
-  </LanguageProvider>,
+  <ThemeProvider>
+    <LanguageProvider>
+      <App devMode={devMode} initialScreen={devMode ? (sessionToken() ? "home" : "start") : "title"} />
+    </LanguageProvider>
+  </ThemeProvider>,
 );
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {

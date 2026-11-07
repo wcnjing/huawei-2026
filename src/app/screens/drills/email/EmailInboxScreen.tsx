@@ -28,30 +28,30 @@ export function EmailInboxScreen({ onOpenScam, onBack }: { activeMemberId: strin
 
   return (
     <div className="flex flex-col h-full" style={{ position: "relative" }}>
-      <div className="flex items-center justify-between px-4" style={{ backgroundColor: "#0a0e1a", borderBottom: "4px solid #2a3a5c", minHeight: 56, flexShrink: 0 }}>
+      <div className="flex items-center justify-between px-4" style={{ backgroundColor: "var(--background)", borderBottom: "4px solid var(--border)", minHeight: 56, flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "#9bb0c8" }}>{t("< BACK")}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--soft-foreground)" }}>{t("< BACK")}</div>
         </button>
         <div className="flex items-center gap-2">
-          <IconEnvelope size={16} color="#c77dff" />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#c77dff" }}>{t("MAILBOX")}</div>
+          <IconEnvelope size={16} color="var(--violet)" />
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--violet)" }}>{t("MAILBOX")}</div>
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff6b35" }}>{t("DRILL ACTIVE")}</div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--orange)" }}>{t("DRILL ACTIVE")}</div>
       </div>
-      <div className="px-4 py-2" style={{ borderBottom: "2px solid #1a2340" }}>
-        <div style={{ backgroundColor: "#111827", border: "2px solid #2a3a5c", padding: "6px 10px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#2a3a5c" }}>
+      <div className="px-4 py-2" style={{ borderBottom: "2px solid var(--secondary)" }}>
+        <div style={{ backgroundColor: "var(--card)", border: "2px solid var(--border)", padding: "6px 10px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--border)" }}>
           {t("Search mail…")}
         </div>
       </div>
-      <div className="flex items-center gap-2 px-4 py-2" style={{ backgroundColor: "rgba(255,107,53,0.1)", borderBottom: "2px solid #ff6b35", flexShrink: 0 }}>
-        <IconWarning size={12} color="#ff6b35" />
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ff6b35" }}>
+      <div className="flex items-center gap-2 px-4 py-2" style={{ backgroundColor: "color-mix(in srgb, var(--orange-fill) 10%, transparent)", borderBottom: "2px solid var(--orange-line)", flexShrink: 0 }}>
+        <IconWarning size={12} color="var(--orange)" />
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--orange)" }}>
           {t("New important email detected. Inspect before clicking.")}
         </div>
       </div>
       {toast && (
-        <div style={{ backgroundColor: "#1a2340", border: "2px solid #4ecdc4", padding: "8px 12px", margin: "8px 12px", position: "absolute", top: 160, left: 0, right: 0, zIndex: 20, animation: "slideUp 0.2s ease-out" }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#4ecdc4", lineHeight: 1.6 }}>{toast}</div>
+        <div style={{ backgroundColor: "var(--secondary)", border: "2px solid var(--teal-line)", padding: "8px 12px", margin: "8px 12px", position: "absolute", top: 160, left: 0, right: 0, zIndex: 20, animation: "slideUp 0.2s ease-out" }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--teal)", lineHeight: 1.6 }}>{toast}</div>
         </div>
       )}
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
@@ -61,34 +61,34 @@ export function EmailInboxScreen({ onOpenScam, onBack }: { activeMemberId: strin
             onClick={() => item.isScam ? onOpenScam() : handleNonScam()}
             style={{
               display: "block", width: "100%", textAlign: "left", background: "none",
-              border: "none", borderBottom: "2px solid #1a2340", cursor: "pointer",
+              border: "none", borderBottom: "2px solid var(--secondary)", cursor: "pointer",
               padding: "12px 16px",
-              backgroundColor: item.isScam ? (glowFrame ? "rgba(255,107,53,0.08)" : "rgba(255,45,85,0.05)") : "#0a0e1a",
-              boxShadow: item.isScam ? `inset 0 0 ${glowFrame ? "16px" : "6px"} rgba(255,107,53,0.12)` : "none",
+              backgroundColor: item.isScam ? (glowFrame ? "color-mix(in srgb, var(--orange-fill) 8%, transparent)" : "color-mix(in srgb, var(--red-fill) 5%, transparent)") : "var(--background)",
+              boxShadow: item.isScam ? `inset 0 0 ${glowFrame ? "16px" : "6px"} color-mix(in srgb, var(--orange-line) 12%, transparent)` : "none",
               transition: "background-color 0.45s, box-shadow 0.45s",
             }}
           >
             <div className="flex items-start gap-3">
-              <div style={{ width: 36, height: 36, backgroundColor: item.isScam ? "#ff6b35" : "#2a3a5c", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                {item.isScam ? <IconWarning size={18} color="#0a0e1a" /> : <IconEnvelope size={16} color="#6b8ba4" />}
+              <div style={{ width: 36, height: 36, backgroundColor: item.isScam ? "var(--orange-fill)" : "var(--border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                {item.isScam ? <IconWarning size={18} color="var(--on-fill)" /> : <IconEnvelope size={16} color="var(--muted-foreground)" />}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="flex items-center justify-between mb-1">
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: item.isScam ? 6 : 5, color: item.isScam ? "#ff6b35" : "#e8f4f8" }}>{t(item.sender)}</div>
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: item.isScam ? "#ff6b35" : "#6b8ba4" }}>{t(item.time)}</div>
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: item.isScam ? 6 : 5, color: item.isScam ? "var(--orange)" : "var(--foreground)" }}>{t(item.sender)}</div>
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: item.isScam ? "var(--orange)" : "var(--muted-foreground)" }}>{t(item.time)}</div>
                 </div>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: item.isScam ? "#ff2d55" : "#e8f4f8", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: item.isScam ? "var(--red)" : "var(--foreground)", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {t(item.subject)}
                 </div>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "#9bb0c8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--soft-foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {t(item.preview)}
                 </div>
                 {item.isScam && (
                   <div className="flex gap-2 mt-1">
-                    <div style={{ backgroundColor: "#ff6b35", padding: "1px 5px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#0a0e1a" }}>
+                    <div style={{ backgroundColor: "var(--orange-fill)", padding: "1px 5px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--on-fill)" }}>
                       <Blink ms={500}>{t("IMPORTANT")}</Blink>
                     </div>
-                    <div style={{ backgroundColor: "#ff2d55", padding: "1px 5px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "#ffffff" }}>{t("UNREAD")}</div>
+                    <div style={{ backgroundColor: "var(--red-fill)", padding: "1px 5px", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--on-danger)" }}>{t("UNREAD")}</div>
                   </div>
                 )}
               </div>

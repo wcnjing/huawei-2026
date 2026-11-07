@@ -15,16 +15,16 @@ export function SoloRoom({ member, coins, purchasedItems, layout, inviteCode, on
 }) {
   const t = useT();
   return (
-    <div data-tour="solo-room" className="solo-room" style={{ position: "relative", flex: 1, minHeight: 480, display: "flex", flexDirection: "column", backgroundColor: member.roomBg }}>
+    <div data-tour="solo-room" className="solo-room" data-theme="dark" style={{ position: "relative", flex: 1, minHeight: 480, display: "flex", flexDirection: "column", backgroundColor: member.roomBg }}>
       <RoomBackdrop style={member.roomStyle} background={member.roomBg} accent={member.primaryColor} />
       <div className="solo-room-heading">
         <RoomHeading member={member} coins={coins} actions={<div className="home-room-tools">
-          <PixelButton onClick={onCustomize} color="#1a2340" textColor="#c77dff" size="sm">{t("CUSTOMIZE")}</PixelButton>
-          {hasFurniture && <PixelButton onClick={onArrange} color="#1a2340" textColor="#4ecdc4" size="sm">{t("ARRANGE")}</PixelButton>}
+          <PixelButton onClick={onCustomize} color="var(--secondary)" textColor="var(--violet)" size="sm">{t("CUSTOMIZE")}</PixelButton>
+          {hasFurniture && <PixelButton onClick={onArrange} color="var(--secondary)" textColor="var(--teal)" size="sm">{t("ARRANGE")}</PixelButton>}
         </div>} />
       </div>
       <div className="solo-room-invite-row">
-        <PixelButton onClick={onPlayWithOthers} color="#1a2340" textColor="#4ecdc4" size="sm">
+        <PixelButton onClick={onPlayWithOthers} color="var(--secondary)" textColor="var(--teal)" size="sm">
           {inviteCode ? t("+ INVITE · {code}", { code: inviteCode }) : t("+ PLAY WITH OTHERS")}
         </PixelButton>
       </div>

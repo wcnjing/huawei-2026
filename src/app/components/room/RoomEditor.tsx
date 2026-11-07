@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type ReactNode, type CSSProperties } from 
 import { furnitureLayer, reconcileLayout, snapPosition, type RoomLayout, type RoomPosition } from '../../types/roomLayout';
 import { RoomBackdrop } from './RoomBackdrop';
 import type { RoomStyle } from '../../types/roomStyle';
+import { tint } from "../../utils/color";
 
 export type RoomFurniture = { id: string; name: string; art: ReactNode };
 // Item size and travel below must keep width+travel = height+travel = 100: coordinates
@@ -74,18 +75,18 @@ export function RoomEditor({ items, layout, roomName, accent, background, roomSt
   const nudge = (dx: number, dy: number) => {
     if (selected && draft[selected]) move(selected, draft[selected].x + dx, draft[selected].y + dy);
   };
-  const button: CSSProperties = { minHeight: 44, padding: '10px 14px', border: '2px solid #344762', background: '#17243a', color: '#e8f4f8', cursor: 'pointer', font: 'inherit' };
+  const button: CSSProperties = { minHeight: 44, padding: '10px 14px', border: '2px solid var(--border-strong)', background: 'var(--secondary)', color: 'var(--foreground)', cursor: 'pointer', font: 'inherit' };
 
   return <div style={{ position: 'fixed', inset: 0, zIndex: 11000, background: 'rgba(3,8,18,.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }}>
     <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby="room-editor-title" tabIndex={-1}
-      style={{ width: '100%', maxWidth: 560, maxHeight: 'calc(100dvh - 24px)', display: 'flex', flexDirection: 'column', border: `3px solid ${accent}`, boxShadow: `5px 5px 0 #050b16`, background: '#0a0e1a', color: '#e8f4f8', fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", outline: 'none' }}>
-      <div style={{ padding: '16px 18px', borderBottom: '2px solid #263752' }}>
+      style={{ width: '100%', maxWidth: 560, maxHeight: 'calc(100dvh - 24px)', display: 'flex', flexDirection: 'column', border: `3px solid ${accent}`, boxShadow: `5px 5px 0 var(--page-backdrop)`, background: 'var(--background)', color: 'var(--foreground)', fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", outline: 'none' }}>
+      <div style={{ padding: '16px 18px', borderBottom: '2px solid var(--border)' }}>
         <h2 id="room-editor-title" style={{ fontSize: "var(--text-display)", color: accent, margin: '0 0 4px' }}>{t('Arrange room')}</h2>
-        <div style={{ color: '#a8bbcf' }}>{roomName}</div>
+        <div style={{ color: 'var(--soft-foreground)' }}>{roomName}</div>
       </div>
       <div style={{ overflowY: 'auto', padding: 16, minHeight: 0 }}>
         <p style={{ margin: '0 0 14px', lineHeight: 1.5 }}>{t('Drag furniture, or select an item and tap where you want it.')}</p>
-        <style>{`.room-furniture-art > svg { width:100%; height:100%; flex-shrink:1; } .room-editor-item:focus-visible { outline:3px solid #fff; outline-offset:2px; }`}</style>
+        <style>{`.room-furniture-art > svg { width:100%; height:100%; flex-shrink:1; } .room-editor-item:focus-visible { outline:3px solid var(--foreground-strong); outline-offset:2px; }`}</style>
         <div ref={board} data-room-editor-board aria-label={t('Room placement area')}
           onClick={event => {
             if (!selected || !board.current) return;
@@ -95,9 +96,9 @@ export function RoomEditor({ items, layout, roomName, accent, background, roomSt
             move(selected, (event.clientX - rect.left - rect.width * (ITEM_WIDTH_PCT / 200)) / (rect.width * ITEM_TRAVEL_X) * 100,
               (event.clientY - rect.top - rect.height * (ITEM_HEIGHT_PCT / 200)) / (rect.height * ITEM_TRAVEL_Y) * 100);
           }}
-          style={{ position: 'relative', aspectRatio: '1.6', backgroundColor: background, backgroundImage: `linear-gradient(#ffffff12 1px, transparent 1px), linear-gradient(90deg,#ffffff12 1px, transparent 1px)`, backgroundSize: `${ITEM_TRAVEL_X * 10}% ${ITEM_TRAVEL_Y * 10}%`, boxShadow: `inset 0 0 0 2px ${accent}66`, touchAction: 'none' }}>
+          style={{ position: 'relative', aspectRatio: '1.6', backgroundColor: background, backgroundImage: `linear-gradient(color-mix(in srgb, var(--foreground-strong) 7%, transparent) 1px, transparent 1px), linear-gradient(90deg,color-mix(in srgb, var(--foreground-strong) 7%, transparent) 1px, transparent 1px)`, backgroundSize: `${ITEM_TRAVEL_X * 10}% ${ITEM_TRAVEL_Y * 10}%`, boxShadow: `inset 0 0 0 2px ${accent}66`, touchAction: 'none' }}>
           <RoomBackdrop style={roomStyle} background={background} accent={accent} />
-          <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'linear-gradient(#ffffff12 1px, transparent 1px), linear-gradient(90deg,#ffffff12 1px, transparent 1px)', backgroundSize: `${ITEM_TRAVEL_X * 10}% ${ITEM_TRAVEL_Y * 10}%` }} />
+          <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'linear-gradient(color-mix(in srgb, var(--foreground-strong) 7%, transparent) 1px, transparent 1px), linear-gradient(90deg,color-mix(in srgb, var(--foreground-strong) 7%, transparent) 1px, transparent 1px)', backgroundSize: `${ITEM_TRAVEL_X * 10}% ${ITEM_TRAVEL_Y * 10}%` }} />
           {items.map(item => <button key={item.id} type="button" aria-label={t('Move {item}', { item: t(item.name) })} aria-pressed={selected === item.id}
             className="room-editor-item room-furniture-art" data-editor-item={item.id}
             onClick={event => { event.stopPropagation(); setSelected(item.id); }}
@@ -127,23 +128,23 @@ export function RoomEditor({ items, layout, roomName, accent, background, roomSt
               const active = drag.current;
               if (active?.pointer === event.pointerId) { move(active.id, active.origin.x, active.origin.y); drag.current = null; }
             }}
-            style={{ ...itemStyle(draft[item.id]), padding: 3, border: `2px solid ${selected === item.id ? accent : 'transparent'}`, background: selected === item.id ? `${accent}18` : 'transparent', cursor: 'grab', touchAction: 'none', zIndex: selected === item.id ? 3 : furnitureLayer(item.id), userSelect: 'none' }}>{item.art}</button>)}
+            style={{ ...itemStyle(draft[item.id]), padding: 3, border: `2px solid ${selected === item.id ? accent : 'transparent'}`, background: selected === item.id ? tint(accent, 9) : 'transparent', cursor: 'grab', touchAction: 'none', zIndex: selected === item.id ? 3 : furnitureLayer(item.id), userSelect: 'none' }}>{item.art}</button>)}
         </div>
         <p style={{ margin: '12px 0 8px', color: accent }} aria-live="polite">{selectedItem ? t('Selected: {item}', { item: t(selectedItem.name) }) : t('Buy furniture in the store to arrange your room.')}</p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }} aria-label={t('Your furniture')}>
           {items.map(item => <button key={item.id} onClick={() => setSelected(item.id)} aria-pressed={selected === item.id}
-            style={{ ...button, borderColor: selected === item.id ? accent : '#344762', color: selected === item.id ? accent : '#e8f4f8' }}>{t(item.name)}</button>)}
+            style={{ ...button, borderColor: selected === item.id ? accent : 'var(--border-strong)', color: selected === item.id ? accent : 'var(--foreground)' }}>{t(item.name)}</button>)}
         </div>
         {selected && <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
-          <span style={{ color: '#a8bbcf' }}>{t('Fine-tune:')}</span>
+          <span style={{ color: 'var(--soft-foreground)' }}>{t('Fine-tune:')}</span>
           {([['Left', -10, 0, '←', t('Move selected furniture left')], ['Up', 0, -10, '↑', t('Move selected furniture up')], ['Down', 0, 10, '↓', t('Move selected furniture down')], ['Right', 10, 0, '→', t('Move selected furniture right')]] as const).map(([label, x, y, arrow, ariaLabel]) =>
             <button key={label} aria-label={ariaLabel} style={{ ...button, minWidth: 44 }} onClick={() => nudge(x, y)}>{arrow}</button>)}
         </div>}
-        {error && <p role="alert" style={{ color: '#ffb58a' }}>{error}</p>}
+        {error && <p role="alert" style={{ color: 'var(--orange)' }}>{error}</p>}
       </div>
-      <div style={{ display: 'flex', gap: 12, padding: 16, borderTop: '2px solid #263752' }}>
+      <div style={{ display: 'flex', gap: 12, padding: 16, borderTop: '2px solid var(--border)' }}>
         <button style={{ ...button, flex: 1 }} onClick={onCancel}>{t('Cancel')}</button>
-        <button style={{ ...button, flex: 1, color: '#07131a', background: accent, borderColor: accent, fontWeight: 'bold' }} onClick={() => {
+        <button style={{ ...button, flex: 1, color: 'var(--surface-deep)', background: accent, borderColor: accent, fontWeight: 'bold' }} onClick={() => {
           if (!onSave(reconcileLayout(items.map(i => i.id), draft))) setError(t('Your browser could not save this layout. Allow site storage and try again.'));
         }}>{t('Save layout')}</button>
       </div>
