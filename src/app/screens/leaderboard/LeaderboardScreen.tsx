@@ -7,6 +7,7 @@ import { PixelButton } from "../../components/ui";
 import { useMembers } from "../../hooks/useMembers";
 import { useSelfId } from "../../hooks/useSelfId";
 import { ink, tint, line } from "../../utils/color";
+import { rankMembers, totalXp } from "../../utils/progress";
 
 export function LeaderboardScreen({ onPlayWithOthers }: { onPlayWithOthers: () => void }) {
   const t = useT();
@@ -48,7 +49,7 @@ const PODIUM_LINES = ["var(--yellow-line)", "light-dark(#7f8b9b, #c0c0c0)", "lig
 function FameBoard({ onPlayWithOthers }: { onPlayWithOthers: () => void }) {
   const t = useT();
   const members = useMembers();
-  const board = [...members].sort((a, b) => b.level - a.level || b.xp - a.xp).map((m, i) => ({ rank: i + 1, member: m }));
+  const board = rankMembers(members).map((m, i) => ({ rank: i + 1, member: m }));
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
@@ -56,7 +57,7 @@ function FameBoard({ onPlayWithOthers }: { onPlayWithOthers: () => void }) {
         <PixelMascot size={28} />
         <div>
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--green)", marginBottom: 4 }}>{t("TRAINING PROGRESS")}</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)", lineHeight: 1.5 }}>{t("Ranks celebrate safe practice in your house.")}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)", lineHeight: 1.5 }}>{t("Ranked by total XP earned from drills.")}</div>
         </div>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2" style={{ scrollbarWidth: "none" }}>
@@ -70,7 +71,7 @@ function FameBoard({ onPlayWithOthers }: { onPlayWithOthers: () => void }) {
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--foreground)" }}>{m.name}</div>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)", marginTop: 2 }}>{t("{wins} WINS · LVL {level}", { wins: m.timesSafe, level: m.level })}</div>
             </div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--teal)" }}>{m.xp} XP</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--teal)" }}>{totalXp(m.level, m.xp).toLocaleString()} XP</div>
           </div>
         ))}
         {members.length < 2 && <PlayWithOthersPanel onPlayWithOthers={onPlayWithOthers} />}

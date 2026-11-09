@@ -2,7 +2,9 @@ import type { FamilyScenario } from "../types/drills";
 import { FAMILY_SCENARIOS } from "./familyScenarios";
 import { ACTIVITIES, INTERESTS, type PresurveyResponses } from "./presurvey";
 
-export const SOLO_COUNT = { min: 5, max: 10, default: 5 } as const;
+/** Round lengths offered for an individual drill: short, medium, long. */
+export const SOLO_COUNTS = [5, 7, 10] as const;
+export const SOLO_DEFAULT_COUNT = 5;
 
 const BY_ID = new Map(FAMILY_SCENARIOS.map((s) => [s.id, s]));
 

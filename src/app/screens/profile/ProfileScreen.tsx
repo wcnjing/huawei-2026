@@ -1,7 +1,7 @@
 import type { PlayerProfile } from "../../types/profile";
 import type { CoinTx } from "../../types/economy";
 
-import { ACHIEVEMENTS } from "../../data/achievements";
+import { achievementsFor, houseRank, rankTitle, totalXp } from "../../utils/progress";
 import { DAILY_REWARD_AMOUNT } from "../../data/economy";
 
 import { CharacterAvatar } from "../../components/avatars";
@@ -12,7 +12,7 @@ import {
     IconSell, IconShield, IconStar, IconTrophy, 
 } from "../../components/icons";
 
-import { useMemberMap } from "../../hooks/useMembers";
+import { useMembers } from "../../hooks/useMembers";
 import { useT } from "../../i18n";
 import { ink, line } from "../../utils/color";
 
@@ -35,7 +35,8 @@ export function ProfileScreen({
   onClaimDaily: (memberId: string) => void;
 }) {
   const t = useT();
-  const activeMember = useMemberMap()[activeMemberId];
+  const members = useMembers();
+  const activeMember = members.find((m) => m.id === activeMemberId);
   const memberCoins = coins[activeMemberId] ?? 0;
   const memberAlreadyClaimed = claimedDailyToday[activeMemberId] ?? false;
 
@@ -54,6 +55,8 @@ export function ProfileScreen({
     return t("{days}D AGO", { days });
   };
   if (!activeMember) return null;
+  const achievements = achievementsFor(activeMember);
+  const rank = houseRank(members, activeMemberId);
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
@@ -68,19 +71,19 @@ export function ProfileScreen({
                 <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--teal)" }}>{t("EDIT")}</div>
               </button>
             </div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--teal)", marginTop: 4 }}>{t("LVL {level} — {title}", { level: 7, title: t("WATCHER") })}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--teal)", marginTop: 4 }}>{t("LVL {level} — {title}", { level: activeMember.level, title: t(rankTitle(activeMember.level)) })}</div>
             <div className="mt-3">
-              <XPBar current={2340} max={3000} color="var(--teal-fill)" />
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)", marginTop: 4 }}>{t("{current} / {max} XP TO LVL {level}", { current: "2,340", max: "3,000", level: 8 })}</div>
+              <XPBar current={activeMember.xp} max={activeMember.xpMax} color="var(--teal-fill)" />
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)", marginTop: 4 }}>{t("{current} / {max} XP TO LVL {level}", { current: activeMember.xp.toLocaleString(), max: activeMember.xpMax.toLocaleString(), level: activeMember.level + 1 })}</div>
             </div>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3 mx-4 mt-4">
           {[
-            { label: t("TOTAL SCORE"), val: "11,240", color: "var(--yellow)", icon: <IconTrophy size={12} color="var(--yellow)" /> },
-            { label: t("DRILLS DONE"), val: "51", color: "var(--teal)", icon: <IconShield size={12} color="var(--teal)" /> },
-            { label: t("BEST STREAK"), val: "12", color: "var(--orange)", icon: <IconFlame size={12} color="var(--orange)" /> },
-            { label: t("AREA RANK"), val: "#12", color: "var(--green)", icon: <IconStar size={12} color="var(--green)" /> },
+            { label: t("TOTAL XP"), val: totalXp(activeMember.level, activeMember.xp).toLocaleString(), color: "var(--yellow)", icon: <IconTrophy size={12} color="var(--yellow)" /> },
+            { label: t("DRILLS DONE"), val: (activeMember.timesSafe + activeMember.timesScammed).toLocaleString(), color: "var(--teal)", icon: <IconShield size={12} color="var(--teal)" /> },
+            { label: t("CURRENT STREAK"), val: String(activeMember.streak), color: "var(--orange)", icon: <IconFlame size={12} color="var(--orange)" /> },
+            { label: t("HOUSE RANK"), val: rank && members.length > 1 ? t("#{rank} OF {total}", { rank, total: members.length }) : "—", color: "var(--green)", icon: <IconStar size={12} color="var(--green)" /> },
           ].map((s) => (
             <div key={s.label} className="p-3" style={{ backgroundColor: "var(--card)", border: "3px solid var(--border)" }}>
               <div className="flex items-center gap-1 mb-1">{s.icon}<div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)" }}>{s.label}</div></div>
@@ -94,7 +97,7 @@ export function ProfileScreen({
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--yellow)" }}>{t("ACHIEVEMENT BADGES")}</div>
           </div>
           <div className="grid grid-cols-3 gap-3">
-            {ACHIEVEMENTS.map((a) => (
+            {achievements.map((a) => (
               <div key={a.id} className="flex flex-col items-center gap-2 p-3" style={{ backgroundColor: a.unlocked ? "var(--card)" : "var(--surface)", border: `3px solid ${a.unlocked ? line(a.color) : "var(--secondary)"}`, boxShadow: a.unlocked ? `3px 3px 0 ${line(a.color)}` : "none", opacity: a.unlocked ? 1 : 0.45, position: "relative" }}>
                 {!a.unlocked && <div style={{ position: "absolute", top: 4, right: 4 }}><IconLock size={10} color="var(--border)" /></div>}
                 <IconBadge size={28} color={a.unlocked ? ink(a.color) : "var(--border)"} />
@@ -102,7 +105,7 @@ export function ProfileScreen({
               </div>
             ))}
           </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--soft-foreground)", textAlign: "center", marginTop: 12 }}>{t("{count} / {total} UNLOCKED", { count: 4, total: 9 })}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--soft-foreground)", textAlign: "center", marginTop: 12 }}>{t("{count} / {total} UNLOCKED", { count: achievements.filter((a) => a.unlocked).length, total: achievements.length })}</div>
         </div>
 
         {/* ── COIN REWARDS ────────────────────────────────────────────── */}
@@ -177,7 +180,9 @@ export function ProfileScreen({
           <div style={{ backgroundColor: "var(--card)", border: "2px solid var(--border)" }}>
             {memberLedger.length === 0 ? (
               <div style={{ padding: "16px 12px", textAlign: "center", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)", lineHeight: 1.6 }}>
-                {t("No transactions yet.")}<br />{t("Complete a drill to see activity here.")}
+                {memberCoins === 0
+                  ? <>{t("No transactions yet.")}<br />{t("Complete a drill to see activity here.")}</>
+                  : t("New coins you earn or spend on this device will show up here.")}
               </div>
             ) : (
               memberLedger.map((tx, i) => (

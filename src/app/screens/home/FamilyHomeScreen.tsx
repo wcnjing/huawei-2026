@@ -11,6 +11,66 @@ import { HouseRoofButton } from "./HouseRoofButton";
 import { DollhouseRoom } from "./DollhouseRoom";
 import { MemberProfileOverlay } from "./MemberProfileOverlay";
 import { SoloRoom } from "./SoloRoom";
+import { HouseGrid } from "./HouseGrid";
+
+type HomeView = "rooms" | "grid";
+const HOME_VIEW_KEY = "safespace_home_view";
+
+function loadHomeView(): HomeView {
+  try { return localStorage.getItem(HOME_VIEW_KEY) === "grid" ? "grid" : "rooms"; } catch { return "rooms"; }
+}
+
+/** Pixel glyphs for the two views: rooms stacked down the house, and a 2×2 call grid. */
+function ViewGlyph({ view, color }: { view: HomeView; color: string }) {
+  return (
+    <svg width={12} height={12} viewBox="0 0 6 6" aria-hidden="true" style={{ imageRendering: "pixelated", flexShrink: 0 }}>
+      {view === "rooms"
+        ? <><rect x={0} y={0} width={6} height={2} fill={color} /><rect x={0} y={4} width={6} height={2} fill={color} /></>
+        : <><rect x={0} y={0} width={2} height={2} fill={color} /><rect x={4} y={0} width={2} height={2} fill={color} />
+            <rect x={0} y={4} width={2} height={2} fill={color} /><rect x={4} y={4} width={2} height={2} fill={color} /></>}
+    </svg>
+  );
+}
+
+/** Switch between full-size rooms stacked down the house and everyone on one screen. */
+function HomeViewToggle({ view, onChange, count }: { view: HomeView; onChange: (v: HomeView) => void; count: number }) {
+  const t = useT();
+  const options: { id: HomeView; label: string }[] = [
+    { id: "rooms", label: t("ROOMS") },
+    { id: "grid", label: t("EVERYONE") },
+  ];
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "10px 12px 2px" }}>
+      <div style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--muted-foreground)", letterSpacing: 1 }}>
+        {t("{count} IN THE HOUSE", { count })}
+      </div>
+      <div role="radiogroup" aria-label={t("Home view")} style={{ flexShrink: 0, display: "flex", gap: 4, padding: 3, backgroundColor: "var(--background)", border: "2px solid var(--secondary)" }}>
+        {options.map((o) => {
+          const on = view === o.id;
+          const color = on ? "var(--teal)" : "var(--muted-foreground)";
+          return (
+            <button
+              key={o.id}
+              role="radio"
+              aria-checked={on}
+              onClick={() => onChange(o.id)}
+              style={{
+                display: "flex", alignItems: "center", gap: 6, minHeight: 30, padding: "0 8px", cursor: "pointer", whiteSpace: "nowrap",
+                backgroundColor: on ? "color-mix(in srgb, var(--teal) 15%, transparent)" : "transparent",
+                border: `2px solid ${on ? "var(--teal-line)" : "transparent"}`,
+                boxShadow: on ? "2px 2px 0 color-mix(in srgb, var(--teal-line) 40%, transparent)" : "none",
+                color, fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", letterSpacing: 1,
+              }}
+            >
+              <ViewGlyph view={o.id} color={color} />
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export function FamilyHomeScreen({ onPayday, paydayClaimedThisWeek, onCustomize, onArrange, coins, soldItems, purchasedItems, roomLayouts, house, houses, onSwitchHouse, onPlayWithOthers, onRemoveMember, houseLoading = false, houseFailed = false, onRetryHouse }: {
   onPayday: () => void;
@@ -34,6 +94,11 @@ export function FamilyHomeScreen({ onPayday, paydayClaimedThisWeek, onCustomize,
 }) {
   const t = useT();
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
+  const [view, setView] = useState<HomeView>(loadHomeView);
+  const changeView = (next: HomeView) => {
+    setView(next);
+    try { localStorage.setItem(HOME_VIEW_KEY, next); } catch { /* keep it for this visit only */ }
+  };
   const members = useMembers();
   const selfId = useSelfId();
   const self = members.find((m) => m.id === selfId);
@@ -49,6 +114,17 @@ export function FamilyHomeScreen({ onPayday, paydayClaimedThisWeek, onCustomize,
             <HouseRoofButton title={house?.name ?? t("YOUR HOUSE")} onOpen={onPlayWithOthers} houses={houses} onSwitch={onSwitchHouse} />
             {/* House safety and payday, right under the roof. */}
             <div data-tour="safety-bar"><FamilySafetyBar onPayday={onPayday} paydayClaimedThisWeek={paydayClaimedThisWeek} /></div>
+            <HomeViewToggle view={view} onChange={changeView} count={homeMembers.length} />
+            {view === "grid" ? (
+              <div data-tour="family-rooms">
+                <HouseGrid
+                  members={homeMembers}
+                  selfId={selfId}
+                  coinsFor={(member) => (member.id === selfId ? coins[selfId] ?? member.coins : member.coins)}
+                  onTap={setSelectedMember}
+                />
+              </div>
+            ) : (
             <div data-tour="family-rooms" style={{ position: "relative" }}>
               <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 8, backgroundColor: "var(--border)", backgroundImage: "repeating-linear-gradient(0deg,color-mix(in srgb, var(--border) 60%, var(--background)),color-mix(in srgb, var(--border) 60%, var(--background)) 4px,var(--border) 4px,var(--border) 8px)" }} />
               <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 8, backgroundColor: "var(--border)", backgroundImage: "repeating-linear-gradient(0deg,color-mix(in srgb, var(--border) 60%, var(--background)),color-mix(in srgb, var(--border) 60%, var(--background)) 4px,var(--border) 4px,var(--border) 8px)" }} />
@@ -65,6 +141,7 @@ export function FamilyHomeScreen({ onPayday, paydayClaimedThisWeek, onCustomize,
                 />
               </div>)}
             </div>
+            )}
           </>
         ) : self ? (
           <>

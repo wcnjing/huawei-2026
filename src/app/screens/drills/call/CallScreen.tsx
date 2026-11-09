@@ -8,13 +8,13 @@ import { IconWarning } from "../../../components/icons";
 import { useT } from "../../../i18n";
 
 const CONVERSATION: ConversationLine[] = [
-  { who: "caller", text: "Hello! This is David from the IRS Fraud Division.", highlights: [{ phrase: "IRS Fraud Division", flagId: "impersonation" }] },
+  { who: "caller", text: "Hello! This is David from the IRAS Fraud Division.", highlights: [{ phrase: "IRAS Fraud Division", flagId: "impersonation" }] },
   { who: "caller", text: "We detected suspicious activity on your tax account." },
   { who: "you", text: "Uh, okay. What kind of activity?" },
-  { who: "caller", text: "You owe $2,400 in back taxes. You must pay immediately to avoid arrest.", highlights: [{ phrase: "avoid arrest", flagId: "arrest_threat" }] },
+  { who: "caller", text: "You owe S$2,400 in back taxes. You must pay immediately to avoid arrest.", highlights: [{ phrase: "avoid arrest", flagId: "arrest_threat" }] },
   { who: "you", text: "Arrest? That sounds scary..." },
   { who: "caller", text: "Yes. You need to pay with gift cards RIGHT NOW to clear this up.", highlights: [{ phrase: "pay with gift cards", flagId: "gift_card" }, { phrase: "RIGHT NOW", flagId: "urgency" }] },
-  { who: "caller", text: "Buy $2,400 in iTunes gift cards and read me the numbers.", highlights: [{ phrase: "iTunes gift cards", flagId: "gift_card" }] },
+  { who: "caller", text: "Buy S$2,400 in Google Play gift cards and read me the numbers.", highlights: [{ phrase: "Google Play gift cards", flagId: "gift_card" }] },
   { who: "you", text: "Gift cards? That doesn't sound right..." },
   { who: "caller", text: "This is your FINAL warning. Officers are being dispatched to your address.", highlights: [{ phrase: "FINAL warning", flagId: "urgency" }, { phrase: "Officers are being dispatched", flagId: "escalation" }] },
 ];

@@ -182,14 +182,36 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
     : race ? (raceNext < shown.turns.length ? raceNext : null)
     : !shown.revealing && shown.turns[shown.currentTurn]?.playerId === selfId ? shown.currentTurn : null;
   const turnToShow = reviewing ?? liveTurn;
+  const leaveButton = shown && (
+    <PixelButton onClick={() => setConfirmLeave(true)} color="var(--border)" textColor="var(--foreground)" size="sm" full>
+      {race ? (isHost ? t("[ END RACE FOR EVERYONE ]") : t("[ LEAVE RACE ]"))
+        : isHost ? t("[ END DRILL FOR EVERYONE ]") : t("[ LEAVE DRILL ]")}
+    </PixelButton>
+  );
+  const leaveDialog = shown && confirmLeave && (
+    <div role="dialog" aria-modal="true" style={{ position: "absolute", inset: 0, backgroundColor: "var(--scrim)", zIndex: 80, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div style={{ backgroundColor: "var(--card)", border: "4px solid var(--orange-line)", width: "100%", padding: 16 }}>
+        <Body>{race
+          ? (isHost ? t("End the race for everyone? Anyone still playing is ranked on what they've answered so far.") : t("Leave the race? Your answers so far still count."))
+          : isHost ? t("End the drill for everyone? Answers so far still count.") : t("Leave the drill? Your remaining turns will be skipped.")}</Body>
+        <div className="flex gap-3" style={{ marginTop: 14 }}>
+          <div style={{ flex: 1 }}><PixelButton onClick={() => { setConfirmLeave(false); void run(() => leaveHouseDrill(shown.id)); }} color="var(--orange-fill)" size="sm" full>{isHost ? t("END") : t("LEAVE")}</PixelButton></div>
+          <div style={{ flex: 1 }}><PixelButton onClick={() => setConfirmLeave(false)} color="var(--border)" textColor="var(--foreground)" size="sm" full>{t("STAY")}</PixelButton></div>
+        </div>
+      </div>
+    </div>
+  );
+
   if (shown && turnToShow !== null && shown.turns[turnToShow]) {
     const scenario = questionById(shown, shown.turns[turnToShow].scenarioId);
     if (scenario) {
       const note = send?.state === "sending" ? t("SENDING YOUR ANSWER…")
         : send?.state === "failed" ? t("ANSWER NOT SENT — TAP CONTINUE TO RETRY") : null;
       return (
+        <div className="h-full" style={{ position: "relative" }}>
         <FamilyRoundScreen
           key={`${shown.id}:${turnToShow}`}
+          onExit={() => setConfirmLeave(true)}
           scenario={scenario}
           roundIndex={turnToShow}
           totalRounds={shown.turns.length}
@@ -209,6 +231,8 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
             if (!race) void tapContinue(turnToShow);
           }}
         />
+        {leaveDialog}
+        </div>
       );
     }
   }
@@ -251,26 +275,6 @@ export function FamilyDrillScreen({ drill, selfId, inHouse, onApply, onRefresh, 
       />
     );
   }
-
-  const leaveButton = shown && (
-    <PixelButton onClick={() => setConfirmLeave(true)} color="var(--border)" textColor="var(--foreground)" size="sm" full>
-      {race ? (isHost ? t("[ END RACE FOR EVERYONE ]") : t("[ LEAVE RACE ]"))
-        : isHost ? t("[ END DRILL FOR EVERYONE ]") : t("[ LEAVE DRILL ]")}
-    </PixelButton>
-  );
-  const leaveDialog = shown && confirmLeave && (
-    <div role="dialog" aria-modal="true" style={{ position: "absolute", inset: 0, backgroundColor: "var(--scrim)", zIndex: 80, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div style={{ backgroundColor: "var(--card)", border: "4px solid var(--orange-line)", width: "100%", padding: 16 }}>
-        <Body>{race
-          ? (isHost ? t("End the race for everyone? Anyone still playing is ranked on what they've answered so far.") : t("Leave the race? Your answers so far still count."))
-          : isHost ? t("End the drill for everyone? Answers so far still count.") : t("Leave the drill? Your remaining turns will be skipped.")}</Body>
-        <div className="flex gap-3" style={{ marginTop: 14 }}>
-          <div style={{ flex: 1 }}><PixelButton onClick={() => { setConfirmLeave(false); void run(() => leaveHouseDrill(shown.id)); }} color="var(--orange-fill)" size="sm" full>{isHost ? t("END") : t("LEAVE")}</PixelButton></div>
-          <div style={{ flex: 1 }}><PixelButton onClick={() => setConfirmLeave(false)} color="var(--border)" textColor="var(--foreground)" size="sm" full>{t("STAY")}</PixelButton></div>
-        </div>
-      </div>
-    </div>
-  );
 
   // ── Race: I've finished, waiting for the others ─────────────────────────────
   if (shown?.status === "playing" && me?.status === "accepted" && race) {

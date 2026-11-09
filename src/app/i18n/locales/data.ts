@@ -5,16 +5,16 @@ import type { LocaleTable } from "../types";
 type Row = readonly [en: string, zh: string, ms: string, ta: string];
 
 const rows: Row[] = [
-  // data/achievements.ts
+  // utils/progress.ts (achievement badges)
   ["FIRST BLOCK", "首次拦截", "SEKATAN PERTAMA", "முதல் தடுப்பு"],
   ["STREAK X5", "连胜 X5", "BERTURUT X5", "தொடர் வெற்றி X5"],
   ["STREAK X10", "连胜 X10", "BERTURUT X10", "தொடர் வெற்றி X10"],
-  ["IRS SLAYER", "IRS 克星", "PENEWAS IRS", "IRS வீரர்"],
+  ["SCAM SPOTTER", "识骗高手", "PENGESAN PENIPUAN", "மோசடி கண்டறிபவர்"],
+  ["RISING STAR", "新星", "BINTANG MENINGKAT", "வளரும் நட்சத்திரம்"],
+  ["VETERAN", "老将", "VETERAN", "அனுபவசாலி"],
   ["EAGLE EYE", "鹰眼", "MATA HELANG", "கழுகுக் கண்"],
   ["GRANDMASTER", "大师", "MAHAGURU", "மாமேதை"],
   ["GHOST MODE", "隐身模式", "MOD HALIMUNAN", "மறைவு நிலை"],
-  ["TECH SCAM", "科技骗局", "PENIPUAN TEKNOLOGI", "தொழில்நுட்ப மோசடி"],
-  ["ROMANCE DEF", "防爱情骗局", "PERTAHANAN CINTA", "காதல் மோசடி தடுப்பு"],
 
   // data/familyMembers.ts (family roles, room names, results)
   ["GRANDMA", "奶奶", "NENEK", "பாட்டி"],
@@ -60,10 +60,10 @@ const rows: Row[] = [
 
   // data/scamFlags.ts
   ["IMPERSONATION", "冒充身份", "PENYAMARAN", "ஆள்மாறாட்டம்"],
-  ["The real IRS contacts you by postal mail first — never by surprise phone call claiming urgent fraud.",
-    "真正的 IRS 会先寄信通知你，绝不会突然打电话说有紧急诈骗案。",
-    "IRS yang sebenar menghubungi anda melalui surat pos dahulu — bukan melalui panggilan mengejut tentang penipuan segera.",
-    "உண்மையான IRS முதலில் தபால் மூலம் தொடர்பு கொள்ளும் — அவசர மோசடி என்று திடீரென அழைக்காது."],
+  ["The real IRAS never asks you to pay with gift cards or threatens arrest over the phone. Check your tax account yourself on myTax Portal.",
+    "真正的 IRAS 绝不会要你用礼品卡付款，也不会在电话里威胁逮捕你。请自己登录 myTax Portal 查看税务账户。",
+    "IRAS yang sebenar tidak akan meminta anda membayar dengan kad hadiah atau mengugut tangkapan melalui telefon. Semak akaun cukai anda sendiri di myTax Portal.",
+    "உண்மையான IRAS பரிசு அட்டைகள் மூலம் பணம் செலுத்தச் சொல்லாது, தொலைபேசியில் கைது மிரட்டலும் விடுக்காது. உங்கள் வரிக் கணக்கை myTax Portal இல் நீங்களே சரிபாருங்கள்."],
   ["ARREST THREAT", "逮捕威胁", "ANCAMAN TANGKAPAN", "கைது மிரட்டல்"],
   ["No government agency threatens arrest over the phone. Fake legal threats bypass rational thinking.",
     "没有任何政府机构会在电话里威胁逮捕你。假的法律威胁会让人失去理智。",

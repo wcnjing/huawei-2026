@@ -10,6 +10,9 @@ import { SubPageHeader } from "../../components/layout";
 import { LANGUAGES, useI18n, useT, type Language } from "../../i18n";
 import { setPresurveyUser } from "../../data/presurvey";
 import { ink } from "../../utils/color";
+import { useMemberMap } from "../../hooks/useMembers";
+import { useSelfId } from "../../hooks/useSelfId";
+import { rankTitle } from "../../utils/progress";
 
 const TUTORIAL_KEY = "safespace_tutorial_seen";
 
@@ -19,6 +22,7 @@ export function SettingsScreen({ profile, settings, muted, onToggleMute, onSetti
   // button) and passed down, so this toggle and the header can never disagree.
   const soundOn = !muted;
   const { language, setLanguage, t } = useI18n();
+  const self = useMemberMap()[useSelfId()];
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
   const toggleAccordion = (key: string) => setOpenAccordion((prev) => (prev === key ? null : key));
 
@@ -63,7 +67,7 @@ export function SettingsScreen({ profile, settings, muted, onToggleMute, onSetti
           <CharacterAvatar size={40} config={profile.avatar} title={`${profile.name}'s character`} />
           <div>
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--foreground-strong)" }}>{profile.name}</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--teal)", marginTop: 4 }}>{t("LVL {level} — {title}", { level: 7, title: t("WATCHER") })}</div>
+            {self && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-label)", color: "var(--teal)", marginTop: 4 }}>{t("LVL {level} — {title}", { level: self.level, title: t(rankTitle(self.level)) })}</div>}
           </div>
         </div>
 
