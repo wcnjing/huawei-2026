@@ -7,17 +7,15 @@ import {
   IconFlame, IconLock, IconShield, IconX
 } from "../../components/icons";
 import { useSelfId } from "../../hooks/useSelfId";
-import { fill, ink, tint, line } from "../../utils/color";
+import { achievementsFor } from "../../utils/progress";
+import { fill, ink, line, tint } from "../../utils/color";
 
 export function MemberProfileOverlay({
   member, onClose, onCustomize, coins, canRemove, onRemove,
 }: { member: FamilyMember; onClose: () => void; onCustomize: (memberId: string) => void; coins: number; canRemove: boolean; onRemove: () => void }) {
   const t = useT();
   const selfId = useSelfId();
-  const badges = Array.from({ length: member.badgeTotal }, (_, i) => ({
-    unlocked: i < member.badgeCount,
-    color: ["var(--green)", "var(--orange)", "var(--teal)", "var(--yellow)", "var(--red)", "var(--violet)", "var(--teal)", "var(--orange)", "var(--muted-foreground)"][i],
-  }));
+  const badges = achievementsFor(member).map((a) => ({ ...a, color: ink(a.color) }));
   return (
     <div onClick={onClose} style={{ position: "absolute", inset: 0, zIndex: 100, backgroundColor: "var(--scrim)", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
       <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: "var(--background)", border: `4px solid ${line(member.primaryColor)}`, boxShadow: `0 -6px 0 ${tint(member.primaryColor, 40)}`, maxHeight: "88%", overflowY: "auto", scrollbarWidth: "none", animation: "slideUp 0.2s ease-out" }}>
@@ -90,7 +88,7 @@ export function MemberProfileOverlay({
         <div style={{ margin: "12px 16px 0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
             <IconBadge size={12} color="var(--yellow)" />
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--yellow)" }}>{t("BADGES — {count}/{total}", { count: member.badgeCount, total: member.badgeTotal })}</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--yellow)" }}>{t("BADGES — {count}/{total}", { count: badges.filter((b) => b.unlocked).length, total: badges.length })}</div>
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {badges.map((b, i) => (

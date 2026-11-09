@@ -3,17 +3,19 @@ import type { FamilyScenario, FamilyClue, FamilyOutcome } from "../../../types/d
 import { familyOutcome } from "./familyOutcome";
 import { InspectableLink, PixelButton, ClueTooltip, SenderInspectPanel } from "../../../components/ui";
 import { MemberChar } from "../../../components/avatars";
-import { IconBulb, IconCoin } from "../../../components/icons";
+import { IconBulb, IconCoin, IconX } from "../../../components/icons";
 import { SmsMockCard } from "./SmsMockCard";
 import { FAMILY_COINS, FAMILY_XP } from "../../../data/familyData";
 import { useMembers } from "../../../hooks/useMembers";
 import { useT } from "../../../i18n";
 import { useSelfId } from "../../../hooks/useSelfId";
 
-export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNext, onEnd, targetLabel, nextLabel, prompt, footerNote }: {
+export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNext, onEnd, onExit, exitConfirm, targetLabel, nextLabel, prompt, footerNote }: {
   scenario: FamilyScenario; roundIndex: number; totalRounds: number;
   onComplete: (action: string, foundClues: number[], outcome: FamilyOutcome) => void;
   onNext: () => void; onEnd?: () => void;
+  /** Leave the drill from any point in a round. With `exitConfirm`, the player is asked first. */
+  onExit?: () => void; exitConfirm?: string;
   targetLabel?: string; nextLabel?: string; prompt?: string; footerNote?: string | null;
 }) {
   const t = useT();
@@ -29,6 +31,7 @@ export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplet
   const [activeClue, setActiveClue] = useState<FamilyClue | null>(null);
   const [showSenderPanel, setShowSenderPanel] = useState(false);
   const [foundCluesLocal, setFoundCluesLocal] = useState<number[]>([]);
+  const [confirmingExit, setConfirmingExit] = useState(false);
 
   // The correct answer used to be authored first in every scenario's `actions`, so it
   // always landed top-left — players learned "just tap the first button". Shuffle the
@@ -133,7 +136,18 @@ export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplet
   return (
     <div className="flex flex-col h-full" style={{ position: "relative", background: inDebrief ? (outcome === "wrong" ? "linear-gradient(180deg,color-mix(in srgb, var(--red) 8%, var(--background)),var(--background))" : "linear-gradient(180deg,color-mix(in srgb, var(--green) 8%, var(--background)),var(--background))") : undefined }}>
       <div className="flex items-center justify-between px-4" style={{ backgroundColor: "var(--background)", borderBottom: "4px solid var(--border)", minHeight: 48, flexShrink: 0 }}>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)" }}>{t("ROUND {current}/{total}", { current: roundIndex + 1, total: totalRounds })}</div>
+        <div className="flex items-center gap-2">
+          {onExit && (
+            <button
+              onClick={() => (exitConfirm ? setConfirmingExit(true) : onExit())}
+              aria-label={t("Exit drill")}
+              style={{ minWidth: 36, minHeight: 36, marginLeft: -8, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer" }}
+            >
+              <IconX size={14} color="var(--soft-foreground)" />
+            </button>
+          )}
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--soft-foreground)" }}>{t("ROUND {current}/{total}", { current: roundIndex + 1, total: totalRounds })}</div>
+        </div>
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-caption)", color: "var(--yellow)" }}>
           {inDebrief ? t("DEBRIEF") : t("{found}/{total} CLUES", { found: foundCluesLocal.length, total: scenario.clues.length })}
         </div>
@@ -252,6 +266,17 @@ export function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplet
         <SenderInspectPanel scenario={scenario} onClose={() => setShowSenderPanel(false)} showWarning={inDebrief} />
       )}
       {activeClue && <ClueTooltip clue={activeClue} onClose={() => setActiveClue(null)} />}
+      {confirmingExit && onExit && (
+        <div role="dialog" aria-modal="true" aria-label={t("Exit drill")} style={{ position: "absolute", inset: 0, backgroundColor: "var(--scrim)", zIndex: 80, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ backgroundColor: "var(--card)", border: "4px solid var(--orange-line)", width: "100%", padding: 16 }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", color: "var(--foreground)", lineHeight: 1.5 }}>{exitConfirm}</div>
+            <div className="flex gap-3" style={{ marginTop: 14 }}>
+              <div style={{ flex: 1 }}><PixelButton onClick={() => { setConfirmingExit(false); onExit(); }} color="var(--orange-fill)" size="sm" full>{t("LEAVE")}</PixelButton></div>
+              <div style={{ flex: 1 }}><PixelButton onClick={() => setConfirmingExit(false)} color="var(--border)" textColor="var(--foreground)" size="sm" full>{t("STAY")}</PixelButton></div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

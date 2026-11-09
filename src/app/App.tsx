@@ -171,6 +171,29 @@ function saveNotifications(memberId: string, notifications: Notification[]) {
   catch { /* private mode or storage quota: keep notifications for this session */ }
 }
 
+// The coin ledger is kept per player on this device so Recent Activity survives a reload.
+const ledgerKey = (memberId: string) => `safespace_coin_ledger:${memberId}`;
+
+function loadLedger(memberId: string): CoinTx[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(ledgerKey(memberId)) || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((tx): tx is CoinTx =>
+      !!tx && typeof tx === "object"
+      && typeof tx.id === "string"
+      && typeof tx.memberId === "string"
+      && typeof tx.delta === "number"
+      && typeof tx.label === "string"
+      && typeof tx.timestamp === "number")
+      .slice(0, LEDGER_CAP);
+  } catch { return []; }
+}
+
+function saveLedger(memberId: string, ledger: CoinTx[]) {
+  try { localStorage.setItem(ledgerKey(memberId), JSON.stringify(ledger)); }
+  catch { /* private mode or storage quota: keep the ledger for this session */ }
+}
+
 
 
 
@@ -782,7 +805,8 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   };
   const paydayClaimedThisWeek = rewardClaims.paydayWeek === weekKey;
 
-  const [coinLedger, setCoinLedger] = useState<CoinTx[]>([]);
+  const [coinLedger, setCoinLedger] = useState<CoinTx[]>(() => loadLedger(selfId));
+  useEffect(() => { setCoinLedger(loadLedger(selfId)); }, [selfId]);
 
   const [notifications, setNotifications] = useState<Notification[]>(() => loadNotifications(selfId));
   const [activeNotificationId, setActiveNotificationId] = useState<string | null>(null);
@@ -799,7 +823,12 @@ export default function App({ initialScreen = "title", devMode = false }: { init
     coinMutationsSinceInventoryLoadRef.current.add(memberId);
     const tx: CoinTx = { id: makeTxId(), memberId, delta, reason, label, timestamp: Date.now() };
     setCoins(prev => ({ ...prev, [memberId]: (prev[memberId] ?? 0) + delta }));
-    setCoinLedger(prev => [tx, ...prev].slice(0, LEDGER_CAP));
+    setCoinLedger(prev => {
+      const next = [tx, ...prev].slice(0, LEDGER_CAP);
+      // Only the player's own entries are saved; housemates keep their own ledgers.
+      if (memberId === selfId) saveLedger(selfId, next.filter(entry => entry.memberId === selfId));
+      return next;
+    });
   };
 
   const appendNotification = (n: Omit<Notification, "id" | "timestamp" | "read">) => {
@@ -986,14 +1015,24 @@ export default function App({ initialScreen = "title", devMode = false }: { init
   // A round written for this player from real scam variants and their pre-survey, in the
   // app language (POST /api/drills/solo-round). Signed out, or if that fails, the round is
   // the app's fixed messages; a partly written round is topped up with them.
+  // While a round is being written the player can stop waiting: "skip" starts at once
+  // with ready-made questions, "cancel" (Back) abandons the round altogether.
+  const soloWaitRef = useRef<((choice: "skip" | "cancel") => void) | null>(null);
+
   const startSoloDrill = async (count: number) => {
     if (soloLoading) return;
     setScreen("solo-drill-intro");
     setSoloLoading(true);
     let written: FamilyScenario[] = [];
     if (sessionToken()) {
-      const result = await apiPost<{ scenarios?: FamilyScenario[] }>("/api/drills/solo-round", { count, language });
-      if (result.ok && Array.isArray(result.data?.scenarios)) written = result.data.scenarios.slice(0, count);
+      const stopped = new Promise<"skip" | "cancel">((resolve) => { soloWaitRef.current = resolve; });
+      const result = await Promise.race([
+        apiPost<{ scenarios?: FamilyScenario[] }>("/api/drills/solo-round", { count, language }),
+        stopped,
+      ]);
+      soloWaitRef.current = null;
+      if (result === "cancel") { setSoloLoading(false); return; }
+      if (typeof result === "object" && result.ok && Array.isArray(result.data?.scenarios)) written = result.data.scenarios.slice(0, count);
     }
     const fixed = pickScenarios(count - written.length, Math.random, presurvey);
     setSoloLoading(false);
@@ -1917,7 +1956,7 @@ export default function App({ initialScreen = "title", devMode = false }: { init
                 onSetUpHouse={() => setScreen("house")}
               />
             )}
-            {screen === "solo-drill-intro" && <SoloDrillIntroScreen preferences={presurvey} loading={soloLoading} onStart={(count) => { void startSoloDrill(count); }} onBack={goDrillSelect} />}
+            {screen === "solo-drill-intro" && <SoloDrillIntroScreen preferences={presurvey} loading={soloLoading} onStart={(count) => { void startSoloDrill(count); }} onSkipWait={() => soloWaitRef.current?.("skip")} onBack={() => { soloWaitRef.current?.("cancel"); goDrillSelect(); }} />}
             {screen === "solo-drill-round" && soloScenarios[soloIndex] && (
               <FamilyRoundScreen
                 scenario={soloScenarios[soloIndex]}
@@ -1929,6 +1968,8 @@ export default function App({ initialScreen = "title", devMode = false }: { init
                 onComplete={handleSoloComplete}
                 onNext={handleSoloNext}
                 onEnd={finishSoloDrill}
+                onExit={() => (soloAnswersRef.current.length ? finishSoloDrill() : goDrillSelect())}
+                exitConfirm={t("Leave this drill? Questions you've already answered still count.")}
               />
             )}
             {screen === "solo-drill-summary" && (

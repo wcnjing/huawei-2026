@@ -1,7 +1,7 @@
 import type { DrillFlag } from "../types/drills";
 
 export const RED_FLAGS: DrillFlag[] = [
-  { id: "impersonation", name: "IMPERSONATION", explanation: "The real IRS contacts you by postal mail first — never by surprise phone call claiming urgent fraud." },
+  { id: "impersonation", name: "IMPERSONATION", explanation: "The real IRAS never asks you to pay with gift cards or threatens arrest over the phone. Check your tax account yourself on myTax Portal." },
   { id: "arrest_threat", name: "ARREST THREAT", explanation: "No government agency threatens arrest over the phone. Fake legal threats bypass rational thinking." },
   { id: "gift_card", name: "GIFT CARD DEMAND", explanation: "No legitimate agency accepts gift cards as payment. Gift cards are untraceable — perfect for scammers." },
   { id: "urgency", name: "FAKE URGENCY", explanation: "Pressure to act RIGHT NOW stops you verifying anything. Scammers need you panicked, not thinking." },
