@@ -4,6 +4,9 @@ import type { RoomLayout } from "../../types/roomLayout";
 import { PurchasedRoomFurniture } from "../../components/furniture";
 import { MemberChar } from "../../components/avatars";
 import { RoomBackdrop, RoomWanderer } from "../../components/room";
+import { RoomTimeProvider, roomScope, useRoomTime } from "../../components/room/lighting";
+import { roomColors } from "../../types/roomStyle";
+import { ink } from "../../utils/color";
 import { SafetyBadge } from "./SafetyBadge";
 import { RoomHeading } from "./RoomHeading";
 import { PixelButton } from "../../components/ui";
@@ -14,9 +17,13 @@ export function SoloRoom({ member, coins, purchasedItems, layout, inviteCode, on
   onCustomize: () => void; onArrange: () => void; hasFurniture: boolean;
 }) {
   const t = useT();
+  // Day or night for whoever is looking (the room's Lighting and their theme).
+  const time = useRoomTime(member.roomStyle);
+  const colors = roomColors(member.roomStyle, member.roomBg, member.primaryColor, time);
   return (
-    <div data-tour="solo-room" className="solo-room" data-theme="dark" style={{ position: "relative", flex: 1, minHeight: 480, display: "flex", flexDirection: "column", backgroundColor: member.roomBg }}>
-      <RoomBackdrop style={member.roomStyle} background={member.roomBg} accent={member.primaryColor} />
+    <RoomTimeProvider value={time}>
+    <div data-tour="solo-room" className="solo-room" {...roomScope(time)} style={{ position: "relative", flex: 1, minHeight: 480, display: "flex", flexDirection: "column", backgroundColor: colors.wall }}>
+      <RoomBackdrop style={member.roomStyle} background={member.roomBg} accent={member.primaryColor} time={time} />
       <div className="solo-room-heading">
         <RoomHeading member={member} coins={coins} actions={<div className="home-room-tools">
           <PixelButton onClick={onCustomize} color="var(--secondary)" textColor="var(--violet)" size="sm">{t("CUSTOMIZE")}</PixelButton>
@@ -34,11 +41,12 @@ export function SoloRoom({ member, coins, purchasedItems, layout, inviteCode, on
           back="16%" front="32px" minX={22} maxX={78}
           above={<div style={{ marginBottom: 6 }}><SafetyBadge safe={member.safeThisWeek} size={22} /></div>}
           character={<MemberChar member={member} size={160} />}
-          below={<div className="room-player-name" style={{ color: member.primaryColor, marginTop: 6, whiteSpace: "nowrap" }}>{member.name}</div>}
+          below={<div className="room-player-name" style={{ color: ink(member.primaryColor), marginTop: 6, whiteSpace: "nowrap" }}>{member.name}</div>}
         />
         <div className="home-room-open-hint" aria-hidden="true">{t("TAP TO VIEW")}</div>
       </button>
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 6, background: `linear-gradient(90deg,${member.primaryColor}22,${member.primaryColor}55,${member.primaryColor}22)` }} />
     </div>
+    </RoomTimeProvider>
   );
 }

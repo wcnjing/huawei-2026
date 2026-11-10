@@ -35,6 +35,37 @@
 .room-floor-neon { background-image: linear-gradient(#4ecdc433 1px, transparent 1px), linear-gradient(90deg, #4ecdc433 1px, transparent 1px); background-size: 20px 20px; }
 .room-floor-metal { background-image: repeating-linear-gradient(115deg, #ffffff0d 0 2px, transparent 2px 6px); }
 .room-neon-light { position: absolute; left: 4%; right: 4%; top: 2%; height: 3px; background: var(--room-light); box-shadow: 0 0 12px var(--room-light); opacity: .85; }
+
+/* Day rooms (data-room-time="day", see ROOM_LIGHTING_MODE in src/app/types/roomStyle.ts). The
+   wall and floor colours come from their day twins; here the wallpaper and floor marks turn from
+   faint white to faint navy so they still show on a pale wall, and the neon strip and pixel stars
+   keep their colour with a 1px dark outline (like icons in light) and no glow. */
+.room-backdrop[data-room-time="day"] .room-wall-grid { background-image: linear-gradient(#0f1a3310 1px, transparent 1px), linear-gradient(90deg, #0f1a3310 1px, transparent 1px); }
+.room-backdrop[data-room-time="day"] .room-wall-stripes { background-image: repeating-linear-gradient(90deg, transparent 0 20px, #0f1a330e 20px 24px); }
+.room-backdrop[data-room-time="day"] .room-wall-brick {
+  background-image: repeating-linear-gradient(0deg, transparent 0 14px, #0f1a3317 14px 16px),
+    repeating-linear-gradient(90deg, transparent 0 30px, #0f1a3312 30px 32px);
+}
+.room-backdrop[data-room-time="day"] .room-wall-hex {
+  background-image: linear-gradient(60deg, #0f1a3310 25%, transparent 25.5% 75%, #0f1a3310 75.5%),
+    linear-gradient(-60deg, #0f1a3310 25%, transparent 25.5% 75%, #0f1a3310 75.5%);
+}
+.room-backdrop[data-room-time="day"] .room-wall-circuit {
+  background-image: linear-gradient(#27928c29 1px, transparent 1px),
+    linear-gradient(90deg, #27928c29 1px, transparent 1px),
+    radial-gradient(#27928c66 1.5px, transparent 1.5px);
+}
+.room-backdrop[data-room-time="day"] .room-stars { filter: drop-shadow(1px 0 0 #0f1a33) drop-shadow(-1px 0 0 #0f1a33) drop-shadow(0 1px 0 #0f1a33) drop-shadow(0 -1px 0 #0f1a33); }
+.room-backdrop[data-room-time="day"] .room-stars span { opacity: 1; }
+.room-backdrop[data-room-time="day"] .room-floor { border-top-color: #0f1a3324; }
+.room-backdrop[data-room-time="day"] .room-floor-oak { background-image: repeating-linear-gradient(0deg, transparent 0 15px, #6b4a2e4d 15px 17px), repeating-linear-gradient(90deg, transparent 0 47px, #6b4a2e33 47px 49px); }
+.room-backdrop[data-room-time="day"] .room-floor-tile { background-image: linear-gradient(#0f1a3321 1px, transparent 1px), linear-gradient(90deg, #0f1a3321 1px, transparent 1px); }
+.room-backdrop[data-room-time="day"] .room-floor-checker { background-image: conic-gradient(#0f1a3314 25%, transparent 0 50%, #0f1a3314 0 75%, transparent 0); }
+.room-backdrop[data-room-time="day"] .room-floor-carpet { background-image: repeating-linear-gradient(45deg, transparent 0 3px, #0f1a3314 3px 4px); }
+.room-backdrop[data-room-time="day"] .room-floor-concrete { background-image: radial-gradient(#0f1a331d 1px, transparent 1px), radial-gradient(#00000024 1px, transparent 1px); }
+.room-backdrop[data-room-time="day"] .room-floor-neon { background-image: linear-gradient(#27928c59 1px, transparent 1px), linear-gradient(90deg, #27928c59 1px, transparent 1px); }
+.room-backdrop[data-room-time="day"] .room-floor-metal { background-image: repeating-linear-gradient(115deg, #0f1a3314 0 2px, transparent 2px 6px); }
+.room-backdrop[data-room-time="day"] .room-neon-light { box-shadow: 0 0 0 1px #0f1a33; opacity: 1; }
 .room-style-editor { color: var(--foreground); font-size: var(--text-body); }
 .room-style-intro h2 { margin: 0 0 6px; font-size: var(--text-title); color: var(--teal); }
 .room-style-intro p { margin: 0 0 16px; color: var(--soft-foreground); }
@@ -56,6 +87,8 @@
 .room-style-options button > span:not([class]) { flex: 1 1 60px; }
 .room-style-editor button[aria-pressed="true"] { border-color: var(--teal-line); background: color-mix(in srgb, var(--teal) 14%, var(--background)); color: var(--foreground); }
 .room-option-check { margin-left: auto; color: var(--teal); }
+.room-lighting-options { grid-template-columns: 1fr; }
+.room-option-hint { flex-basis: 100%; color: var(--soft-foreground); font-size: var(--text-caption); }
 .room-color-swatch { width: 22px; height: 22px; border: 1px solid color-mix(in srgb, var(--foreground-strong) 33%, transparent); outline: var(--fill-edge) solid var(--outline); flex-shrink: 0; }
 .room-preset-swatch { display: block; position: relative; width: 100%; height: 48px; border: 1px solid color-mix(in srgb, var(--foreground-strong) 13%, transparent); }
 .room-glow-toggle { display: flex; align-items: center; gap: 12px; min-height: 44px; margin-top: 12px; }

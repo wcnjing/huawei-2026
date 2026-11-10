@@ -3,6 +3,7 @@ import { useT } from "../../i18n";
 import { IconFamily } from "../../components/icons";
 import { PixelButton } from "../../components/ui";
 import type { HouseSummary } from "../../services/house";
+import { roomScope, useRoofTime } from "../../components/room/lighting";
 import { HouseRoof } from "./HouseRoof";
 
 const MONO = "'Share Tech Mono', monospace";
@@ -10,7 +11,7 @@ const MONO = "'Share Tech Mono', monospace";
 /**
  * The roof: the family button (top-right) opens the house page; with 2+ houses, ‹ ›
  * either side of the name step to the previous / next house, and dots show which one
- * you're in.
+ * you're in. The roof follows the viewer's theme (day in light, night in dark).
  */
 export function HouseRoofButton({ title, onOpen, houses = [], onSwitch }: {
   title: string;
@@ -22,6 +23,7 @@ export function HouseRoofButton({ title, onOpen, houses = [], onSwitch }: {
   const [busy, setBusy] = useState(false);
   const index = houses.findIndex((h) => h.active);
   const canSwitch = !!onSwitch && houses.length >= 2 && index >= 0;
+  const time = useRoofTime();
 
   const step = async (delta: number) => {
     if (!canSwitch || busy) return;
@@ -49,8 +51,8 @@ export function HouseRoofButton({ title, onOpen, houses = [], onSwitch }: {
   );
 
   return (
-    <div className="house-title-row" style={{ position: "relative" }}>
-      <HouseRoof title="" />
+    <div className="house-title-row" {...roomScope(time)} style={{ position: "relative" }}>
+      <HouseRoof title="" time={time} />
       <div style={{ position: "absolute", left: 52, right: 52, bottom: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: 2 }}>
         {canSwitch && arrow(t("Previous house"), "‹", -1)}
         <div style={{ minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", paddingBottom: 4 }}>

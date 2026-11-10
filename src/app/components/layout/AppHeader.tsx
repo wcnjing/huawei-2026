@@ -118,7 +118,8 @@ export function AppHeader({
           aria-label={t("Open settings")}
           style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }}
         >
-          <IconGear size={18} color="var(--muted-foreground)" />
+          {/* `edge`: outlined in light like the other header icons (review experiment; drop it to undo). */}
+          <IconGear size={18} color="var(--muted-foreground)" edge />
         </button>
       </div>
     </div>

@@ -117,7 +117,7 @@
   --red-soft: var(--red);
   --green-soft: var(--green);
   --yellow-soft: var(--yellow);
-  /* About 3.2:1 on the page and 3.5:1 on cards (notes/theme-tooling/line-tier.mjs). */
+  /* About 3.2:1 on the page and 3.5:1 on cards (notes/tooling/colours/line-tier.mjs). */
   --green-line: #269555;
   --yellow-line: #aa7b23;
   --teal-line: #27928c;
@@ -256,7 +256,7 @@
    navy ones such as inactive nav icons or an icon sitting on a neon button.
    The outline is a drop-shadow, so it would also trace every hole inside the icon and fill the
    small ones (the white of the Instagram camera, the "in" of LinkedIn). Each icon's enclosed holes
-   are drawn as <path class="px-hole"> under it (notes/theme-tooling/icon-holes.mjs adds them).
+   are drawn as <path class="px-hole"> under it (notes/tooling/icons/icon-holes.mjs adds them).
    An outlined icon paints them with --icon-hole, paper in light, so the outline stays on the
    outside. Everywhere else they draw nothing. A few cut-outs are dark details instead (the
    warning's "!", the skull's eyes): those icons also have a hand-placed <path class="px-ink">,
@@ -272,6 +272,20 @@
 }
 .px-hole { fill: var(--px-hole, none); }
 .px-ink { fill: var(--px-ink, none); }
+
+/* Inner lines, picked per icon in the light-theme review (notes/reviews/2026-11-10-drill-mode-light-review.md).
+   An outlined icon with holes says how its holes look in light with data-inner on its <svg>:
+     no data-inner       outer only: the holes are paper, the outline runs only around the outside
+     data-inner="thin"   the same, plus a thin dark line just inside each hole
+     data-inner="full"   the holes stay see-through, so the outline traces them too
+   The thin line is <path class="px-hole-line">, the outline of the holes (every icon with holes
+   has one, notes/tooling/icons/icon-inner-lines.mjs adds it). Its stroke is centred on the edge
+   of the holes and the icon's pixels cover the outer half, so 1.1px shows as 0.55px inside the
+   hole, the width picked in the review. In dark, and on icons that aren't outlined, the three
+   look the same. */
+.px-icon[data-inner="full"] { --px-hole: none; }
+.px-hole-line { fill: none; stroke: none; stroke-width: 1.1px; vector-effect: non-scaling-stroke; }
+.px-icon[data-inner="thin"] .px-hole-line { stroke: var(--px-ink, none); }
 
 /* Solid neon fills written inline, e.g. style={{ background: "var(--yellow-fill)" }}: badges,
    dots, progress bars, step numbers. Anything that already has a dark border (var(--outline),

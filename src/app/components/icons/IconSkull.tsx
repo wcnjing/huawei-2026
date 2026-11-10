@@ -2,6 +2,7 @@ export function IconSkull({ size = 24, color = "var(--red)" }: { size?: number; 
   return (
     <svg className="px-icon" width={size} height={size} viewBox="0 0 12 14" style={{ imageRendering: "pixelated", display: "block" }}>
       <path className="px-hole" fill="none" d="M2 3h3v1h-3zM7 3h3v1h-3zM2 4h1v1h-1zM4 4h1v1h-1zM7 4h1v1h-1zM9 4h1v1h-1zM2 5h3v1h-3zM7 5h3v1h-3z" />
+      <path className="px-hole-line" fill="none" d="M2 3H5V6H2ZM4 4H3V5H4ZM7 3H10V6H7ZM9 4H8V5H9Z" />
       <path className="px-ink" fill="none" d="M2 3h3v1h-3zM7 3h3v1h-3zM2 4h1v1h-1zM4 4h1v1h-1zM7 4h1v1h-1zM9 4h1v1h-1zM2 5h3v1h-3zM7 5h3v1h-3z" />
       <rect x={3} y={0} width={6} height={1} fill={color} />
       <rect x={1} y={1} width={10} height={1} fill={color} />

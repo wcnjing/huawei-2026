@@ -1,7 +1,8 @@
 export function IconSell({ size = 14, color = "var(--orange)" }: { size?: number; color?: string }) {
   return (
-    <svg className="px-icon" width={size} height={size} viewBox="0 0 10 10" style={{ imageRendering: "pixelated", display: "block" }}>
+    <svg className="px-icon" data-inner="thin" width={size} height={size} viewBox="0 0 10 10" style={{ imageRendering: "pixelated", display: "block" }}>
       <path className="px-hole" fill="none" d="M2 2h2v2h-2z" />
+      <path className="px-hole-line" fill="none" d="M2 2H4V4H2Z" />
       <rect x={0} y={0} width={1} height={1} fill={color} />
       <rect x={2} y={0} width={4} height={1} fill={color} />
       <rect x={0} y={1} width={6} height={1} fill={color} />

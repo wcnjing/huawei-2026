@@ -86,6 +86,65 @@
 .house-chat__composer textarea { display: block; width: 100%; min-height: 72px; max-height: 144px; resize: vertical; border: 3px solid var(--border-strong); border-radius: 0; background: var(--card); color: var(--foreground); padding: 8px 10px; line-height: 1.4; }
 .house-chat__composer-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 6px; }
 .house-chat__composer-actions button { min-width: 82px; border-color: var(--green-line); background: var(--green-fill); color: color-mix(in srgb, var(--green) 6%, var(--background)); }
+.house-chat__composer { position: relative; }
+/* The text box and its emoji button: the button stays in the top-right corner while typing,
+   and the text keeps clear of it (padding-right). */
+.house-chat__field { position: relative; }
+.house-chat__composer .house-chat__field textarea { padding-right: 46px; }
+.house-chat__composer .house-chat__emoji-button {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: grid;
+  width: 36px;
+  min-height: 36px;
+  height: 36px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+}
+.house-chat__composer .house-chat__emoji-button:hover,
+.house-chat__composer .house-chat__emoji-button[aria-expanded="true"] { background: color-mix(in srgb, var(--yellow) 18%, transparent); }
+
+/* The pop-up opens above the message box, lined up with the button. */
+.house-chat__emoji-panel {
+  position: absolute;
+  right: 12px;
+  bottom: calc(100% + 6px);
+  z-index: 4;
+  width: min(calc(100% - 24px), 320px);
+  max-height: min(300px, 50dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px 10px 10px;
+  border: 3px solid var(--teal-line);
+  background: var(--background);
+  box-shadow: 4px 4px 0 var(--shadow-pixel);
+  scrollbar-width: thin;
+}
+.house-chat__emoji-section + .house-chat__emoji-section { margin-top: 8px; }
+.house-chat__emoji-section h2 { margin: 0 0 4px; color: var(--soft-foreground); font-family: 'Share Tech Mono', monospace; font-size: var(--text-caption); font-weight: normal; letter-spacing: 1px; }
+.house-chat__emoji-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 2px; }
+.house-chat__composer .house-chat__emoji-option {
+  display: grid;
+  min-height: 40px;
+  height: 40px;
+  place-items: center;
+  padding: 0;
+  border: 2px solid transparent;
+  background: transparent;
+}
+.house-chat__composer .house-chat__emoji-option:hover { border-color: var(--border-strong); background: var(--card); }
+.house-chat__emoji-option > span,
+.chat-emoji > span { display: block; }
+
+/* Emojis in a bubble: inline with the text, or big when the message is only emojis. */
+.chat-emoji { display: inline-block; vertical-align: -0.3em; margin: 0 1px; line-height: 0; }
+.house-chat__text--emoji { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.house-chat__text--emoji .chat-emoji { margin: 0; }
+
 .house-chat__count { color: var(--soft-foreground); font-size: var(--text-caption); }
 .house-chat__count--invalid { color: var(--red-soft); }
 .house-chat__no-access { text-align: center; }

@@ -8,6 +8,9 @@ export const ROOM_STYLE_OPTIONS = {
   floor: ['original', 'oak', 'tile', 'checker', 'carpet', 'concrete', 'neon', 'metal'],
   light: ['auto', 'mint', 'green', 'pink', 'purple', 'gold'],
 };
+// Day / night rooms. Optional, so a style saved (or sent by an older client) without it is still
+// accepted and stored as it was; the client reads a missing value as 'auto'.
+export const ROOM_LIGHTING_OPTIONS = ['auto', 'day', 'night'];
 const MAX_NAME_LENGTH = 32;
 
 function isPlainObject(value) {
@@ -24,6 +27,10 @@ export function cleanRoomStyle(input) {
   }
   if (typeof input.glow !== 'boolean') return null;
   clean.glow = input.glow;
+  if (input.lighting !== undefined) {
+    if (!ROOM_LIGHTING_OPTIONS.includes(input.lighting)) return null;
+    clean.lighting = input.lighting;
+  }
   const name = input.name ?? '';
   if (typeof name !== 'string') return null;
   // Same normalisation as the client: no control characters, trimmed, at most 32.

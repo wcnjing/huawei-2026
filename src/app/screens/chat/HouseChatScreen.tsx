@@ -3,7 +3,8 @@ import { normalizeDraft, type useHouseChat } from "../../hooks/useHouseChat";
 import type { Avatar } from "../../services/house";
 import { useI18n } from "../../i18n";
 import { PixiAvatar } from "../../components/avatars";
-import { IconX } from "../../components/icons";
+import { IconSmiley, IconX } from "../../components/icons";
+import { EmojiPicker, renderChatText, useChatEmoji } from "./chatEmoji";
 
 type HouseChat = ReturnType<typeof useHouseChat>;
 
@@ -71,7 +72,14 @@ export function HouseChatScreen({
   const [clearedThrough, setClearedThrough] = useState(() => readClearedThrough(identityKey));
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [dismissedNudge, setDismissedNudge] = useState<string | null>(null);
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const emoji = useChatEmoji(chat.messages);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const fieldRef = useRef<HTMLDivElement>(null);
+  const emojiPanelRef = useRef<HTMLDivElement>(null);
+  const emojiButtonRef = useRef<HTMLButtonElement>(null);
+  /** Where the caret goes once an inserted emoji code is in the text box. */
+  const caretRef = useRef<number | null>(null);
   const historyRef = useRef<HTMLDivElement>(null);
   const nearBottomRef = useRef(true);
   const forceBottomRef = useRef(false);
@@ -137,8 +145,46 @@ export function HouseChatScreen({
   useEffect(() => {
     setDraft("");
     setNewMessages(false);
+    setEmojiOpen(false);
     anchorRef.current = null;
   }, [identityKey, chat.accessDenied]);
+
+  // The emoji pop-up closes on a tap anywhere outside it and the text box (so typing between
+  // picks keeps it open). The smiley button is inside the text box's frame and toggles it.
+  useEffect(() => {
+    if (!emojiOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (target && (emojiPanelRef.current?.contains(target) || fieldRef.current?.contains(target))) return;
+      setEmojiOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [emojiOpen]);
+
+  // After an emoji code goes in, put the caret straight after it (without focusing the text
+  // box, so a phone keyboard doesn't jump up over the pop-up).
+  useLayoutEffect(() => {
+    const caret = caretRef.current;
+    const field = composerRef.current;
+    if (caret === null || !field) return;
+    caretRef.current = null;
+    field.setSelectionRange(caret, caret);
+  }, [draft]);
+
+  const insertEmoji = (code: string) => {
+    const field = composerRef.current;
+    const token = `:${code}:`;
+    const start = field ? field.selectionStart : draft.length;
+    const end = field ? field.selectionEnd : draft.length;
+    caretRef.current = start + token.length;
+    setDraft(draft.slice(0, start) + token + draft.slice(end));
+  };
+
+  const closeEmoji = (returnFocus: boolean) => {
+    setEmojiOpen(false);
+    if (returnFocus) emojiButtonRef.current?.focus();
+  };
 
   useEffect(() => {
     if (!cooldownActive) return;
@@ -182,8 +228,10 @@ export function HouseChatScreen({
   const send = () => {
     if (disabled || !validDraft) return;
     forceBottomRef.current = true;
-    if (chat.send(draft)) setDraft("");
-    else forceBottomRef.current = false;
+    if (chat.send(draft)) {
+      setDraft("");
+      setEmojiOpen(false);
+    } else forceBottomRef.current = false;
   };
 
   const loadOlder = async () => {
@@ -325,6 +373,7 @@ export function HouseChatScreen({
           const own = row.senderId === selfId;
           const failed = row.kind === "pending" && row.status === "failed";
           const wait = failed ? remainingSeconds(row.retryAt, now) : 0;
+          const body = renderChatText(row.kind === "message" && row.type === "pixi_message" ? displayPixiText(row.text) : row.text, emoji.lookup);
           return (
             <div key={row.key} className="house-chat__entry" data-chat-row-key={row.key}>
               {showDay && <div className="house-chat__day">{dayFormatter.format(new Date(row.createdAt))}</div>}
@@ -339,7 +388,7 @@ export function HouseChatScreen({
                     <strong>{row.senderName}</strong>
                     <time dateTime={row.createdAt}>{timeFormatter.format(new Date(row.createdAt))}</time>
                   </div>
-                  <p className="house-chat__text">{row.kind === "message" && row.type === "pixi_message" ? displayPixiText(row.text) : row.text}</p>
+                  <p className={body.big ? "house-chat__text house-chat__text--emoji" : "house-chat__text"}>{body.nodes}</p>
                   <div className="house-chat__delivery">
                     {row.kind === "message" && own && t("Sent")}
                     {row.kind === "pending" && row.status === "sending" && t("Sending")}
@@ -385,20 +434,48 @@ export function HouseChatScreen({
       ) : (
         <div className="house-chat__composer">
           <label htmlFor="chat-message">{t("Message")}</label>
-          <textarea
-            ref={composerRef}
-            id="chat-message"
-            rows={3}
-            placeholder={t("Message your house, or ask Pixi")}
-            value={draft}
-            onChange={event => setDraft(event.target.value)}
-            onKeyDown={event => {
-              if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
-                event.preventDefault();
-                send();
-              }
-            }}
-          />
+          {/* The smiley sits in the text box's top-right corner the whole time; the text keeps clear of it. */}
+          <div className="house-chat__field" ref={fieldRef}>
+            <textarea
+              ref={composerRef}
+              id="chat-message"
+              rows={3}
+              placeholder={t("Message your house, or ask Pixi")}
+              value={draft}
+              onChange={event => setDraft(event.target.value)}
+              onKeyDown={event => {
+                if (event.key === "Escape" && emojiOpen) {
+                  event.preventDefault();
+                  setEmojiOpen(false);
+                } else if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                  event.preventDefault();
+                  send();
+                }
+              }}
+            />
+            <button
+              ref={emojiButtonRef}
+              type="button"
+              className="house-chat__emoji-button"
+              aria-label={t("Add emoji")}
+              title={t("Add emoji")}
+              aria-haspopup="dialog"
+              aria-expanded={emojiOpen}
+              aria-controls={emojiOpen ? "house-chat-emoji" : undefined}
+              onClick={() => setEmojiOpen(open => !open)}
+            >
+              <IconSmiley size={22} />
+            </button>
+          </div>
+          {emojiOpen && (
+            <EmojiPicker
+              id="house-chat-emoji"
+              panelRef={emojiPanelRef}
+              sections={emoji.sections}
+              onPick={insertEmoji}
+              onClose={closeEmoji}
+            />
+          )}
           <div className="house-chat__composer-actions">
             <span className={count > 1000 ? "house-chat__count house-chat__count--invalid" : "house-chat__count"}>{count}/1000</span>
             <button type="button" disabled={!validDraft} onClick={send}>{t("Send")}</button>
