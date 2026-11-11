@@ -29,6 +29,7 @@ export { IconReportFlag } from "./IconReportFlag";
 export { IconSell } from "./IconSell";
 export { IconShield } from "./IconShield";
 export { IconSkull } from "./IconSkull";
+export { IconSmiley } from "./IconSmiley";
 export { IconSpeaker } from "./IconSpeaker";
 export { IconStar } from "./IconStar";
 export { IconStore } from "./IconStore";

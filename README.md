@@ -137,10 +137,32 @@ credentials. Without realtime configuration, visible chat still refreshes by pol
 every five seconds. Messages from the retired in-memory chat were never persisted, so
 they cannot be recovered or migrated into the new history.
 
+### Custom emojis (first draft)
+
+The yellow smiley in the message box's top-right corner opens a pop-up of the app's own
+pixel emojis: each house member's head (as they look now), Pixi's head and the leaderboard
+mascot, and 24 of the app's icons. Tapping one puts a short code into the message at the
+cursor (`:shield:`, `:pixi:`, `:head-3f2a9c1b:` for a member, from the first 8 characters of
+their id) and keeps the pop-up open; a tap outside, Escape or Send closes it.
+
+- Messages stay plain text, so the server, database and 1,000-character limit are unchanged.
+  The bubbles draw every code the app knows as its picture and leave anything else as
+  typed. A message that is only 1 to 3 emojis shows them big.
+- The head of someone who has left still draws from their own messages; otherwise it's a
+  plain head.
+- Pixi reads and uses them: its chat-reply input lists every code with what it shows
+  (`server/chat-emoji.js`, prompt section *The family's custom emojis* in
+  `server/prompts/pixi-chat-reply.md`), and any code it makes up is removed before posting.
+  Drill result posts don't use them.
+- The list, names and colours are in
+  [src/app/screens/chat/chatEmoji.tsx](src/app/screens/chat/chatEmoji.tsx); the server's copy of
+  the codes must match (`server/chat-emoji.test.mjs` checks). The button icon is
+  `IconSmiley`.
+
 ## Room customization
 
-Open **Customize room** from Home to name your room and choose a theme, wall color,
-wallpaper pattern, floor and neon lighting. These styles are free. The preview
+Open **Customize room** from Home to name your room and choose day or night, a theme, wall
+color, wallpaper pattern, floor and neon lighting. These styles are free. The preview
 updates as you choose; **Save style** applies the changes, and **Cancel changes**
 restores the last saved style. Furniture still uses the existing **Arrange room**
 controls. Styling does not change ownership, positions or coins.
@@ -157,6 +179,32 @@ all eight original IDs and prices; the catalogue adds 16 new pieces. All approve
 pixel sprites are served from `public/furniture/` and use the same art in the shop,
 rooms, previews and furniture editor. Newly placed hanging pieces start near the
 wall, and carpets render beneath other furniture. Saved positions are preserved.
+
+### Day and night rooms
+
+Every room can be a daylight room or the neon night scene. **Customize room → Day or night**
+offers **Auto** (the default: day for a player using the light theme, night in the dark theme),
+**Day** and **Night**. So in one house a light-theme player and a dark-theme player can see the
+same Auto room differently, while a room set to Night stays night for everyone.
+
+- Every wall and floor colour has a pale day twin with the same name and hue
+  (`WALL_COLORS` / `FLOORS` in [src/app/types/roomStyle.ts](src/app/types/roomStyle.ts)).
+  "Match avatar" becomes a light tint of the member's colour.
+- In a day room the wallpaper and floor marks are faint navy instead of faint white, and the neon
+  strip and pixel stars keep their colour with a dark outline and no glow
+  (`[data-room-time="day"]` in [src/styles/room-style.css](src/styles/room-style.css)).
+- The corner window and the three window pieces (city window, curtained window, skylight) show a
+  day sky: `public/furniture/*-day.svg`. The roof follows the viewer's theme (a day roof in
+  light, a night roof in dark), whatever the rooms under it are set to.
+- Furniture and characters are the same in both.
+- **Turning the choice off:** `ROOM_LIGHTING_MODE` at the top of `roomStyle.ts` is
+  `'choice'` (Auto / Day / Night per room). Set it to `'theme'` and every room simply follows
+  the viewer's light/dark theme, and Customize hides the choice (saved choices are kept, so
+  switching back restores them). `'night'` keeps every room the night scene, as before.
+- The code: `components/room/lighting.tsx` works out day or night for each room and scopes the
+  room's colour tokens to it (`data-theme` on the room box). `RoomBackdrop` draws it.
+- The server stores the choice as an optional `lighting` field (`server/room-style.js`); rooms
+  saved before it existed read as Auto.
 
 ## Light theme
 
@@ -182,6 +230,14 @@ small script in `index.html` applies the theme before the first paint.
     are filled with paper, so the outline stays on the outside and can't fill small holes. A
     cut-out that should read dark (a warning's "!", the skull's eyes) is a `px-ink` path instead.
     When you draw a new icon with enclosed holes, add its `px-hole` path the same way.
+  - How the holes look is picked per icon in the light-theme review (`notes/reviews/2026-11-10-drill-mode-light-review.md`)
+    with `data-inner` on the icon's `<svg>`: none (the holes are paper, outline outside only),
+    `"thin"` (also a 0.55px dark line just inside each hole, drawn by the icon's
+    `<path className="px-hole-line">`) or `"full"` (see-through holes, so the outline traces them).
+    Every icon with holes has a `px-hole-line` path, so switching an icon only means changing
+    `data-inner`. `notes/tooling/icons/icon-inner-lines.mjs` applies an exported review.
+    `IconGear` sets it in code instead: `"thin"` when drawn in a hue (the yellow House settings
+    tab), none when grey (the header), so its centre stands out only where it's coloured.
   - An inline `background: var(--yellow-fill)` (or `backgroundColor`) gets a 2px dark edge,
     unless the element already has a `var(--outline)` border (like `PixelButton`). A fill set some
     other way can add `className="fill-edge"`.
@@ -191,8 +247,10 @@ small script in `index.html` applies the theme before the first paint.
 - **Light palettes:** Mist is the default; Paper and Dusk are alternatives.
   - To switch, set `data-palette` on `<html>` in `index.html`.
   - To preview one, add `?palette=paper` (or `dusk`) to the address.
-- **Always dark, on purpose:** the title screen, the call screens and the room scenes are marked
-  `data-theme="dark"`. Characters, Pixi, furniture and rooms keep their own colours.
+- **Always dark, on purpose:** the title screen and the call screens are marked
+  `data-theme="dark"`. Rooms are day or night (see *Day and night rooms*): a room's box gets
+  `data-theme` from its own lighting, not the app's. Characters, Pixi and furniture keep their
+  own colours.
 - **The check:** `npm run check:theme` fails if a palette hex code is written into UI code. It
   also checks that each light palette keeps text readable (WCAG AA, 4.5:1) and borders visible
   (3:1).

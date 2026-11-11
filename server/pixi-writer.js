@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import OpenAI from 'openai';
+import { dropUnknownEmoji, emojiCodes, emojiGuide } from './chat-emoji.js';
 
 // Pixi's instructions live in server/prompts/*.md so they can be edited without touching
 // code. They're read on every call (they're tiny), so an edit applies straight away.
@@ -318,10 +319,16 @@ export const PIXI_REPLY_SCHEMA = {
 };
 
 
-/** The reply text, or null when Pixi stays quiet or the reply is unusable. */
-export function parsePixiReply(raw) {
+/**
+ * The reply text, or null when Pixi stays quiet or the reply is unusable. With `codes`
+ * (emojiCodes() for the house), a custom emoji code the house doesn't have is taken out,
+ * so a made-up ":heart:" never shows as text.
+ */
+export function parsePixiReply(raw, codes) {
   if (!raw || typeof raw !== 'object' || raw.reply !== true) return null;
-  return cleanLine(raw.text);
+  const text = cleanLine(raw.text);
+  if (!text || !codes) return text;
+  return dropUnknownEmoji(text, codes) || null;
 }
 
 /**
@@ -342,6 +349,8 @@ export function buildPixiReplyInput(context, latest, { mentioned, engaged = fals
     latest: { from: nameOf(latest), text: clip(latest.text, MAX_PIXI_CHARS * 2) },
     mentioned,
     pixiRecentlyActive: engaged,
+    // The app's own emojis (":shield:", each member's head…), so Pixi can read and use them.
+    customEmojis: emojiGuide(context.members, callThem),
   };
 }
 
@@ -353,5 +362,5 @@ export async function writePixiReply(context, latest, flags, options = {}) {
     name: 'pixi_reply',
     schema: PIXI_REPLY_SCHEMA,
   }, options);
-  return raw === null ? null : parsePixiReply(raw);
+  return raw === null ? null : parsePixiReply(raw, emojiCodes(context.members));
 }

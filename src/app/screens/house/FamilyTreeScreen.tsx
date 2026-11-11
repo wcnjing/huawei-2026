@@ -5,6 +5,7 @@ import { PixelButton, PixelPanel } from "../../components/ui";
 import { NODE_H, NODE_W, SHAPE, layoutFamilyTree, linkOf, relationLabels, roleBase, treeFromMembers, withTree } from "./familyTreeLayout";
 import { applyFamilyEdit, familyLinkFor, familyProblem } from "../../../../server/family-rules.js";
 import { useI18n, useT } from "../../i18n";
+import { fill, line } from "../../utils/color";
 
 const MONO = "'Share Tech Mono', monospace";
 const SHAPE_COLOR = { male: "var(--teal)", female: "var(--pink)", other: "var(--yellow)", none: "var(--soft-foreground)" } as const;
@@ -85,6 +86,7 @@ function MemberNode({ member, label, isSelf, picked, onPick }: {
   );
 }
 
+/** A toggle chip: the neon fill when on (with the dark edge in light), the page colour when off. */
 function Chip({ label, active, color, onClick, gender }: { label: string; active: boolean; color: string; onClick: () => void; gender?: FamilyGender }) {
   return (
     <button
@@ -94,8 +96,8 @@ function Chip({ label, active, color, onClick, gender }: { label: string; active
       style={{
         fontFamily: MONO, fontSize: "var(--text-caption)", padding: "8px 10px",
         display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
-        backgroundColor: active ? color : "var(--on-fill)", color: active ? "var(--on-fill)" : "var(--foreground)",
-        border: `2px solid ${active ? color : "var(--border)"}`, cursor: "pointer",
+        backgroundColor: active ? fill(color) : "var(--background)", color: active ? "var(--on-fill)" : "var(--foreground)",
+        border: `2px solid ${active ? line(color) : "var(--border)"}`, cursor: "pointer",
       }}
     >
       {gender && <Shape gender={gender} size={12} strokeWidth={2} stroke={active ? "var(--on-fill)" : color} fill="none" />}

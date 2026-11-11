@@ -519,6 +519,13 @@ const rows: Row[] = [
   ["Concrete", "水泥", "Konkrit", "காங்கிரீட்"],
   ["Neon grid", "霓虹格子", "Grid neon", "நியான் கட்டம்"],
   ["Brushed metal", "拉丝金属", "Logam berus", "தேய்த்த உலோகம்"],
+  // types/roomStyle.ts — lighting (day and night rooms)
+  ["Auto", "自动", "Auto", "தானியங்கி"],
+  ["Day", "白天", "Siang", "பகல்"],
+  ["Night", "夜晚", "Malam", "இரவு"],
+  ["Follows each viewer's theme", "跟随每位观看者的主题", "Ikut tema setiap penonton", "பார்ப்பவரின் தீமைப் பின்பற்றும்"],
+  ["Always daylight", "始终是白天", "Sentiasa siang", "எப்போதும் பகல்"],
+  ["Always neon night", "始终是霓虹夜晚", "Sentiasa malam neon", "எப்போதும் நியான் இரவு"],
   // types/roomStyle.ts — presets
   ["Classic", "经典", "Klasik", "பாரம்பரியம்"],
   ["Neon arcade", "霓虹街机", "Arked neon", "நியான் ஆர்கேட்"],

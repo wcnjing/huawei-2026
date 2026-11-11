@@ -2,8 +2,9 @@ import { useT } from '../../i18n';
 import { useEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react';
 import { furnitureLayer, reconcileLayout, snapPosition, type RoomLayout, type RoomPosition } from '../../types/roomLayout';
 import { RoomBackdrop } from './RoomBackdrop';
-import type { RoomStyle } from '../../types/roomStyle';
-import { tint } from "../../utils/color";
+import { DEFAULT_ROOM_STYLE, roomColors, type RoomStyle } from '../../types/roomStyle';
+import { fill, ink, line, tint } from "../../utils/color";
+import { RoomTimeProvider, roomScope, useRoomTime } from './lighting';
 
 export type RoomFurniture = { id: string; name: string; art: ReactNode };
 // Item size and travel below must keep width+travel = height+travel = 100: coordinates
@@ -48,6 +49,9 @@ export function RoomEditor({ items, layout, roomName, accent, background, roomSt
   cancelRef.current = onCancel;
   const drag = useRef<{ id: string; pointer: number; startX: number; startY: number; origin: RoomPosition; moved: boolean } | null>(null);
   const selectedItem = items.find(item => item.id === selected);
+  // The board is the room itself: day or night like the room on Home.
+  const time = useRoomTime(roomStyle);
+  const wall = roomColors(roomStyle ?? DEFAULT_ROOM_STYLE, background, accent, time).wall;
 
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -79,15 +83,16 @@ export function RoomEditor({ items, layout, roomName, accent, background, roomSt
 
   return <div style={{ position: 'fixed', inset: 0, zIndex: 11000, background: 'rgba(3,8,18,.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }}>
     <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby="room-editor-title" tabIndex={-1}
-      style={{ width: '100%', maxWidth: 560, maxHeight: 'calc(100dvh - 24px)', display: 'flex', flexDirection: 'column', border: `3px solid ${accent}`, boxShadow: `5px 5px 0 var(--page-backdrop)`, background: 'var(--background)', color: 'var(--foreground)', fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", outline: 'none' }}>
+      style={{ width: '100%', maxWidth: 560, maxHeight: 'calc(100dvh - 24px)', display: 'flex', flexDirection: 'column', border: `3px solid ${line(accent)}`, boxShadow: `5px 5px 0 var(--page-backdrop)`, background: 'var(--background)', color: 'var(--foreground)', fontFamily: "'Share Tech Mono', monospace", fontSize: "var(--text-body)", outline: 'none' }}>
       <div style={{ padding: '16px 18px', borderBottom: '2px solid var(--border)' }}>
-        <h2 id="room-editor-title" style={{ fontSize: "var(--text-display)", color: accent, margin: '0 0 4px' }}>{t('Arrange room')}</h2>
+        <h2 id="room-editor-title" style={{ fontSize: "var(--text-display)", color: ink(accent), margin: '0 0 4px' }}>{t('Arrange room')}</h2>
         <div style={{ color: 'var(--soft-foreground)' }}>{roomName}</div>
       </div>
       <div style={{ overflowY: 'auto', padding: 16, minHeight: 0 }}>
         <p style={{ margin: '0 0 14px', lineHeight: 1.5 }}>{t('Drag furniture, or select an item and tap where you want it.')}</p>
         <style>{`.room-furniture-art > svg { width:100%; height:100%; flex-shrink:1; } .room-editor-item:focus-visible { outline:3px solid var(--foreground-strong); outline-offset:2px; }`}</style>
-        <div ref={board} data-room-editor-board aria-label={t('Room placement area')}
+        <RoomTimeProvider value={time}>
+        <div ref={board} data-room-editor-board {...roomScope(time)} aria-label={t('Room placement area')}
           onClick={event => {
             if (!selected || !board.current) return;
             const rect = board.current.getBoundingClientRect();
@@ -96,8 +101,8 @@ export function RoomEditor({ items, layout, roomName, accent, background, roomSt
             move(selected, (event.clientX - rect.left - rect.width * (ITEM_WIDTH_PCT / 200)) / (rect.width * ITEM_TRAVEL_X) * 100,
               (event.clientY - rect.top - rect.height * (ITEM_HEIGHT_PCT / 200)) / (rect.height * ITEM_TRAVEL_Y) * 100);
           }}
-          style={{ position: 'relative', aspectRatio: '1.6', backgroundColor: background, backgroundImage: `linear-gradient(color-mix(in srgb, var(--foreground-strong) 7%, transparent) 1px, transparent 1px), linear-gradient(90deg,color-mix(in srgb, var(--foreground-strong) 7%, transparent) 1px, transparent 1px)`, backgroundSize: `${ITEM_TRAVEL_X * 10}% ${ITEM_TRAVEL_Y * 10}%`, boxShadow: `inset 0 0 0 2px ${accent}66`, touchAction: 'none' }}>
-          <RoomBackdrop style={roomStyle} background={background} accent={accent} />
+          style={{ position: 'relative', aspectRatio: '1.6', backgroundColor: wall, backgroundImage: `linear-gradient(color-mix(in srgb, var(--foreground-strong) 7%, transparent) 1px, transparent 1px), linear-gradient(90deg,color-mix(in srgb, var(--foreground-strong) 7%, transparent) 1px, transparent 1px)`, backgroundSize: `${ITEM_TRAVEL_X * 10}% ${ITEM_TRAVEL_Y * 10}%`, boxShadow: `inset 0 0 0 2px ${accent}66`, touchAction: 'none' }}>
+          <RoomBackdrop style={roomStyle} background={background} accent={accent} time={time} />
           <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'linear-gradient(color-mix(in srgb, var(--foreground-strong) 7%, transparent) 1px, transparent 1px), linear-gradient(90deg,color-mix(in srgb, var(--foreground-strong) 7%, transparent) 1px, transparent 1px)', backgroundSize: `${ITEM_TRAVEL_X * 10}% ${ITEM_TRAVEL_Y * 10}%` }} />
           {items.map(item => <button key={item.id} type="button" aria-label={t('Move {item}', { item: t(item.name) })} aria-pressed={selected === item.id}
             className="room-editor-item room-furniture-art" data-editor-item={item.id}
@@ -130,10 +135,11 @@ export function RoomEditor({ items, layout, roomName, accent, background, roomSt
             }}
             style={{ ...itemStyle(draft[item.id]), padding: 3, border: `2px solid ${selected === item.id ? accent : 'transparent'}`, background: selected === item.id ? tint(accent, 9) : 'transparent', cursor: 'grab', touchAction: 'none', zIndex: selected === item.id ? 3 : furnitureLayer(item.id), userSelect: 'none' }}>{item.art}</button>)}
         </div>
-        <p style={{ margin: '12px 0 8px', color: accent }} aria-live="polite">{selectedItem ? t('Selected: {item}', { item: t(selectedItem.name) }) : t('Buy furniture in the store to arrange your room.')}</p>
+        </RoomTimeProvider>
+        <p style={{ margin: '12px 0 8px', color: ink(accent) }} aria-live="polite">{selectedItem ? t('Selected: {item}', { item: t(selectedItem.name) }) : t('Buy furniture in the store to arrange your room.')}</p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }} aria-label={t('Your furniture')}>
           {items.map(item => <button key={item.id} onClick={() => setSelected(item.id)} aria-pressed={selected === item.id}
-            style={{ ...button, borderColor: selected === item.id ? accent : 'var(--border-strong)', color: selected === item.id ? accent : 'var(--foreground)' }}>{t(item.name)}</button>)}
+            style={{ ...button, borderColor: selected === item.id ? line(accent) : 'var(--border-strong)', color: selected === item.id ? ink(accent) : 'var(--foreground)' }}>{t(item.name)}</button>)}
         </div>
         {selected && <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
           <span style={{ color: 'var(--soft-foreground)' }}>{t('Fine-tune:')}</span>
@@ -144,7 +150,7 @@ export function RoomEditor({ items, layout, roomName, accent, background, roomSt
       </div>
       <div style={{ display: 'flex', gap: 12, padding: 16, borderTop: '2px solid var(--border)' }}>
         <button style={{ ...button, flex: 1 }} onClick={onCancel}>{t('Cancel')}</button>
-        <button style={{ ...button, flex: 1, color: 'var(--surface-deep)', background: accent, borderColor: accent, fontWeight: 'bold' }} onClick={() => {
+        <button style={{ ...button, flex: 1, color: 'var(--on-fill)', background: fill(accent), borderColor: line(accent), fontWeight: 'bold' }} onClick={() => {
           if (!onSave(reconcileLayout(items.map(i => i.id), draft))) setError(t('Your browser could not save this layout. Allow site storage and try again.'));
         }}>{t('Save layout')}</button>
       </div>

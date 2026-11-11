@@ -6,6 +6,8 @@ import { ShopFurnitureArt, purchasedFurniture } from "../../components/furniture
 import { IconCoin, IconHouse } from "../../components/icons";
 import { PixelButton, PixelSelect } from "../../components/ui";
 import { RoomBackdrop, RoomFurnitureLayer } from "../../components/room";
+import { RoomTimeProvider, roomScope, useRoomTime } from "../../components/room/lighting";
+import { roomColors } from "../../types/roomStyle";
 import { useMemberMap } from "../../hooks/useMembers";
 import { ink, line } from "../../utils/color";
 
@@ -28,6 +30,8 @@ export function ShopScreen({
   const member = useMemberMap()[activeMemberId];
   const memberCoins = coins[activeMemberId] ?? 0;
   const owned = purchasedItems[activeMemberId] ?? [];
+  // The room preview is day or night like the player's room on Home.
+  const roomTime = useRoomTime(member?.roomStyle);
   if (!member) return null;
 
   const filtered = filterShopItems(category, decorType, filter, owned, memberCoins);
@@ -63,12 +67,13 @@ export function ShopScreen({
               {t("{name}'S ROOM PREVIEW", { name: member.name })}
             </div>
           </div>
+          <RoomTimeProvider value={roomTime}>
           <div
-            data-theme="dark"
+            {...roomScope(roomTime)}
             style={{
               width: "100%",
               height: 132,
-              backgroundColor: member.roomBg,
+              backgroundColor: roomColors(member.roomStyle, member.roomBg, member.primaryColor, roomTime).wall,
               border: `3px solid ${line(member.primaryColor)}`,
               boxShadow: `3px 3px 0 ${line(member.primaryColor)}`,
               position: "relative",
@@ -76,7 +81,7 @@ export function ShopScreen({
               marginBottom: 14,
             }}
           >
-            <RoomBackdrop style={member.roomStyle} background={member.roomBg} accent={member.primaryColor} />
+            <RoomBackdrop style={member.roomStyle} background={member.roomBg} accent={member.primaryColor} time={roomTime} />
             <div style={{ position: "absolute", inset: "24px 8px 8px", pointerEvents: "none" }}>
               <RoomFurnitureLayer items={purchasedFurniture(owned)} layout={layout} />
             </div>
@@ -92,6 +97,7 @@ export function ShopScreen({
               </div>
             </div>
           </div>
+          </RoomTimeProvider>
 
           {owned.length > 0 && <div style={{ marginBottom: 14 }}>
             <PixelButton onClick={onArrange} color="var(--teal-fill)" textColor="var(--on-fill)" size="md" full>{t("ARRANGE ROOM")}</PixelButton>

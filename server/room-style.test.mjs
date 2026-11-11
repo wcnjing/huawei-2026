@@ -67,13 +67,14 @@ test('invalid storage and storage failures do not crash or report a successful s
 });
 
 test('the server room-style allowlist matches every option the client offers', async () => {
-  const { ROOM_STYLE_OPTIONS, cleanRoomStyle } = await import('./room-style.js');
+  const { ROOM_STYLE_OPTIONS, ROOM_LIGHTING_OPTIONS, cleanRoomStyle } = await import('./room-style.js');
   const client = withStorage();
   const ids = (list) => list.map((option) => option.id);
   assert.deepEqual(ROOM_STYLE_OPTIONS, {
     wall: ids(client.WALL_COLORS), pattern: ids(client.WALL_PATTERNS),
     floor: ids(client.FLOORS), light: ids(client.ROOM_LIGHTS),
   });
+  assert.deepEqual(ROOM_LIGHTING_OPTIONS, ids(client.ROOM_LIGHTING));
   // Whatever the client normalises and sends is accepted unchanged.
   for (const preset of client.ROOM_PRESETS) {
     const style = client.normalizeRoomStyle({ ...preset.style, name: ' My room ' });
@@ -82,4 +83,35 @@ test('the server room-style allowlist matches every option the client offers', a
   assert.equal(cleanRoomStyle({ ...client.DEFAULT_ROOM_STYLE, floor: 'lava' }), null);
   assert.equal(cleanRoomStyle({ ...client.DEFAULT_ROOM_STYLE, glow: 'yes' }), null);
   assert.equal(cleanRoomStyle([]), null);
+});
+
+test('day and night rooms: lighting is optional for the server and Auto follows the viewer', async () => {
+  const { cleanRoomStyle } = await import('./room-style.js');
+  const client = withStorage();
+  const { DEFAULT_ROOM_STYLE: base, ROOM_LIGHTING_MODE, normalizeRoomStyle: normalize, roomTime, roomColors: colors } = client;
+  // Styles saved before day rooms (no lighting) are still accepted, unchanged, and read as Auto.
+  const { lighting: _none, ...legacy } = base;
+  assert.deepEqual(cleanRoomStyle(legacy), legacy);
+  assert.equal(normalize(legacy).lighting, 'auto');
+  for (const lighting of ['auto', 'day', 'night']) {
+    assert.deepEqual(cleanRoomStyle({ ...base, lighting }), { ...base, lighting });
+    assert.equal(normalize({ lighting }).lighting, lighting);
+  }
+  assert.equal(cleanRoomStyle({ ...base, lighting: 'dusk' }), null);
+  assert.equal(normalize({ lighting: 'dusk' }).lighting, 'auto');
+
+  if (ROOM_LIGHTING_MODE === 'choice') {
+    assert.equal(roomTime({ lighting: 'auto' }, 'light'), 'day');
+    assert.equal(roomTime({ lighting: 'auto' }, 'dark'), 'night');
+    assert.equal(roomTime({ lighting: 'night' }, 'light'), 'night');
+    assert.equal(roomTime({ lighting: 'day' }, 'dark'), 'day');
+  }
+  // Night colours are unchanged; every named wall and floor has its own day twin.
+  assert.deepEqual(colors({ ...base, wall: 'violet', floor: 'oak' }, '#100c20', '#c77dff'), { wall: '#211733', floor: '#3c2d32', light: '#c77dff' });
+  assert.deepEqual(colors({ ...base, wall: 'violet', floor: 'oak' }, '#100c20', '#c77dff', 'day'), { wall: '#ebe3f6', floor: '#c9a47e', light: '#c77dff' });
+  for (const option of [...client.WALL_COLORS, ...client.FLOORS]) {
+    if (option.color) assert.match(option.day, /^#[0-9a-f]{6}$/, option.id);
+  }
+  // "Match avatar" in daylight is a pale tint of the member's colour.
+  assert.equal(colors(base, '#100c20', '#c77dff', 'day').wall, 'color-mix(in srgb, #c77dff 14%, #f7f9fc)');
 });
